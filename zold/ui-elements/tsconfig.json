@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "rootDir": "src",
+    "outDir": "dist",
+    "declarationDir": "dist", // Ensure this is set to the correct output directory
+    "target": "ESNext", // Modern JavaScript for browsers
+    "module": "ESNext", // Use ES modules
+    "moduleResolution": "node", // Module resolution strategy
+    "strict": true, // Enable strict mode for type checking
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "esModuleInterop": true, // Ensures compatibility with CommonJS modules
+    "skipLibCheck": true, // Skips checking of declaration files (for faster builds)
+    "resolveJsonModule": true, // Allows importing JSON files
+    "lib": ["dom", "esnext"], // Add DOM and ESNext library files
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    "declaration": true, // Ensure this is set to true
+    "sourceMap": true, // Generate source maps for easier debugging
+    "skipDefaultLibCheck": true // Skips checking the default library files for faster builds
+  },
+  "include": ["src/components/*.ts"], // "stories/**/*.tsx"
+  "exclude": ["dist", "node_modules"]
+  //   // "**/*.stories.tsx" // Doesnt seem to be necissaru
+  // ]
+}

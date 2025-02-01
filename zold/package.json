@@ -1,0 +1,47 @@
+{
+  "name": "@we/elements",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./dist/main.js",
+    "./*": "./dist/components/*.js",
+    "./themes/*": "./dist/styles/themes/*.css",
+    "./variables.css": "./dist/styles/variables.css"
+  },
+  "scripts": {
+    "start": "storybook dev -p 6006",
+    "storybook:build": "storybook build",
+    "build": "rimraf dist && rollup -c rollup.config.js",
+    "build:cem": "cem analyze --litelement --globs src/**/*.ts",
+    "lint:check": "pnpm run lint:ts:check && pnpm run lint:css:check",
+    "lint:ts:check": "eslint src/**/*.ts --config eslint.config.js",
+    "lint:css:check": "stylelint src/**/*.css",
+    "lint:fix": "pnpm run lint:ts:fix && pnpm run lint:css:fix",
+    "lint:ts:fix": "eslint ./src --ext .ts --fix --config .eslintrc.cjs",
+    "lint:css:fix": "stylelint src/**/*.css --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepublish": "pnpm build",
+    "publish": "npm publish --access public"
+  },
+  "dependencies": {
+    "jdenticon": "3.3.0",
+    "lit": "3.2.1",
+    "tslib": "2.8.1"
+  },
+  "devDependencies": {
+    "@custom-elements-manifest/analyzer": "0.10.4",
+    "@rollup/plugin-node-resolve": "^15.3.0",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@storybook/addon-essentials": "8.4.6",
+    "@storybook/web-components": "8.4.6",
+    "@storybook/web-components-vite": "8.4.6",
+    "glob": "^11.0.0",
+    "rimraf": "^6.0.1",
+    "rollup": "^4.28.1",
+    "rollup-plugin-copy": "^3.5.0",
+    "rollup-plugin-postcss": "^4.0.2",
+    "rollup-plugin-typescript2": "^0.36.0",
+    "storybook": "8.4.6"
+  }
+}

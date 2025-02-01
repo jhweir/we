@@ -1,0 +1,62 @@
+{
+  "name": "@we/ui-elements",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/main.js",
+  "browser": "dist/main.js",
+  "types": "dist/main.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "start": "storybook dev -p 6006",
+    "storybook:build": "storybook build",
+    "build": "rimraf dist && pnpm run build:lib && pnpm run build:cem && pnpm run build:types",
+    "build:lib": "rollup -c rollup.config.js",
+    "build:cem": "cem analyze --litelement --globs src/**/*.ts --outdir dist/",
+    "build:types": "node scripts/generate-types.js",
+    "lint:check": "pnpm run lint:ts:check && pnpm run lint:css:check",
+    "lint:ts:check": "eslint src/**/*.ts --config eslint.config.js",
+    "lint:css:check": "stylelint src/**/*.css",
+    "lint:fix": "pnpm run lint:ts:fix && pnpm run lint:css:fix",
+    "lint:ts:fix": "eslint ./src --ext .ts --fix --config .eslintrc.cjs",
+    "lint:css:fix": "stylelint src/**/*.css --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepublish": "pnpm build",
+    "publish": "npm publish --access public"
+  },
+  "dependencies": {
+    "jdenticon": "3.3.0",
+    "lit": "3.2.1",
+    "tslib": "2.8.1"
+  },
+  "devDependencies": {
+    "@custom-elements-manifest/analyzer": "0.9.0",
+    "@eslint/js": "9.16.0",
+    "@rollup/plugin-commonjs": "28.0.1",
+    "@rollup/plugin-node-resolve": "15.3.0",
+    "@rollup/plugin-terser": "0.4.4",
+    "@storybook/addon-essentials": "8.4.6",
+    "@storybook/web-components": "8.4.6",
+    "@storybook/web-components-vite": "8.4.6",
+    "@typescript-eslint/eslint-plugin": "8.16.0",
+    "@typescript-eslint/parser": "8.16.0",
+    "eslint": "9.14.0",
+    "eslint-config-prettier": "9.1.0",
+    "eslint-plugin-import": "2.31.0",
+    "eslint-plugin-lit": "1.15.0",
+    "eslint-plugin-prettier": "5.2.1",
+    "glob": "11.0.0",
+    "globals": "15.12.0",
+    "prettier": "3.4.1",
+    "rimraf": "5.0.5",
+    "rollup": "4.28.0",
+    "rollup-plugin-postcss": "4.0.2",
+    "rollup-plugin-typescript2": "0.36.0",
+    "storybook": "8.4.6",
+    "stylelint": "15.11.0",
+    "stylelint-config-standard": "34.0.0",
+    "typescript": "5.3.3"
+  }
+}
