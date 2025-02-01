@@ -1,4 +1,0 @@
-{
-  "extends": ["stylelint-config-standard"],
-  "rules": { "custom-property-empty-line-before": ["never", { "ignore": ["after-comment"] }] }
-}
