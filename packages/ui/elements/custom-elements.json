@@ -4,26 +4,6 @@
   "modules": [
     {
       "kind": "javascript-module",
-      "path": "src/main.ts",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/shared.ts",
-      "declarations": [],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "module": "src/shared.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
       "path": "src/components/Badge.ts",
       "declarations": [
         {
@@ -288,6 +268,81 @@
           "declaration": {
             "name": "Button",
             "module": "src/components/Button.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/Row.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "Row",
+          "members": [
+            {
+              "kind": "field",
+              "name": "alignX",
+              "type": {
+                "text": "Align"
+              },
+              "default": "''",
+              "attribute": "alignX",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "alignY",
+              "type": {
+                "text": "Align"
+              },
+              "default": "''",
+              "attribute": "alignY",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "alignX",
+              "type": {
+                "text": "Align"
+              },
+              "default": "''",
+              "fieldName": "alignX"
+            },
+            {
+              "name": "alignY",
+              "type": {
+                "text": "Align"
+              },
+              "default": "''",
+              "fieldName": "alignY"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "we-row",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "Row",
+            "module": "src/components/Row.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "we-row",
+          "declaration": {
+            "name": "Row",
+            "module": "src/components/Row.ts"
           }
         }
       ]

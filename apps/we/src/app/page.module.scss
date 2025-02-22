@@ -4,4 +4,20 @@
   align-items: center;
   gap: 50px;
   width: 100%;
+
+  // .test {
+  //   background-color: green;
+
+  //   > we-badge::part(base) {
+  //     background: red;
+  //   }
+  // }
+
+  .test {
+    margin: 20px;
+
+    > we-column {
+      margin: 20px;
+    }
+  }
 }
