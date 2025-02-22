@@ -4,6 +4,26 @@
   "modules": [
     {
       "kind": "javascript-module",
+      "path": "src/main.ts",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/shared.ts",
+      "declarations": [],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "src/shared.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/components/Badge.ts",
       "declarations": [
         {
@@ -274,6 +294,484 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/components/Column.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "Column",
+          "members": [
+            {
+              "kind": "field",
+              "name": "alignX",
+              "type": {
+                "text": "AlignX"
+              },
+              "default": "''",
+              "attribute": "alignX",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "alignY",
+              "type": {
+                "text": "AlignY"
+              },
+              "default": "''",
+              "attribute": "alignY",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "wrap",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "wrap",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "reverse",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "reverse",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "radius",
+              "type": {
+                "text": "Size"
+              },
+              "default": "''",
+              "attribute": "radius",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "gap",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "attribute": "gap",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "bg",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "bg",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "color",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "color",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "p",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "attribute": "p",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pl",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "attribute": "pl",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pr",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "attribute": "pr",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pt",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "attribute": "pt",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pb",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "attribute": "pb",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "px",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "attribute": "px",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "py",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "attribute": "py",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "m",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "attribute": "m",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "ml",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "attribute": "ml",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "mr",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "attribute": "mr",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "mt",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "attribute": "mt",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "mb",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "attribute": "mb",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "mx",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "attribute": "mx",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "my",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "attribute": "my",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "class",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "class",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "style",
+              "type": {
+                "text": "any"
+              },
+              "attribute": "style",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "styleSheet",
+              "type": {
+                "text": "CSSStyleSheet | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "alignX",
+              "type": {
+                "text": "AlignX"
+              },
+              "default": "''",
+              "fieldName": "alignX"
+            },
+            {
+              "name": "alignY",
+              "type": {
+                "text": "AlignY"
+              },
+              "default": "''",
+              "fieldName": "alignY"
+            },
+            {
+              "name": "wrap",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "wrap"
+            },
+            {
+              "name": "reverse",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "reverse"
+            },
+            {
+              "name": "radius",
+              "type": {
+                "text": "Size"
+              },
+              "default": "''",
+              "fieldName": "radius"
+            },
+            {
+              "name": "gap",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "fieldName": "gap"
+            },
+            {
+              "name": "bg",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "bg"
+            },
+            {
+              "name": "color",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "color"
+            },
+            {
+              "name": "p",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "fieldName": "p"
+            },
+            {
+              "name": "pl",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "fieldName": "pl"
+            },
+            {
+              "name": "pr",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "fieldName": "pr"
+            },
+            {
+              "name": "pt",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "fieldName": "pt"
+            },
+            {
+              "name": "pb",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "fieldName": "pb"
+            },
+            {
+              "name": "px",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "fieldName": "px"
+            },
+            {
+              "name": "py",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "fieldName": "py"
+            },
+            {
+              "name": "m",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "fieldName": "m"
+            },
+            {
+              "name": "ml",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "fieldName": "ml"
+            },
+            {
+              "name": "mr",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "fieldName": "mr"
+            },
+            {
+              "name": "mt",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "fieldName": "mt"
+            },
+            {
+              "name": "mb",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "fieldName": "mb"
+            },
+            {
+              "name": "mx",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "fieldName": "mx"
+            },
+            {
+              "name": "my",
+              "type": {
+                "text": "Space"
+              },
+              "default": "''",
+              "fieldName": "my"
+            },
+            {
+              "name": "class",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "class"
+            },
+            {
+              "name": "style",
+              "type": {
+                "text": "any"
+              },
+              "fieldName": "style"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "we-column",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "Column",
+            "module": "src/components/Column.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "we-column",
+          "declaration": {
+            "name": "Column",
+            "module": "src/components/Column.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/components/Row.ts",
       "declarations": [
         {
@@ -285,7 +783,7 @@
               "kind": "field",
               "name": "alignX",
               "type": {
-                "text": "Align"
+                "text": "AlignX"
               },
               "default": "''",
               "attribute": "alignX",
@@ -295,10 +793,29 @@
               "kind": "field",
               "name": "alignY",
               "type": {
-                "text": "Align"
+                "text": "AlignY"
               },
               "default": "''",
               "attribute": "alignY",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "class",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "class",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "style",
+              "type": {
+                "text": "any"
+              },
+              "attribute": "style",
               "reflects": true
             }
           ],
@@ -306,7 +823,7 @@
             {
               "name": "alignX",
               "type": {
-                "text": "Align"
+                "text": "AlignX"
               },
               "default": "''",
               "fieldName": "alignX"
@@ -314,10 +831,25 @@
             {
               "name": "alignY",
               "type": {
-                "text": "Align"
+                "text": "AlignY"
               },
               "default": "''",
               "fieldName": "alignY"
+            },
+            {
+              "name": "class",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "class"
+            },
+            {
+              "name": "style",
+              "type": {
+                "text": "any"
+              },
+              "fieldName": "style"
             }
           ],
           "superclass": {
