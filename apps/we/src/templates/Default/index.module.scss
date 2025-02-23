@@ -1,0 +1,31 @@
+.sidebar {
+  //   we-avatar::part(base) {
+  //     // box-shadow: 0 1px 8px 0 rgba(black, 0.25);
+  //     box-shadow: 0 0 0 0.5px rgba(black, 0.1);
+  //   }
+
+  a {
+    // box-shadow: 0 0 0 0.5px rgba(black, 0.1);
+    border-radius: 50%;
+    width: var(--we-size-md);
+    height: var(--we-size-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.5s;
+
+    &:hover {
+      //   box-shadow: 0 0 8px 3px rgba(black, 0.1);
+      //   box-shadow: 0 0 0 0.5px var(--we-color-ui-100);
+      background-color: var(--we-color-ui-100);
+    }
+  }
+
+  &.left {
+    border-right: 1px solid var(--we-color-ui-100);
+  }
+
+  &.right {
+    border-left: 1px solid var(--we-color-ui-100);
+  }
+}

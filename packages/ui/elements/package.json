@@ -25,6 +25,7 @@
     "publish": "npm publish --access public"
   },
   "dependencies": {
+    "@popperjs/core": "^2.11.8",
     "jdenticon": "3.3.0",
     "lit": "3.2.1",
     "tslib": "2.8.1"

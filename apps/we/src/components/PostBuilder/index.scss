@@ -1,0 +1,96 @@
+.prose-editor {
+  position: relative;
+
+  .placeholder {
+    color: #adb5bd;
+    pointer-events: none;
+    height: 0;
+    position: absolute;
+    display: inline-block;
+    user-select: none;
+  }
+
+  .ProseMirror {
+    min-height: 100px;
+    outline: none;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+
+    > * + * {
+      margin-top: 0.75em;
+    }
+
+    p {
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    ul,
+    ol {
+      padding-left: 20px;
+      margin: 0;
+    }
+
+    pre {
+      background: #f5f5f5;
+      padding: 0.75rem;
+      border-radius: 4px;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    *[draggable] {
+      cursor: move;
+    }
+  }
+
+  .ProseMirror-focused {
+    outline: none;
+  }
+}
+
+.menu-bar {
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  gap: 0.5rem;
+
+  button {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+
+    &:hover {
+      background: #f5f5f5;
+    }
+  }
+}
+
+.slash-menu {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 0.5rem;
+  z-index: 100;
+
+  button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.5rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+
+    &:hover {
+      background: #f5f5f5;
+    }
+  }
+}

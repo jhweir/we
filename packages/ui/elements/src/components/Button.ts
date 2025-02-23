@@ -226,7 +226,11 @@ declare global {
         square?: boolean;
         full?: boolean;
         circle?: boolean;
+        slot?: string;
+        class?: string;
+        style?: any;
         children?: any;
+        onClick?: (event: MouseEvent) => void;
       };
     }
   }

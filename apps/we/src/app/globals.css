@@ -1,4 +1,4 @@
-:root {
+/* :root {
   --background: #ffffff;
   --foreground: #171717;
 }
@@ -8,27 +8,31 @@
     --background: #0a0a0a;
     --foreground: #ededed;
   }
-}
-
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+} */
 
 * {
   box-sizing: border-box;
 }
 
-a {
+html,
+body {
+  /* max-width: 100vw;
+  overflow-x: hidden; */
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+body {
+  /* color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale; */
+}
+
+/* a {
   color: inherit;
   text-decoration: none;
 }
@@ -37,4 +41,4 @@ a {
   html {
     color-scheme: dark;
   }
-}
+} */

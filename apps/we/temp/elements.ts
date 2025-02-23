@@ -7,3 +7,10 @@
 // const Button = dynamic(() => import('@we/elements/Button'), { ssr: false });
 
 // export { Badge, Button };
+
+'use client';
+import '@we/elements';
+
+export default function RegisterWeElements() {
+  return null;
+}

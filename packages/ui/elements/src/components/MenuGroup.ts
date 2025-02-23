@@ -1,92 +1,73 @@
-import { css, html, LitElement } from "lit";
-import { customElement, property } from "lit/decorators.js";
-import sharedStyles from "../shared";
+import { css, html, LitElement } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
+import sharedStyles from '../shared';
 
 const styles = css`
   :host {
-    --j-menu-group-item-cursor: default;
-    --j-menu-group-item-title-padding: 0 var(--j-space-500);
+    --we-menu-group-item-cursor: default;
+    --we-menu-group-item-title-padding: 0 var(--we-space-500);
   }
   :host([collapsible]) {
-    --j-menu-group-item-cursor: pointer;
-    --j-menu-group-item-title-padding: 0 var(--j-space-800);
+    --we-menu-group-item-cursor: pointer;
+    --we-menu-group-item-title-padding: 0 var(--we-space-800);
   }
-  [part="summary"] {
+  [part='summary'] {
     position: relative;
-    cursor: var(--j-menu-group-item-cursor);
+    cursor: var(--we-menu-group-item-cursor);
     list-style: none;
     display: flex;
-    gap: var(--j-space-400);
+    gap: var(--we-space-400);
     align-items: center;
-    padding: var(--j-menu-group-item-title-padding);
-    margin-bottom: var(--j-space-200);
+    padding: var(--we-menu-group-item-title-padding);
+    margin-bottom: var(--we-space-200);
     -webkit-appearance: none;
   }
-  [part="summary"]::marker,
-  [part="summary"]::-webkit-details-marker {
+  [part='summary']::marker,
+  [part='summary']::-webkit-details-marker {
     display: none;
   }
 
-  [part="summary"]:hover {
-    color: var(--j-color-ui-700);
+  [part='summary']:hover {
+    color: var(--we-color-ui-700);
   }
-  :host([collapsible]) [part="summary"]:after {
+  :host([collapsible]) [part='summary']:after {
     top: 50%;
-    left: var(--j-space-500);
+    left: var(--we-space-500);
     position: absolute;
     display: block;
-    content: "";
-    border-right: 1px solid var(--j-color-ui-500);
-    border-bottom: 1px solid var(--j-color-ui-500);
+    content: '';
+    border-right: 1px solid var(--we-color-ui-500);
+    border-bottom: 1px solid var(--we-color-ui-500);
     width: 4px;
     height: 4px;
     transition: all 0.2s ease;
     transform: rotate(-45deg) translateX(-50%);
     transform-origin: center;
   }
-  :host([open][collapsible]) [part="summary"]:after {
+  :host([open][collapsible]) [part='summary']:after {
     transform: rotate(45deg) translateX(-50%);
   }
-  [part="title"] {
+  [part='title'] {
     text-transform: uppercase;
-    font-size: var(--j-font-size-400);
-    color: var(--j-color-ui-400);
+    font-size: var(--we-font-size-400);
+    color: var(--we-color-ui-400);
     font-weight: 500;
     flex: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  [part="content"] {
+  [part='content'] {
   }
 `;
 
-@customElement("j-menu-group")
+@customElement('we-menu-group')
 export default class Component extends LitElement {
   static styles = [styles, sharedStyles];
 
-  /**
-   * Open
-   * @type {Boolean} @attr
-   */
-  @property({ type: Boolean, reflect: true })
-  collapsible = false;
-
-  /**
-   * Open
-   * @type {Boolean}
-   * @attr
-   */
-  @property({ type: Boolean, reflect: true })
-  open = false;
-
-  /**
-   * Title
-   * @type {String}
-   * @attr
-   */
-  @property({ type: String, reflect: true })
-  title = "";
+  @property({ type: Boolean, reflect: true }) collapsible = false;
+  @property({ type: Boolean, reflect: true }) open = false;
+  @property({ type: String, reflect: true }) title = '';
 
   collapsibleContent() {
     return html`
@@ -128,5 +109,20 @@ export default class Component extends LitElement {
 
   render() {
     return this.collapsible ? this.collapsibleContent() : this.normal();
+  }
+}
+
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'we-menu-group': {
+        collapsible?: boolean;
+        open?: boolean;
+        title?: string;
+        class?: string;
+        style?: any;
+        children?: any;
+      };
+    }
   }
 }

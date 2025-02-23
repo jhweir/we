@@ -1,4 +1,11 @@
+import './components/Avatar';
 import './components/Badge';
 import './components/Button';
-import './components/Row';
 import './components/Column';
+import './components/Icon';
+import './components/Menu';
+import './components/MenuGroup';
+import './components/MenuItem';
+import './components/Popover';
+import './components/Row';
+import './components/Spinner';
