@@ -23,18 +23,32 @@ const createPlaceholderPlugin = () => {
     key: new PluginKey('placeholder'),
     props: {
       decorations: (state) => {
-        const doc = state.doc;
-        if (doc.childCount === 1 && doc.firstChild?.isTextblock && doc.firstChild.content.size === 0) {
-          return DecorationSet.create(doc, [
-            Decoration.widget(1, () => {
-              const span = document.createElement('span');
-              span.className = 'placeholder';
-              span.textContent = 'Write or type "/" to see available commands...';
-              return span;
-            }),
-          ]);
-        }
-        return DecorationSet.empty;
+        const { doc, selection } = state;
+        const decorations: Decoration[] = [];
+
+        // Iterate through all blocks in the document
+        doc.descendants((node, pos) => {
+          // Check if this is a textblock and it's empty
+          if (node.isTextblock && node.content.size === 0) {
+            // Check if cursor is in this node
+            const $from = selection.$from;
+            const nodeStartPos = pos;
+            const nodeEndPos = pos + node.nodeSize;
+
+            if ($from.pos >= nodeStartPos && $from.pos <= nodeEndPos) {
+              decorations.push(
+                Decoration.widget(pos + 1, () => {
+                  const span = document.createElement('span');
+                  span.className = 'placeholder';
+                  span.textContent = 'Write or type "/" to see available commands...';
+                  return span;
+                }),
+              );
+            }
+          }
+        });
+
+        return DecorationSet.create(doc, decorations);
       },
     },
   });
@@ -61,11 +75,225 @@ const createSlashCommandsPlugin = (handlers: {
   });
 };
 
+const createBlockControlsPlugin = (handlers: {
+  insertBlock: (type: string, attrs?: Record<string, any>, pos?: number) => void;
+}) => {
+  return new Plugin({
+    key: new PluginKey('block-controls'),
+    props: {
+      decorations(state) {
+        const { doc } = state;
+        const decorations: Decoration[] = [];
+
+        doc.descendants((node, pos) => {
+          // Only add controls to top-level block nodes
+          if (pos === 0 || doc.resolve(pos).depth !== 1) return;
+
+          // Add decoration at the start of each block
+          decorations.push(
+            Decoration.widget(
+              pos,
+              () => {
+                // Create container for the controls
+                const controlsDiv = document.createElement('div');
+                controlsDiv.className = 'block-controls';
+
+                // Create add button
+                const addButton = document.createElement('button');
+                addButton.className = 'block-control add-block';
+                addButton.innerHTML = '<span>+</span>';
+                addButton.title = 'Add block';
+                addButton.onmousedown = (e) => {
+                  e.preventDefault(); // Prevent editor from losing focus
+                  const menu = document.createElement('div');
+                  menu.className = 'block-menu';
+
+                  SLASH_COMMANDS.forEach((command) => {
+                    const item = document.createElement('button');
+                    item.innerText = command.title;
+                    item.onclick = () => {
+                      handlers.insertBlock(command.type, command.attrs, pos);
+                      menu.remove();
+                    };
+                    menu.appendChild(item);
+                  });
+
+                  // Position and show menu
+                  document.body.appendChild(menu);
+                  const rect = addButton.getBoundingClientRect();
+                  menu.style.position = 'absolute';
+                  menu.style.top = `${rect.bottom}px`;
+                  menu.style.left = `${rect.left}px`;
+
+                  // Close menu when clicking outside
+                  const closeMenu = () => {
+                    menu.remove();
+                    document.removeEventListener('mousedown', closeMenu);
+                  };
+                  setTimeout(() => {
+                    document.addEventListener('mousedown', closeMenu);
+                  });
+                };
+
+                // Create drag handle
+                const dragHandle = document.createElement('div');
+                dragHandle.className = 'block-control drag-handle';
+                dragHandle.innerHTML = '⋮⋮'; // Simple drag handle icon
+                dragHandle.title = 'Drag to reorder';
+
+                // Add drag functionality
+                dragHandle.draggable = true;
+
+                let dragPos: number | null = null;
+
+                dragHandle.ondragstart = (e) => {
+                  // Store the position of the dragged block
+                  dragPos = pos;
+                  // Add some custom data to identify our drag operation
+                  e.dataTransfer?.setData('text/plain', 'block-drag');
+
+                  // Create a ghost element
+                  const ghost = document.createElement('div');
+                  ghost.textContent = node.textContent || 'Block';
+                  ghost.style.opacity = '0.5';
+                  document.body.appendChild(ghost);
+                  ghost.style.position = 'absolute';
+                  ghost.style.top = '-1000px';
+                  e.dataTransfer?.setDragImage(ghost, 0, 0);
+
+                  // Remove ghost after dragging
+                  setTimeout(() => ghost.remove(), 0);
+                };
+
+                // Add control elements to the container
+                controlsDiv.appendChild(addButton);
+                controlsDiv.appendChild(dragHandle);
+
+                return controlsDiv;
+              },
+              { side: -1, key: `block-controls-${pos}` },
+            ),
+          );
+        });
+
+        return DecorationSet.create(doc, decorations);
+      },
+
+      handleDrop(view, event, slice, moved) {
+        // Return false to allow the default behavior for non-block drags
+        if (!moved && event.dataTransfer?.getData('text/plain') !== 'block-drag') {
+          return false;
+        }
+
+        const coordinates = view.posAtCoords({
+          left: event.clientX,
+          top: event.clientY,
+        });
+
+        if (!coordinates) return false;
+
+        const pos = coordinates.pos;
+        const $pos = view.state.doc.resolve(pos);
+
+        // Find target block position (start of the block)
+        let targetPos = $pos.before(1);
+        if (targetPos < 0) targetPos = 0;
+
+        // Find the source block
+        const draggedBlockPos = view.state.doc.resolve($pos.pos).before(1);
+
+        // Don't do anything if dropping onto the same block
+        if (targetPos === draggedBlockPos) return true;
+
+        // Get the nodes
+        const sourceNode = view.state.doc.nodeAt(draggedBlockPos);
+        if (!sourceNode) return true;
+
+        // Create a transaction to move the block
+        const tr = view.state.tr;
+
+        // Remove the source block
+        tr.delete(draggedBlockPos, draggedBlockPos + sourceNode.nodeSize);
+
+        // Adjust target position if necessary (if target is after source)
+        const adjustedTargetPos = targetPos > draggedBlockPos ? targetPos - sourceNode.nodeSize : targetPos;
+
+        // Insert the node at the target position
+        tr.insert(adjustedTargetPos, sourceNode);
+
+        // Apply the transaction
+        view.dispatch(tr);
+
+        return true;
+      },
+    },
+  });
+};
+
 export default function PostBuilder() {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+
+  // Function to insert a block at a specific position
+  const insertBlock = (type: string, attrs?: Record<string, any>, pos?: number) => {
+    if (!viewRef.current) return;
+
+    const { state } = viewRef.current;
+    const { tr } = state;
+
+    // If pos is specified, use it, otherwise use the current selection
+    let targetPos: number;
+    let targetEnd: number;
+
+    if (pos !== undefined) {
+      // For inserting at a specific position (when using block controls)
+      const $pos = state.doc.resolve(pos);
+      targetPos = $pos.before();
+      targetEnd = $pos.after();
+    } else {
+      // For inserting at the current selection position (when using slash commands)
+      const { $from } = state.selection;
+      targetPos = $from.start() - 1;
+      targetEnd = $from.end() + 1;
+    }
+
+    if (type === 'image') {
+      // Show file picker
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const src = reader.result as string;
+            tr.replaceWith(targetPos, targetEnd, customSchema.nodes.image.create({ src }));
+            viewRef.current?.dispatch(tr);
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+      input.click();
+    } else {
+      // Create the new node with the desired type
+      const node = customSchema.nodes[type].create(attrs);
+
+      // Insert a new node at the target position
+      if (pos !== undefined) {
+        // Insert after the current block
+        tr.insert(targetEnd, node);
+      } else {
+        // Replace the current block
+        tr.replaceWith(targetPos, targetEnd, node);
+      }
+      viewRef.current.dispatch(tr);
+    }
+
+    setShowMenu(false);
+  };
 
   useEffect(() => {
     if (editorRef.current && !viewRef.current) {
@@ -78,11 +306,14 @@ export default function PostBuilder() {
         setShowMenu,
         setMenuPosition,
       });
+      const blockControls = createBlockControlsPlugin({
+        insertBlock,
+      });
 
       const state = EditorState.create({
         schema: customSchema,
         doc: DOMParser.fromSchema(customSchema).parse(doc),
-        plugins: [keymap(baseKeymap), slashCommands, placeholderPlugin],
+        plugins: [keymap(baseKeymap), slashCommands, placeholderPlugin, blockControls],
       });
 
       viewRef.current = new EditorView(editorRef.current, {
@@ -116,49 +347,8 @@ export default function PostBuilder() {
     };
   }, []);
 
-  const insertBlock = (type: string, attrs?: Record<string, any>) => {
-    if (!viewRef.current) return;
-
-    const { state } = viewRef.current;
-    const { tr } = state;
-    const pos = state.selection.from;
-
-    if (type === 'image') {
-      // Show file picker
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const src = reader.result as string;
-            tr.replaceWith(pos, pos, customSchema.nodes.image.create({ src }));
-            viewRef.current?.dispatch(tr);
-          };
-          reader.readAsDataURL(file);
-        }
-      };
-      input.click();
-    } else {
-      const node = customSchema.nodes[type].create(attrs);
-      tr.replaceWith(pos, pos, node);
-      viewRef.current.dispatch(tr);
-    }
-
-    setShowMenu(false);
-  };
-
   return (
-    <we-column p="500" style={{ height: '100%' }}>
-      <div className="menu-bar">
-        {['paragraph', 'heading', 'bullet_list', 'ordered_list', 'code_block', 'image'].map((type) => (
-          <button key={type} onClick={() => insertBlock(type)}>
-            {type}
-          </button>
-        ))}
-      </div>
+    <we-column p="500" style={{ height: '100%', width: 800 }}>
       <div
         ref={editorRef}
         className="prose-editor"
