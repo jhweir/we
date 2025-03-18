@@ -82,31 +82,6 @@ export default class Column extends LitElement {
   @property({ type: String, reflect: true }) color = '';
   @property({ type: String, reflect: true }) class: string = '';
 
-  // private styleSheet: CSSStyleSheet | null = null;
-  // updated() {
-  //   if (!this.styleSheet) this.styleSheet = new CSSStyleSheet();
-  //   const dynamicStyles = `
-  //     :host {
-  //       --we-flex-gap: var(--we-space-${this.gap});
-  //       --we-flex-border-radius: var(--we-border-radius-${this.radius});
-  //       --we-flex-bg-color: var(--we-color-${this.bg});
-  //       --we-flex-color: var(--we-color-${this.color});
-  //       --we-flex-padding:
-  //         ${generateVariable('we-space', this.pt || this.py || this.p)}
-  //         ${generateVariable('we-space', this.pr || this.px || this.p)}
-  //         ${generateVariable('we-space', this.pb || this.py || this.p)}
-  //         ${generateVariable('we-space', this.pl || this.px || this.p)};
-  //       --we-flex-margin:
-  //         ${generateVariable('we-space', this.mt || this.my || this.m)}
-  //         ${generateVariable('we-space', this.mr || this.mx || this.m)}
-  //         ${generateVariable('we-space', this.mb || this.my || this.m)}
-  //         ${generateVariable('we-space', this.ml || this.mx || this.m)}
-  //     }
-  //   `;
-  //   this.styleSheet.replaceSync(dynamicStyles);
-  //   if (this.shadowRoot) adoptStyles(this.shadowRoot, [styles, sharedStyles, this.styleSheet]);
-  // }
-
   updated(props: Map<string, any>) {
     super.updated(props);
     // handle dynamic props

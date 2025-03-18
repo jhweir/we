@@ -11,6 +11,7 @@ export default function LoadingState() {
         alignItems: 'center',
         position: 'fixed',
         backgroundColor: 'var(--we-color-ui-100)',
+        zIndex: 999,
         transition: 'opacity 0.2s',
       }}
     >

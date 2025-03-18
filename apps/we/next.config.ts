@@ -1,4 +1,4 @@
-import NextConfig from 'next';
+import { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   // webpack: (config, { isServer }) => {
@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
   //       os: false,
   //     };
   //   }
+  //   return config;
+  // },
+  // transpilePackages: ['@we/elements'],
+  // webpack: (config) => {
+  //   // Make sure symlinks are handled properly
+  //   config.resolve.symlinks = false;
   //   return config;
   // },
 };
