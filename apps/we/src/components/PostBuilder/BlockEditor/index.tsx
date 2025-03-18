@@ -74,6 +74,20 @@ const BlockEditor = ({ id, state, insertBlock, deleteBlock, focused, onFocus, on
       // Regular enter creates a new block
       e.preventDefault();
       insertBlock();
+    } else if (e.key === 'Backspace') {
+      // Check if the editor is empty to handle backspace
+      if (viewRef.current) {
+        const { state: editorState } = viewRef.current;
+        const docSize = editorState.doc.content.size;
+
+        // Check if the document is empty (only has the default paragraph node with no content)
+        const isEmpty = docSize <= 2;
+
+        if (isEmpty) {
+          e.preventDefault();
+          deleteBlock();
+        }
+      }
     }
   };
 
