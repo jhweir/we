@@ -33,7 +33,7 @@ const createSlashCommandsPlugin = (handlers: {
           handlers.setMenuPosition({ top: coords.bottom, left: coords.left });
           handlers.setShowMenu(true);
           handlers.setSelectedIndex(0);
-          return false; // Allow the '/' to be inserted
+          return false;
         }
         return false;
       },
@@ -236,9 +236,10 @@ export default function PostBuilder() {
   const editorRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const selectedIndexRef = useRef(0); // Use ref for immediate access
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState(0); // Keep state for rendering
 
   const insertBlock = (type: string, attrs?: Record<string, any>, pos?: number) => {
     if (!viewRef.current) return;
@@ -295,16 +296,26 @@ export default function PostBuilder() {
     event.preventDefault();
     event.stopPropagation();
 
+    console.log('Key pressed:', event.key, 'Current Index (ref):', selectedIndexRef.current);
+
     switch (event.key) {
       case 'ArrowUp':
-        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : SLASH_COMMANDS.length - 1));
+        const newUpIndex = selectedIndexRef.current > 0 ? selectedIndexRef.current - 1 : SLASH_COMMANDS.length - 1;
+        selectedIndexRef.current = newUpIndex;
+        setSelectedIndex(newUpIndex);
+        console.log('New Index after ArrowUp:', newUpIndex);
         break;
       case 'ArrowDown':
-        setSelectedIndex((prev) => (prev < SLASH_COMMANDS.length - 1 ? prev + 1 : 0));
+        const newDownIndex = selectedIndexRef.current < SLASH_COMMANDS.length - 1 ? selectedIndexRef.current + 1 : 0;
+        selectedIndexRef.current = newDownIndex;
+        setSelectedIndex(newDownIndex);
+        console.log('New Index after ArrowDown:', newDownIndex);
         break;
       case 'Enter':
-        const command = SLASH_COMMANDS[selectedIndex];
+        const command = SLASH_COMMANDS[selectedIndexRef.current];
+        console.log('Enter pressed, executing insertBlock for:', command);
         insertBlock(command.type, command.attrs);
+        setShowMenu(false);
         break;
       case 'Escape':
         setShowMenu(false);
@@ -344,34 +355,31 @@ export default function PostBuilder() {
           const { $from } = selection;
           const textBefore = $from.nodeBefore?.text || '';
 
-          // Only update menu state, don't interfere with content
           if (textBefore.endsWith('/') && !showMenu) {
             const coords = viewRef.current.coordsAtPos($from.pos);
             setMenuPosition({ top: coords.bottom, left: coords.left });
             setShowMenu(true);
             setSelectedIndex(0);
+            selectedIndexRef.current = 0;
           } else if (!textBefore.endsWith('/') && showMenu) {
             setShowMenu(false);
           }
         },
       });
     }
-  }, []); // Empty dependency array to run only once
+  }, []);
 
-  // Separate effect for menu key handling
   useEffect(() => {
     const menuElement = menuRef.current;
     if (menuElement && showMenu) {
       menuElement.addEventListener('keydown', handleMenuKeyDown);
       menuElement.focus();
-    }
 
-    return () => {
-      if (menuElement) {
+      return () => {
         menuElement.removeEventListener('keydown', handleMenuKeyDown);
-      }
-    };
-  }, [showMenu]); // Only re-run when showMenu changes
+      };
+    }
+  }, [showMenu]);
 
   return (
     <we-column p="500" style={{ height: '100%', width: 800 }}>
@@ -402,7 +410,10 @@ export default function PostBuilder() {
               key={command.title}
               className={index === selectedIndex ? 'selected' : ''}
               onClick={() => insertBlock(command.type, command.attrs)}
-              onMouseEnter={() => setSelectedIndex(index)}
+              onMouseEnter={() => {
+                setSelectedIndex(index);
+                selectedIndexRef.current = index;
+              }}
             >
               {command.title}
             </button>
