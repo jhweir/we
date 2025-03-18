@@ -18,6 +18,29 @@ const SLASH_COMMANDS = [
   { title: 'Image', type: 'image' },
 ];
 
+const createSlashCommandsPlugin = (handlers: {
+  setShowMenu: (show: boolean) => void;
+  setMenuPosition: (pos: { top: number; left: number }) => void;
+  setSelectedIndex: (index: number) => void;
+}) => {
+  return new Plugin({
+    key: new PluginKey('slash-commands'),
+    props: {
+      handleKeyDown(view, event) {
+        if (event.key === '/') {
+          const { $from } = view.state.selection;
+          const coords = view.coordsAtPos($from.pos);
+          handlers.setMenuPosition({ top: coords.bottom, left: coords.left });
+          handlers.setShowMenu(true);
+          handlers.setSelectedIndex(0);
+          return false; // Allow the '/' to be inserted
+        }
+        return false;
+      },
+    },
+  });
+};
+
 const createPlaceholderPlugin = () => {
   return new Plugin({
     key: new PluginKey('placeholder'),
@@ -49,27 +72,6 @@ const createPlaceholderPlugin = () => {
         });
 
         return DecorationSet.create(doc, decorations);
-      },
-    },
-  });
-};
-
-const createSlashCommandsPlugin = (handlers: {
-  setShowMenu: (show: boolean) => void;
-  setMenuPosition: (pos: { top: number; left: number }) => void;
-}) => {
-  return new Plugin({
-    key: new PluginKey('slash-commands'),
-    props: {
-      handleKeyDown(view, event) {
-        if (event.key === '/') {
-          const { $from } = view.state.selection;
-          const coords = view.coordsAtPos($from.pos);
-          handlers.setMenuPosition({ top: coords.bottom, left: coords.left });
-          handlers.setShowMenu(true);
-          return false; // Let the '/' character be inserted
-        }
-        return false;
       },
     },
   });
@@ -232,35 +234,32 @@ const createBlockControlsPlugin = (handlers: {
 
 export default function PostBuilder() {
   const editorRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Function to insert a block at a specific position
   const insertBlock = (type: string, attrs?: Record<string, any>, pos?: number) => {
     if (!viewRef.current) return;
 
     const { state } = viewRef.current;
     const { tr } = state;
 
-    // If pos is specified, use it, otherwise use the current selection
     let targetPos: number;
     let targetEnd: number;
 
     if (pos !== undefined) {
-      // For inserting at a specific position (when using block controls)
       const $pos = state.doc.resolve(pos);
       targetPos = $pos.before();
       targetEnd = $pos.after();
     } else {
-      // For inserting at the current selection position (when using slash commands)
       const { $from } = state.selection;
       targetPos = $from.start() - 1;
       targetEnd = $from.end() + 1;
     }
 
     if (type === 'image') {
-      // Show file picker
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
@@ -278,15 +277,10 @@ export default function PostBuilder() {
       };
       input.click();
     } else {
-      // Create the new node with the desired type
       const node = customSchema.nodes[type].create(attrs);
-
-      // Insert a new node at the target position
       if (pos !== undefined) {
-        // Insert after the current block
         tr.insert(targetEnd, node);
       } else {
-        // Replace the current block
         tr.replaceWith(targetPos, targetEnd, node);
       }
       viewRef.current.dispatch(tr);
@@ -295,16 +289,39 @@ export default function PostBuilder() {
     setShowMenu(false);
   };
 
+  const handleMenuKeyDown = (event: KeyboardEvent) => {
+    if (!showMenu) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    switch (event.key) {
+      case 'ArrowUp':
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : SLASH_COMMANDS.length - 1));
+        break;
+      case 'ArrowDown':
+        setSelectedIndex((prev) => (prev < SLASH_COMMANDS.length - 1 ? prev + 1 : 0));
+        break;
+      case 'Enter':
+        const command = SLASH_COMMANDS[selectedIndex];
+        insertBlock(command.type, command.attrs);
+        break;
+      case 'Escape':
+        setShowMenu(false);
+        break;
+    }
+  };
+
   useEffect(() => {
     if (editorRef.current && !viewRef.current) {
       const doc = document.createElement('div');
       doc.innerHTML = '<p></p>';
 
-      // Create plugins
       const placeholderPlugin = createPlaceholderPlugin();
       const slashCommands = createSlashCommandsPlugin({
         setShowMenu,
         setMenuPosition,
+        setSelectedIndex,
       });
       const blockControls = createBlockControlsPlugin({
         insertBlock,
@@ -313,7 +330,7 @@ export default function PostBuilder() {
       const state = EditorState.create({
         schema: customSchema,
         doc: DOMParser.fromSchema(customSchema).parse(doc),
-        plugins: [keymap(baseKeymap), slashCommands, placeholderPlugin, blockControls],
+        plugins: [slashCommands, placeholderPlugin, blockControls, keymap(baseKeymap)],
       });
 
       viewRef.current = new EditorView(editorRef.current, {
@@ -323,29 +340,38 @@ export default function PostBuilder() {
           const newState = viewRef.current.state.apply(transaction);
           viewRef.current.updateState(newState);
 
-          // Check for slash command
           const { selection } = newState;
           const { $from } = selection;
-          const textBefore = $from.nodeBefore?.text;
+          const textBefore = $from.nodeBefore?.text || '';
 
-          if (textBefore?.endsWith('/')) {
+          // Only update menu state, don't interfere with content
+          if (textBefore.endsWith('/') && !showMenu) {
             const coords = viewRef.current.coordsAtPos($from.pos);
             setMenuPosition({ top: coords.bottom, left: coords.left });
             setShowMenu(true);
-          } else {
+            setSelectedIndex(0);
+          } else if (!textBefore.endsWith('/') && showMenu) {
             setShowMenu(false);
           }
         },
       });
     }
+  }, []); // Empty dependency array to run only once
+
+  // Separate effect for menu key handling
+  useEffect(() => {
+    const menuElement = menuRef.current;
+    if (menuElement && showMenu) {
+      menuElement.addEventListener('keydown', handleMenuKeyDown);
+      menuElement.focus();
+    }
 
     return () => {
-      if (viewRef.current) {
-        viewRef.current.destroy();
-        viewRef.current = null;
+      if (menuElement) {
+        menuElement.removeEventListener('keydown', handleMenuKeyDown);
       }
     };
-  }, []);
+  }, [showMenu]); // Only re-run when showMenu changes
 
   return (
     <we-column p="500" style={{ height: '100%', width: 800 }}>
@@ -362,15 +388,22 @@ export default function PostBuilder() {
       />
       {showMenu && (
         <div
+          ref={menuRef}
           className="slash-menu"
+          tabIndex={0}
           style={{
             position: 'absolute',
             top: menuPosition.top,
             left: menuPosition.left,
           }}
         >
-          {SLASH_COMMANDS.map((command) => (
-            <button key={command.title} onClick={() => insertBlock(command.type, command.attrs)}>
+          {SLASH_COMMANDS.map((command, index) => (
+            <button
+              key={command.title}
+              className={index === selectedIndex ? 'selected' : ''}
+              onClick={() => insertBlock(command.type, command.attrs)}
+              onMouseEnter={() => setSelectedIndex(index)}
+            >
               {command.title}
             </button>
           ))}
