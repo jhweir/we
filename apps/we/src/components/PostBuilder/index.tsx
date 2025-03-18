@@ -15,10 +15,12 @@ export default function PostBuilder() {
   const [blocks, setBlocks] = useState<Block[]>([
     { id: 1, type: 'paragraph', state: EditorState.create({ schema: customSchema }) },
   ]);
+  const [focusedBlockId, setFocusedBlockId] = useState<number>(1);
 
   const insertBlock = (index: number, type: string) => {
+    const newBlockId = Date.now(); // Unique ID
     const newBlock = {
-      id: Date.now(), // Unique ID
+      id: newBlockId,
       type,
       state: EditorState.create({ schema: customSchema }),
     };
@@ -28,6 +30,9 @@ export default function PostBuilder() {
       newBlocks.splice(index + 1, 0, newBlock);
       return newBlocks;
     });
+
+    // Set focus to the new block
+    setFocusedBlockId(newBlockId);
   };
 
   const deleteBlock = (id: number) => {
@@ -36,7 +41,20 @@ export default function PostBuilder() {
       if (prevBlocks.length <= 1) {
         return prevBlocks;
       }
-      return prevBlocks.filter((block) => block.id !== id);
+
+      const indexToDelete = prevBlocks.findIndex((block) => block.id === id);
+      const newBlocks = prevBlocks.filter((block) => block.id !== id);
+
+      // Set focus to the previous block or next block if available
+      if (newBlocks.length > 0) {
+        if (indexToDelete > 0) {
+          setFocusedBlockId(newBlocks[indexToDelete - 1].id);
+        } else {
+          setFocusedBlockId(newBlocks[0].id);
+        }
+      }
+
+      return newBlocks;
     });
   };
 
@@ -53,6 +71,9 @@ export default function PostBuilder() {
           state={block.state}
           insertBlock={() => insertBlock(index, 'paragraph')}
           deleteBlock={() => deleteBlock(block.id)}
+          focused={focusedBlockId === block.id}
+          onFocus={() => setFocusedBlockId(block.id)}
+          onStateChange={updateBlockState}
         />
       ))}
     </div>
