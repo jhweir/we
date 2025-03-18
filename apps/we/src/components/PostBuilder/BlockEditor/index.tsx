@@ -56,7 +56,19 @@ const BlockEditor = ({ id, state, insertBlock, deleteBlock, focused, onFocus, on
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       if (e.shiftKey) {
-        // Allow shift+enter to create a new line within the current block
+        // Insert a proper hard break node for Shift+Enter
+        e.preventDefault();
+        if (viewRef.current) {
+          const { state: editorState } = viewRef.current;
+
+          // Get the hard_break node type from the schema
+          const hardBreak = editorState.schema.nodes.hard_break;
+          if (hardBreak) {
+            // Insert a hard break at the current selection
+            const tr = editorState.tr.replaceSelectionWith(hardBreak.create());
+            viewRef.current.dispatch(tr);
+          }
+        }
         return;
       }
       // Regular enter creates a new block
