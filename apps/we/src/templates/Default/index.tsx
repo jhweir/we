@@ -18,6 +18,8 @@ const themes = [
   { name: 'Dark', icon: 'moon' },
 ];
 
+const iconWeight = 'regular';
+
 export default function DeafultTemplate({ children }: Readonly<{ children: React.ReactNode }>) {
   const [currentTheme, setCurrentTheme] = useState(themes[0]);
 
@@ -33,41 +35,44 @@ export default function DeafultTemplate({ children }: Readonly<{ children: React
       <Elements />
 
       <we-row style={{ width: '100%', height: '100%' }}>
+        {/* Left Sidebar */}
         <we-column p="400" alignY="between" bg="ui-50" class={`${styles.sidebar} ${styles.left}`}>
           <we-column gap="400">
             <Link href="/">
               <we-avatar src="https://avatars.githubusercontent.com/u/34165012?s=200&v=4" />
             </Link>
             <Link href="/">
-              <we-icon name="search" color="ui-700" />
+              <we-icon name="magnifying-glass" weight={iconWeight} color="ui-700" />
             </Link>
             <Link href="/">
-              <we-icon name="people" color="ui-700" />
+              <we-icon name="users-three" weight={iconWeight} color="ui-700" />
             </Link>
             <Link href="/new">
-              <we-icon name="pencil-square" color="ui-700" />
+              <we-icon name="note-pencil" weight={iconWeight} color="ui-700" />
             </Link>
             <Link href="/posts/1">1</Link>
             <Link href="/posts/2">2</Link>
           </we-column>
           <we-column gap="400">
             <Link href="/">
-              <we-icon name="gear" color="ui-700" />
+              <we-icon name="gear" weight={iconWeight} color="ui-700" />
             </Link>
           </we-column>
         </we-column>
 
+        {/* Center */}
         <we-column bg="ui-100" style={{ width: '100%', position: 'relative' }}>
+          {/* Header */}
           <we-row p="300" style={{ position: 'absolute', right: 0 }}>
             <we-popover placement="bottom-end">
               <we-button size="sm" slot="trigger" variant="subtle">
-                <we-icon name={currentTheme.icon} />
+                <we-icon name={currentTheme.icon} weight={iconWeight} />
                 {currentTheme.name}
               </we-button>
               <we-menu slot="content">
                 {themes.map((theme) => (
                   <we-menu-item key={theme.name} onClick={() => setTheme(theme)}>
-                    <we-icon slot="start" name={theme.icon} />
+                    <we-icon slot="start" name={theme.icon} weight={iconWeight} />
                     {theme.name}
                   </we-menu-item>
                 ))}
@@ -75,29 +80,31 @@ export default function DeafultTemplate({ children }: Readonly<{ children: React
             </we-popover>
           </we-row>
 
+          {/* Main Content */}
           {children}
         </we-column>
 
+        {/* Right Sidebar */}
         <we-column p="400" alignY="between" bg="ui-50" class={`${styles.sidebar} ${styles.right}`}>
           <we-column gap="400">
             <Link href="/">
               <we-avatar src="https://weco-prod-user-flag-images.s3.eu-west-1.amazonaws.com/user-flag-image-1-1-1597655878532-gif-1693527111503.gif" />
             </Link>
             <Link href="/">
-              <we-icon name="bell" color="ui-700" />
+              <we-icon name="bell" weight={iconWeight} color="ui-700" />
             </Link>
             <Link href="/">
-              <we-icon name="envelope" color="ui-700" />
+              <we-icon name="envelope" weight={iconWeight} color="ui-700" />
             </Link>
             <Link href="/">
-              <we-icon name="boxes" color="ui-700" />
+              <we-icon name="cube" weight={iconWeight} color="ui-700" />
             </Link>
             <Link href="/posts/1">1</Link>
             <Link href="/posts/2">2</Link>
           </we-column>
           <we-column gap="400">
             <Link href="/">
-              <we-icon name="question-lg" color="ui-700" />
+              <we-icon name="question" weight={iconWeight} color="ui-700" />
             </Link>
           </we-column>
         </we-column>

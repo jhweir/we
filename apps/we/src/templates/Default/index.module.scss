@@ -19,6 +19,10 @@
       //   box-shadow: 0 0 0 0.5px var(--we-color-ui-100);
       background-color: var(--we-color-ui-100);
     }
+
+    > we-icon {
+      --we-icon-size: 28px;
+    }
   }
 
   &.left {
