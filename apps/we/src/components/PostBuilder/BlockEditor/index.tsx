@@ -8,13 +8,27 @@ interface BlockEditorProps {
   id: number;
   state: EditorState;
   insertBlock: () => void;
-  deleteBlock: () => void;
+  deleteBlock: (id: number) => void; // Updated to accept an ID
+  mergeWithNextBlock?: (currentState: EditorState) => EditorState | null;
   focused?: boolean;
   onFocus?: () => void;
   onStateChange?: (id: number, state: EditorState) => void;
+  hasNextBlock?: boolean;
+  nextBlockId?: number; // Add this to know the next block's ID
 }
 
-const BlockEditor = ({ id, state, insertBlock, deleteBlock, focused, onFocus, onStateChange }: BlockEditorProps) => {
+const BlockEditor = ({
+  id,
+  state,
+  insertBlock,
+  deleteBlock,
+  mergeWithNextBlock,
+  focused,
+  onFocus,
+  onStateChange,
+  hasNextBlock,
+  nextBlockId,
+}: BlockEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
 
@@ -26,8 +40,6 @@ const BlockEditor = ({ id, state, insertBlock, deleteBlock, focused, onFocus, on
       dispatchTransaction(transaction: Transaction) {
         const newState = view.state.apply(transaction);
         view.updateState(newState);
-
-        // Notify parent component of state changes
         if (onStateChange) {
           onStateChange(id, newState);
         }
@@ -36,7 +48,6 @@ const BlockEditor = ({ id, state, insertBlock, deleteBlock, focused, onFocus, on
 
     viewRef.current = view;
 
-    // Focus the editor when focused prop is true
     if (focused && viewRef.current) {
       setTimeout(() => {
         viewRef.current?.focus();
@@ -50,42 +61,48 @@ const BlockEditor = ({ id, state, insertBlock, deleteBlock, focused, onFocus, on
     };
   }, [id, focused]);
 
-  // Don't add state to the dependency array to prevent recreating the editor on every state change
-  // The editor is already updated via updateState in dispatchTransaction
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       if (e.shiftKey) {
-        // Insert a proper hard break node for Shift+Enter
         e.preventDefault();
         if (viewRef.current) {
           const { state: editorState } = viewRef.current;
-
-          // Get the hard_break node type from the schema
           const hardBreak = editorState.schema.nodes.hard_break;
           if (hardBreak) {
-            // Insert a hard break at the current selection
             const tr = editorState.tr.replaceSelectionWith(hardBreak.create());
             viewRef.current.dispatch(tr);
           }
         }
         return;
       }
-      // Regular enter creates a new block
       e.preventDefault();
       insertBlock();
     } else if (e.key === 'Backspace') {
-      // Check if the editor is empty to handle backspace
       if (viewRef.current) {
         const { state: editorState } = viewRef.current;
         const docSize = editorState.doc.content.size;
-
-        // Check if the document is empty (only has the default paragraph node with no content)
         const isEmpty = docSize <= 2;
 
         if (isEmpty) {
           e.preventDefault();
-          deleteBlock();
+          deleteBlock(id); // Delete the current block if empty
+        }
+      }
+    } else if (e.key === 'Delete' && hasNextBlock && mergeWithNextBlock && viewRef.current && nextBlockId) {
+      const { state: editorState } = viewRef.current;
+      const { selection } = editorState;
+      const docSize = editorState.doc.content.size;
+      const isAtEnd = selection.$to.pos >= docSize - 2;
+
+      if (isAtEnd) {
+        e.preventDefault();
+        const updatedState = mergeWithNextBlock(editorState);
+        if (updatedState && viewRef.current) {
+          viewRef.current.updateState(updatedState); // Merge content instantly
+          if (onStateChange) {
+            onStateChange(id, updatedState); // Update parent state
+          }
+          deleteBlock(nextBlockId); // Delete the next block, not the current one
         }
       }
     }
@@ -99,12 +116,9 @@ const BlockEditor = ({ id, state, insertBlock, deleteBlock, focused, onFocus, on
         onKeyDown={handleKeyDown}
         onClick={() => onFocus && onFocus()}
       ></div>
-      <button className="delete-btn" onClick={deleteBlock}>
+      <button className="delete-btn" onClick={() => deleteBlock(id)}>
         Delete
       </button>
-      {/* <button className="insert-btn" onClick={insertBlock}>
-        Insert Block Below
-      </button> */}
     </div>
   );
 };
