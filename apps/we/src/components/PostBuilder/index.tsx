@@ -3,7 +3,7 @@
 import { baseKeymap } from 'prosemirror-commands';
 import { keymap } from 'prosemirror-keymap';
 import { DOMParser } from 'prosemirror-model';
-import { EditorState, Plugin, PluginKey } from 'prosemirror-state';
+import { EditorState, Plugin, PluginKey, TextSelection } from 'prosemirror-state';
 import { Decoration, DecorationSet, EditorView } from 'prosemirror-view';
 import { useEffect, useRef, useState } from 'react';
 import './index.scss';
@@ -236,10 +236,10 @@ export default function PostBuilder() {
   const editorRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
-  const selectedIndexRef = useRef(0); // Use ref for immediate access
+  const selectedIndexRef = useRef(0);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
-  const [selectedIndex, setSelectedIndex] = useState(0); // Keep state for rendering
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   const insertBlock = (type: string, attrs?: Record<string, any>, pos?: number) => {
     if (!viewRef.current) return;
@@ -271,7 +271,11 @@ export default function PostBuilder() {
           reader.onload = () => {
             const src = reader.result as string;
             tr.replaceWith(targetPos, targetEnd, customSchema.nodes.image.create({ src }));
+            // Set cursor after image
+            const cursorPos = targetPos + 1; // After the image node
+            tr.setSelection(TextSelection.create(tr.doc, cursorPos));
             viewRef.current?.dispatch(tr);
+            viewRef.current?.focus();
           };
           reader.readAsDataURL(file);
         }
@@ -279,12 +283,20 @@ export default function PostBuilder() {
       input.click();
     } else {
       const node = customSchema.nodes[type].create(attrs);
+      let newNodeStartPos: number;
       if (pos !== undefined) {
         tr.insert(targetEnd, node);
+        newNodeStartPos = targetEnd; // Start of the newly inserted node
       } else {
         tr.replaceWith(targetPos, targetEnd, node);
+        newNodeStartPos = targetPos + 1; // Start of the new node after replacement
       }
+
+      // Set cursor at the start of the new block
+      const cursorPos = newNodeStartPos + 1; // Inside the new node
+      tr.setSelection(TextSelection.create(tr.doc, cursorPos));
       viewRef.current.dispatch(tr);
+      viewRef.current.focus(); // Ensure editor regains focus
     }
 
     setShowMenu(false);
@@ -315,7 +327,6 @@ export default function PostBuilder() {
         const command = SLASH_COMMANDS[selectedIndexRef.current];
         console.log('Enter pressed, executing insertBlock for:', command);
         insertBlock(command.type, command.attrs);
-        setShowMenu(false);
         break;
       case 'Escape':
         setShowMenu(false);
