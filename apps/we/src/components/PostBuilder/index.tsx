@@ -1,6 +1,6 @@
 'use client';
 
-import { EditorState } from 'prosemirror-state';
+import { EditorState, Selection } from 'prosemirror-state';
 import { useState } from 'react';
 import BlockEditor from './BlockEditor';
 import { customSchema } from './schema';
@@ -69,8 +69,8 @@ export default function PostBuilder() {
 
       const nextBlock = currentBlocks[index + 1];
       const nextDoc = nextBlock.state.doc;
+      const currentDoc = currentState.doc;
 
-      // Extract text content from the next block
       let nextText = '';
       nextDoc.content.forEach((node) => {
         if (node.type.name === 'paragraph') {
@@ -82,22 +82,84 @@ export default function PostBuilder() {
         }
       });
 
-      // Create a transaction to append the text to the last text node in the current block
+      let insertPos = 0;
+      currentDoc.descendants((node, pos) => {
+        if (node.isText) {
+          insertPos = pos + node.nodeSize; // End of the text node
+          return false;
+        }
+        return true;
+      });
+
+      if (insertPos === 0) {
+        currentDoc.content.forEach((node, pos) => {
+          if (node.type.name === 'paragraph') {
+            insertPos = pos + 1;
+            return false;
+          }
+        });
+      }
+
       const tr = currentState.tr;
+      tr.insertText(nextText, insertPos);
+
+      // Set cursor between original and appended text
+      const cursorPos = insertPos; // After "ABC", before "DEF"
+      tr.setSelection(Selection.near(tr.doc.resolve(cursorPos)));
+
+      return currentState.apply(tr);
+    };
+
+  const mergeWithPreviousBlock =
+    (index: number) =>
+    (currentState: EditorState): { updatedState: EditorState; targetId: number } | null => {
+      const currentBlocks = blocks;
+      if (index <= 0) {
+        return null;
+      }
+
+      const previousBlock = currentBlocks[index - 1];
+      const previousDoc = previousBlock.state.doc;
       const currentDoc = currentState.doc;
 
-      // Find the position of the last text node in the current block
-      let insertPos = currentDoc.content.size;
-      currentDoc.forEach((node, offset) => {
+      let currentText = '';
+      currentDoc.content.forEach((node) => {
         if (node.type.name === 'paragraph') {
-          insertPos = offset + node.nodeSize - 1; // Position at the end of the paragraph
+          node.content.forEach((child) => {
+            if (child.isText) {
+              currentText += child.text;
+            }
+          });
         }
       });
 
-      // Insert the text content at the end of the current block's last text node
-      tr.insertText(nextText, insertPos);
+      let insertPos = 0;
+      previousDoc.descendants((node, pos) => {
+        if (node.isText) {
+          insertPos = pos + node.nodeSize; // End of the text node
+          return false;
+        }
+        return true;
+      });
 
-      return currentState.apply(tr);
+      if (insertPos === 0) {
+        previousDoc.content.forEach((node, pos) => {
+          if (node.type.name === 'paragraph') {
+            insertPos = pos + 1;
+            return false;
+          }
+        });
+      }
+
+      const tr = previousBlock.state.tr;
+      tr.insertText(currentText, insertPos);
+
+      // Set cursor between original and appended text
+      const cursorPos = insertPos; // After "ABC", before "DEF"
+      tr.setSelection(Selection.near(tr.doc.resolve(cursorPos)));
+
+      const updatedState = previousBlock.state.apply(tr);
+      return { updatedState, targetId: previousBlock.id };
     };
 
   return (
@@ -110,8 +172,11 @@ export default function PostBuilder() {
           insertBlock={() => insertBlock(index, 'paragraph')}
           deleteBlock={deleteBlock}
           mergeWithNextBlock={mergeWithNextBlock(index)}
+          mergeWithPreviousBlock={mergeWithPreviousBlock(index)}
           hasNextBlock={index < blocks.length - 1}
+          hasPreviousBlock={index > 0}
           nextBlockId={index < blocks.length - 1 ? blocks[index + 1].id : undefined}
+          previousBlockId={index > 0 ? blocks[index - 1].id : undefined}
           focused={focusedBlockId === block.id}
           onFocus={() => setFocusedBlockId(block.id)}
           onStateChange={updateBlockState}

@@ -8,13 +8,16 @@ interface BlockEditorProps {
   id: number;
   state: EditorState;
   insertBlock: () => void;
-  deleteBlock: (id: number) => void; // Updated to accept an ID
+  deleteBlock: (id: number) => void;
   mergeWithNextBlock?: (currentState: EditorState) => EditorState | null;
+  mergeWithPreviousBlock?: (currentState: EditorState) => { updatedState: EditorState; targetId: number } | null;
   focused?: boolean;
   onFocus?: () => void;
   onStateChange?: (id: number, state: EditorState) => void;
   hasNextBlock?: boolean;
-  nextBlockId?: number; // Add this to know the next block's ID
+  hasPreviousBlock?: boolean;
+  nextBlockId?: number;
+  previousBlockId?: number;
 }
 
 const BlockEditor = ({
@@ -23,11 +26,14 @@ const BlockEditor = ({
   insertBlock,
   deleteBlock,
   mergeWithNextBlock,
+  mergeWithPreviousBlock,
   focused,
   onFocus,
   onStateChange,
   hasNextBlock,
+  hasPreviousBlock,
   nextBlockId,
+  previousBlockId,
 }: BlockEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -59,7 +65,7 @@ const BlockEditor = ({
         viewRef.current.destroy();
       }
     };
-  }, [id, focused]);
+  }, [id, focused, state]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -77,15 +83,25 @@ const BlockEditor = ({
       }
       e.preventDefault();
       insertBlock();
-    } else if (e.key === 'Backspace') {
-      if (viewRef.current) {
-        const { state: editorState } = viewRef.current;
-        const docSize = editorState.doc.content.size;
-        const isEmpty = docSize <= 2;
+    } else if (e.key === 'Backspace' && viewRef.current) {
+      const { state: editorState } = viewRef.current;
+      const { selection } = editorState;
+      const docSize = editorState.doc.content.size;
+      const isEmpty = docSize <= 2;
+      const isAtStart = selection.$from.pos <= 1;
 
-        if (isEmpty) {
-          e.preventDefault();
-          deleteBlock(id); // Delete the current block if empty
+      if (isEmpty) {
+        e.preventDefault();
+        deleteBlock(id);
+      } else if (isAtStart && hasPreviousBlock && mergeWithPreviousBlock && previousBlockId) {
+        e.preventDefault();
+        const result = mergeWithPreviousBlock(editorState);
+        if (result && viewRef.current) {
+          const { updatedState, targetId } = result;
+          if (onStateChange) {
+            onStateChange(targetId, updatedState);
+          }
+          deleteBlock(id);
         }
       }
     } else if (e.key === 'Delete' && hasNextBlock && mergeWithNextBlock && viewRef.current && nextBlockId) {
@@ -98,11 +114,11 @@ const BlockEditor = ({
         e.preventDefault();
         const updatedState = mergeWithNextBlock(editorState);
         if (updatedState && viewRef.current) {
-          viewRef.current.updateState(updatedState); // Merge content instantly
+          viewRef.current.updateState(updatedState);
           if (onStateChange) {
-            onStateChange(id, updatedState); // Update parent state
+            onStateChange(id, updatedState);
           }
-          deleteBlock(nextBlockId); // Delete the next block, not the current one
+          deleteBlock(nextBlockId);
         }
       }
     }
