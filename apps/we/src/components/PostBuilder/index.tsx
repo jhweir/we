@@ -69,45 +69,26 @@ export default function PostBuilder() {
 
       const nextBlock = currentBlocks[index + 1];
       const nextDoc = nextBlock.state.doc;
-      const currentDoc = currentState.doc;
 
+      // Extract all text from the next block
       let nextText = '';
-      nextDoc.content.forEach((node) => {
-        if (node.type.name === 'paragraph') {
-          node.content.forEach((child) => {
-            if (child.isText) {
-              nextText += child.text;
-            }
-          });
-        }
-      });
-
-      let insertPos = 0;
-      currentDoc.descendants((node, pos) => {
+      nextDoc.nodesBetween(0, nextDoc.content.size, (node) => {
         if (node.isText) {
-          insertPos = pos + node.nodeSize; // End of the text node
-          return false;
+          nextText += node.text;
         }
         return true;
       });
 
-      if (insertPos === 0) {
-        currentDoc.content.forEach((node, pos) => {
-          if (node.type.name === 'paragraph') {
-            insertPos = pos + 1;
-            return false;
-          }
-        });
+      // Find position to insert at (end of current document)
+      const tr = currentState.tr;
+      const insertPos = currentState.doc.content.size - 1;
+
+      if (nextText) {
+        tr.insertText(nextText, insertPos);
+        tr.setSelection(Selection.near(tr.doc.resolve(insertPos)));
       }
 
-      const tr = currentState.tr;
-      tr.insertText(nextText, insertPos);
-
-      // Set cursor between original and appended text
-      const cursorPos = insertPos; // After "ABC", before "DEF"
-      tr.setSelection(Selection.near(tr.doc.resolve(cursorPos)));
-
-      return currentState.apply(tr);
+      return tr.docChanged ? currentState.apply(tr) : null;
     };
 
   const mergeWithPreviousBlock =
@@ -119,47 +100,26 @@ export default function PostBuilder() {
       }
 
       const previousBlock = currentBlocks[index - 1];
-      const previousDoc = previousBlock.state.doc;
-      const currentDoc = currentState.doc;
 
+      // Extract all text from current block
       let currentText = '';
-      currentDoc.content.forEach((node) => {
-        if (node.type.name === 'paragraph') {
-          node.content.forEach((child) => {
-            if (child.isText) {
-              currentText += child.text;
-            }
-          });
-        }
-      });
-
-      let insertPos = 0;
-      previousDoc.descendants((node, pos) => {
+      currentState.doc.nodesBetween(0, currentState.doc.content.size, (node) => {
         if (node.isText) {
-          insertPos = pos + node.nodeSize; // End of the text node
-          return false;
+          currentText += node.text;
         }
         return true;
       });
 
-      if (insertPos === 0) {
-        previousDoc.content.forEach((node, pos) => {
-          if (node.type.name === 'paragraph') {
-            insertPos = pos + 1;
-            return false;
-          }
-        });
+      // Find position to insert at (end of previous document)
+      const tr = previousBlock.state.tr;
+      const insertPos = previousBlock.state.doc.content.size - 1;
+
+      if (currentText) {
+        tr.insertText(currentText, insertPos);
+        tr.setSelection(Selection.near(tr.doc.resolve(insertPos)));
       }
 
-      const tr = previousBlock.state.tr;
-      tr.insertText(currentText, insertPos);
-
-      // Set cursor between original and appended text
-      const cursorPos = insertPos; // After "ABC", before "DEF"
-      tr.setSelection(Selection.near(tr.doc.resolve(cursorPos)));
-
-      const updatedState = previousBlock.state.apply(tr);
-      return { updatedState, targetId: previousBlock.id };
+      return tr.docChanged ? { updatedState: previousBlock.state.apply(tr), targetId: previousBlock.id } : null;
     };
 
   return (

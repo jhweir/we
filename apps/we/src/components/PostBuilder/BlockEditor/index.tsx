@@ -68,11 +68,28 @@ const BlockEditor = ({
   }, [id, focused, state]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!viewRef.current) return;
+
+    const { state: editorState } = viewRef.current;
+    const { selection, doc } = editorState;
+
+    // Get all text content from the document
+    let textContent = '';
+    doc.nodesBetween(0, doc.content.size, (node) => {
+      if (node.isText) {
+        textContent += node.text;
+      }
+      return true;
+    });
+
+    const isEmpty = textContent.trim().length === 0;
+    const isAtStart = selection.$from.parentOffset === 0;
+    const isAtEnd = selection.$to.parentOffset === selection.$to.parent.content.size;
+
     if (e.key === 'Enter') {
       if (e.shiftKey) {
         e.preventDefault();
         if (viewRef.current) {
-          const { state: editorState } = viewRef.current;
           const hardBreak = editorState.schema.nodes.hard_break;
           if (hardBreak) {
             const tr = editorState.tr.replaceSelectionWith(hardBreak.create());
@@ -83,34 +100,24 @@ const BlockEditor = ({
       }
       e.preventDefault();
       insertBlock();
-    } else if (e.key === 'Backspace' && viewRef.current) {
-      const { state: editorState } = viewRef.current;
-      const { selection } = editorState;
-      const docSize = editorState.doc.content.size;
-      const isEmpty = docSize <= 2;
-      const isAtStart = selection.$from.pos <= 1;
-
+    } else if (e.key === 'Backspace') {
       if (isEmpty) {
+        // Block is empty, delete it
         e.preventDefault();
         deleteBlock(id);
       } else if (isAtStart && hasPreviousBlock && mergeWithPreviousBlock && previousBlockId) {
+        // Cursor at start, merge with previous block
         e.preventDefault();
         const result = mergeWithPreviousBlock(editorState);
-        if (result && viewRef.current) {
+        if (result && onStateChange) {
           const { updatedState, targetId } = result;
-          if (onStateChange) {
-            onStateChange(targetId, updatedState);
-          }
+          onStateChange(targetId, updatedState);
           deleteBlock(id);
         }
       }
-    } else if (e.key === 'Delete' && hasNextBlock && mergeWithNextBlock && viewRef.current && nextBlockId) {
-      const { state: editorState } = viewRef.current;
-      const { selection } = editorState;
-      const docSize = editorState.doc.content.size;
-      const isAtEnd = selection.$to.pos >= docSize - 2;
-
-      if (isAtEnd) {
+    } else if (e.key === 'Delete') {
+      if (isAtEnd && hasNextBlock && mergeWithNextBlock && nextBlockId) {
+        // Cursor at end, merge with next block
         e.preventDefault();
         const updatedState = mergeWithNextBlock(editorState);
         if (updatedState && viewRef.current) {
