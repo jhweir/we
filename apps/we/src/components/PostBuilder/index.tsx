@@ -3,6 +3,7 @@
 import { EditorState, Selection } from 'prosemirror-state';
 import { useState } from 'react';
 import BlockEditor from './BlockEditor';
+import editorManager from './editorManager';
 import { customSchema } from './schema';
 
 interface Block {
@@ -56,6 +57,7 @@ export default function PostBuilder() {
   };
 
   const updateBlockState = (id: number, newState: EditorState) => {
+    // Just update the block state - cursor positioning now happens in BlockEditor
     setBlocks((prevBlocks) => prevBlocks.map((block) => (block.id === id ? { ...block, state: newState } : block)));
   };
 
@@ -122,6 +124,27 @@ export default function PostBuilder() {
       return tr.docChanged ? { updatedState: previousBlock.state.apply(tr), targetId: previousBlock.id } : null;
     };
 
+  // Simplified navigation functions - just focus the blocks
+  const moveToPreviousBlock = (index: number, cursorOffset: number) => {
+    if (index > 0) {
+      console.log('Move to previous block', index, cursorOffset);
+      // Set the active block ID and cursor position in editor manager
+      editorManager.setActiveBlock(blocks[index - 1].id, cursorOffset);
+      // Then update the focused block in React state
+      setFocusedBlockId(blocks[index - 1].id);
+    }
+  };
+
+  const moveToNextBlock = (index: number, cursorOffset: number) => {
+    if (index < blocks.length - 1) {
+      console.log('Move to next block', index, cursorOffset);
+      // Set the active block ID and cursor position in editor manager
+      editorManager.setActiveBlock(blocks[index + 1].id, cursorOffset);
+      // Then update the focused block in React state
+      setFocusedBlockId(blocks[index + 1].id);
+    }
+  };
+
   return (
     <div className="editor-container">
       {blocks.map((block, index) => (
@@ -140,6 +163,8 @@ export default function PostBuilder() {
           focused={focusedBlockId === block.id}
           onFocus={() => setFocusedBlockId(block.id)}
           onStateChange={updateBlockState}
+          onMoveToPreviousBlock={(cursorOffset) => moveToPreviousBlock(index, cursorOffset)}
+          onMoveToNextBlock={(cursorOffset) => moveToNextBlock(index, cursorOffset)}
         />
       ))}
     </div>

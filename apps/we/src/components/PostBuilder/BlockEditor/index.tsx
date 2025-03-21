@@ -1,7 +1,8 @@
-import { EditorState, Transaction } from 'prosemirror-state';
+import { EditorState, TextSelection, Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import 'prosemirror-view/style/prosemirror.css';
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
+import editorManager from '../editorManager';
 import './index.scss';
 
 interface BlockEditorProps {
@@ -18,6 +19,8 @@ interface BlockEditorProps {
   hasPreviousBlock?: boolean;
   nextBlockId?: number;
   previousBlockId?: number;
+  onMoveToPreviousBlock: (cursorOffset: number) => void;
+  onMoveToNextBlock: (cursorOffset: number) => void;
 }
 
 const BlockEditor = ({
@@ -34,10 +37,13 @@ const BlockEditor = ({
   hasPreviousBlock,
   nextBlockId,
   previousBlockId,
+  onMoveToPreviousBlock,
+  onMoveToNextBlock,
 }: BlockEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
 
+  // Effect 1: Create/destroy the editor (runs only when necessary)
   useEffect(() => {
     if (!editorRef.current) return;
 
@@ -54,24 +60,88 @@ const BlockEditor = ({
 
     viewRef.current = view;
 
-    if (focused && viewRef.current) {
-      setTimeout(() => {
-        viewRef.current?.focus();
-      }, 0);
-    }
-
     return () => {
       if (viewRef.current) {
         viewRef.current.destroy();
       }
     };
-  }, [id, focused, state]);
+  }, [editorRef.current, id]); // Only recreate when ID or ref changes
+
+  // Effect 2: Handle state updates separately (doesn't recreate the editor)
+  useEffect(() => {
+    if (viewRef.current && viewRef.current.state !== state) {
+      viewRef.current.updateState(state);
+    }
+  }, [state]);
+
+  // Handle focus events
+  useEffect(() => {
+    if (focused && viewRef.current) {
+      // Use requestAnimationFrame for smoother visual transition
+      requestAnimationFrame(() => {
+        // If this block is receiving focus AND has a pending cursor position
+        if (editorManager.activeBlockId === id && editorManager.pendingCursorPosition !== null) {
+          try {
+            // Set cursor position BEFORE focus
+            const tr = viewRef.current!.state.tr;
+
+            // Find the first text block node
+            let targetNode = null;
+            let nodePos = 0;
+
+            viewRef.current.state.doc.descendants((node, pos) => {
+              if (!targetNode && node.isTextblock) {
+                targetNode = node;
+                nodePos = pos;
+                return false; // Stop traversal
+              }
+              return true;
+            });
+
+            if (targetNode) {
+              // Ensure cursor position is within bounds
+              const maxOffset = targetNode.content.size;
+              const safeOffset = Math.min(editorManager.pendingCursorPosition, maxOffset);
+
+              // Calculate absolute position (+1 to get inside the node)
+              const pos = nodePos + 1 + safeOffset;
+
+              // Set the selection
+              tr.setSelection(TextSelection.create(viewRef.current.state.doc, pos));
+
+              // Apply cursor position immediately
+              viewRef.current.updateState(viewRef.current.state.apply(tr));
+
+              console.log(`Block ${id}: Set cursor at position ${safeOffset} (max: ${maxOffset})`);
+            }
+
+            // THEN focus the editor
+            viewRef.current.focus();
+
+            // Clear pending position
+            editorManager.pendingCursorPosition = null;
+          } catch (e) {
+            console.error('Error positioning cursor:', e);
+            // Fallback to regular focus
+            viewRef.current.focus();
+          }
+        } else {
+          // No pending cursor position, just focus normally
+          viewRef.current.focus();
+        }
+      });
+    }
+  }, [focused, id]); // Note: Using id directly, not props.id
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!viewRef.current) return;
 
     const { state: editorState } = viewRef.current;
     const { selection, doc } = editorState;
+
+    // Calculate cursor offset within the current block
+    const cursorOffset = selection.$from.parentOffset;
+    console.log('Cursor offset:', cursorOffset);
 
     // Get all text content from the document
     let textContent = '';
@@ -127,6 +197,18 @@ const BlockEditor = ({
           }
           deleteBlock(nextBlockId);
         }
+      }
+    } else if (e.key === 'ArrowUp') {
+      // Simply move to previous block
+      if (hasPreviousBlock) {
+        e.preventDefault();
+        onMoveToPreviousBlock(cursorOffset);
+      }
+    } else if (e.key === 'ArrowDown') {
+      // Simply move to next block
+      if (hasNextBlock) {
+        e.preventDefault();
+        onMoveToNextBlock(cursorOffset);
       }
     }
   };
