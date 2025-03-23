@@ -41,7 +41,7 @@ export default function PostBuilder() {
         <div className={styles.editorContainer}>
           <RichTextPlugin
             contentEditable={<ContentEditable className={styles.editorInput || 'editor-input'} />}
-            placeholder={<div className={styles.placeholder || 'editor-placeholder'}>Start writing...</div>}
+            // placeholder={<div className={styles.placeholder || 'editor-placeholder'}>Start writing...</div>}
             ErrorBoundary={LexicalErrorBoundary} // Using the named import
           />
           <HistoryPlugin />
