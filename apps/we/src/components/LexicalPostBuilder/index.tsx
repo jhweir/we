@@ -58,12 +58,10 @@ export default function PostBuilder() {
     ],
     editorState: () => {
       const root = $getRoot();
-      if (root.getFirstChild() === null) {
-        const blockNode = $createBlockNode('paragraph');
-        const paragraph = $createParagraphNode();
-        blockNode.append(paragraph);
-        root.append(blockNode);
-      }
+      const blockNode = $createBlockNode('paragraph');
+      const paragraphNode = $createParagraphNode();
+      blockNode.append(paragraphNode);
+      root.append(blockNode);
     },
   };
 
@@ -85,8 +83,12 @@ export default function PostBuilder() {
           <ListPlugin />
         </div>
       </LexicalComposer>
+    </div>
+  );
+}
 
-      {/* <div class="editor-input">
+{
+  /* <div class="editor-input">
         <div class="block" data-block-type="paragraph">
           <div class="block-ui-container">
           <div class="block-ui-wrapper">
@@ -97,7 +99,27 @@ export default function PostBuilder() {
           <p class="editor-paragraph">Second block content</p>
           <p class="editor-paragraph">Second block content</p>
         </div>
-      </div> */}
-    </div>
-  );
+      </div> */
+}
+
+{
+  /* <div class="editor-input">
+        <div class="block" data-block-type="paragraph">
+          <p class="editor-paragraph"><span data-lexical-text="true">text</span></p>
+          <p class="editor-paragraph"><span data-lexical-text="true">text</span></p>
+          <p class="editor-paragraph"><span data-lexical-text="true">text</span></p>
+        </div>
+      </div> */
+  // <div class="editor-input">
+  //   <div class="block" data-block-type="paragraph">
+  //     <p class="editor-paragraph">
+  //       <span data-lexical-text="true">text</span>
+  //     </p>
+  //   </div>
+  //   <div class="block" data-block-type="paragraph">
+  //     <p class="editor-paragraph">
+  //       <span data-lexical-text="true">text</span>
+  //     </p>
+  //   </div>
+  // </div>;
 }

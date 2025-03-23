@@ -15,9 +15,9 @@ html.dark we-tooltip::part(tooltip) {
   color: var(--we-color-black);
 }
 
-html.dark we-menu-item::part(base) {
+/* html.dark we-menu-item::part(base) {
   margin-top: var(--we-space-100);
   margin-left: var(--we-space-300);
   margin-right: var(--we-space-300);
   border-radius: 6px;
-}
+} */

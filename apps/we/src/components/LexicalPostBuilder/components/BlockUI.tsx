@@ -1,4 +1,7 @@
-// components/BlockUI.tsx
+// src/components/LexicalPostBuilder/components/BlockUI.tsx
+
+'use client';
+
 import { $createListItemNode, $createListNode } from '@lexical/list';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $createHeadingNode, HeadingTagType } from '@lexical/rich-text';
