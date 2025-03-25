@@ -46,8 +46,11 @@
 }
 
 // Block styles
-.editorParagraph {
-  margin: 16px 0;
+.editorParagraph,
+.editorH1,
+.editorH2,
+.editorH3 {
+  margin: 5px 0;
   position: relative; // Important for block handles positioning
 }
 

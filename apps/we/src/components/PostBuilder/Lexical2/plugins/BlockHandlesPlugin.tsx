@@ -296,7 +296,7 @@ function BlockHandle({ blockElement, id }: { blockElement: HTMLElement; id: stri
         style={{
           position: 'absolute',
           top: `${position.top}px`,
-          left: `${position.left}px`,
+          left: `${position.left - 60}px`,
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
