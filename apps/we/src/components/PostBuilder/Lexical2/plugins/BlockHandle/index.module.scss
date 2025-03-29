@@ -25,7 +25,7 @@
     align-items: center;
 
     &:hover {
-      background-color: var(--we-color-ui-25);
+      background-color: var(--we-color-ui-50);
       border-radius: 5px;
     }
   }
@@ -37,8 +37,25 @@
   pointer-events: auto;
   display: flex;
   flex-direction: column;
-  background-color: red; // var(--we-color-ui-25);
+  background-color: var(--we-color-ui-0);
+  padding: 5px;
+  border-radius: 5px;
+  font-family: var(--we-font-family);
+  border: 1px solid var(--we-color-ui-300);
+  min-width: 200px;
 
   .menuItem {
+    all: unset;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    border-radius: 5px;
+    height: 30px;
+    padding: 0 5px;
+    color: var(--we-color-ui-900);
+
+    &:hover {
+      background-color: var(--we-color-ui-50);
+    }
   }
 }

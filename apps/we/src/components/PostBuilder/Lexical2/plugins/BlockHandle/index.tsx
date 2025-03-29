@@ -16,33 +16,23 @@ import styles from './index.module.scss';
 const TRANSFORM_BLOCK_COMMAND = createCommand<{ type: string; nodeKey?: string }>('TRANSFORM_BLOCK_COMMAND');
 
 const blockTypes = [
-  { type: 'paragraph', label: 'Paragraph' },
-  { type: 'h1', label: 'Heading 1' },
-  { type: 'h2', label: 'Heading 2' },
-  { type: 'h3', label: 'Heading 3' },
+  { type: 'p', label: 'Text', icon: 'text-t' },
+  { type: 'h1', label: 'Heading 1', icon: 'text-h-one' },
+  { type: 'h2', label: 'Heading 2', icon: 'text-h-two' },
+  { type: 'h3', label: 'Heading 3', icon: 'text-h-three' },
 ];
 
 function mapsAreEqual<K, V>(map1: Map<K, V>, map2: Map<K, V>): boolean {
   // Quick size check
-  if (map1.size !== map2.size) {
-    return false;
-  }
-
+  if (map1.size !== map2.size) return false;
   // Check if all keys in map1 exist in map2 with the same values
   for (const [key, val1] of map1) {
     // If the key doesn't exist in map2 or refers to a different value
-    if (!map2.has(key)) {
-      return false;
-    }
-
+    if (!map2.has(key)) return false;
     // For DOM elements, we just check reference equality
-    // This works because we're comparing DOM element references
     const val2 = map2.get(key);
-    if (val1 !== val2) {
-      return false;
-    }
+    if (val1 !== val2) return false;
   }
-
   return true;
 }
 
@@ -72,7 +62,7 @@ function BlockTypeMenu({
   return (
     <div ref={menuRef} className={styles.menu} style={{ top: `${position.top}px`, left: `${position.left}px` }}>
       {blockTypes.map((blockType) => (
-        <div
+        <button
           key={blockType.type}
           className={styles.menuItem}
           onClick={() => {
@@ -80,8 +70,9 @@ function BlockTypeMenu({
             close();
           }}
         >
+          <we-icon name={blockType.icon} weight="bold" color="ui-400" size="sm" style={{ marginRight: '10px' }} />
           {blockType.label}
-        </div>
+        </button>
       ))}
     </div>
   );
@@ -99,7 +90,6 @@ function BlockHandle({ block, nodeKey }: { block: HTMLElement; nodeKey: string }
   function updatePosition() {
     const { top, left, height } = block.getBoundingClientRect();
     const newPosition = { top: top + window.scrollY, left: left + window.scrollX - 40, height };
-
     // Only update state if position actually changed
     if (
       positionRef.current.top !== newPosition.top ||
@@ -121,11 +111,10 @@ function BlockHandle({ block, nodeKey }: { block: HTMLElement; nodeKey: string }
   }
 
   function onMouseLeave(e: MouseEvent) {
-    const movingFromBlockToHandle = e.target === block && e.relatedTarget === handleRef.current;
-    const movingFromHandleToBlock = e.target === handleRef.current && e.relatedTarget === block;
-    if (!movingFromBlockToHandle && !movingFromHandleToBlock) {
-      setIsHovered(false);
-    }
+    const relatedTarget = e.relatedTarget as Node;
+    const isRelatedToBlock = block.contains(relatedTarget);
+    const isRelatedToHandle = handleRef.current?.contains(relatedTarget);
+    if (!isRelatedToBlock && !isRelatedToHandle) setIsHovered(false);
   }
 
   function onDragStart(e: React.DragEvent) {
@@ -150,14 +139,14 @@ function BlockHandle({ block, nodeKey }: { block: HTMLElement; nodeKey: string }
 
   // Apply hover effect to block and handle
   useEffect(() => {
-    if (isHovered) {
-      block.style.backgroundColor = '#f5f5f5';
+    if (isHovered || showMenu) {
+      block.style.backgroundColor = 'var(--we-color-ui-50)';
       handleRef.current!.style.opacity = '1';
     } else {
       block.style.backgroundColor = '';
       handleRef.current!.style.opacity = '0';
     }
-  }, [isHovered]);
+  }, [isHovered, showMenu]);
 
   useEffect(() => {
     // Use ResizeObserver for monitoring size changes
@@ -256,7 +245,7 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
 
           // Skip if node is already the desired type
           if (
-            (type === 'paragraph' && $isParagraphNode(node)) ||
+            (type === 'p' && $isParagraphNode(node)) ||
             (type === 'h1' && $isHeadingNode(node) && node.getTag() === 'h1') ||
             (type === 'h2' && $isHeadingNode(node) && node.getTag() === 'h2') ||
             (type === 'h3' && $isHeadingNode(node) && node.getTag() === 'h3')
@@ -265,7 +254,7 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
 
           // Create the new node based on type
           let newNode;
-          if (type === 'paragraph') newNode = $createParagraphNode();
+          if (type === 'p') newNode = $createParagraphNode();
           else if (['h1', 'h2', 'h3'].includes(type)) newNode = $createHeadingNode(type as 'h1' | 'h2' | 'h3');
           else return; // Skip if unsupported block type
 
@@ -286,7 +275,7 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
 
         // Walk through all block-level nodes
         root.getChildren().forEach((node) => {
-          if (node.getType() === 'paragraph' || node.getType() === 'heading') {
+          if ($isParagraphNode(node) || $isHeadingNode(node)) {
             const key = node.getKey();
             const element = editor.getElementByKey(key);
             if (element) newNodeMap.set(key, element as HTMLElement);
