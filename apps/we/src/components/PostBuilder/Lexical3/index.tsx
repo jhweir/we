@@ -2,7 +2,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import Block from './Block';
+import Block from './components/block';
 
 interface BlockData {
   id: string;
@@ -33,6 +33,7 @@ export default function PostBuilder() {
 
   const onNavigate = useCallback(
     (fromIndex: number, direction: 'up' | 'down') => {
+      console.log('onNavigate', fromIndex, direction);
       const newIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
       if (newIndex >= 0 && newIndex < blocks.length) {
         // Focus the block at newIndex (requires ref management)
@@ -43,7 +44,8 @@ export default function PostBuilder() {
   );
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
+    <we-column bg="white" p="1000" r="xs" style={{ width: '100%', maxWidth: 1000 }}>
+      {/* Title */}
       {blocks.map((block, index) => (
         <Block
           key={block.id}
@@ -56,6 +58,6 @@ export default function PostBuilder() {
           onNavigate={onNavigate}
         />
       ))}
-    </div>
+    </we-column>
   );
 }

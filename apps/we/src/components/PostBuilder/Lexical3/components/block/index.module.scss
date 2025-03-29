@@ -1,0 +1,57 @@
+.wrapper {
+  position: relative;
+  display: flex;
+  gap: 5px;
+  margin-left: -50px;
+
+  .handle {
+    opacity: 0;
+    display: flex;
+    align-items: center;
+    height: 40px;
+    width: 50px;
+    cursor: pointer;
+    transition: 0.3s;
+
+    > button {
+      all: unset;
+      cursor: pointer;
+    }
+
+    > div {
+      cursor: grab;
+    }
+
+    > button,
+    > div {
+      //
+      height: 25px;
+      width: 25px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+
+      &:hover {
+        background-color: var(--we-color-ui-25);
+        border-radius: 5px;
+      }
+    }
+  }
+
+  .input {
+    padding: 10px;
+    transition: 0.3s;
+    border-radius: 10px;
+    flex-grow: 1;
+  }
+
+  &:hover {
+    .handle {
+      opacity: 1;
+    }
+
+    .input {
+      background-color: var(--we-color-ui-25);
+    }
+  }
+}

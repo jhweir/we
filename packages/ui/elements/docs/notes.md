@@ -1,12 +1,12 @@
-# Todos
+### Todos
 
-- centralise eslint, typescript, prettier, and stylelint config in monorepo then extend in each package
+- add ui-0 for white and black
+- reuse common types (Size, Space etc.) across components
+- add radius props to row (like column)
+- combine size and spacing variables?
+- include both 0-100 and xs, sm, md, lg, xl props on margin, padding, border-radius ...
 
-- update generate types script (is this approach better than gathering the types from each components .d.ts?)
-- reorganise / simplify linting checks
-- lint scripts as well as main files
-
-- the dist structure I'm trying to create:
+### Dist Structure
 
 dist/
 ├── all-components.js // imports all components at once (could be renamed)

@@ -1,6 +1,7 @@
 // PostBuilder/Block.tsx
 import { useRef } from 'react';
-import Editor from './Editor';
+import Editor from '../editor';
+import styles from './index.module.scss';
 
 interface BlockProps {
   id: string;
@@ -29,26 +30,20 @@ export default function Block({ id, index, content, moveBlock, updateContent, on
     e.preventDefault();
     const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
     const toIndex = index;
-    if (fromIndex !== toIndex) {
-      moveBlock(fromIndex, toIndex);
-    }
+    if (fromIndex !== toIndex) moveBlock(fromIndex, toIndex);
   };
 
   return (
-    <div
-      ref={ref}
-      draggable
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-      className="flex items-start group relative"
-    >
-      {/* Handle */}
-      <div className="w-6 h-6 opacity-0 group-hover:opacity-100 flex flex-col justify-center items-center cursor-move mr-2">
-        <span className="text-gray-500">⠿</span>
+    <div className={styles.wrapper} onDragOver={handleDragOver} onDrop={handleDrop}>
+      <div className={styles.handle}>
+        <button>
+          <we-icon name="gear" size="sm" color="ui-600" />
+        </button>
+        <div ref={ref} draggable onDragStart={handleDragStart}>
+          <we-icon name="dots-six-vertical" weight="bold" size="sm" color="ui-600" />
+        </div>
       </div>
-      {/* Editor */}
-      <div className="flex-1">
+      <div className={styles.input}>
         <Editor
           initialContent={content}
           onChange={(newContent) => updateContent(id, newContent)}

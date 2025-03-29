@@ -39,3 +39,5 @@ export default css`
     background-color: var(--we-scrollbar-thumb-background);
   }
 `;
+
+export type Size = '' | 'xxs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';

@@ -14,90 +14,10 @@ import {
 } from 'lexical';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import styles from './index.module.scss';
 
 // Create a custom command for block transformations
 export const TRANSFORM_BLOCK_COMMAND = createCommand<{ type: string; nodeKey?: string }>('TRANSFORM_BLOCK_COMMAND');
-
-// Block type menu component
-function BlockTypeMenu({
-  position,
-  onClose,
-  onSelectBlockType,
-  isVisible,
-}: {
-  position: { top: number; left: number };
-  onClose: () => void;
-  onSelectBlockType: (type: string) => void;
-  isVisible: boolean;
-}) {
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close when clicking outside
-  useEffect(() => {
-    if (!isVisible) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isVisible, onClose]);
-
-  if (!isVisible) return null;
-
-  const blockTypes = [
-    { type: 'paragraph', label: 'Paragraph' },
-    { type: 'h1', label: 'Heading 1' },
-    { type: 'h2', label: 'Heading 2' },
-    { type: 'h3', label: 'Heading 3' },
-  ];
-
-  return (
-    <div
-      ref={menuRef}
-      style={{
-        position: 'absolute',
-        top: `${position.top}px`,
-        left: `${position.left}px`,
-        backgroundColor: 'white',
-        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
-        borderRadius: '4px',
-        overflow: 'hidden',
-        zIndex: 10000,
-        minWidth: '150px',
-        border: '1px solid #ddd',
-      }}
-    >
-      {blockTypes.map((blockType) => (
-        <div
-          key={blockType.type}
-          onClick={() => {
-            onSelectBlockType(blockType.type);
-            onClose();
-          }}
-          style={{
-            padding: '8px 12px',
-            cursor: 'pointer',
-            hover: 'backgroundColor: #f5f5f5',
-          }}
-          onMouseEnter={(e) => {
-            (e.target as HTMLElement).style.backgroundColor = '#f5f5f5';
-          }}
-          onMouseLeave={(e) => {
-            (e.target as HTMLElement).style.backgroundColor = '';
-          }}
-        >
-          {blockType.label}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 // Fix the transformBlockType function
 function transformBlockType(editor: LexicalEditor, type: string, element: HTMLElement) {
@@ -199,41 +119,132 @@ function transformBlockType(editor: LexicalEditor, type: string, element: HTMLEl
   });
 }
 
+// Block type menu component
+function BlockTypeMenu({
+  position,
+  onClose,
+  onSelectBlockType,
+  isVisible,
+}: {
+  position: { top: number; left: number };
+  onClose: () => void;
+  onSelectBlockType: (type: string) => void;
+  isVisible: boolean;
+}) {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close when clicking outside
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isVisible, onClose]);
+
+  if (!isVisible) return null;
+
+  const blockTypes = [
+    { type: 'paragraph', label: 'Paragraph' },
+    { type: 'h1', label: 'Heading 1' },
+    { type: 'h2', label: 'Heading 2' },
+    { type: 'h3', label: 'Heading 3' },
+  ];
+
+  return (
+    <div
+      ref={menuRef}
+      style={{
+        position: 'absolute',
+        top: `${position.top}px`,
+        left: `${position.left}px`,
+        backgroundColor: 'white',
+        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
+        borderRadius: '4px',
+        overflow: 'hidden',
+        zIndex: 10000,
+        minWidth: '150px',
+        border: '1px solid #ddd',
+      }}
+    >
+      {blockTypes.map((blockType) => (
+        <div
+          key={blockType.type}
+          onClick={() => {
+            onSelectBlockType(blockType.type);
+            onClose();
+          }}
+          style={{
+            padding: '8px 12px',
+            cursor: 'pointer',
+            hover: 'backgroundColor: #f5f5f5',
+          }}
+          onMouseEnter={(e) => {
+            (e.target as HTMLElement).style.backgroundColor = '#f5f5f5';
+          }}
+          onMouseLeave={(e) => {
+            (e.target as HTMLElement).style.backgroundColor = '';
+          }}
+        >
+          {blockType.label}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Block handle component with menu
 function BlockHandle({ blockElement, id }: { blockElement: HTMLElement; id: string }) {
   const [editor] = useLexicalComposerContext();
-  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const [position, setPosition] = useState({ top: 0, left: 0, height: 0 });
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [showMenu, setShowMenu] = useState(false);
-  const [blockType, setBlockType] = useState('paragraph');
+  const ref = useRef<HTMLDivElement>(null);
+
+  function onMouseEnter() {
+    blockElement.style.backgroundColor = '#f5f5f5';
+    ref.current!.style.opacity = '1';
+  }
+
+  function onMouseLeave(e: MouseEvent) {
+    const movingFromBlockToHandle = e.target === blockElement && e.relatedTarget === ref.current;
+    const movingFromHandleToBlock = e.target === ref.current && e.relatedTarget === blockElement;
+    if (!movingFromBlockToHandle && !movingFromHandleToBlock) {
+      blockElement.style.backgroundColor = '';
+      ref.current!.style.opacity = '0';
+    }
+  }
 
   // Store a stable reference to the block element
   useEffect(() => {
     if (!blockElement) return;
 
     // Ensure the block has our stable ID attribute
-    if (!blockElement.hasAttribute('data-block-id')) {
-      blockElement.setAttribute('data-block-id', id);
-    }
-
-    // Determine block type from element
-    const tagName = blockElement.tagName.toLowerCase();
-    if (tagName === 'h1' || tagName === 'h2' || tagName === 'h3') {
-      setBlockType(tagName);
-    } else {
-      setBlockType('paragraph');
-    }
+    if (!blockElement.hasAttribute('data-block-id')) blockElement.setAttribute('data-block-id', id);
 
     const updatePosition = () => {
       const rect = blockElement.getBoundingClientRect();
       setPosition({
         top: rect.top + window.scrollY,
         left: rect.left + window.scrollX - 40,
+        height: rect.height,
       });
     };
 
     // Initial position update
     updatePosition();
+
+    blockElement.addEventListener('mouseenter', onMouseEnter);
+    blockElement.addEventListener('mouseleave', onMouseLeave as EventListener);
+    ref.current!.addEventListener('mouseenter', onMouseEnter);
+    ref.current!.addEventListener('mouseleave', onMouseLeave as EventListener);
 
     // Update on scroll and resize
     window.addEventListener('scroll', updatePosition);
@@ -249,6 +260,9 @@ function BlockHandle({ blockElement, id }: { blockElement: HTMLElement; id: stri
       window.removeEventListener('scroll', updatePosition);
       window.removeEventListener('resize', updatePosition);
       blockElement.removeEventListener('click', handleClick);
+      blockElement.removeEventListener('mouseenter', onMouseEnter);
+      blockElement.removeEventListener('mouseleave', onMouseLeave);
+      // removeHoverStyles();
     };
   }, [blockElement, editor, id]);
 
@@ -271,99 +285,26 @@ function BlockHandle({ blockElement, id }: { blockElement: HTMLElement; id: stri
     setShowMenu(true);
   };
 
-  const handleBlockTypeChange = (type: string) => {
-    transformBlockType(editor, type, blockElement);
-    setBlockType(type);
-  };
-
-  // Get display label for the block type indicator
-  const getBlockTypeLabel = () => {
-    switch (blockType) {
-      case 'h1':
-        return 'H1';
-      case 'h2':
-        return 'H2';
-      case 'h3':
-        return 'H3';
-      default:
-        return 'P';
-    }
-  };
-
   return (
     <>
       <div
-        style={{
-          position: 'absolute',
-          top: `${position.top}px`,
-          left: `${position.left - 60}px`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          background: 'white',
-          padding: '5px',
-          borderRadius: '4px',
-          zIndex: 9999,
-          border: '1px solid #ccc',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          width: '80px',
-          pointerEvents: 'auto',
-          opacity: '0.7',
-          transition: 'opacity 0.2s',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.opacity = '1';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.opacity = '0.7';
-        }}
+        ref={ref}
+        className={styles.wrapper}
+        style={{ top: `${position.top}px`, left: `${position.left - 10}px`, height: `${position.height}px` }}
       >
-        <button
-          onClick={openBlockTypeMenu}
-          style={{
-            cursor: 'pointer',
-            display: 'block',
-            width: '20px',
-            marginBottom: '5px',
-            background: 'white',
-            color: 'black',
-            border: '1px solid #ddd',
-            borderRadius: '2px',
-            padding: '2px 0',
-          }}
-        >
-          +
+        <button onClick={openBlockTypeMenu}>
+          <we-icon name="gear" size="sm" color="ui-600" />
         </button>
-        <div
-          draggable
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          style={{
-            cursor: 'move',
-            textAlign: 'center',
-            marginBottom: '5px',
-            fontWeight: 'bold',
-          }}
-        >
-          ⋮⋮
+        <div draggable onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <we-icon name="dots-six-vertical" weight="bold" size="sm" color="ui-600" />
         </div>
-        <span
-          style={{
-            display: 'block',
-            textAlign: 'center',
-            fontSize: '10px',
-            fontWeight: 'bold',
-          }}
-        >
-          {getBlockTypeLabel()}
-        </span>
       </div>
 
       {createPortal(
         <BlockTypeMenu
           position={menuPosition}
           onClose={() => setShowMenu(false)}
-          onSelectBlockType={handleBlockTypeChange}
+          onSelectBlockType={(type) => transformBlockType(editor, type, blockElement)}
           isVisible={showMenu}
         />,
         document.body,

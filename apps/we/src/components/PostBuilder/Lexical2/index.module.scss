@@ -1,148 +1,17 @@
-.postBuilder {
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
-  max-width: 1000px;
-  width: 100%;
-  margin: 0 auto;
-}
+.editor {
+  outline: none;
 
-.editorContainer {
-  position: relative;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  min-height: 200px;
-  padding: 20px 20px 20px 80px;
-  background: #fff;
-  margin-top: 20px;
-}
-
-// IMPORTANT: Make sure these styles are correct
-.editorInput {
-  height: 100%;
-  min-height: 150px;
-  resize: none;
-  font-size: 16px;
-  caret-color: rgb(5, 5, 5);
-  position: relative;
-  tab-size: 1;
-  outline: 0;
-  padding: 10px 0;
-  display: block; // Important to make it visible
-}
-
-// Make sure placeholder is positioned correctly
-.placeholder {
-  color: #999;
-  overflow: hidden;
-  position: absolute;
-  top: 30px;
-  left: 40px;
-  user-select: none;
-  pointer-events: none;
-}
-
-// Block styles
-.editorParagraph,
-.editorH1,
-.editorH2,
-.editorH3 {
-  margin: 5px 0;
-  position: relative; // Important for block handles positioning
-}
-
-// Handle wrapper styles
-.blockWrapper {
-  position: relative;
-  margin: 8px 0;
-}
-
-.blockHandle {
-  position: absolute;
-  left: -30px;
-  top: 0;
-  width: 24px;
-  height: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background-color: #f5f5f5;
-  border-radius: 4px;
-  padding: 4px;
-  z-index: 10; // Ensure handles are above other content
-  opacity: 0.7; // More visible by default
-  transition: opacity 0.2s;
-  border: 1px solid #ddd;
-
-  &:hover {
-    opacity: 1;
-    background-color: #e0e0e0;
+  .block {
+    padding: 10px;
+    border-radius: 10px;
+    transition: 0.3s;
+    margin: 0;
   }
-}
 
-.blockMenuButton {
-  background: none;
-  border: none;
-  font-size: 14px;
-  cursor: pointer;
-  color: #666;
-  padding: 2px;
-  margin-bottom: 4px;
-}
-
-.blockDragHandle {
-  font-size: 14px;
-  cursor: move;
-  color: #666;
-  user-select: none;
-  margin-bottom: 4px;
-}
-
-.blockTypeIndicator {
-  font-size: 12px;
-  color: #999;
-}
-
-/* Drag and drop styling */
-.dragging {
-  opacity: 0.5;
-}
-
-.dropTarget {
-  position: relative;
-}
-
-.dropTarget::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: -4px;
-  height: 4px;
-  background-color: #3578e5;
-  border-radius: 2px;
-}
-
-/* Block type menu */
-.blockTypeMenu {
-  position: absolute;
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  z-index: 100;
-  min-width: 150px;
-}
-
-.menuItem {
-  padding: 8px 12px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.menuItem:hover {
-  background-color: #f5f5f5;
+  p,
+  h1,
+  h2,
+  h3 {
+    @extend .block;
+  }
 }

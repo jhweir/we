@@ -36,7 +36,7 @@ export default function DeafultTemplate({ children }: Readonly<{ children: React
 
       <we-row style={{ width: '100%', height: '100%' }}>
         {/* Left Sidebar */}
-        <we-column p="400" alignY="between" bg="ui-50" class={`${styles.sidebar} ${styles.left}`}>
+        <we-column p="400" alignY="between" bg="ui-0" class={`${styles.sidebar} ${styles.left}`}>
           <we-column gap="400">
             <Link href="/">
               <we-avatar src="https://avatars.githubusercontent.com/u/34165012?s=200&v=4" />
@@ -61,7 +61,7 @@ export default function DeafultTemplate({ children }: Readonly<{ children: React
         </we-column>
 
         {/* Center */}
-        <we-column bg="ui-100" style={{ width: '100%', position: 'relative' }}>
+        <we-column bg="ui-25" style={{ width: '100%', position: 'relative' }}>
           {/* Header */}
           <we-row p="300" style={{ position: 'absolute', right: 0 }}>
             <we-popover placement="bottom-end">
@@ -85,7 +85,7 @@ export default function DeafultTemplate({ children }: Readonly<{ children: React
         </we-column>
 
         {/* Right Sidebar */}
-        <we-column p="400" alignY="between" bg="ui-50" class={`${styles.sidebar} ${styles.right}`}>
+        <we-column p="400" alignY="between" bg="ui-0" class={`${styles.sidebar} ${styles.right}`}>
           <we-column gap="400">
             <Link href="/">
               <we-avatar src="https://weco-prod-user-flag-images.s3.eu-west-1.amazonaws.com/user-flag-image-1-1-1597655878532-gif-1693527111503.gif" />

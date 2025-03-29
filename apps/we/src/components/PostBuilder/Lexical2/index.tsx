@@ -9,22 +9,22 @@ import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import styles from './index.module.scss';
-import BlockHandlesPlugin from './plugins/BlockHandlesPlugin';
+import BlockHandlesPlugin from './plugins/BlockHandle';
 
 export default function PostBuilder() {
   // Define theme with explicit styles for all elements
   const theme = {
-    paragraph: styles.editorParagraph || 'editor-paragraph',
-    heading: {
-      h1: styles.editorH1 || 'editor-h1',
-      h2: styles.editorH2 || 'editor-h2',
-      h3: styles.editorH3 || 'editor-h3',
-    },
-    text: {
-      bold: styles.editorTextBold,
-      italic: styles.editorTextItalic,
-      underline: styles.editorTextUnderline,
-    },
+    // paragraph: styles.editorParagraph || 'editor-paragraph',
+    // heading: {
+    //   h1: styles.editorH1 || 'editor-h1',
+    //   h2: styles.editorH2 || 'editor-h2',
+    //   h3: styles.editorH3 || 'editor-h3',
+    // },
+    // text: {
+    //   bold: styles.editorTextBold,
+    //   italic: styles.editorTextItalic,
+    //   underline: styles.editorTextUnderline,
+    // },
     root: styles.editorRoot || 'editor-root',
   };
 
@@ -36,18 +36,16 @@ export default function PostBuilder() {
   };
 
   return (
-    <div className={styles.postBuilder}>
+    <we-column bg="white" p="1000" r="xs" style={{ width: '100%', maxWidth: 1000 }}>
       <LexicalComposer initialConfig={initialConfig}>
-        <div className={styles.editorContainer}>
-          <RichTextPlugin
-            contentEditable={<ContentEditable className={styles.editorInput || 'editor-input'} />}
-            // placeholder={<div className={styles.placeholder || 'editor-placeholder'}>Start writing...</div>}
-            ErrorBoundary={LexicalErrorBoundary} // Using the named import
-          />
-          <HistoryPlugin />
-          <BlockHandlesPlugin />
-        </div>
+        <RichTextPlugin
+          contentEditable={<ContentEditable className={styles.editor} />}
+          // placeholder={<div className={styles.placeholder || 'editor-placeholder'}>Start writing...</div>}
+          ErrorBoundary={LexicalErrorBoundary} // Using the named import
+        />
+        <HistoryPlugin />
+        <BlockHandlesPlugin />
       </LexicalComposer>
-    </div>
+    </we-column>
   );
 }

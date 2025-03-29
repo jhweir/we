@@ -17,7 +17,9 @@
 
   /* LIGHTNESS */
   --we-color-lightness-0: calc((100% - var(--we-color-subtractor)) * var(--we-color-multiplier));
-  --we-color-lightness-50: calc((98% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+  --we-color-lightness-25: calc((97.5% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+  --we-color-lightness-50: calc((95% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+  --we-color-lightness-75: calc((92.5% - var(--we-color-subtractor)) * var(--we-color-multiplier));
   --we-color-lightness-100: calc((90% - var(--we-color-subtractor)) * var(--we-color-multiplier));
   --we-color-lightness-200: calc((80% - var(--we-color-subtractor)) * var(--we-color-multiplier));
   --we-color-lightness-300: calc((70% - var(--we-color-subtractor)) * var(--we-color-multiplier));
@@ -84,7 +86,10 @@
   /* UI COLORS */
   --we-color-ui-hue: var(--we-color-primary-hue);
   --we-color-ui-saturation: 10%;
+  --we-color-ui-0: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-0));
+  --we-color-ui-25: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-25));
   --we-color-ui-50: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-50));
+  --we-color-ui-75: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-75));
   --we-color-ui-100: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-100));
   --we-color-ui-200: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-200));
   --we-color-ui-300: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-300));
@@ -94,6 +99,7 @@
   --we-color-ui-700: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-700));
   --we-color-ui-800: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-800));
   --we-color-ui-900: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-900));
+  --we-color-ui-1000: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-1000));
 
   /* BLACK & WHITE */
   --we-color-white: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-0));

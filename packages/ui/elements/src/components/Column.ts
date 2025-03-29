@@ -1,7 +1,7 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { generateVariable } from '../helpers';
-import sharedStyles from '../shared';
+import sharedStyles, { Size } from '../shared';
 
 const styles = css`
   :host {
@@ -51,8 +51,8 @@ const styles = css`
 
 type AlignX = '' | 'center' | 'end';
 type AlignY = '' | 'center' | 'end' | 'between' | 'around';
-type Space = '' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900';
-type Size = '' | 'sm' | 'md' | 'lg';
+type Space = '' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900' | '1000';
+// type Size = '' | 'xxs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
 
 @customElement('we-column')
 export default class Column extends LitElement {
@@ -62,7 +62,6 @@ export default class Column extends LitElement {
   @property({ type: String, reflect: true }) alignY: AlignY = '';
   @property({ type: Boolean, reflect: true }) wrap = false;
   @property({ type: Boolean, reflect: true }) reverse = false;
-  @property({ type: String, reflect: true }) radius: Size = '';
   @property({ type: String, reflect: true }) gap: Space = '';
   @property({ type: String, reflect: true }) p: Space = '';
   @property({ type: String, reflect: true }) pl: Space = '';
@@ -78,6 +77,15 @@ export default class Column extends LitElement {
   @property({ type: String, reflect: true }) mb: Space = '';
   @property({ type: String, reflect: true }) mx: Space = '';
   @property({ type: String, reflect: true }) my: Space = '';
+  @property({ type: String, reflect: true }) r: Size = '';
+  @property({ type: String, reflect: true }) rt: Size = '';
+  @property({ type: String, reflect: true }) rb: Size = '';
+  @property({ type: String, reflect: true }) rl: Size = '';
+  @property({ type: String, reflect: true }) rr: Size = '';
+  @property({ type: String, reflect: true }) rtl: Size = '';
+  @property({ type: String, reflect: true }) rtr: Size = '';
+  @property({ type: String, reflect: true }) rbr: Size = '';
+  @property({ type: String, reflect: true }) rbl: Size = '';
   @property({ type: String, reflect: true }) bg = '';
   @property({ type: String, reflect: true }) color = '';
   @property({ type: String, reflect: true }) class: string = '';
@@ -86,7 +94,6 @@ export default class Column extends LitElement {
     super.updated(props);
     // handle dynamic props
     if (props.has('gap')) this.style.setProperty('--gap', `var(--we-space-${this.gap})`);
-    if (props.has('radius')) this.style.setProperty('--border-radius', `var(--we-border-radius-${this.radius})`);
     if (props.has('bg')) this.style.setProperty('--bg-color', `var(--we-color-${this.bg})`);
     if (props.has('color')) this.style.setProperty('--color', `var(--we-color-${this.color})`);
     if (['p', 'px', 'py', 'pt', 'pr', 'pb', 'pl'].some((prop) => props.has(prop))) {
@@ -111,6 +118,17 @@ export default class Column extends LitElement {
         ].join(' '),
       );
     }
+    if (['r', 'rt', 'rb', 'rl', 'rr', 'rtl', 'rtr', 'rbr', 'rbl'].some((prop) => props.has(prop))) {
+      this.style.setProperty(
+        '--border-radius',
+        [
+          generateVariable('we-size', this.rtl || this.rt || this.rl || this.r),
+          generateVariable('we-size', this.rtr || this.rt || this.rr || this.r),
+          generateVariable('we-size', this.rbr || this.rb || this.rr || this.r),
+          generateVariable('we-size', this.rbl || this.rb || this.rl || this.r),
+        ].join(' '),
+      );
+    }
   }
 
   render() {
@@ -127,7 +145,6 @@ declare global {
         gap?: Space;
         wrap?: boolean;
         reverse?: boolean;
-        radius?: Size;
         p?: Space;
         pl?: Space;
         pr?: Space;
@@ -142,6 +159,15 @@ declare global {
         mb?: Space;
         mx?: Space;
         my?: Space;
+        r?: Size;
+        rt?: Size;
+        rb?: Size;
+        rl?: Size;
+        rr?: Size;
+        rtl?: Size;
+        rtr?: Size;
+        rbr?: Size;
+        rbl?: Size;
         bg?: string;
         color?: string;
         class?: string;

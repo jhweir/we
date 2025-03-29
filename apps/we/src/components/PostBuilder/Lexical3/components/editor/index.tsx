@@ -7,13 +7,15 @@ import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { PlainTextPlugin } from '@lexical/react/LexicalPlainTextPlugin';
 import { $createParagraphNode, $createTextNode, $getRoot, LexicalEditor } from 'lexical';
 import { useEffect, useRef } from 'react';
+import { isEdgeOfBlock } from '../../helpers';
+import styles from './index.module.scss';
 
 interface LexicalEditorProps {
   initialContent?: string;
   onChange: (content: string) => void;
-  onEnter?: () => void;
-  onNavigateUp?: () => void;
-  onNavigateDown?: () => void;
+  onEnter: () => void;
+  onNavigateUp: () => void;
+  onNavigateDown: () => void;
 }
 
 const theme = {
@@ -51,21 +53,21 @@ export default function Editor({
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      onEnter?.();
-    } else if (event.key === 'ArrowUp') {
+      onEnter();
+    } else if (event.key === 'ArrowUp' && isEdgeOfBlock(event, 'up')) {
       event.preventDefault();
-      onNavigateUp?.();
-    } else if (event.key === 'ArrowDown') {
+      onNavigateUp();
+    } else if (event.key === 'ArrowDown' && isEdgeOfBlock(event, 'down')) {
       event.preventDefault();
-      onNavigateDown?.();
+      onNavigateDown();
     }
   };
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
       <PlainTextPlugin
-        contentEditable={<ContentEditable className="outline-none p-2" onKeyDown={handleKeyDown} />}
-        placeholder={<div className="text-gray-400">Type something...</div>}
+        contentEditable={<ContentEditable className={styles.wrapper} onKeyDown={handleKeyDown} />}
+        // placeholder={<div className="text-gray-400">Type something...</div>}
         ErrorBoundary={LexicalErrorBoundary}
       />
       <OnChangePlugin

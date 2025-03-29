@@ -1,4 +1,4 @@
-import PostBuilder from '@/components/PostBuilder/Lexical3';
+import PostBuilder from '@/components/PostBuilder/Lexical2';
 
 export default function New() {
   return (
