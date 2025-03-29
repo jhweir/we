@@ -1,6 +1,6 @@
-.wrapper {
+.handle {
   position: absolute;
-  opacity: 1;
+  opacity: 0;
   display: flex;
   height: 40px;
   width: 50px;
@@ -12,12 +12,12 @@
     cursor: pointer;
   }
 
-  > div {
+  > .dragHandle {
     cursor: grab;
   }
 
   > button,
-  > div {
+  > .dragHandle {
     height: 25px;
     width: 25px;
     display: flex;
@@ -29,8 +29,16 @@
       border-radius: 5px;
     }
   }
+}
 
-  &:hover {
-    opacity: 1;
+.menu {
+  position: absolute;
+  top: 20px;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  background-color: red; // var(--we-color-ui-25);
+
+  .menuItem {
   }
 }
