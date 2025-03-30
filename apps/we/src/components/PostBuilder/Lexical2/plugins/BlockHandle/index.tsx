@@ -1,5 +1,6 @@
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $createHeadingNode, $isHeadingNode } from '@lexical/rich-text';
+import { mergeRegister } from '@lexical/utils';
 import {
   $createParagraphNode,
   $getNodeByKey,
@@ -14,6 +15,9 @@ import { createPortal } from 'react-dom';
 import styles from './index.module.scss';
 
 const TRANSFORM_BLOCK_COMMAND = createCommand<{ type: string; nodeKey?: string }>('TRANSFORM_BLOCK_COMMAND');
+const REORDER_BLOCK_COMMAND = createCommand<{ sourceKey: string; targetKey: string; insertBefore: boolean }>(
+  'REORDER_BLOCK_COMMAND',
+);
 
 const blockTypes = [
   { type: 'p', label: 'Text', icon: 'text-t' },
@@ -22,9 +26,9 @@ const blockTypes = [
   { type: 'h3', label: 'Heading 3', icon: 'text-h-three' },
 ];
 
-type NodeInfo = { element: HTMLElement; type: string };
+type NodeData = { element: HTMLElement; type: string };
 
-function mapsAreEqual<K>(map1: Map<K, NodeInfo>, map2: Map<K, NodeInfo>): boolean {
+function mapsAreEqual<K>(map1: Map<K, NodeData>, map2: Map<K, NodeData>): boolean {
   // Quick size check
   if (map1.size !== map2.size) return false;
   for (const [key, val1] of map1) {
@@ -57,6 +61,7 @@ function BlockTypeMenu(props: {
 
   function onOptionKeyDown(e: React.KeyboardEvent, type: string) {
     if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
       selectType(type);
       close();
     }
@@ -121,70 +126,70 @@ function BlockTypeMenu(props: {
   );
 }
 
-function BlockHandle({ block, nodeKey, nodeType }: { block: HTMLElement; nodeKey: string; nodeType: string }) {
+function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeData }) {
+  const { element: block, type: nodeType } = nodeData;
   const [editor] = useLexicalComposerContext();
   const [position, setPosition] = useState({ top: 0, left: 0, height: 0 });
   const [showMenu, setShowMenu] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const handleRef = useRef<HTMLDivElement>(null);
   const positionRef = useRef({ top: 0, left: 0, height: 0 });
 
-  function updatePosition() {
-    const { top, left, height } = block.getBoundingClientRect();
-    const newPosition = { top: top + window.scrollY, left: left + window.scrollX - 40, height };
-    // Only update state if position actually changed
-    if (
-      positionRef.current.top !== newPosition.top ||
-      positionRef.current.left !== newPosition.left ||
-      positionRef.current.height !== newPosition.height
-    ) {
-      positionRef.current = newPosition;
-      setPosition(newPosition);
-    }
-  }
-
-  function onClick() {
-    editor.focus();
-  }
-
-  function onMouseEnter() {
-    setIsHovered(true);
-    updatePosition();
-  }
-
-  function onMouseLeave(e: MouseEvent) {
-    const relatedTarget = e.relatedTarget as Node;
-    const isRelatedToBlock = block.contains(relatedTarget);
-    const isRelatedToHandle = handleRef.current?.contains(relatedTarget);
-    if (!isRelatedToBlock && !isRelatedToHandle) setIsHovered(false);
-  }
-
   function onDragStart(e: React.DragEvent) {
-    // Set the block id as the drag data
-    e.dataTransfer.setData('text/plain', block.getAttribute('data-block-id')!);
-    block.style.opacity = '0.5';
+    // Use the node key from props instead of DOM attribute
+    e.dataTransfer.setData('application/x-lexical-node-key', nodeKey);
+    e.dataTransfer.effectAllowed = 'move';
+
+    // Use React state instead of direct DOM manipulation
+    setIsDragging(true);
+
+    // Add a class to the body for global drag state
+    document.body.classList.add('block-dragging');
+    document.body.setAttribute('data-dragging-node-key', nodeKey);
   }
 
   function onDragEnd() {
-    block.style.opacity = '1';
+    setIsDragging(false);
+    document.body.classList.remove('block-dragging');
+    document.body.removeAttribute('data-dragging-node-key');
   }
 
   function transformBlockType(type: string) {
     editor.dispatchCommand(TRANSFORM_BLOCK_COMMAND, { type, nodeKey });
   }
 
-  // Apply hover effect to block and handle
+  // Listen for resize and visibility changes
   useEffect(() => {
-    if (isHovered || showMenu) {
-      block.style.backgroundColor = 'var(--we-color-ui-50)';
-      handleRef.current!.style.opacity = '1';
-    } else {
-      block.style.backgroundColor = '';
-      handleRef.current!.style.opacity = '0';
+    function updatePosition() {
+      const { top, left, height } = block.getBoundingClientRect();
+      const newPosition = { top: top + window.scrollY, left: left + window.scrollX - 40, height };
+      // Only update state if position actually changed
+      if (
+        positionRef.current.top !== newPosition.top ||
+        positionRef.current.left !== newPosition.left ||
+        positionRef.current.height !== newPosition.height
+      ) {
+        positionRef.current = newPosition;
+        setPosition(newPosition);
+      }
     }
-  }, [isHovered, showMenu]);
 
-  useEffect(() => {
+    function onClick() {
+      editor.focus();
+    }
+
+    function onMouseEnter() {
+      setIsHovered(true);
+      updatePosition();
+    }
+
+    function onMouseLeave(e: MouseEvent) {
+      const relatedTarget = e.relatedTarget as Node;
+      const isRelatedToBlock = block.contains(relatedTarget);
+      const isRelatedToHandle = handleRef.current?.contains(relatedTarget);
+      if (!isRelatedToBlock && !isRelatedToHandle) setIsHovered(false);
+    }
     // Use ResizeObserver for monitoring size changes
     const resizeObserver = new ResizeObserver(() => updatePosition());
     resizeObserver.observe(block);
@@ -231,6 +236,26 @@ function BlockHandle({ block, nodeKey, nodeType }: { block: HTMLElement; nodeKey
     };
   }, []);
 
+  // Apply hover effect to block and handle
+  useEffect(() => {
+    if (isHovered || showMenu) {
+      block.style.backgroundColor = 'var(--we-color-ui-50)';
+      handleRef.current!.style.opacity = '1';
+    } else {
+      block.style.backgroundColor = '';
+      handleRef.current!.style.opacity = '0';
+    }
+  }, [isHovered, showMenu]);
+
+  // Add effect for opacity change based on state
+  useEffect(() => {
+    if (isDragging) {
+      block.style.opacity = '0.5';
+    } else {
+      block.style.opacity = '1';
+    }
+  }, [isDragging, block]);
+
   return (
     <>
       <div
@@ -260,55 +285,89 @@ function BlockHandle({ block, nodeKey, nodeType }: { block: HTMLElement; nodeKey
   );
 }
 
-export default function BlockHandlesPlugin(): JSX.Element | null {
+export default function BlockHandlePlugin(): JSX.Element | null {
   const [editor] = useLexicalComposerContext();
-  const [nodeInfoMap, setNodeInfoMap] = useState<Map<string, NodeInfo>>(new Map());
-  const prevNodeMapRef = useRef<Map<string, NodeInfo>>(new Map());
+  const [nodeMap, setNodeMap] = useState<Map<string, NodeData>>(new Map());
+  const [dropIndicator, setDropIndicator] = useState<{
+    visible: boolean;
+    top: number;
+    left: number;
+    width: number;
+  }>({
+    visible: false,
+    top: 0,
+    left: 0,
+    width: 0,
+  });
+  const prevNodeMapRef = useRef<Map<string, NodeData>>(new Map());
   const debouncedUpdate = useRef<number | null>(null);
 
   useEffect(() => {
     // Register the command listener
-    const removeTransformListener = editor.registerCommand(
-      TRANSFORM_BLOCK_COMMAND,
-      (payload) => {
-        const { type, nodeKey } = payload;
-        if (!nodeKey) return false;
+    const unregisterCommands = mergeRegister(
+      editor.registerCommand(
+        TRANSFORM_BLOCK_COMMAND,
+        (payload) => {
+          const { type, nodeKey } = payload;
+          if (!nodeKey) return false;
 
-        // Transform the block
-        editor.update(() => {
-          const node = $getNodeByKey(nodeKey);
-          // Skip if node not found or its not an element node
-          if (!node || !$isElementNode(node)) return;
+          // Transform the block
+          editor.update(() => {
+            const node = $getNodeByKey(nodeKey);
+            // Skip if node not found or its not an element node
+            if (!node || !$isElementNode(node)) return;
 
-          // Skip if node is already the desired type
-          if (
-            (type === 'p' && $isParagraphNode(node)) ||
-            (type === 'h1' && $isHeadingNode(node) && node.getTag() === 'h1') ||
-            (type === 'h2' && $isHeadingNode(node) && node.getTag() === 'h2') ||
-            (type === 'h3' && $isHeadingNode(node) && node.getTag() === 'h3')
-          )
-            return;
+            // Skip if node is already the desired type
+            if (
+              (type === 'p' && $isParagraphNode(node)) ||
+              (type === 'h1' && $isHeadingNode(node) && node.getTag() === 'h1') ||
+              (type === 'h2' && $isHeadingNode(node) && node.getTag() === 'h2') ||
+              (type === 'h3' && $isHeadingNode(node) && node.getTag() === 'h3')
+            )
+              return;
 
-          // Create the new node based on type
-          let newNode;
-          if (type === 'p') newNode = $createParagraphNode();
-          else if (['h1', 'h2', 'h3'].includes(type)) newNode = $createHeadingNode(type as 'h1' | 'h2' | 'h3');
-          else return; // Skip if unsupported block type
+            // Create the new node based on type
+            let newNode;
+            if (type === 'p') newNode = $createParagraphNode();
+            else if (['h1', 'h2', 'h3'].includes(type)) newNode = $createHeadingNode(type as 'h1' | 'h2' | 'h3');
+            else return; // Skip if unsupported block type
 
-          // Transfer content and replace the node
-          node.getChildren().forEach((child) => newNode.append(child));
-          node.replace(newNode);
-        });
+            // Transfer content and replace the node
+            node.getChildren().forEach((child) => newNode.append(child));
+            node.replace(newNode);
+          });
 
-        return true;
-      },
-      COMMAND_PRIORITY_EDITOR,
+          return true;
+        },
+        COMMAND_PRIORITY_EDITOR,
+      ),
+      editor.registerCommand(
+        REORDER_BLOCK_COMMAND,
+        ({ sourceKey, targetKey, insertBefore }) => {
+          editor.update(() => {
+            const sourceNode = $getNodeByKey(sourceKey);
+            const targetNode = $getNodeByKey(targetKey);
+
+            if (sourceNode && targetNode && $isElementNode(sourceNode) && $isElementNode(targetNode)) {
+              if (insertBefore) targetNode.insertBefore(sourceNode);
+              else {
+                // Insert after - find next sibling or append to parent
+                const nextSibling = targetNode.getNextSibling();
+                if (nextSibling) nextSibling.insertBefore(sourceNode);
+                else targetNode.getParent()?.append(sourceNode);
+              }
+            }
+          });
+          return true;
+        },
+        COMMAND_PRIORITY_EDITOR,
+      ),
     );
 
     function updateBlocksFromNodes() {
       editor.update(() => {
         const root = $getRoot();
-        const newNodeInfoMap = new Map<string, NodeInfo>();
+        const newNodeMap = new Map<string, NodeData>();
 
         // Walk through all block-level nodes
         root.getChildren().forEach((node) => {
@@ -317,21 +376,127 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
             const element = editor.getElementByKey(key);
 
             if (element) {
+              // Add data attribute for identification during drag/drop
+              element.setAttribute('data-block-id', key);
+              // Store the node key and type in the map
               let type = '';
               if ($isParagraphNode(node)) type = 'p';
               else if ($isHeadingNode(node)) type = node.getTag();
-              newNodeInfoMap.set(key, { element: element as HTMLElement, type });
+              newNodeMap.set(key, { element: element as HTMLElement, type });
             }
           }
         });
 
         // Only update if the map has actually changed
-        if (!mapsAreEqual(prevNodeMapRef.current, newNodeInfoMap)) {
-          prevNodeMapRef.current = new Map(newNodeInfoMap);
-          setNodeInfoMap(newNodeInfoMap);
+        if (!mapsAreEqual(prevNodeMapRef.current, newNodeMap)) {
+          prevNodeMapRef.current = new Map(newNodeMap);
+          setNodeMap(newNodeMap);
         }
       });
     }
+
+    // Find the editor root element
+    const editorRootElement = editor.getRootElement()!;
+    console.log('editorRootElement', editorRootElement);
+    if (!editorRootElement) return;
+
+    // Handle dragover to show drop indicators
+    function handleDragOver(e: DragEvent) {
+      e.preventDefault();
+      const sourceKey = document.body.getAttribute('data-dragging-node-key');
+      if (!sourceKey) return;
+
+      let targetElement: HTMLElement | null = null;
+      let insertBefore = true;
+
+      // Find all block elements
+      const blockElements = Array.from(editorRootElement.querySelectorAll('[data-block-id]'));
+
+      for (let i = 0; i < blockElements.length; i++) {
+        const element = blockElements[i] as HTMLElement;
+        const rect = element.getBoundingClientRect();
+        const blockKey = element.getAttribute('data-block-id');
+
+        // Skip the dragged block
+        if (blockKey === sourceKey) continue;
+
+        // If mouse is above the middle of this block
+        if (e.clientY < rect.top + rect.height / 2) {
+          targetElement = element;
+          insertBefore = true;
+          break;
+        }
+
+        // If this is the last block and mouse is below it
+        if (i === blockElements.length - 1) {
+          targetElement = element;
+          insertBefore = false;
+          break;
+        }
+
+        // If mouse is between this block and the next
+        const nextElement = blockElements[i + 1] as HTMLElement;
+        const nextKey = nextElement?.getAttribute('data-block-id');
+        if (nextKey === sourceKey) continue;
+
+        if (e.clientY < nextElement.getBoundingClientRect().top) {
+          targetElement = element;
+          insertBefore = false;
+          break;
+        }
+      }
+
+      // Update drop indicator
+      if (targetElement) {
+        const rect = targetElement.getBoundingClientRect();
+        setDropIndicator({
+          visible: true,
+          left: rect.left - 74,
+          width: rect.width,
+          top: insertBefore ? rect.top : rect.bottom,
+        });
+
+        // Store the target for drop
+        editorRootElement.setAttribute('data-drop-target', targetElement.getAttribute('data-block-id') || '');
+        editorRootElement.setAttribute('data-drop-position', insertBefore ? 'before' : 'after');
+      }
+    }
+
+    function handleDrop(e: DragEvent) {
+      e.preventDefault();
+
+      const sourceKey = document.body.getAttribute('data-dragging-node-key');
+      const targetKey = editorRootElement.getAttribute('data-drop-target');
+      const insertBefore = editorRootElement.getAttribute('data-drop-position') === 'before';
+
+      // Hide indicator
+      setDropIndicator({ ...dropIndicator, visible: false });
+
+      // Clean up attributes
+      editorRootElement.removeAttribute('data-drop-target');
+      editorRootElement.removeAttribute('data-drop-position');
+
+      // Execute reorder if we have both keys
+      if (sourceKey && targetKey && sourceKey !== targetKey) {
+        editor.dispatchCommand(REORDER_BLOCK_COMMAND, {
+          sourceKey,
+          targetKey,
+          insertBefore,
+        });
+      }
+    }
+
+    function handleDragLeave(e: DragEvent) {
+      // Only hide if leaving the editor
+      if (!editorRootElement.contains(e.relatedTarget as Node)) {
+        setDropIndicator({ ...dropIndicator, visible: false });
+      }
+    }
+
+    // Add event listeners
+    editorRootElement.addEventListener('dragover', handleDragOver);
+    editorRootElement.addEventListener('drop', handleDrop);
+    editorRootElement.addEventListener('dragleave', handleDragLeave);
 
     // Initial update
     setTimeout(updateBlocksFromNodes, 100);
@@ -346,20 +511,30 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
     });
 
     return () => {
-      removeTransformListener();
+      unregisterCommands();
       removeUpdateListener();
       if (debouncedUpdate.current !== null) window.clearTimeout(debouncedUpdate.current);
+      editorRootElement.removeEventListener('dragover', handleDragOver);
+      editorRootElement.removeEventListener('drop', handleDrop);
+      editorRootElement.removeEventListener('dragleave', handleDragLeave);
     };
   }, [editor]);
 
   // Create block handles for each node
   return (
     <>
-      {Array.from(nodeInfoMap.entries()).map(([nodeKey, info]) =>
-        createPortal(
-          <BlockHandle key={nodeKey} block={info.element} nodeKey={nodeKey} nodeType={info.type} />,
-          document.body,
-        ),
+      {Array.from(nodeMap.entries()).map(([nodeKey, data]) =>
+        createPortal(<BlockHandle key={nodeKey} nodeKey={nodeKey} nodeData={data} />, document.body),
+      )}
+      {dropIndicator.visible && (
+        <div
+          className={styles.dropIndicator}
+          style={{
+            top: `${dropIndicator.top}px`,
+            left: `${dropIndicator.left}px`,
+            width: `${dropIndicator.width}px`,
+          }}
+        />
       )}
     </>
   );

@@ -16,6 +16,7 @@
     "@lexical/rich-text": "^0.28.0",
     "@lexical/selection": "^0.28.0",
     "@lexical/table": "^0.28.0",
+    "@lexical/utils": "^0.29.0",
     "@we/elements": "workspace:*",
     "lexical": "^0.28.0",
     "next": "15.0.3",

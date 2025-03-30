@@ -59,3 +59,13 @@
     }
   }
 }
+
+.dropIndicator {
+  position: absolute;
+  height: 4px;
+  background-color: var(--we-color-primary-400);
+  border-radius: 2px;
+  z-index: 10;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}

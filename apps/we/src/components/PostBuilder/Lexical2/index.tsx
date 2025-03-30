@@ -9,7 +9,7 @@ import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import styles from './index.module.scss';
-import BlockHandlesPlugin from './plugins/BlockHandle';
+import BlockHandlePlugin from './plugins/BlockHandle';
 
 export default function PostBuilder() {
   // Define theme with explicit styles for all elements
@@ -44,7 +44,7 @@ export default function PostBuilder() {
           ErrorBoundary={LexicalErrorBoundary} // Using the named import
         />
         <HistoryPlugin />
-        <BlockHandlesPlugin />
+        <BlockHandlePlugin />
       </LexicalComposer>
     </we-column>
   );
