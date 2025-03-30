@@ -54,7 +54,7 @@
     padding: 0 5px;
     color: var(--we-color-ui-900);
 
-    &:hover {
+    &.focused {
       background-color: var(--we-color-ui-50);
     }
   }

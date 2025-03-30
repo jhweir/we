@@ -22,66 +22,108 @@ const blockTypes = [
   { type: 'h3', label: 'Heading 3', icon: 'text-h-three' },
 ];
 
-function mapsAreEqual<K, V>(map1: Map<K, V>, map2: Map<K, V>): boolean {
+type NodeInfo = { element: HTMLElement; type: string };
+
+function mapsAreEqual<K>(map1: Map<K, NodeInfo>, map2: Map<K, NodeInfo>): boolean {
   // Quick size check
   if (map1.size !== map2.size) return false;
-  // Check if all keys in map1 exist in map2 with the same values
   for (const [key, val1] of map1) {
-    // If the key doesn't exist in map2 or refers to a different value
+    // Check if key exists in second map - maps must have same keys
     if (!map2.has(key)) return false;
-    // For DOM elements, we just check reference equality
-    const val2 = map2.get(key);
-    if (val1 !== val2) return false;
+    // Check if values are equal - compare element and type
+    const val2 = map2.get(key)!;
+    if (val1.element !== val2.element || val1.type !== val2.type) return false;
   }
   return true;
 }
 
-function BlockTypeMenu({
-  visible,
-  position,
-  selectType,
-  close,
-}: {
+function BlockTypeMenu(props: {
   visible: boolean;
   position: { top: number; left: number };
+  selectedType: string;
   selectType: (type: string) => void;
   close: () => void;
 }) {
+  const { visible, position, selectedType, selectType, close } = props;
+  const [focusIndex, setFocusIndex] = useState(-1);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  function handleClickOutside(e: MouseEvent) {
-    if (!menuRef.current?.contains(e.target as Node)) close();
+  function onMenuKeyDown(e: React.KeyboardEvent) {
+    e.stopPropagation();
+    if (e.key === 'ArrowUp') setFocusIndex((prev) => (prev > 0 ? prev - 1 : blockTypes.length - 1));
+    if (e.key === 'ArrowDown') setFocusIndex((prev) => (prev < blockTypes.length - 1 ? prev + 1 : 0));
+    if (e.key === 'Escape') close();
   }
 
+  function onOptionKeyDown(e: React.KeyboardEvent, type: string) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      selectType(type);
+      close();
+    }
+  }
+
+  function onOptionClick(e: React.MouseEvent, type: string) {
+    e.stopPropagation();
+    selectType(type);
+    close();
+  }
+
+  // Close menu on click outside
   useEffect(() => {
+    menuRef.current?.focus(); // Focus the menu when it opens
+    function handleClickOutside(e: MouseEvent) {
+      if (!menuRef.current?.contains(e.target as Node)) close();
+    }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Focus on currently selected block type when menu opens
+  useEffect(() => {
+    if (visible) {
+      const index = blockTypes.findIndex((item) => item.type === selectedType);
+      setFocusIndex(index);
+    }
+  }, [visible]);
+
+  // Update focus when focusIndex changes
+  useEffect(() => {
+    const item = document.getElementById(`block-type-menu-${blockTypes[focusIndex]?.type}`);
+    if (item) item.focus();
+  }, [focusIndex]);
+
   if (!visible) return null;
+
   return (
-    <div ref={menuRef} className={styles.menu} style={{ top: `${position.top}px`, left: `${position.left}px` }}>
-      {blockTypes.map((blockType) => (
+    <div
+      ref={menuRef}
+      className={styles.menu}
+      role="menu"
+      style={{ top: `${position.top}px`, left: `${position.left}px` }}
+      onKeyDown={onMenuKeyDown}
+    >
+      {blockTypes.map((option, index) => (
         <button
-          key={blockType.type}
-          className={styles.menuItem}
-          onClick={() => {
-            selectType(blockType.type);
-            close();
-          }}
+          key={option.type}
+          id={`block-type-menu-${option.type}`}
+          className={`${styles.menuItem} ${focusIndex === index ? styles.focused : ''}`}
+          role="menuitem"
+          tabIndex={index === focusIndex ? 0 : -1}
+          onMouseEnter={() => setFocusIndex(index)}
+          onClick={(e) => onOptionClick(e, option.type)}
+          onKeyDown={(e) => onOptionKeyDown(e, option.type)}
         >
-          <we-icon name={blockType.icon} weight="bold" color="ui-400" size="sm" style={{ marginRight: '10px' }} />
-          {blockType.label}
+          <we-icon name={option.icon} weight="bold" color="ui-400" size="sm" style={{ marginRight: '10px' }} />
+          {option.label}
         </button>
       ))}
     </div>
   );
 }
 
-function BlockHandle({ block, nodeKey }: { block: HTMLElement; nodeKey: string }) {
+function BlockHandle({ block, nodeKey, nodeType }: { block: HTMLElement; nodeKey: string; nodeType: string }) {
   const [editor] = useLexicalComposerContext();
   const [position, setPosition] = useState({ top: 0, left: 0, height: 0 });
-  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [showMenu, setShowMenu] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const handleRef = useRef<HTMLDivElement>(null);
@@ -125,12 +167,6 @@ function BlockHandle({ block, nodeKey }: { block: HTMLElement; nodeKey: string }
 
   function onDragEnd() {
     block.style.opacity = '1';
-  }
-
-  function openMenu() {
-    const { top, left } = handleRef.current!.getBoundingClientRect();
-    setMenuPosition({ top: top + window.scrollY + 40, left: left + window.scrollX });
-    setShowMenu(true);
   }
 
   function transformBlockType(type: string) {
@@ -202,7 +238,7 @@ function BlockHandle({ block, nodeKey }: { block: HTMLElement; nodeKey: string }
         className={styles.handle}
         style={{ top: `${position.top}px`, left: `${position.left - 10}px`, height: `${position.height}px` }}
       >
-        <button onClick={openMenu}>
+        <button onClick={() => setShowMenu(true)}>
           <we-icon name="gear" size="sm" color="ui-600" />
         </button>
         <div className={styles.dragHandle} draggable onDragStart={onDragStart} onDragEnd={onDragEnd}>
@@ -212,8 +248,9 @@ function BlockHandle({ block, nodeKey }: { block: HTMLElement; nodeKey: string }
 
       {createPortal(
         <BlockTypeMenu
-          position={menuPosition}
+          position={{ top: position.top + 38, left: position.left - 10 }}
           visible={showMenu}
+          selectedType={nodeType}
           selectType={(type) => transformBlockType(type)}
           close={() => setShowMenu(false)}
         />,
@@ -225,8 +262,8 @@ function BlockHandle({ block, nodeKey }: { block: HTMLElement; nodeKey: string }
 
 export default function BlockHandlesPlugin(): JSX.Element | null {
   const [editor] = useLexicalComposerContext();
-  const [nodeMap, setNodeMap] = useState<Map<string, HTMLElement>>(new Map());
-  const prevNodeMapRef = useRef<Map<string, HTMLElement>>(new Map());
+  const [nodeInfoMap, setNodeInfoMap] = useState<Map<string, NodeInfo>>(new Map());
+  const prevNodeMapRef = useRef<Map<string, NodeInfo>>(new Map());
   const debouncedUpdate = useRef<number | null>(null);
 
   useEffect(() => {
@@ -271,21 +308,27 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
     function updateBlocksFromNodes() {
       editor.update(() => {
         const root = $getRoot();
-        const newNodeMap = new Map<string, HTMLElement>();
+        const newNodeInfoMap = new Map<string, NodeInfo>();
 
         // Walk through all block-level nodes
         root.getChildren().forEach((node) => {
           if ($isParagraphNode(node) || $isHeadingNode(node)) {
             const key = node.getKey();
             const element = editor.getElementByKey(key);
-            if (element) newNodeMap.set(key, element as HTMLElement);
+
+            if (element) {
+              let type = '';
+              if ($isParagraphNode(node)) type = 'p';
+              else if ($isHeadingNode(node)) type = node.getTag();
+              newNodeInfoMap.set(key, { element: element as HTMLElement, type });
+            }
           }
         });
 
         // Only update if the map has actually changed
-        if (!mapsAreEqual(prevNodeMapRef.current, newNodeMap)) {
-          prevNodeMapRef.current = new Map(newNodeMap);
-          setNodeMap(newNodeMap);
+        if (!mapsAreEqual(prevNodeMapRef.current, newNodeInfoMap)) {
+          prevNodeMapRef.current = new Map(newNodeInfoMap);
+          setNodeInfoMap(newNodeInfoMap);
         }
       });
     }
@@ -312,8 +355,11 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
   // Create block handles for each node
   return (
     <>
-      {Array.from(nodeMap.entries()).map(([nodeKey, element]) =>
-        createPortal(<BlockHandle key={nodeKey} block={element} nodeKey={nodeKey} />, document.body),
+      {Array.from(nodeInfoMap.entries()).map(([nodeKey, info]) =>
+        createPortal(
+          <BlockHandle key={nodeKey} block={info.element} nodeKey={nodeKey} nodeType={info.type} />,
+          document.body,
+        ),
       )}
     </>
   );
