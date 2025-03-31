@@ -296,7 +296,7 @@ export default function BlockHandlePlugin(): JSX.Element | null {
   }>({
     visible: false,
     top: 0,
-    left: 0,
+    left: -74,
     width: 0,
   });
   const prevNodeMapRef = useRef<Map<string, NodeData>>(new Map());
@@ -397,7 +397,6 @@ export default function BlockHandlePlugin(): JSX.Element | null {
 
     // Find the editor root element
     const editorRootElement = editor.getRootElement()!;
-    console.log('editorRootElement', editorRootElement);
     if (!editorRootElement) return;
 
     // Handle dragover to show drop indicators
@@ -453,7 +452,7 @@ export default function BlockHandlePlugin(): JSX.Element | null {
           visible: true,
           left: rect.left - 74,
           width: rect.width,
-          top: insertBefore ? rect.top : rect.bottom,
+          top: (insertBefore ? rect.top : rect.bottom) - 2,
         });
 
         // Store the target for drop
@@ -470,7 +469,9 @@ export default function BlockHandlePlugin(): JSX.Element | null {
       const insertBefore = editorRootElement.getAttribute('data-drop-position') === 'before';
 
       // Hide indicator
-      setDropIndicator({ ...dropIndicator, visible: false });
+      setDropIndicator((prev) => {
+        return { ...prev, visible: false };
+      });
 
       // Clean up attributes
       editorRootElement.removeAttribute('data-drop-target');
@@ -489,7 +490,9 @@ export default function BlockHandlePlugin(): JSX.Element | null {
     function handleDragLeave(e: DragEvent) {
       // Only hide if leaving the editor
       if (!editorRootElement.contains(e.relatedTarget as Node)) {
-        setDropIndicator({ ...dropIndicator, visible: false });
+        setDropIndicator((prev) => {
+          return { ...prev, visible: false };
+        });
       }
     }
 
@@ -526,16 +529,11 @@ export default function BlockHandlePlugin(): JSX.Element | null {
       {Array.from(nodeMap.entries()).map(([nodeKey, data]) =>
         createPortal(<BlockHandle key={nodeKey} nodeKey={nodeKey} nodeData={data} />, document.body),
       )}
-      {dropIndicator.visible && (
-        <div
-          className={styles.dropIndicator}
-          style={{
-            top: `${dropIndicator.top}px`,
-            left: `${dropIndicator.left}px`,
-            width: `${dropIndicator.width}px`,
-          }}
-        />
-      )}
+      <div
+        id="drop-indicator"
+        className={`${styles.dropIndicator} ${dropIndicator.visible && styles.visible}`}
+        style={{ top: `${dropIndicator.top}px`, left: `${dropIndicator.left}px`, width: `${dropIndicator.width}px` }}
+      />
     </>
   );
 }

@@ -67,5 +67,11 @@
   border-radius: 2px;
   z-index: 10;
   pointer-events: none;
-  transition: opacity 0.3s;
+  opacity: 0;
+  transition: opacity 1s;
+  will-change: opacity;
+
+  &.visible {
+    opacity: 1;
+  }
 }
