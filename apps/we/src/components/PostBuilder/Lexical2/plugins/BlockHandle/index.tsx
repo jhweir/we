@@ -135,6 +135,7 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
   const [isDragging, setIsDragging] = useState(false);
   const handleRef = useRef<HTMLDivElement>(null);
   const positionRef = useRef({ top: 0, left: 0, height: 0 });
+  const heightOffset = { h1: 10, h2: 5, h3: 2 } as any;
 
   function onDragStart(e: React.DragEvent) {
     // Use the node key from props instead of DOM attribute
@@ -236,7 +237,7 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
     };
   }, []);
 
-  // Apply hover effect to block and handle
+  // Apply hover styles to block and handle
   useEffect(() => {
     if (isHovered || showMenu) {
       block.style.backgroundColor = 'var(--we-color-ui-25)';
@@ -247,7 +248,7 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
     }
   }, [isHovered, showMenu]);
 
-  // Add effect for opacity change based on state
+  // Apply drag styles to block
   useEffect(() => {
     if (isDragging) block.style.opacity = '0.5';
     else block.style.opacity = '1';
@@ -258,7 +259,11 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
       <div
         ref={handleRef}
         className={styles.handle}
-        style={{ top: `${position.top}px`, left: `${position.left - 10}px`, height: `${position.height}px` }}
+        style={{
+          top: `${position.top + (heightOffset[nodeType] || 0)}px`,
+          left: `${position.left - 10}px`,
+          height: `${position.height}px`,
+        }}
       >
         <button onClick={() => setShowMenu(true)}>
           <we-icon name="gear" size="sm" color="ui-600" />
