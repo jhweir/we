@@ -1,8 +1,6 @@
 # Todos
 
 - PostBuilder:
-  - Add drag and drop
-  - Add placeholders
   - Position handle in center of first line (different for h1 etc.)
   - Add slash commands
   - Add MD commands (and include in handle menu)

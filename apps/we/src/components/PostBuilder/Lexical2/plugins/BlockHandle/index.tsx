@@ -239,7 +239,7 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
   // Apply hover effect to block and handle
   useEffect(() => {
     if (isHovered || showMenu) {
-      block.style.backgroundColor = 'var(--we-color-ui-50)';
+      block.style.backgroundColor = 'var(--we-color-ui-25)';
       handleRef.current!.style.opacity = '1';
     } else {
       block.style.backgroundColor = '';
@@ -249,11 +249,8 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
 
   // Add effect for opacity change based on state
   useEffect(() => {
-    if (isDragging) {
-      block.style.opacity = '0.5';
-    } else {
-      block.style.opacity = '1';
-    }
+    if (isDragging) block.style.opacity = '0.5';
+    else block.style.opacity = '1';
   }, [isDragging, block]);
 
   return (
@@ -288,17 +285,7 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
 export default function BlockHandlePlugin(): JSX.Element | null {
   const [editor] = useLexicalComposerContext();
   const [nodeMap, setNodeMap] = useState<Map<string, NodeData>>(new Map());
-  const [dropIndicator, setDropIndicator] = useState<{
-    visible: boolean;
-    top: number;
-    left: number;
-    width: number;
-  }>({
-    visible: false,
-    top: 0,
-    left: -74,
-    width: 0,
-  });
+  const [dropIndicator, setDropIndicator] = useState({ visible: false, top: 0, left: -74, width: 0 });
   const prevNodeMapRef = useRef<Map<string, NodeData>>(new Map());
   const debouncedUpdate = useRef<number | null>(null);
 

@@ -10,6 +10,7 @@ import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import styles from './index.module.scss';
 import BlockHandlePlugin from './plugins/BlockHandle';
+import BlockPlaceholderPlugin from './plugins/BlockPlaceholder';
 
 export default function PostBuilder() {
   // Define theme with explicit styles for all elements
@@ -25,7 +26,7 @@ export default function PostBuilder() {
     //   italic: styles.editorTextItalic,
     //   underline: styles.editorTextUnderline,
     // },
-    root: styles.editorRoot || 'editor-root',
+    root: styles.editor,
   };
 
   const initialConfig = {
@@ -38,13 +39,10 @@ export default function PostBuilder() {
   return (
     <we-column bg="white" p="1000" r="xs" style={{ width: '100%', maxWidth: 1000 }}>
       <LexicalComposer initialConfig={initialConfig}>
-        <RichTextPlugin
-          contentEditable={<ContentEditable className={styles.editor} />}
-          // placeholder={<div className={styles.placeholder || 'editor-placeholder'}>Start writing...</div>}
-          ErrorBoundary={LexicalErrorBoundary} // Using the named import
-        />
+        <RichTextPlugin contentEditable={<ContentEditable />} ErrorBoundary={LexicalErrorBoundary} />
         <HistoryPlugin />
         <BlockHandlePlugin />
+        <BlockPlaceholderPlugin />
       </LexicalComposer>
     </we-column>
   );
