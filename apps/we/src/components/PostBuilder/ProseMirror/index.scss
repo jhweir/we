@@ -145,7 +145,7 @@
   flex-direction: column;
   align-items: center;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity var(--we-transition-300);
 
   .block-control {
     width: 20px;

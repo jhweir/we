@@ -12,7 +12,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.5s;
+    transition: all var(--we-transition-400);
 
     &:hover {
       //   box-shadow: 0 0 8px 3px rgba(black, 0.1);

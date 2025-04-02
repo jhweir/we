@@ -11,7 +11,7 @@
     height: 40px;
     width: 50px;
     cursor: pointer;
-    transition: 0.3s;
+    transition: var(--we-transition-300);
 
     > button {
       all: unset;
@@ -40,7 +40,7 @@
 
   .input {
     padding: 10px;
-    transition: 0.3s;
+    transition: var(--we-transition-300);
     border-radius: 10px;
     flex-grow: 1;
   }

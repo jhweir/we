@@ -1,12 +1,12 @@
-import { css, html, LitElement, PropertyValues } from "lit";
-import { customElement, property } from "lit/decorators.js";
-import sharedStyles from "../shared";
+import { css, html, LitElement, PropertyValues } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
+import sharedStyles from '../shared';
 
 const styles = css`
   :host {
     --j-modal-backdrop-bg-color: rgba(0, 0, 0, 0.1);
-    --j-modal-backdrop-transition: all 0.2s cubic-bezier(0.785, 0.135, 0.15, 0.86);
-    --j-modal-transition: all 0.4s cubic-bezier(0.785, 0.135, 0.15, 0.86);
+    --j-modal-backdrop-transition: all var(--we-transition-300) cubic-bezier(0.785, 0.135, 0.15, 0.86);
+    --j-modal-transition: all var(--we-transition-400) cubic-bezier(0.785, 0.135, 0.15, 0.86);
     --j-modal-box-shadow: none;
     --j-modal-width: clamp(600px, 50vw, 800px);
     --j-modal-width-mobile: 95vw;
@@ -20,27 +20,27 @@ const styles = css`
     --j-modal-max-height: 90vh;
   }
 
-  :host([size="xs"]) {
+  :host([size='xs']) {
     --j-modal-width-mobile: 95vw;
     --j-modal-width: clamp(350px, 30vw, 500px);
   }
 
-  :host([size="sm"]) {
+  :host([size='sm']) {
     --j-modal-width-mobile: 95vw;
     --j-modal-width: clamp(350px, 40vw, 600px);
   }
 
-  :host([size="lg"]) {
+  :host([size='lg']) {
     --j-modal-width-mobile: 95vw;
     --j-modal-width: clamp(350px, 50vw, 1000px);
   }
 
-  :host([size="xl"]) {
+  :host([size='xl']) {
     --j-modal-width-mobile: 95vw;
     --j-modal-width: clamp(350px, 60vw, 1200px);
   }
 
-  :host([size="fullscreen"]) {
+  :host([size='fullscreen']) {
     --j-modal-width-mobile: 100vw;
     --j-modal-width: 100vw;
     --j-modal-height: 100vh;
@@ -65,13 +65,13 @@ const styles = css`
     visibility: visible;
   }
 
-  :host([open]) [part="modal"] {
+  :host([open]) [part='modal'] {
     opacity: 1;
     transform: scale(1);
   }
 
-  [part="modal"] {
-    transition: all 0.2s ease;
+  [part='modal'] {
+    transition: all var(--we-transition-300) ease;
     opacity: 0;
     transform: scale(0.95);
     display: flex;
@@ -91,17 +91,17 @@ const styles = css`
     :host {
       --j-modal-align: center;
     }
-    [part="modal"] {
+    [part='modal'] {
       width: var(--j-modal-width);
     }
   }
 
-  [part="content"] {
+  [part='content'] {
     flex: 1;
     overflow-y: auto;
   }
 
-  [part="close-button"] {
+  [part='close-button'] {
     cursor: pointer;
     padding: 0;
     background: none;
@@ -115,14 +115,14 @@ const styles = css`
     top: var(--j-space-600);
   }
 
-  [part="close-icon"] {
+  [part='close-icon'] {
     width: 15px;
     height: 15px;
   }
 
-  [part="backdrop"] {
+  [part='backdrop'] {
     opacity: 0;
-    transition: opacity 0.2s cubic-bezier(0.785, 0.135, 0.15, 0.86);
+    transition: opacity var(--we-transition-300) cubic-bezier(0.785, 0.135, 0.15, 0.86);
     overflow: visible;
     z-index: 400;
     position: absolute;
@@ -133,12 +133,12 @@ const styles = css`
     background: rgba(0, 0, 0, 0.6);
   }
 
-  :host([open]) [part="backdrop"] {
+  :host([open]) [part='backdrop'] {
     opacity: 1;
   }
 `;
 
-@customElement("j-modal")
+@customElement('j-modal')
 export default class Modal extends LitElement {
   static styles = [sharedStyles, styles];
 
@@ -148,7 +148,7 @@ export default class Modal extends LitElement {
    * @attr
    */
   @property({ type: String, reflect: true })
-  size: "" | "xs" | "sm" | "lg" | "xl" | "fullscreen" = "";
+  size: '' | 'xs' | 'sm' | 'lg' | 'xl' | 'fullscreen' = '';
 
   /**
    * Open
@@ -160,9 +160,9 @@ export default class Modal extends LitElement {
     reflect: true,
     hasChanged(newVal) {
       if (newVal) {
-        document.body.style.overflow = "hidden";
+        document.body.style.overflow = 'hidden';
       } else {
-        document.body.style.overflow = "visible";
+        document.body.style.overflow = 'visible';
       }
       return true;
     },
@@ -170,14 +170,14 @@ export default class Modal extends LitElement {
   open = false;
 
   shouldUpdate(changedProperties: PropertyValues): boolean {
-    if (changedProperties.has("open")) {
-      this.dispatchEvent(new CustomEvent("toggle", { bubbles: true }));
+    if (changedProperties.has('open')) {
+      this.dispatchEvent(new CustomEvent('toggle', { bubbles: true }));
     }
     return true;
   }
 
   disconnectedCallback() {
-    document.body.style.overflow = "visible";
+    document.body.style.overflow = 'visible';
   }
 
   render() {

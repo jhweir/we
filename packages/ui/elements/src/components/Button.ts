@@ -22,7 +22,7 @@ const styles = css`
   [part='base'] {
     opacity: var(--we-button-opacity);
     text-decoration: var(--we-button-text-decoration);
-    transition: box-shadow 0.2s ease;
+    transition: box-shadow var(--we-transition-300) ease;
     cursor: pointer;
     border: 0;
     gap: var(--we-space-400);

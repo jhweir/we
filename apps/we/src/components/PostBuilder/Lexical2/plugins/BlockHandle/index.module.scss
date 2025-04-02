@@ -4,8 +4,8 @@
   display: flex;
   height: 40px;
   width: 50px;
-  transition: opacity 0.3s;
   padding: 8px 5px 0 0;
+  transition: opacity var(--we-transition-200);
 
   > button {
     all: unset;
@@ -68,7 +68,7 @@
   z-index: 10;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.5s;
+  transition: opacity var(--we-transition-300);
   will-change: opacity;
 
   &.visible {

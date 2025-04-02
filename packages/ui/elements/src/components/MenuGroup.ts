@@ -40,7 +40,7 @@ const styles = css`
     border-bottom: 1px solid var(--we-color-ui-500);
     width: 4px;
     height: 4px;
-    transition: all 0.2s ease;
+    transition: all var(--we-transition-300) ease;
     transform: rotate(-45deg) translateX(-50%);
     transform-origin: center;
   }
