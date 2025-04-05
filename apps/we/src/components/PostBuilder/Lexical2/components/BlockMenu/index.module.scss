@@ -16,13 +16,20 @@
     cursor: pointer;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     border-radius: 5px;
     height: 30px;
     padding: 0 5px;
+    font-size: 14px;
     color: var(--we-color-ui-900);
 
     &.focused {
       background-color: var(--we-color-ui-50);
+    }
+
+    .md {
+      font-size: 12px;
+      color: var(--we-color-ui-300);
     }
   }
 }

@@ -1,11 +1,12 @@
-// index.tsx
 'use client';
 
 import { ListItemNode, ListNode } from '@lexical/list';
+import { HEADING } from '@lexical/markdown'; // use full TRANSFORMERS array when other node types added
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
+import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import styles from './index.module.scss';
@@ -14,27 +15,11 @@ import BlockPlaceholderPlugin from './plugins/BlockPlaceholder';
 import SlashCommandPlugin from './plugins/SlashCommandPlugin';
 
 export default function PostBuilder() {
-  // Define theme with explicit styles for all elements
-  const theme = {
-    // paragraph: styles.editorParagraph || 'editor-paragraph',
-    // heading: {
-    //   h1: styles.editorH1 || 'editor-h1',
-    //   h2: styles.editorH2 || 'editor-h2',
-    //   h3: styles.editorH3 || 'editor-h3',
-    // },
-    // text: {
-    //   bold: styles.editorTextBold,
-    //   italic: styles.editorTextItalic,
-    //   underline: styles.editorTextUnderline,
-    // },
-    root: styles.editor,
-  };
-
   const initialConfig = {
-    namespace: 'NotionEditor',
-    theme,
-    onError: (error: Error) => console.error('Editor Error:', error),
+    namespace: 'PostBuilder',
+    theme: { root: styles.editor },
     nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode],
+    onError: (error: Error) => console.error('Editor Error:', error),
   };
 
   return (
@@ -45,6 +30,7 @@ export default function PostBuilder() {
         <BlockHandlePlugin />
         <BlockPlaceholderPlugin />
         <SlashCommandPlugin />
+        <MarkdownShortcutPlugin transformers={[HEADING] as any} />
       </LexicalComposer>
     </we-column>
   );

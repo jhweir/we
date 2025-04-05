@@ -3,9 +3,9 @@ import styles from './index.module.scss';
 
 export const blockTypes = [
   { type: 'p', label: 'Text', icon: 'text-t' },
-  { type: 'h1', label: 'Heading 1', icon: 'text-h-one' },
-  { type: 'h2', label: 'Heading 2', icon: 'text-h-two' },
-  { type: 'h3', label: 'Heading 3', icon: 'text-h-three' },
+  { type: 'h1', label: 'Heading 1', icon: 'text-h-one', md: '#' },
+  { type: 'h2', label: 'Heading 2', icon: 'text-h-two', md: '##' },
+  { type: 'h3', label: 'Heading 3', icon: 'text-h-three', md: '###' },
 ];
 
 export default function BlockTypeMenu(props: {
@@ -39,7 +39,7 @@ export default function BlockTypeMenu(props: {
     close();
   }
 
-  // Initialise focus when menu opens and set up click outside listener
+  // Initialise focus and set up click outside listener
   useEffect(() => {
     menuRef.current?.focus();
     // Set the focus index on the current node type
@@ -54,7 +54,7 @@ export default function BlockTypeMenu(props: {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Update selection focus when focusIndex changes
+  // Update selection focus when focusIndex state changes
   useEffect(() => {
     const item = document.getElementById(`block-type-menu-${blockTypes[focusIndex]?.type}`);
     if (item) item.focus();
@@ -79,8 +79,11 @@ export default function BlockTypeMenu(props: {
           onClick={(e) => onOptionClick(e, option.type)}
           onKeyDown={(e) => onOptionKeyDown(e, option.type)}
         >
-          <we-icon name={option.icon} weight="bold" color="ui-400" size="sm" style={{ marginRight: '10px' }} />
-          {option.label}
+          <we-row>
+            <we-icon name={option.icon} weight="bold" color="ui-300" size="sm" style={{ marginRight: '10px' }} />
+            {option.label}
+          </we-row>
+          <span className={styles.md}>{option.md}</span>
         </button>
       ))}
     </div>
