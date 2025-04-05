@@ -11,6 +11,7 @@ import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import styles from './index.module.scss';
 import BlockHandlePlugin from './plugins/BlockHandle';
 import BlockPlaceholderPlugin from './plugins/BlockPlaceholder';
+import SlashCommandPlugin from './plugins/SlashCommandPlugin';
 
 export default function PostBuilder() {
   // Define theme with explicit styles for all elements
@@ -43,6 +44,7 @@ export default function PostBuilder() {
         <HistoryPlugin />
         <BlockHandlePlugin />
         <BlockPlaceholderPlugin />
+        <SlashCommandPlugin />
       </LexicalComposer>
     </we-column>
   );

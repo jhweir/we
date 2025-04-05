@@ -31,36 +31,7 @@
   }
 }
 
-.menu {
-  position: absolute;
-  top: 20px;
-  pointer-events: auto;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--we-color-ui-0);
-  padding: 5px;
-  border-radius: 5px;
-  font-family: var(--we-font-family);
-  border: 1px solid var(--we-color-ui-300);
-  min-width: 200px;
-
-  .menuItem {
-    all: unset;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    border-radius: 5px;
-    height: 30px;
-    padding: 0 5px;
-    color: var(--we-color-ui-900);
-
-    &.focused {
-      background-color: var(--we-color-ui-50);
-    }
-  }
-}
-
-.dropIndicator {
+.dropSpot {
   position: absolute;
   height: 4px;
   background-color: var(--we-color-primary-400);

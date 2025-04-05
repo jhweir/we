@@ -1,30 +1,20 @@
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { $createHeadingNode, $isHeadingNode } from '@lexical/rich-text';
+import { $isHeadingNode } from '@lexical/rich-text';
 import { mergeRegister } from '@lexical/utils';
-import {
-  $createParagraphNode,
-  $getNodeByKey,
-  $getRoot,
-  $isElementNode,
-  $isParagraphNode,
-  COMMAND_PRIORITY_EDITOR,
-  createCommand,
-} from 'lexical';
+import { $getRoot, $isParagraphNode, COMMAND_PRIORITY_EDITOR } from 'lexical';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import BlockMenu from '../../components/BlockMenu';
+import {
+  findNodeType,
+  REORDER_BLOCK_COMMAND,
+  reorderBlock,
+  TRANSFORM_BLOCK_COMMAND,
+  transformBlock,
+} from '../../helpers';
 import styles from './index.module.scss';
 
-const TRANSFORM_BLOCK_COMMAND = createCommand<{ type: string; nodeKey?: string }>('TRANSFORM_BLOCK_COMMAND');
-const REORDER_BLOCK_COMMAND = createCommand<{ sourceKey: string; targetKey: string; insertBefore: boolean }>(
-  'REORDER_BLOCK_COMMAND',
-);
-
-const blockTypes = [
-  { type: 'p', label: 'Text', icon: 'text-t' },
-  { type: 'h1', label: 'Heading 1', icon: 'text-h-one' },
-  { type: 'h2', label: 'Heading 2', icon: 'text-h-two' },
-  { type: 'h3', label: 'Heading 3', icon: 'text-h-three' },
-];
+const heightOffset = { h1: 10, h2: 5, h3: 2 } as any;
 
 type NodeData = { element: HTMLElement; type: string };
 
@@ -32,98 +22,13 @@ function mapsAreEqual<K>(map1: Map<K, NodeData>, map2: Map<K, NodeData>): boolea
   // Quick size check
   if (map1.size !== map2.size) return false;
   for (const [key, val1] of map1) {
-    // Check if key exists in second map - maps must have same keys
+    // Check if key exists in second map
     if (!map2.has(key)) return false;
-    // Check if values are equal - compare element and type
+    // Check if values are equal
     const val2 = map2.get(key)!;
     if (val1.element !== val2.element || val1.type !== val2.type) return false;
   }
   return true;
-}
-
-function BlockTypeMenu(props: {
-  visible: boolean;
-  position: { top: number; left: number };
-  selectedType: string;
-  selectType: (type: string) => void;
-  close: () => void;
-}) {
-  const { visible, position, selectedType, selectType, close } = props;
-  const [focusIndex, setFocusIndex] = useState(-1);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  function onMenuKeyDown(e: React.KeyboardEvent) {
-    e.stopPropagation();
-    if (e.key === 'ArrowUp') setFocusIndex((prev) => (prev > 0 ? prev - 1 : blockTypes.length - 1));
-    if (e.key === 'ArrowDown') setFocusIndex((prev) => (prev < blockTypes.length - 1 ? prev + 1 : 0));
-    if (e.key === 'Escape') close();
-  }
-
-  function onOptionKeyDown(e: React.KeyboardEvent, type: string) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      selectType(type);
-      close();
-    }
-  }
-
-  function onOptionClick(e: React.MouseEvent, type: string) {
-    e.stopPropagation();
-    selectType(type);
-    close();
-  }
-
-  // Close menu on click outside
-  useEffect(() => {
-    menuRef.current?.focus(); // Focus the menu when it opens
-    function handleClickOutside(e: MouseEvent) {
-      if (!menuRef.current?.contains(e.target as Node)) close();
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Focus on currently selected block type when menu opens
-  useEffect(() => {
-    if (visible) {
-      const index = blockTypes.findIndex((item) => item.type === selectedType);
-      setFocusIndex(index);
-    }
-  }, [visible]);
-
-  // Update focus when focusIndex changes
-  useEffect(() => {
-    const item = document.getElementById(`block-type-menu-${blockTypes[focusIndex]?.type}`);
-    if (item) item.focus();
-  }, [focusIndex]);
-
-  if (!visible) return null;
-
-  return (
-    <div
-      ref={menuRef}
-      className={styles.menu}
-      role="menu"
-      style={{ top: `${position.top}px`, left: `${position.left}px` }}
-      onKeyDown={onMenuKeyDown}
-    >
-      {blockTypes.map((option, index) => (
-        <button
-          key={option.type}
-          id={`block-type-menu-${option.type}`}
-          className={`${styles.menuItem} ${focusIndex === index ? styles.focused : ''}`}
-          role="menuitem"
-          tabIndex={index === focusIndex ? 0 : -1}
-          onMouseEnter={() => setFocusIndex(index)}
-          onClick={(e) => onOptionClick(e, option.type)}
-          onKeyDown={(e) => onOptionKeyDown(e, option.type)}
-        >
-          <we-icon name={option.icon} weight="bold" color="ui-400" size="sm" style={{ marginRight: '10px' }} />
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
 }
 
 function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeData }) {
@@ -135,7 +40,11 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
   const [isDragging, setIsDragging] = useState(false);
   const handleRef = useRef<HTMLDivElement>(null);
   const positionRef = useRef({ top: 0, left: 0, height: 0 });
-  const heightOffset = { h1: 10, h2: 5, h3: 2 } as any;
+
+  function closeMenu() {
+    setShowMenu(false);
+    editor.focus();
+  }
 
   function onDragStart(e: React.DragEvent) {
     // Use the node key from props instead of DOM attribute
@@ -156,8 +65,8 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
     document.body.removeAttribute('data-dragging-node-key');
   }
 
-  function transformBlockType(type: string) {
-    editor.dispatchCommand(TRANSFORM_BLOCK_COMMAND, { type, nodeKey });
+  function selectType(type: string) {
+    editor.dispatchCommand(TRANSFORM_BLOCK_COMMAND, { editor, nodeType: type, nodeKey });
   }
 
   // Listen for resize and visibility changes
@@ -273,16 +182,16 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
         </div>
       </div>
 
-      {createPortal(
-        <BlockTypeMenu
-          position={{ top: position.top + 38, left: position.left - 10 }}
-          visible={showMenu}
-          selectedType={nodeType}
-          selectType={(type) => transformBlockType(type)}
-          close={() => setShowMenu(false)}
-        />,
-        document.body,
-      )}
+      {showMenu &&
+        createPortal(
+          <BlockMenu
+            nodeType={nodeType}
+            position={{ top: position.top + 38, left: position.left - 10 }}
+            selectType={selectType}
+            close={closeMenu}
+          />,
+          document.body,
+        )}
     </>
   );
 }
@@ -290,70 +199,15 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
 export default function BlockHandlePlugin(): JSX.Element | null {
   const [editor] = useLexicalComposerContext();
   const [nodeMap, setNodeMap] = useState<Map<string, NodeData>>(new Map());
-  const [dropIndicator, setDropIndicator] = useState({ visible: false, top: 0, left: -74, width: 0 });
+  const [dropSpot, setDropSpot] = useState({ visible: false, top: 0, left: -74, width: 0 });
   const prevNodeMapRef = useRef<Map<string, NodeData>>(new Map());
   const debouncedUpdate = useRef<number | null>(null);
 
   useEffect(() => {
     // Register the command listener
     const unregisterCommands = mergeRegister(
-      editor.registerCommand(
-        TRANSFORM_BLOCK_COMMAND,
-        (payload) => {
-          const { type, nodeKey } = payload;
-          if (!nodeKey) return false;
-
-          // Transform the block
-          editor.update(() => {
-            const node = $getNodeByKey(nodeKey);
-            // Skip if node not found or its not an element node
-            if (!node || !$isElementNode(node)) return;
-
-            // Skip if node is already the desired type
-            if (
-              (type === 'p' && $isParagraphNode(node)) ||
-              (type === 'h1' && $isHeadingNode(node) && node.getTag() === 'h1') ||
-              (type === 'h2' && $isHeadingNode(node) && node.getTag() === 'h2') ||
-              (type === 'h3' && $isHeadingNode(node) && node.getTag() === 'h3')
-            )
-              return;
-
-            // Create the new node based on type
-            let newNode;
-            if (type === 'p') newNode = $createParagraphNode();
-            else if (['h1', 'h2', 'h3'].includes(type)) newNode = $createHeadingNode(type as 'h1' | 'h2' | 'h3');
-            else return; // Skip if unsupported block type
-
-            // Transfer content and replace the node
-            node.getChildren().forEach((child) => newNode.append(child));
-            node.replace(newNode);
-          });
-
-          return true;
-        },
-        COMMAND_PRIORITY_EDITOR,
-      ),
-      editor.registerCommand(
-        REORDER_BLOCK_COMMAND,
-        ({ sourceKey, targetKey, insertBefore }) => {
-          editor.update(() => {
-            const sourceNode = $getNodeByKey(sourceKey);
-            const targetNode = $getNodeByKey(targetKey);
-
-            if (sourceNode && targetNode && $isElementNode(sourceNode) && $isElementNode(targetNode)) {
-              if (insertBefore) targetNode.insertBefore(sourceNode);
-              else {
-                // Insert after - find next sibling or append to parent
-                const nextSibling = targetNode.getNextSibling();
-                if (nextSibling) nextSibling.insertBefore(sourceNode);
-                else targetNode.getParent()?.append(sourceNode);
-              }
-            }
-          });
-          return true;
-        },
-        COMMAND_PRIORITY_EDITOR,
-      ),
+      editor.registerCommand(TRANSFORM_BLOCK_COMMAND, transformBlock, COMMAND_PRIORITY_EDITOR),
+      editor.registerCommand(REORDER_BLOCK_COMMAND, reorderBlock, COMMAND_PRIORITY_EDITOR),
     );
 
     function updateBlocksFromNodes() {
@@ -366,15 +220,10 @@ export default function BlockHandlePlugin(): JSX.Element | null {
           if ($isParagraphNode(node) || $isHeadingNode(node)) {
             const key = node.getKey();
             const element = editor.getElementByKey(key);
-
             if (element) {
               // Add data attribute for identification during drag/drop
               element.setAttribute('data-block-id', key);
-              // Store the node key and type in the map
-              let type = '';
-              if ($isParagraphNode(node)) type = 'p';
-              else if ($isHeadingNode(node)) type = node.getTag();
-              newNodeMap.set(key, { element: element as HTMLElement, type });
+              newNodeMap.set(key, { element: element as HTMLElement, type: findNodeType(node) });
             }
           }
         });
@@ -440,7 +289,7 @@ export default function BlockHandlePlugin(): JSX.Element | null {
       // Update drop indicator
       if (targetElement) {
         const rect = targetElement.getBoundingClientRect();
-        setDropIndicator({
+        setDropSpot({
           visible: true,
           left: rect.left - 74,
           width: rect.width,
@@ -461,7 +310,7 @@ export default function BlockHandlePlugin(): JSX.Element | null {
       const insertBefore = editorRootElement.getAttribute('data-drop-position') === 'before';
 
       // Hide indicator
-      setDropIndicator((prev) => {
+      setDropSpot((prev) => {
         return { ...prev, visible: false };
       });
 
@@ -471,18 +320,14 @@ export default function BlockHandlePlugin(): JSX.Element | null {
 
       // Execute reorder if we have both keys
       if (sourceKey && targetKey && sourceKey !== targetKey) {
-        editor.dispatchCommand(REORDER_BLOCK_COMMAND, {
-          sourceKey,
-          targetKey,
-          insertBefore,
-        });
+        editor.dispatchCommand(REORDER_BLOCK_COMMAND, { editor, sourceKey, targetKey, insertBefore });
       }
     }
 
     function handleDragLeave(e: DragEvent) {
       // Only hide if leaving the editor
       if (!editorRootElement.contains(e.relatedTarget as Node)) {
-        setDropIndicator((prev) => {
+        setDropSpot((prev) => {
           return { ...prev, visible: false };
         });
       }
@@ -523,8 +368,8 @@ export default function BlockHandlePlugin(): JSX.Element | null {
       )}
       <div
         id="drop-indicator"
-        className={`${styles.dropIndicator} ${dropIndicator.visible && styles.visible}`}
-        style={{ top: `${dropIndicator.top}px`, left: `${dropIndicator.left}px`, width: `${dropIndicator.width}px` }}
+        className={`${styles.dropSpot} ${dropSpot.visible && styles.visible}`}
+        style={{ top: `${dropSpot.top}px`, left: `${dropSpot.left}px`, width: `${dropSpot.width}px` }}
       />
     </>
   );
