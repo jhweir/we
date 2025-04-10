@@ -6,13 +6,15 @@ import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
+import { ListPlugin } from '@lexical/react/LexicalListPlugin';
 import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import styles from './index.module.scss';
 import BlockHandlePlugin from './plugins/BlockHandle';
 import BlockPlaceholderPlugin from './plugins/BlockPlaceholder';
-import SlashCommandPlugin from './plugins/SlashCommandPlugin';
+import SlashCommandPlugin from './plugins/SlashCommand';
+import TabIndentationPlugin from './plugins/TabIndentation';
 
 export default function PostBuilder() {
   const initialConfig = {
@@ -27,9 +29,11 @@ export default function PostBuilder() {
       <LexicalComposer initialConfig={initialConfig}>
         <RichTextPlugin contentEditable={<ContentEditable />} ErrorBoundary={LexicalErrorBoundary} />
         <HistoryPlugin />
+        <ListPlugin />
         <BlockHandlePlugin />
         <BlockPlaceholderPlugin />
         <SlashCommandPlugin />
+        <TabIndentationPlugin />
         <MarkdownShortcutPlugin transformers={[HEADING] as any} />
       </LexicalComposer>
     </we-column>

@@ -1,3 +1,4 @@
+import { $isListItemNode, $isListNode } from '@lexical/list';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $isHeadingNode } from '@lexical/rich-text';
 import { mergeRegister } from '@lexical/utils';
@@ -225,6 +226,21 @@ export default function BlockHandlePlugin(): JSX.Element | null {
               element.setAttribute('data-block-id', key);
               newNodeMap.set(key, { element: element as HTMLElement, type: findNodeType(node) });
             }
+          } else if ($isListNode(node)) {
+            // todo: handle nested lists
+            node.getChildren().forEach((child) => {
+              if ($isListItemNode(child)) {
+                const key = child.getKey();
+                const element = editor.getElementByKey(key);
+                if (element) {
+                  element.setAttribute('data-block-id', key);
+                  newNodeMap.set(key, {
+                    element: element as HTMLElement,
+                    type: node.getTag() + '-item',
+                  });
+                }
+              }
+            });
           }
         });
 

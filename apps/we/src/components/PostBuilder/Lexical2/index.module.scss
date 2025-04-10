@@ -14,7 +14,18 @@
   p,
   h1,
   h2,
-  h3 {
+  h3,
+  li {
     @extend .block;
+  }
+
+  ul,
+  ol {
+    margin: 0;
+    padding-left: 0;
+  }
+
+  li {
+    margin-left: 30px;
   }
 }

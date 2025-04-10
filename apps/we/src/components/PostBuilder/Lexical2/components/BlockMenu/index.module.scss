@@ -32,4 +32,19 @@
       color: var(--we-color-ui-300);
     }
   }
+
+  .categoryTitle {
+    font-size: 10px;
+    color: var(--we-color-ui-400);
+    padding: 5px 0;
+    margin-left: 5px;
+    font-weight: 600;
+  }
+
+  .divider {
+    width: 100%;
+    height: 1px;
+    margin: 10px 0;
+    background-color: var(--we-color-ui-100);
+  }
 }

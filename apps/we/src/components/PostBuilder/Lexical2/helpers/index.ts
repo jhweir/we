@@ -1,3 +1,4 @@
+import { $createListItemNode, $createListNode, $isListItemNode, $isListNode } from '@lexical/list';
 import { $createHeadingNode, $isHeadingNode } from '@lexical/rich-text';
 import {
   $createParagraphNode,
@@ -18,12 +19,14 @@ export const REORDER_BLOCK_COMMAND = createCommand<ReorderBlockProps>('REORDER_B
 export function findNodeType(node: LexicalNode): string {
   let type = '';
   if ($isParagraphNode(node)) type = 'p';
-  else if ($isHeadingNode(node)) type = node.getTag();
+  else if ($isHeadingNode(node) || $isListNode(node)) type = node.getTag();
+  else if ($isListItemNode(node)) type = 'li';
   return type;
 }
 
 export function transformBlock(props: TransformBlockProps): boolean {
   const { editor, nodeKey, nodeType } = props;
+  console.log('transformBlock', props);
 
   if (!nodeKey) return false;
 
@@ -36,7 +39,9 @@ export function transformBlock(props: TransformBlockProps): boolean {
     // Skip if node is already the desired type
     if (
       (nodeType === 'p' && $isParagraphNode(node)) ||
-      (['h1', 'h2', 'h3'].includes(nodeType) && $isHeadingNode(node) && node.getTag() === nodeType)
+      (['h1', 'h2', 'h3'].includes(nodeType) && $isHeadingNode(node) && node.getTag() === nodeType) ||
+      (['ul', 'ol', 'cl'].includes(nodeType) && $isListNode(node) && node.getTag() === nodeType) ||
+      (nodeType === 'li' && $isListItemNode(node))
     )
       return;
 
@@ -44,6 +49,18 @@ export function transformBlock(props: TransformBlockProps): boolean {
     let newNode;
     if (nodeType === 'p') newNode = $createParagraphNode();
     else if (['h1', 'h2', 'h3'].includes(nodeType)) newNode = $createHeadingNode(nodeType as 'h1' | 'h2' | 'h3');
+    else if (['ul', 'ol', 'cl'].includes(nodeType)) {
+      const listMap = { ul: 'bullet', ol: 'number', cl: 'check' } as any;
+      const listNode = $createListNode(listMap[nodeType]);
+      const listItemNode = $createListItemNode();
+      // console.log('children', node.getChildren());
+      node.getChildren().forEach((child) => listItemNode.append(child));
+
+      listNode.append(listItemNode);
+      node.replace(listNode);
+      // Return early since we've already handled the replacement
+      return;
+    } else if (nodeType === 'li') newNode = $createListItemNode();
     else return; // Skip if unsupported block type
 
     // Transfer content and replace the node

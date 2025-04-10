@@ -5,6 +5,7 @@ import { mergeRegister } from '@lexical/utils';
 import {
   $getSelection,
   $isElementNode,
+  $isParagraphNode,
   $isRangeSelection,
   $isRootNode,
   COMMAND_PRIORITY_LOW,
@@ -49,8 +50,9 @@ export default function BlockPlaceholderPlugin() {
               else element.classList.remove(styles.focused);
 
               // Set appropriate placeholder text based on node type
-              let placeholderText = "Type or press '/' for commands...";
-              if ($isListItemNode(node)) placeholderText = 'List item';
+              let placeholderText = '';
+              if ($isParagraphNode(node)) placeholderText = "Type or press '/' for commands...";
+              else if ($isListItemNode(node)) placeholderText = 'List item';
               else if ($isQuoteNode(node)) placeholderText = 'Quote';
               else if ($isHeadingNode(node)) {
                 const tag = node.getTag();
