@@ -8,7 +8,9 @@
     margin: 0;
     color: var(--we-color-ui-900);
     position: relative;
-    transition: var(--we-transition-200);
+    transition:
+      color,
+      background-color var(--we-transition-200);
   }
 
   p,
@@ -26,6 +28,32 @@
   }
 
   li {
-    margin-left: 30px;
+    list-style: none;
+    position: relative;
+    padding-left: 30px;
+
+    &:has(> ul),
+    &:has(> ol) {
+      padding-bottom: 0;
+    }
+
+    &::after {
+      content: '•';
+      position: absolute;
+      top: 5px;
+      left: 10px;
+      font-size: 22px;
+    }
+
+    ul,
+    ol {
+      li {
+        &:first-child {
+          margin-top: 10px;
+        }
+
+        margin-left: 20px;
+      }
+    }
   }
 }
