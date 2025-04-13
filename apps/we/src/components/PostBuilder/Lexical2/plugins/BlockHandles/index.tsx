@@ -197,7 +197,7 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
   );
 }
 
-export default function BlockHandlePlugin(): JSX.Element | null {
+export default function BlockHandlesPlugin(): JSX.Element | null {
   const [editor] = useLexicalComposerContext();
   const [nodeMap, setNodeMap] = useState<Map<string, NodeData>>(new Map());
   const [dropSpot, setDropSpot] = useState({ visible: false, top: 0, left: -74, width: 0 });
@@ -205,7 +205,7 @@ export default function BlockHandlePlugin(): JSX.Element | null {
   const debouncedUpdate = useRef<number | null>(null);
 
   useEffect(() => {
-    // Register the command listener
+    // Register command listeners
     const unregisterCommands = mergeRegister(
       editor.registerCommand(TRANSFORM_BLOCK_COMMAND, transformBlock, COMMAND_PRIORITY_EDITOR),
       editor.registerCommand(REORDER_BLOCK_COMMAND, reorderBlock, COMMAND_PRIORITY_EDITOR),

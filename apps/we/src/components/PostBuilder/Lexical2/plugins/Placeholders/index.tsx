@@ -14,7 +14,7 @@ import {
 import { useEffect } from 'react';
 import styles from './index.module.scss';
 
-export default function BlockPlaceholderPlugin() {
+export default function PlaceholdersPlugin() {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
@@ -39,9 +39,7 @@ export default function BlockPlaceholderPlugin() {
             const element = editor.getElementByKey(key);
             if (!element) continue;
 
-            const isEmpty =
-              node.getChildrenSize() === 0 ||
-              (node.getChildrenSize() === 1 && node.getFirstChild()?.getTextContent() === '');
+            const isEmpty = node.getChildrenSize() === 0 || node.getFirstChild()?.getTextContent() === '\u200B';
 
             if (isEmpty) {
               // Add classes

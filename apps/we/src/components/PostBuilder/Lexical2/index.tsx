@@ -11,10 +11,10 @@ import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPl
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import styles from './index.module.scss';
-import BlockHandlePlugin from './plugins/BlockHandle';
-import BlockPlaceholderPlugin from './plugins/BlockPlaceholder';
+import BlockHandlesPlugin from './plugins/BlockHandles';
+import IndentationPlugin from './plugins/Indentation';
+import PlaceholdersPlugin from './plugins/Placeholders';
 import SlashCommandPlugin from './plugins/SlashCommand';
-import TabIndentationPlugin from './plugins/TabIndentation';
 
 export default function PostBuilder() {
   const initialConfig = {
@@ -27,14 +27,16 @@ export default function PostBuilder() {
   return (
     <we-column bg="white" p="1000" r="xs" style={{ width: '100%', maxWidth: 1000 }}>
       <LexicalComposer initialConfig={initialConfig}>
+        {/* Lexcial plugins */}
         <RichTextPlugin contentEditable={<ContentEditable />} ErrorBoundary={LexicalErrorBoundary} />
+        <MarkdownShortcutPlugin transformers={[HEADING] as any} />
         <HistoryPlugin />
         <ListPlugin />
-        <BlockHandlePlugin />
-        <BlockPlaceholderPlugin />
+        {/* Custom plugins */}
+        <BlockHandlesPlugin />
+        <PlaceholdersPlugin />
         <SlashCommandPlugin />
-        <TabIndentationPlugin />
-        <MarkdownShortcutPlugin transformers={[HEADING] as any} />
+        <IndentationPlugin />
       </LexicalComposer>
     </we-column>
   );
