@@ -29,12 +29,27 @@
     padding-left: 0;
   }
 
+  // Apply bullet markers to unordered lists based on their nesting level
+  $bullets: '•', '◦', '▪';
+  $bullet-levels: length($bullets);
+
   ul > li::after {
-    content: '•';
     position: absolute;
     top: 5px;
     left: 10px;
     font-size: 22px;
+    content: nth($bullets, 1);
+  }
+
+  @for $i from 1 through 20 {
+    $selector: 'ul';
+    @for $j from 1 through $i {
+      $selector: $selector + ' > li > ul';
+    }
+
+    #{$selector} > li::after {
+      content: nth($bullets, ($i % $bullet-levels) + 1);
+    }
   }
 
   ol {
