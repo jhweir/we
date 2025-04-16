@@ -13,7 +13,6 @@ import {
 import { useEffect } from 'react';
 
 // Todo:
-// + hover highlighting of list items
 // + decide on list item makers & styling
 // + exit out of list if enter pressed on empty list item (includes blank space)
 // + prevent empty spaces from accumulating in list items when appending via delete or backspace

@@ -26,7 +26,6 @@ export function findNodeType(node: LexicalNode): string {
 
 export function transformBlock(props: TransformBlockProps): boolean {
   const { editor, nodeKey, nodeType } = props;
-  console.log('transformBlock', props);
 
   if (!nodeKey) return false;
 
