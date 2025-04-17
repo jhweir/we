@@ -25,9 +25,13 @@
   }
 
   blockquote {
-    padding-left: 28px;
+    padding-left: 30px;
     color: var(--we-color-ui-600);
     // font-style: italic;
+
+    &:before {
+      margin-left: 20px;
+    }
 
     &::after {
       content: ' ';
