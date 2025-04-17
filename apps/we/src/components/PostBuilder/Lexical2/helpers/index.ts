@@ -1,5 +1,5 @@
 import { $createListItemNode, $createListNode, $isListItemNode, $isListNode } from '@lexical/list';
-import { $createHeadingNode, $isHeadingNode } from '@lexical/rich-text';
+import { $createHeadingNode, $createQuoteNode, $isHeadingNode, $isQuoteNode } from '@lexical/rich-text';
 import {
   $createParagraphNode,
   $getNodeByKey,
@@ -21,6 +21,7 @@ export function findNodeType(node: LexicalNode): string {
   if ($isParagraphNode(node)) type = 'p';
   else if ($isHeadingNode(node) || $isListNode(node)) type = node.getTag();
   else if ($isListItemNode(node)) type = 'li';
+  else if ($isQuoteNode(node)) type = 'quote';
   return type;
 }
 
@@ -40,27 +41,28 @@ export function transformBlock(props: TransformBlockProps): boolean {
       (nodeType === 'p' && $isParagraphNode(node)) ||
       (['h1', 'h2', 'h3'].includes(nodeType) && $isHeadingNode(node) && node.getTag() === nodeType) ||
       (['ul', 'ol', 'cl'].includes(nodeType) && $isListNode(node) && node.getTag() === nodeType) ||
-      (nodeType === 'li' && $isListItemNode(node))
+      (nodeType === 'li' && $isListItemNode(node)) ||
+      (nodeType === 'quote' && $isQuoteNode(node))
     )
       return;
 
     // Create the new node based on nodeType
     let newNode;
     if (nodeType === 'p') newNode = $createParagraphNode();
+    else if (nodeType === 'quote') newNode = $createQuoteNode();
+    else if (nodeType === 'li') newNode = $createListItemNode();
     else if (['h1', 'h2', 'h3'].includes(nodeType)) newNode = $createHeadingNode(nodeType as 'h1' | 'h2' | 'h3');
     else if (['ul', 'ol', 'cl'].includes(nodeType)) {
       const listMap = { ul: 'bullet', ol: 'number', cl: 'check' } as any;
       const listNode = $createListNode(listMap[nodeType]);
       const listItemNode = $createListItemNode();
-      // console.log('children', node.getChildren());
       node.getChildren().forEach((child) => listItemNode.append(child));
 
       listNode.append(listItemNode);
       node.replace(listNode);
       // Return early since we've already handled the replacement
       return;
-    } else if (nodeType === 'li') newNode = $createListItemNode();
-    else return; // Skip if unsupported block type
+    } else return; // Skip if unsupported block type
 
     // Transfer content and replace the node
     node.getChildren().forEach((child) => newNode.append(child));

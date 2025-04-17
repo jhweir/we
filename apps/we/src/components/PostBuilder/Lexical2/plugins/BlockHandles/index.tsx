@@ -1,6 +1,6 @@
 import { $isListItemNode, $isListNode, ListNode } from '@lexical/list';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { $isHeadingNode } from '@lexical/rich-text';
+import { $isHeadingNode, $isQuoteNode } from '@lexical/rich-text';
 import { mergeRegister } from '@lexical/utils';
 import { $getRoot, $isParagraphNode, COMMAND_PRIORITY_EDITOR, LexicalNode } from 'lexical';
 import { useEffect, useRef, useState } from 'react';
@@ -207,7 +207,7 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
         }
 
         root.getChildren().forEach((node) => {
-          if ($isParagraphNode(node) || $isHeadingNode(node)) addBlock(node);
+          if ($isParagraphNode(node) || $isHeadingNode(node) || $isQuoteNode(node)) addBlock(node);
           else if ($isListNode(node)) addListBlocks(node);
         });
 

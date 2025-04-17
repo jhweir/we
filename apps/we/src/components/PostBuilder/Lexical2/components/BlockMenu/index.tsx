@@ -5,6 +5,7 @@ const p = { type: 'p', label: 'Text', icon: 'text-t', md: '' };
 const h1 = { type: 'h1', label: 'Heading 1', icon: 'text-h-one', md: '#' };
 const h2 = { type: 'h2', label: 'Heading 2', icon: 'text-h-two', md: '##' };
 const h3 = { type: 'h3', label: 'Heading 3', icon: 'text-h-three', md: '###' };
+const quote = { type: 'quote', label: 'Quote', icon: 'quotes', md: '>' };
 const ul = { type: 'ul', label: 'Bullet List', icon: 'list-bullets', md: '-' };
 const ol = { type: 'ol', label: 'Number List', icon: 'list-numbers', md: '1.' };
 const cl = { type: 'cl', label: 'Check List', icon: 'list-checks', md: '[]' };
@@ -13,7 +14,7 @@ const audio = { type: 'audio', label: 'Audio', icon: 'speaker-high', md: '!!' };
 const video = { type: 'video', label: 'Video', icon: 'video-camera', md: '!!!' };
 
 const suggestedBlocks = [ul, h1, p];
-const basicBlocks = [p, h1, h2, h3, ul, ol, cl];
+const basicBlocks = [p, h1, h2, h3, quote, ul, ol, cl];
 const mediaBlocks = [image, audio, video];
 
 function MenuItem(
