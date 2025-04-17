@@ -54,7 +54,9 @@ export default function BlockTypeMenu(props: {
   const { nodeType, position, selectType, close } = props;
   const [focusIndex, setFocusIndex] = useState(-1);
   const menuRef = useRef<HTMLDivElement>(null);
-  const allBlocks = [...suggestedBlocks, ...basicBlocks, ...mediaBlocks];
+  const allBlocks = [...basicBlocks, ...mediaBlocks]; // ...suggestedBlocks
+  const basicBlocksOffset = 0; // suggestedBlocks.length;
+  const mediaBlocksOffset = basicBlocksOffset + basicBlocks.length;
 
   function onMenuKeyDown(e: React.KeyboardEvent) {
     e.stopPropagation();
@@ -116,21 +118,14 @@ export default function BlockTypeMenu(props: {
 
       <span className={styles.categoryTitle}>BASIC BLOCKS</span>
       {basicBlocks.map((option, index) =>
-        MenuItem(option, index + suggestedBlocks.length, focusIndex, setFocusIndex, onOptionClick, onOptionKeyDown),
+        MenuItem(option, index + basicBlocksOffset, focusIndex, setFocusIndex, onOptionClick, onOptionKeyDown),
       )}
 
       <div className={styles.divider} />
 
       <span className={styles.categoryTitle}>MEDIA BLOCKS</span>
       {mediaBlocks.map((option, index) =>
-        MenuItem(
-          option,
-          index + suggestedBlocks.length + basicBlocks.length,
-          focusIndex,
-          setFocusIndex,
-          onOptionClick,
-          onOptionKeyDown,
-        ),
+        MenuItem(option, index + mediaBlocksOffset, focusIndex, setFocusIndex, onOptionClick, onOptionKeyDown),
       )}
     </div>
   );
