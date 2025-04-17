@@ -1,7 +1,7 @@
 'use client';
 
 import { ListItemNode, ListNode } from '@lexical/list';
-import { HEADING, QUOTE } from '@lexical/markdown'; // use full TRANSFORMERS array when other node types added
+import { CHECK_LIST, HEADING, ORDERED_LIST, QUOTE, UNORDERED_LIST } from '@lexical/markdown'; // use full TRANSFORMERS array when other node types added
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
@@ -29,7 +29,7 @@ export default function PostBuilder() {
       <LexicalComposer initialConfig={initialConfig}>
         {/* Lexcial plugins */}
         <RichTextPlugin contentEditable={<ContentEditable />} ErrorBoundary={LexicalErrorBoundary} />
-        <MarkdownShortcutPlugin transformers={[HEADING, QUOTE] as any} />
+        <MarkdownShortcutPlugin transformers={[HEADING, QUOTE, UNORDERED_LIST, ORDERED_LIST, CHECK_LIST] as any} />
         <HistoryPlugin />
         <ListPlugin />
         {/* Custom plugins */}

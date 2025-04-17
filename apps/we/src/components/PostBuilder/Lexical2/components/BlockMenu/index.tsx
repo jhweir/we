@@ -14,7 +14,7 @@ const audio = { type: 'audio', label: 'Audio', icon: 'speaker-high', md: '!!' };
 const video = { type: 'video', label: 'Video', icon: 'video-camera', md: '!!!' };
 
 const suggestedBlocks = [ul, h1, p];
-const basicBlocks = [p, h1, h2, h3, quote, ul, ol, cl];
+const basicBlocks = [p, h1, h2, h3, quote, ul, ol]; // cl
 const mediaBlocks = [image, audio, video];
 
 function MenuItem(
@@ -107,12 +107,12 @@ export default function BlockTypeMenu(props: {
       style={{ top: `${position.top}px`, left: `${position.left}px` }}
       onKeyDown={onMenuKeyDown}
     >
-      <span className={styles.categoryTitle}>SUGGESTED</span>
+      {/* <span className={styles.categoryTitle}>SUGGESTED</span>
       {suggestedBlocks.map((option, index) =>
         MenuItem(option, index, focusIndex, setFocusIndex, onOptionClick, onOptionKeyDown),
       )}
 
-      <div className={styles.divider} />
+      <div className={styles.divider} /> */}
 
       <span className={styles.categoryTitle}>BASIC BLOCKS</span>
       {basicBlocks.map((option, index) =>
