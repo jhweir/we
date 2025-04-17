@@ -1,24 +1,36 @@
-import { $createListNode, $isListItemNode, $isListNode, ListItemNode, ListNode } from '@lexical/list';
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
+  $createListItemNode,
+  $createListNode,
+  $isListItemNode,
+  $isListNode,
+  ListItemNode,
+  ListNode,
+} from '@lexical/list';
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
+import { mergeRegister } from '@lexical/utils';
+import {
+  $createParagraphNode,
   $createTextNode,
   $getSelection,
+  $isParagraphNode,
   $isRangeSelection,
   COMMAND_PRIORITY_CRITICAL,
   INDENT_CONTENT_COMMAND,
+  KEY_ENTER_COMMAND,
   KEY_TAB_COMMAND,
   LexicalEditor,
   OUTDENT_CONTENT_COMMAND,
+  TextNode,
 } from 'lexical';
 import { useEffect } from 'react';
 
 // Todo:
-// + exit out of list if enter pressed on empty list item (includes blank space)
-// + prevent empty spaces from accumulating in list items when appending via delete or backspace
-// + fix: delete on nested list item removing parent item
+// + handle delete key press
+//    + prevent empty spaces from blocking delete
+//    + prevent delete on nested list item removing parent item
 // + handle drag and drop
 
-function handleIndentation(event: KeyboardEvent, editor: LexicalEditor): boolean {
+function tabKeyPress(event: KeyboardEvent, editor: LexicalEditor): boolean {
   event.preventDefault();
   const selection = $getSelection();
   if (!$isRangeSelection(selection)) return false;
@@ -66,17 +78,11 @@ function handleIndentation(event: KeyboardEvent, editor: LexicalEditor): boolean
     if (!previousSibling || !$isListItemNode(previousSibling)) return false;
     // if (!findListItemNode(previousSibling)) return false;
 
-    console.log('passed!!!', previousSibling);
-
-    // 1.
-
     // Check if the previous sibling already has a nested list of the same type (why)
     let nestedList = null as null | ListNode;
     previousSibling.getChildren().forEach((child) => {
       if ($isListNode(child) && child.getTag() === listNode.getTag()) nestedList = child;
     });
-
-    console.log('nestedList 1', nestedList);
 
     editor.update(() => {
       if (!nestedList) {
@@ -85,8 +91,6 @@ function handleIndentation(event: KeyboardEvent, editor: LexicalEditor): boolean
         nestedList = $createListNode(listType as any);
         previousSibling.append(nestedList);
       }
-
-      console.log('nestedList 2', nestedList);
 
       // Move current list item to the nested list
       nestedList.append(listItemNode);
@@ -101,12 +105,67 @@ function handleIndentation(event: KeyboardEvent, editor: LexicalEditor): boolean
   }
 }
 
-function listItemNodeTransform(node: ListItemNode): void {
-  // Add blank text node to empty list items to mainatin consistent html structure & avoid positioning issues
-  if (node.getChildrenSize() === 0) {
-    const textNode = $createTextNode('\u200B');
-    node.append(textNode);
+function enterKeyPress(event: KeyboardEvent, editor: LexicalEditor): boolean {
+  // Only handle if we have a valid selection
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection)) return false;
+
+  // Get the current node and check if it's in a list item
+  const node = selection.anchor.getNode();
+  const parentNode = node.getParent();
+  if (!$isListItemNode(parentNode)) return false;
+
+  // Check if the list item is empty
+  const textContent = parentNode.getTextContent();
+  if (textContent === '' || textContent === '\u200B') {
+    // Get reference to the list
+    const listNode = parentNode.getParent();
+    if (!$isListNode(listNode)) return false;
+
+    // Execute the update
+    event.preventDefault();
+    editor.update(() => {
+      const listParent = listNode.getParent();
+
+      if ($isListItemNode(listParent)) {
+        // NESTED LIST CASE
+        const newListItem = $createListItemNode();
+        const textNode = $createTextNode('\u200B');
+        newListItem.append(textNode);
+
+        // Insert after parent
+        const grandparentList = listParent.getParent();
+        if ($isListNode(grandparentList)) {
+          const index = grandparentList.getChildren().indexOf(listParent);
+
+          if (index !== -1 && index < grandparentList.getChildrenSize() - 1) {
+            const nextSibling = grandparentList.getChildAtIndex(index + 1);
+            if (nextSibling) nextSibling.insertBefore(newListItem);
+          } else {
+            grandparentList.append(newListItem);
+          }
+
+          // Set selection to beginning of new list item
+          textNode.select();
+        }
+      } else {
+        // TOP-LEVEL LIST CASE
+        const paragraph = $createParagraphNode();
+        listNode.insertAfter(paragraph);
+
+        // Set selection to beginning of paragraph
+        paragraph.select();
+      }
+
+      // Clean up
+      parentNode.remove();
+      if (listNode.getChildrenSize() === 0) listNode.remove();
+    });
+
+    return true;
   }
+
+  return false;
 }
 
 function listNodeTransform(node: ListNode): void {
@@ -134,23 +193,55 @@ function listNodeTransform(node: ListNode): void {
   }
 }
 
+function listItemNodeTransform(node: ListItemNode): void {
+  // Add blank text node to empty list items to mainatin consistent html structure & avoid positioning issues
+  if (node.getChildrenSize() === 0) {
+    const textNode = $createTextNode('\u200B');
+    node.append(textNode);
+  }
+}
+
+function textNodeTransform(node: TextNode): void {
+  // Remove unwanted invisible spaces from list item and paragraph nodes
+  const parent = node.getParent();
+  const text = node.getTextContent();
+  const listItemWithMultipleBlankSpaces = $isListItemNode(parent) && text.length > 1 && text.includes('\u200B');
+  const paragraphWithBlankSpaces = $isParagraphNode(parent) && text.includes('\u200B');
+
+  if (listItemWithMultipleBlankSpaces || paragraphWithBlankSpaces) {
+    // Remove the invisible spaces
+    const newText = text.replace(/\u200B/g, '');
+    node.setTextContent(newText);
+    // Move the cursor position to the end of the text node
+    node.select(newText.length);
+  }
+}
+
 export default function IndentationPlugin(): null {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
-    const removeTabKeyListener = editor.registerCommand(
-      KEY_TAB_COMMAND,
-      (event) => handleIndentation(event, editor),
-      COMMAND_PRIORITY_CRITICAL,
+    const unregisterListeners = mergeRegister(
+      // Register key press commands
+      editor.registerCommand(
+        KEY_TAB_COMMAND,
+        (event: KeyboardEvent) => tabKeyPress(event, editor),
+        COMMAND_PRIORITY_CRITICAL,
+      ),
+      editor.registerCommand(
+        KEY_ENTER_COMMAND,
+        (event: KeyboardEvent) => enterKeyPress(event, editor),
+        COMMAND_PRIORITY_CRITICAL,
+      ),
+
+      // Register node transformations
+      editor.registerNodeTransform(ListNode, listNodeTransform),
+      editor.registerNodeTransform(ListItemNode, listItemNodeTransform),
+      editor.registerNodeTransform(TextNode, textNodeTransform),
     );
 
-    const removeListNodeTransform = editor.registerNodeTransform(ListNode, listNodeTransform);
-    const removeListItemNodeTransform = editor.registerNodeTransform(ListItemNode, listItemNodeTransform);
-
     return () => {
-      removeTabKeyListener();
-      removeListNodeTransform();
-      removeListItemNodeTransform();
+      unregisterListeners();
     };
   }, [editor]);
 
