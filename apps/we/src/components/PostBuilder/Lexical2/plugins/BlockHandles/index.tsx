@@ -1,8 +1,7 @@
 import { $isListItemNode, $isListNode, ListNode } from '@lexical/list';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { $isHeadingNode, $isQuoteNode } from '@lexical/rich-text';
 import { mergeRegister } from '@lexical/utils';
-import { $getRoot, $isParagraphNode, COMMAND_PRIORITY_EDITOR, LexicalNode } from 'lexical';
+import { $getRoot, $isDecoratorNode, $isElementNode, COMMAND_PRIORITY_EDITOR, LexicalNode } from 'lexical';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import BlockMenu from '../../components/BlockMenu';
@@ -17,19 +16,20 @@ import styles from './index.module.scss';
 
 // Data attributes for block elements
 const ATTR_BLOCK_ID = 'data-block-id';
-const ATTR_HANDLE_FOR_BLOCK_ID = 'data-handle-for-block-id';
+const ATTR_HANDLE_FOR_BLOCK = 'data-handle-for-block';
 const ATTR_BLOCK_HIGHLIGHTED = 'data-block-highlighted';
 const ATTR_DRAG_SOURCE = 'data-dragging-node-key';
 const ATTR_DROP_TARGET = 'data-drop-target';
 const ATTR_DROP_POSITION = 'data-drop-position';
 
-const BLOCK_OR_HANDLE_SELECTOR = `[${ATTR_BLOCK_ID}], [${ATTR_HANDLE_FOR_BLOCK_ID}]`;
+const BLOCK_OR_HANDLE_SELECTOR = `[${ATTR_BLOCK_ID}], [${ATTR_HANDLE_FOR_BLOCK}]`;
 
 type NodeData = { element: HTMLElement; type: string };
 
 function mapsAreEqual<K>(map1: Map<K, NodeData>, map2: Map<K, NodeData>): boolean {
   // Quick size check
   if (map1.size !== map2.size) return false;
+  // Loop through first map and check if keys and values match in second map
   for (const [key, val1] of map1) {
     // Check if key exists in second map
     if (!map2.has(key)) return false;
@@ -84,7 +84,7 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
   }
 
   function selectType(type: string) {
-    editor.dispatchCommand(TRANSFORM_BLOCK_COMMAND, { editor, nodeType: type, nodeKey });
+    editor.dispatchCommand(TRANSFORM_BLOCK_COMMAND, { editor, newNodeType: type, nodeKey });
   }
 
   // Listen for mouse over and resize events
@@ -140,7 +140,7 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
       <div
         ref={handleRef}
         className={styles.handle}
-        data-handle-for-block-id={nodeKey}
+        {...{ [ATTR_HANDLE_FOR_BLOCK]: nodeKey }}
         style={{
           top: `${position.top + (heightOffset[nodeType] || 0)}px`,
           left: `${position.left - 10}px`,
@@ -206,9 +206,10 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
           });
         }
 
+        // Add all blocks to the map
         root.getChildren().forEach((node) => {
-          if ($isParagraphNode(node) || $isHeadingNode(node) || $isQuoteNode(node)) addBlock(node);
-          else if ($isListNode(node)) addListBlocks(node);
+          if ($isListNode(node)) addListBlocks(node);
+          else if ($isElementNode(node) || $isDecoratorNode(node)) addBlock(node);
         });
 
         // Only update if the map has actually changed
@@ -219,16 +220,17 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
       });
     }
 
-    function handleMouseOver(e: MouseEvent) {
+    function onMouseOver(e: MouseEvent) {
+      // Handle block highlighting
       let blockId = null;
 
       // Find the closest block or handle ancestor
       const blockOrHandle = (e.target as HTMLElement)?.closest(BLOCK_OR_HANDLE_SELECTOR);
       if (blockOrHandle) {
-        // Find the block id from the element
+        // Get the block id from the element
         blockId = blockOrHandle.hasAttribute(ATTR_BLOCK_ID)
           ? blockOrHandle.getAttribute(ATTR_BLOCK_ID)
-          : blockOrHandle.getAttribute(ATTR_HANDLE_FOR_BLOCK_ID);
+          : blockOrHandle.getAttribute(ATTR_HANDLE_FOR_BLOCK);
 
         // Skip if the block is already highlighted
         const blockElement = root.querySelector(`[${ATTR_BLOCK_ID}="${blockId}"]`);
@@ -243,14 +245,14 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
       // Apply new highlights
       if (blockId) {
         const blockElement = root.querySelector(`[${ATTR_BLOCK_ID}="${blockId}"]`);
-        const handleElement = document.querySelector(`[${ATTR_HANDLE_FOR_BLOCK_ID}="${blockId}"]`);
+        const handleElement = document.querySelector(`[${ATTR_HANDLE_FOR_BLOCK}="${blockId}"]`);
 
         if (blockElement) blockElement.setAttribute(ATTR_BLOCK_HIGHLIGHTED, 'true');
         if (handleElement) handleElement.setAttribute(ATTR_BLOCK_HIGHLIGHTED, 'true');
       }
     }
 
-    function handleMouseOut(e: MouseEvent) {
+    function onMouseOut(e: MouseEvent) {
       // Clear all highlights if moving to an element outside all blocks and handles
       if (!(e.relatedTarget as HTMLElement)?.closest(BLOCK_OR_HANDLE_SELECTOR)) {
         document
@@ -259,7 +261,7 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
       }
     }
 
-    function handleDragOver(e: DragEvent) {
+    function onDragOver(e: DragEvent) {
       e.preventDefault();
       const sourceKey = document.body.getAttribute(ATTR_DRAG_SOURCE);
       if (!sourceKey) return;
@@ -320,7 +322,7 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
       }
     }
 
-    function handleDrop(e: DragEvent) {
+    function onDrop(e: DragEvent) {
       e.preventDefault();
 
       const sourceKey = document.body.getAttribute(ATTR_DRAG_SOURCE);
@@ -342,7 +344,7 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
       }
     }
 
-    function handleDragLeave(e: DragEvent) {
+    function onDragLeave(e: DragEvent) {
       // Only hide if leaving the editor
       if (!root.contains(e.relatedTarget as Node)) {
         setDropSpot((prev) => ({ ...prev, visible: false }));
@@ -350,11 +352,11 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
     }
 
     // Register mouse and drag event listeners
-    document.addEventListener('mouseover', handleMouseOver);
-    document.addEventListener('mouseout', handleMouseOut);
-    root.addEventListener('dragover', handleDragOver);
-    root.addEventListener('drop', handleDrop);
-    root.addEventListener('dragleave', handleDragLeave);
+    document.addEventListener('mouseover', onMouseOver);
+    document.addEventListener('mouseout', onMouseOut);
+    root.addEventListener('dragover', onDragOver);
+    root.addEventListener('drop', onDrop);
+    root.addEventListener('dragleave', onDragLeave);
 
     // Register command listeners
     const unregisterCommands = mergeRegister(
@@ -375,11 +377,11 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
     setTimeout(buildBlockMap, 100);
 
     return () => {
-      document.removeEventListener('mouseover', handleMouseOver);
-      document.removeEventListener('mouseout', handleMouseOut);
-      root.removeEventListener('dragover', handleDragOver);
-      root.removeEventListener('drop', handleDrop);
-      root.removeEventListener('dragleave', handleDragLeave);
+      document.removeEventListener('mouseover', onMouseOver);
+      document.removeEventListener('mouseout', onMouseOut);
+      root.removeEventListener('dragover', onDragOver);
+      root.removeEventListener('drop', onDrop);
+      root.removeEventListener('dragleave', onDragLeave);
       unregisterCommands();
       removeUpdateListener();
       if (debouncedUpdate.current !== null) window.clearTimeout(debouncedUpdate.current);

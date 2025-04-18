@@ -82,7 +82,7 @@ export default function BlockTypeMenu(props: {
   // Initialise focus and set up click outside listener
   useEffect(() => {
     menuRef.current?.focus();
-    // todo: if node type is text & content is empty, set the focus on the first suggested item
+
     // Set the focus index on the current node type
     const index = allBlocks.findIndex((item) => item.type === nodeType);
     setFocusIndex(index >= 0 ? index : 0);
@@ -116,7 +116,7 @@ export default function BlockTypeMenu(props: {
 
       <div className={styles.divider} /> */}
 
-      <span className={styles.categoryTitle}>BASIC BLOCKS</span>
+      <span className={styles.categoryTitle}>TEXT BLOCKS</span>
       {basicBlocks.map((option, index) =>
         MenuItem(option, index + basicBlocksOffset, focusIndex, setFocusIndex, onOptionClick, onOptionKeyDown),
       )}

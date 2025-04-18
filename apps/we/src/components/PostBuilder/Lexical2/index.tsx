@@ -11,7 +11,9 @@ import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPl
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import styles from './index.module.scss';
+import { ImageNode } from './nodes/Image';
 import BlockHandlesPlugin from './plugins/BlockHandles';
+import ImagePlugin from './plugins/ImageBlock';
 import IndentationPlugin from './plugins/Indentation';
 import PlaceholdersPlugin from './plugins/Placeholders';
 import SlashCommandPlugin from './plugins/SlashCommand';
@@ -20,7 +22,7 @@ export default function PostBuilder() {
   const initialConfig = {
     namespace: 'PostBuilder',
     theme: { root: styles.editor },
-    nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode],
+    nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, ImageNode],
     onError: (error: Error) => console.error('Editor Error:', error),
   };
 
@@ -29,7 +31,7 @@ export default function PostBuilder() {
       <LexicalComposer initialConfig={initialConfig}>
         {/* Lexcial plugins */}
         <RichTextPlugin contentEditable={<ContentEditable />} ErrorBoundary={LexicalErrorBoundary} />
-        <MarkdownShortcutPlugin transformers={[HEADING, QUOTE, UNORDERED_LIST, ORDERED_LIST, CHECK_LIST] as any} />
+        <MarkdownShortcutPlugin transformers={[HEADING, QUOTE, UNORDERED_LIST, ORDERED_LIST, CHECK_LIST]} />
         <HistoryPlugin />
         <ListPlugin />
         {/* Custom plugins */}
@@ -37,6 +39,7 @@ export default function PostBuilder() {
         <PlaceholdersPlugin />
         <SlashCommandPlugin />
         <IndentationPlugin />
+        <ImagePlugin />
       </LexicalComposer>
     </we-column>
   );

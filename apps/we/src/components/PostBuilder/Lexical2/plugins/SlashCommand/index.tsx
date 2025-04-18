@@ -28,7 +28,7 @@ export default function SlashCommandPlugin(): JSX.Element | null {
   }
 
   function selectType(type: string) {
-    editor.dispatchCommand(TRANSFORM_BLOCK_COMMAND, { editor, nodeType: type, nodeKey: nodeData.key });
+    editor.dispatchCommand(TRANSFORM_BLOCK_COMMAND, { editor, newNodeType: type, nodeKey: nodeData.key });
   }
 
   function slashKeyPress(node: LexicalNode) {

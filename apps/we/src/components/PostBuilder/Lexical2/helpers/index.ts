@@ -9,79 +9,84 @@ import {
   LexicalEditor,
   LexicalNode,
 } from 'lexical';
+import { $createImageNode, $isImageNode } from '../nodes/Image';
 
-type TransformBlockProps = { editor: LexicalEditor; nodeKey: string; nodeType: string };
+type TransformBlockProps = { editor: LexicalEditor; nodeKey: string; newNodeType: string };
 type ReorderBlockProps = { editor: LexicalEditor; sourceKey: string; targetKey: string; insertBefore: boolean };
 
 export const TRANSFORM_BLOCK_COMMAND = createCommand<TransformBlockProps>('TRANSFORM_BLOCK_COMMAND');
 export const REORDER_BLOCK_COMMAND = createCommand<ReorderBlockProps>('REORDER_BLOCK_COMMAND');
 
 export function findNodeType(node: LexicalNode): string {
+  // Used to determine the block type of a node for the block menu
   let type = '';
   if ($isParagraphNode(node)) type = 'p';
-  else if ($isHeadingNode(node) || $isListNode(node)) type = node.getTag();
-  else if ($isListItemNode(node)) type = 'li';
   else if ($isQuoteNode(node)) type = 'quote';
+  else if ($isImageNode(node)) type = 'image';
+  else if ($isHeadingNode(node) || $isListNode(node)) type = node.getTag();
+  else if ($isListItemNode(node)) {
+    // In the case of list items return the parent list type (ul, ol, cl)
+    const parent = node.getParent();
+    if (parent && $isListNode(parent)) type = parent.getTag();
+  }
   return type;
 }
 
-export function transformBlock(props: TransformBlockProps): boolean {
-  const { editor, nodeKey, nodeType } = props;
-
+export function transformBlock({ editor, nodeKey, newNodeType }: TransformBlockProps): boolean {
+  // Used to transform a block node to another type
   if (!nodeKey) return false;
 
   editor.update(() => {
     const node = $getNodeByKey(nodeKey);
-
-    // Skip if node not found or its not an element node
-    if (!node || !$isElementNode(node)) return;
+    if (!node) return;
 
     // Skip if node is already the desired type
     if (
-      (nodeType === 'p' && $isParagraphNode(node)) ||
-      (['h1', 'h2', 'h3'].includes(nodeType) && $isHeadingNode(node) && node.getTag() === nodeType) ||
-      (['ul', 'ol', 'cl'].includes(nodeType) && $isListNode(node) && node.getTag() === nodeType) ||
-      (nodeType === 'li' && $isListItemNode(node)) ||
-      (nodeType === 'quote' && $isQuoteNode(node))
+      (newNodeType === 'p' && $isParagraphNode(node)) ||
+      (newNodeType === 'li' && $isListItemNode(node)) ||
+      (newNodeType === 'quote' && $isQuoteNode(node)) ||
+      (['h1', 'h2', 'h3'].includes(newNodeType) && $isHeadingNode(node) && node.getTag() === newNodeType)
     )
       return;
 
-    // Create the new node based on nodeType
+    // Create the new node based on the desired type
     let newNode;
-    if (nodeType === 'p') newNode = $createParagraphNode();
-    else if (nodeType === 'quote') newNode = $createQuoteNode();
-    else if (nodeType === 'li') newNode = $createListItemNode();
-    else if (['h1', 'h2', 'h3'].includes(nodeType)) newNode = $createHeadingNode(nodeType as 'h1' | 'h2' | 'h3');
-    else if (['ul', 'ol', 'cl'].includes(nodeType)) {
-      const listMap = { ul: 'bullet', ol: 'number', cl: 'check' } as any;
-      const listNode = $createListNode(listMap[nodeType]);
+    if (newNodeType === 'p') newNode = $createParagraphNode();
+    else if (newNodeType === 'quote') newNode = $createQuoteNode();
+    else if (newNodeType === 'image') newNode = $createImageNode();
+    else if (['h1', 'h2', 'h3'].includes(newNodeType)) newNode = $createHeadingNode(newNodeType as 'h1' | 'h2' | 'h3');
+    else if (['ul', 'ol', 'cl'].includes(newNodeType)) {
+      // If the new block is a list we need to create a list node and append a list item node to it
+      const listTypes = { ul: 'bullet', ol: 'number', cl: 'check' } as any;
+      const listNode = $createListNode(listTypes[newNodeType]);
       const listItemNode = $createListItemNode();
-      node.getChildren().forEach((child) => listItemNode.append(child));
-
+      if ($isElementNode(node)) node.getChildren().forEach((child) => listItemNode.append(child));
       listNode.append(listItemNode);
-      node.replace(listNode);
-      // Return early since we've already handled the replacement
-      return;
+      newNode = listNode;
     } else return; // Skip if unsupported block type
 
-    // Transfer content and replace the node
-    node.getChildren().forEach((child) => newNode.append(child));
+    // Transfer content
+    if ($isElementNode(node)) {
+      if ($isParagraphNode(newNode) || $isQuoteNode(newNode) || $isHeadingNode(newNode)) {
+        node.getChildren().forEach((child) => newNode.append(child));
+      }
+    }
+
+    // Replace the old node with the new one
     node.replace(newNode);
   });
 
   return true;
 }
 
-export function reorderBlock(props: ReorderBlockProps): boolean {
-  const { editor, sourceKey, targetKey, insertBefore } = props;
-
+export function reorderBlock({ editor, sourceKey, targetKey, insertBefore }: ReorderBlockProps): boolean {
   if (!sourceKey || !targetKey) return false;
 
   editor.update(() => {
     const sourceNode = $getNodeByKey(sourceKey);
     const targetNode = $getNodeByKey(targetKey);
 
-    if (sourceNode && targetNode && $isElementNode(sourceNode) && $isElementNode(targetNode)) {
+    if (sourceNode && targetNode) {
       if (insertBefore) targetNode.insertBefore(sourceNode);
       else {
         const nextSibling = targetNode.getNextSibling();
