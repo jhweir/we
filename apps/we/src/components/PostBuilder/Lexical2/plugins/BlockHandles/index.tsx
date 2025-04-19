@@ -148,7 +148,7 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
         }}
       >
         <button className={styles.settingsButton} onClick={() => setShowMenu(true)}>
-          <we-icon name="gear" size="sm" color="ui-600" />
+          <we-icon name="cube" size="sm" color="ui-600" />
         </button>
         <div className={styles.dragHandle} draggable onDragStart={onDragStart} onDragEnd={onDragEnd}>
           <we-icon name="dots-six-vertical" weight="bold" size="sm" color="ui-600" />

@@ -55,6 +55,11 @@ export class ImageNode extends DecoratorNode<ReactNode> {
     return this.__altText;
   }
 
+  setSrc(src: string): void {
+    const writable = this.getWritable();
+    writable.__src = src;
+  }
+
   exportJSON() {
     return {
       type: 'image',
