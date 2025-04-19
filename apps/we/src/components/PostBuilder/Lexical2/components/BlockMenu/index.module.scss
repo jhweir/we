@@ -9,7 +9,7 @@
   border-radius: 5px;
   font-family: var(--we-font-family);
   border: 1px solid var(--we-color-ui-300);
-  min-width: 200px;
+  min-width: 250px;
 
   .menuItem {
     all: unset;
@@ -39,6 +39,7 @@
     padding: 5px 0;
     margin-left: 5px;
     font-weight: 600;
+    text-transform: uppercase;
   }
 
   .divider {

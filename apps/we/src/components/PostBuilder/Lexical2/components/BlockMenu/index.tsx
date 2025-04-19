@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styles from './index.module.scss';
 
+// Text blocks
 const p = { type: 'p', label: 'Text', icon: 'text-t', md: '' };
 const h1 = { type: 'h1', label: 'Heading 1', icon: 'text-h-one', md: '#' };
 const h2 = { type: 'h2', label: 'Heading 2', icon: 'text-h-two', md: '##' };
@@ -9,41 +10,36 @@ const quote = { type: 'quote', label: 'Quote', icon: 'quotes', md: '>' };
 const ul = { type: 'ul', label: 'Bullet List', icon: 'list-bullets', md: '-' };
 const ol = { type: 'ol', label: 'Number List', icon: 'list-numbers', md: '1.' };
 const cl = { type: 'cl', label: 'Check List', icon: 'list-checks', md: '[]' };
-const image = { type: 'image', label: 'Image', icon: 'image', md: '!' };
-const audio = { type: 'audio', label: 'Audio', icon: 'speaker-high', md: '!!' };
-const video = { type: 'video', label: 'Video', icon: 'video-camera', md: '!!!' };
 
-const suggestedBlocks = [ul, h1, p];
-const basicBlocks = [p, h1, h2, h3, quote, ul, ol]; // cl
-const mediaBlocks = [image, audio, video];
+// Collection blocks
+const grid = { type: 'grid', label: 'Grid', icon: 'squares-four', md: '+' };
+const columns = { type: 'columns', label: 'Columns', icon: 'columns-plus-right', md: '||' };
+const rows = { type: 'rows', label: 'Rows', icon: 'rows-plus-bottom', md: '=' };
 
-function MenuItem(
-  option: { type: string; label: string; icon: string; md: string },
-  index: number,
-  focusIndex: number,
-  setFocusIndex: (index: number) => void,
-  onOptionClick: (e: React.MouseEvent, type: string) => void,
-  onOptionKeyDown: (e: React.KeyboardEvent, type: string) => void,
-) {
-  return (
-    <button
-      key={option.type}
-      id={`block-type-menu-${option.type}`}
-      className={`${styles.menuItem} ${focusIndex === index ? styles.focused : ''}`}
-      role="menuitem"
-      tabIndex={index === focusIndex ? 0 : -1}
-      onMouseEnter={() => setFocusIndex(index)}
-      onClick={(e) => onOptionClick(e, option.type)}
-      onKeyDown={(e) => onOptionKeyDown(e, option.type)}
-    >
-      <we-row>
-        <we-icon name={option.icon} weight="bold" color="ui-300" size="sm" style={{ marginRight: '10px' }} />
-        {option.label}
-      </we-row>
-      <span className={styles.md}>{option.md}</span>
-    </button>
-  );
-}
+// Media blocks
+const url = { type: 'url', label: 'URL', icon: 'link', md: '!' };
+const image = { type: 'image', label: 'Image', icon: 'image', md: '!!' };
+const audio = { type: 'audio', label: 'Audio', icon: 'speaker-high', md: '!!!' };
+const video = { type: 'video', label: 'Video', icon: 'youtube-logo', md: '!!!!' };
+const file = { type: 'file', label: 'File', icon: 'paperclip', md: '!!!!!' };
+
+// Social blocks
+const event = { type: 'event', label: 'Event', icon: 'calendar', md: '' };
+const task = { type: 'task', label: 'Task', icon: 'check-square', md: '' };
+const poll = { type: 'poll', label: 'Poll', icon: 'chart-pie', md: '' };
+const game = { type: 'game', label: 'game', icon: 'game-controller', md: '' };
+
+const categories = [
+  { title: 'Text', blocks: [p, h1, h2, h3, quote, ul, ol] },
+  { title: 'Collection', blocks: [grid, columns, rows] },
+  { title: 'Media', blocks: [url, image, audio, video, file] },
+  { title: 'Social', blocks: [event, task, poll, game] },
+].map((category, index, arr) => ({
+  ...category,
+  offset: arr.slice(0, index).reduce((sum, cat) => sum + cat.blocks.length, 0),
+}));
+
+const allBlocks = categories.flatMap((category) => category.blocks);
 
 export default function BlockTypeMenu(props: {
   nodeType: string;
@@ -54,9 +50,6 @@ export default function BlockTypeMenu(props: {
   const { nodeType, position, selectType, close } = props;
   const [focusIndex, setFocusIndex] = useState(-1);
   const menuRef = useRef<HTMLDivElement>(null);
-  const allBlocks = [...basicBlocks, ...mediaBlocks]; // ...suggestedBlocks
-  const basicBlocksOffset = 0; // suggestedBlocks.length;
-  const mediaBlocksOffset = basicBlocksOffset + basicBlocks.length;
 
   function onMenuKeyDown(e: React.KeyboardEvent) {
     e.stopPropagation();
@@ -109,24 +102,32 @@ export default function BlockTypeMenu(props: {
       style={{ top: `${position.top}px`, left: `${position.left}px` }}
       onKeyDown={onMenuKeyDown}
     >
-      {/* <span className={styles.categoryTitle}>SUGGESTED</span>
-      {suggestedBlocks.map((option, index) =>
-        MenuItem(option, index, focusIndex, setFocusIndex, onOptionClick, onOptionKeyDown),
-      )}
+      {categories.map((category, index) => (
+        <React.Fragment key={category.title}>
+          {index > 0 && <div className={styles.divider} />}
 
-      <div className={styles.divider} /> */}
+          <span className={styles.categoryTitle}>{category.title}</span>
 
-      <span className={styles.categoryTitle}>TEXT BLOCKS</span>
-      {basicBlocks.map((option, index) =>
-        MenuItem(option, index + basicBlocksOffset, focusIndex, setFocusIndex, onOptionClick, onOptionKeyDown),
-      )}
-
-      <div className={styles.divider} />
-
-      <span className={styles.categoryTitle}>MEDIA BLOCKS</span>
-      {mediaBlocks.map((option, index) =>
-        MenuItem(option, index + mediaBlocksOffset, focusIndex, setFocusIndex, onOptionClick, onOptionKeyDown),
-      )}
+          {category.blocks.map((option, blockIndex) => (
+            <button
+              key={option.type}
+              id={`block-type-menu-${option.type}`}
+              className={`${styles.menuItem} ${focusIndex === category.offset + blockIndex ? styles.focused : ''}`}
+              role="menuitem"
+              tabIndex={index === focusIndex ? 0 : -1}
+              onMouseEnter={() => setFocusIndex(category.offset + blockIndex)}
+              onClick={(e) => onOptionClick(e, option.type)}
+              onKeyDown={(e) => onOptionKeyDown(e, option.type)}
+            >
+              <we-row>
+                <we-icon name={option.icon} weight="bold" color="ui-300" size="sm" style={{ marginRight: '10px' }} />
+                {option.label}
+              </we-row>
+              <span className={styles.md}>{option.md}</span>
+            </button>
+          ))}
+        </React.Fragment>
+      ))}
     </div>
   );
 }
