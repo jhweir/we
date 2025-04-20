@@ -31,10 +31,10 @@ export default function DeafultTemplate({ children }: Readonly<{ children: React
   }
 
   return (
-    <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ width: '100vw', height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Elements />
 
-      <we-row style={{ width: '100%', height: '100%' }}>
+      <we-row alignX="center" style={{ width: '100%' }}>
         {/* Left Sidebar */}
         <we-column p="400" alignY="between" bg="ui-0" class={`${styles.sidebar} ${styles.left}`}>
           <we-column gap="400">
@@ -61,9 +61,9 @@ export default function DeafultTemplate({ children }: Readonly<{ children: React
         </we-column>
 
         {/* Center */}
-        <we-column bg="ui-25" style={{ width: '100%', position: 'relative' }}>
+        <we-column bg="ui-25" style={{ width: 'calc(100% - 148px)', minHeight: '100vh', position: 'relative' }}>
           {/* Header */}
-          <we-row p="300" style={{ position: 'absolute', right: 0 }}>
+          <we-row p="300" style={{ position: 'fixed', right: 75 }}>
             <we-popover placement="bottom-end">
               <we-button size="sm" slot="trigger" variant="subtle">
                 <we-icon name={currentTheme.icon} weight={iconWeight} />
