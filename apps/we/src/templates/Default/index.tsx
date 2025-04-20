@@ -4,9 +4,10 @@ import '@we/elements/themes/dark';
 import '@we/elements/variables.css';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import LoadingState from '../../components/LoadingState';
 import styles from './index.module.scss';
+// import { useAdamContext } from "../../contexts/AdamContext";
 
 const Elements = dynamic(() => import('@we/elements').then(() => () => null), {
   ssr: false,
@@ -23,12 +24,22 @@ const iconWeight = 'regular';
 export default function DeafultTemplate({ children }: Readonly<{ children: React.ReactNode }>) {
   const [currentTheme, setCurrentTheme] = useState(themes[0]);
 
+  // const { client, loading } = useAdamContext();
+
   function setTheme(theme: any) {
-    // remove old theme and set new theme name as class on html element
+    // Remove old theme and add new theme class on html element
     document.documentElement.classList.remove('dark', 'light');
     document.documentElement.classList.add(theme.name.toLowerCase());
     setCurrentTheme(theme);
   }
+
+  // useEffect(() => {
+  //   console.log('client', client);
+  // }, [client])
+
+  // useEffect(() => {
+  //   console.log('loading', loading);
+  // }, [loading])
 
   return (
     <div style={{ width: '100vw', height: '100%', display: 'flex', flexDirection: 'column' }}>

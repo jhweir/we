@@ -1,6 +1,7 @@
 import DefaultTemplate from '@/templates/Default';
 import type { Metadata } from 'next';
 import './globals.css';
+import ContextProvider from '../contexts'
 
 export const metadata: Metadata = {
   title: 'WE',
@@ -11,7 +12,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
-        <DefaultTemplate>{children}</DefaultTemplate>
+        <ContextProvider>
+          <DefaultTemplate>{children}</DefaultTemplate>
+        </ContextProvider>
       </body>
     </html>
   );

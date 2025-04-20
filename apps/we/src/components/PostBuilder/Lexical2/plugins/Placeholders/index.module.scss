@@ -9,7 +9,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    transition: opacity var(--we-transition-200);
+    // transition: opacity var(--we-transition-200);
   }
 
   &.focused:before,
