@@ -1,11 +1,11 @@
 import DefaultTemplate from '@/templates/Default';
 import type { Metadata } from 'next';
+import ContextProvider from '../contexts';
 import './globals.css';
-import ContextProvider from '../contexts'
 
 export const metadata: Metadata = {
   title: 'WE',
-  description: 'We are one',
+  description: 'Social media for a new internet',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

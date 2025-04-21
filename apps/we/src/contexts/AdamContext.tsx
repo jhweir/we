@@ -4,36 +4,47 @@ import { Ad4mClient, AITask, Perspective, PerspectiveProxy } from '@coasys/ad4m'
 import Ad4mConnect from '@coasys/ad4m-connect';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
-interface IAdamContext {
+export type Theme = { name: string; icon: string };
+export type IconWeight = 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone';
+export type ThemeSettings = { allThemes: Theme[]; currentTheme: Theme; iconWeight: IconWeight };
+
+export interface IAdamContext {
   loading: boolean;
   ad4mClient: Ad4mClient | undefined;
   myDid: string;
-  myAgentPerspective: Perspective | undefined;
-  myPerspectives: PerspectiveProxy[];
-  myAIModels: any[]; // Model[] (not yet exported from @coasys/ad4m)
-  myAITasks: AITask[];
+  myAgentData: Perspective | undefined;
+  mySpaces: PerspectiveProxy[];
+  myAI: { models: any[]; tasks: AITask[] };
+  myThemeSettings: ThemeSettings;
+  setMyThemeSettings: React.Dispatch<React.SetStateAction<ThemeSettings>>;
 }
+
+const themes = {
+  light: { name: 'Light', icon: 'sun' },
+  dark: { name: 'Dark', icon: 'moon' },
+};
 
 const defaultAdamContext: IAdamContext = {
   loading: true,
   ad4mClient: undefined,
   myDid: '',
-  myAgentPerspective: undefined,
-  myPerspectives: [],
-  myAIModels: [],
-  myAITasks: [],
+  myAgentData: undefined,
+  mySpaces: [],
+  myAI: { models: [], tasks: [] },
+  myThemeSettings: { allThemes: [themes.light, themes.dark], currentTheme: themes.light, iconWeight: 'regular' },
+  setMyThemeSettings: () => {},
 };
 
 const context = createContext<IAdamContext>(defaultAdamContext);
 
 const AdamContext = ({ children }: { children: ReactNode }) => {
-  const [loading, setLoading] = useState(true);
-  const [ad4mClient, setAd4mClient] = useState<Ad4mClient>();
-  const [myDid, setMyDid] = useState('');
-  const [myAgentPerspective, setMyAgentPerspective] = useState<Perspective>();
-  const [myPerspectives, setMyPerspectives] = useState<PerspectiveProxy[]>([]);
-  const [myAIModels, setMyAIModels] = useState<any[]>([]); // Model[];
-  const [myAITasks, setMyAITasks] = useState<AITask[]>([]);
+  const [loading, setLoading] = useState(defaultAdamContext.loading);
+  const [ad4mClient, setAd4mClient] = useState(defaultAdamContext.ad4mClient);
+  const [myDid, setMyDid] = useState(defaultAdamContext.myDid);
+  const [myAgentData, setMyAgentData] = useState(defaultAdamContext.myAgentData);
+  const [mySpaces, setMySpaces] = useState(defaultAdamContext.mySpaces);
+  const [myAI, setMyAI] = useState(defaultAdamContext.myAI);
+  const [myThemeSettings, setMyThemeSettings] = useState(defaultAdamContext.myThemeSettings);
 
   async function getAdamClient() {
     try {
@@ -50,45 +61,53 @@ const AdamContext = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  async function getAgentData(client: Ad4mClient): Promise<void> {
+  async function getMyAgentData(client: Ad4mClient): Promise<void> {
     try {
       const { did, perspective } = await client.agent.me();
       setMyDid(did);
-      setMyAgentPerspective(perspective);
+      setMyAgentData(perspective);
     } catch (error) {
-      console.error('AdamContext: getAgentData error', error);
+      console.error('AdamContext: getMyAgentData error', error);
     }
   }
 
-  async function getPerspectives(client: Ad4mClient): Promise<void> {
+  async function getMySpaces(client: Ad4mClient): Promise<void> {
     try {
       const perspectives = await client.perspective.all();
-      setMyPerspectives(perspectives);
+      setMySpaces(perspectives);
     } catch (error) {
-      console.error('AdamContext: getPerspectives error', error);
+      console.error('AdamContext: getMySpaces error', error);
     }
   }
 
-  async function getAIData(client: Ad4mClient): Promise<void> {
+  async function getMyAI(client: Ad4mClient): Promise<void> {
     try {
       const models = await client.ai.getModels();
       const tasks = await client.ai.tasks();
-      setMyAIModels(models);
-      setMyAITasks(tasks);
+      setMyAI({ models, tasks });
     } catch (error) {
-      console.error('AdamContext: getAIData error', error);
+      console.error('AdamContext: getMyAI error', error);
+    }
+  }
+
+  async function getMyThemeSettings(client: Ad4mClient): Promise<void> {
+    try {
+      // Get theme settings from personal settings perspective
+      // setMyThemeSettings()
+    } catch (error) {
+      console.error('AdamContext: getMyThemeSettings error', error);
     }
   }
 
   async function getData(): Promise<void> {
+    // Get the ad4m client
     const client = await getAdamClient();
     if (!client) return;
-
     console.log('client:', client);
     setAd4mClient(client);
 
-    // Fetch all other required data after the client is ready
-    await Promise.all([getAgentData(client), getPerspectives(client), getAIData(client)]);
+    // Then use it to fetch all other required data
+    await Promise.all([getMyAgentData(client), getMySpaces(client), getMyThemeSettings(client)]);
 
     setLoading(false);
   }
@@ -97,8 +116,25 @@ const AdamContext = ({ children }: { children: ReactNode }) => {
     getData();
   }, []);
 
+  // Update the theme class on the document element when the theme changes
+  useEffect(() => {
+    document.documentElement.classList.remove('dark', 'light');
+    document.documentElement.classList.add(myThemeSettings.currentTheme.name.toLowerCase());
+  }, [myThemeSettings.currentTheme]);
+
   return (
-    <context.Provider value={{ loading, ad4mClient, myDid, myAgentPerspective, myPerspectives, myAIModels, myAITasks }}>
+    <context.Provider
+      value={{
+        loading,
+        ad4mClient,
+        myDid,
+        myAgentData,
+        mySpaces,
+        myAI,
+        myThemeSettings,
+        setMyThemeSettings,
+      }}
+    >
       {children}
     </context.Provider>
   );
