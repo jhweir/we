@@ -4,10 +4,10 @@ import '@we/elements/themes/dark';
 import '@we/elements/variables.css';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import LoadingState from '../../components/LoadingState';
+import { useAdamContext } from '../../contexts/AdamContext';
 import styles from './index.module.scss';
-// import { useAdamContext } from "../../contexts/AdamContext";
 
 const Elements = dynamic(() => import('@we/elements').then(() => () => null), {
   ssr: false,
@@ -24,7 +24,7 @@ const iconWeight = 'regular';
 export default function DeafultTemplate({ children }: Readonly<{ children: React.ReactNode }>) {
   const [currentTheme, setCurrentTheme] = useState(themes[0]);
 
-  // const { client, loading } = useAdamContext();
+  const adamContext = useAdamContext();
 
   function setTheme(theme: any) {
     // Remove old theme and add new theme class on html element
@@ -33,13 +33,9 @@ export default function DeafultTemplate({ children }: Readonly<{ children: React
     setCurrentTheme(theme);
   }
 
-  // useEffect(() => {
-  //   console.log('client', client);
-  // }, [client])
-
-  // useEffect(() => {
-  //   console.log('loading', loading);
-  // }, [loading])
+  useEffect(() => {
+    console.log('adamContext', adamContext);
+  }, [adamContext]);
 
   return (
     <div style={{ width: '100vw', height: '100%', display: 'flex', flexDirection: 'column' }}>
