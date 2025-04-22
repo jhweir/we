@@ -1,10 +1,10 @@
+import { useAdamContext } from '@/contexts/AdamContext';
 import Link from 'next/link';
-import { useAdamContext } from '../../../../../contexts/AdamContext';
 import styles from '../index.module.scss';
 
 export default function SidebarRight() {
-  const { mySpaces } = useAdamContext();
-  const iconWeight = 'regular';
+  const { myThemeSettings } = useAdamContext();
+  const { iconWeight } = myThemeSettings;
 
   return (
     <we-column p="400" alignY="between" bg="ui-0" class={`${styles.sidebar} ${styles.right}`}>

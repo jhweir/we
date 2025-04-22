@@ -1,22 +1,27 @@
 'use client';
 
-import { Ad4mClient, AITask, Perspective, PerspectiveProxy } from '@coasys/ad4m';
+import Space from '@/models/Space';
+import { Ad4mClient, AITask, Perspective } from '@coasys/ad4m';
 import Ad4mConnect from '@coasys/ad4m-connect';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
 export type Theme = { name: string; icon: string };
 export type IconWeight = 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone';
 export type ThemeSettings = { allThemes: Theme[]; currentTheme: Theme; iconWeight: IconWeight };
+export type ActiveModals = { createSpace: boolean };
 
 export interface IAdamContext {
   loading: boolean;
   ad4mClient: Ad4mClient | undefined;
   myDid: string;
   myAgentData: Perspective | undefined;
-  mySpaces: PerspectiveProxy[];
+  mySpaces: Space[];
   myAI: { models: any[]; tasks: AITask[] };
   myThemeSettings: ThemeSettings;
+  activeModals: ActiveModals;
+  setMySpaces: React.Dispatch<React.SetStateAction<Space[]>>;
   setMyThemeSettings: React.Dispatch<React.SetStateAction<ThemeSettings>>;
+  setActiveModals: React.Dispatch<React.SetStateAction<ActiveModals>>;
 }
 
 const themes = {
@@ -32,7 +37,10 @@ const defaultAdamContext: IAdamContext = {
   mySpaces: [],
   myAI: { models: [], tasks: [] },
   myThemeSettings: { allThemes: [themes.light, themes.dark], currentTheme: themes.light, iconWeight: 'regular' },
+  activeModals: { createSpace: false },
+  setMySpaces: () => {},
   setMyThemeSettings: () => {},
+  setActiveModals: () => {},
 };
 
 const context = createContext<IAdamContext>(defaultAdamContext);
@@ -45,12 +53,13 @@ const AdamContext = ({ children }: { children: ReactNode }) => {
   const [mySpaces, setMySpaces] = useState(defaultAdamContext.mySpaces);
   const [myAI, setMyAI] = useState(defaultAdamContext.myAI);
   const [myThemeSettings, setMyThemeSettings] = useState(defaultAdamContext.myThemeSettings);
+  const [activeModals, setActiveModals] = useState(defaultAdamContext.activeModals);
 
   async function getAdamClient() {
     try {
       const ui = Ad4mConnect({
         appName: 'WE',
-        appDesc: 'Social media for the new internet',
+        appDesc: 'Social media for a new internet',
         appDomain: 'ad4m.weco.io',
         appIconPath: 'https://avatars.githubusercontent.com/u/34165012',
         capabilities: [{ with: { domain: '*', pointers: ['*'] }, can: ['*'] }],
@@ -73,8 +82,16 @@ const AdamContext = ({ children }: { children: ReactNode }) => {
 
   async function getMySpaces(client: Ad4mClient): Promise<void> {
     try {
-      const perspectives = await client.perspective.all();
-      setMySpaces(perspectives);
+      const spacePerspectives = await client.perspective.all();
+      console.log('spacePerspectives', spacePerspectives);
+      const spaces = await Promise.all(
+        spacePerspectives.map(async (spacePerspective) => {
+          const [space] = await Space.findAll(spacePerspective);
+          return space;
+        }),
+      );
+      console.log('spaces', spaces);
+      setMySpaces(spaces.sort((a, b) => Number(a.timestamp) - Number(b.timestamp)));
     } catch (error) {
       console.error('AdamContext: getMySpaces error', error);
     }
@@ -132,7 +149,10 @@ const AdamContext = ({ children }: { children: ReactNode }) => {
         mySpaces,
         myAI,
         myThemeSettings,
+        activeModals,
+        setMySpaces,
         setMyThemeSettings,
+        setActiveModals,
       }}
     >
       {children}
