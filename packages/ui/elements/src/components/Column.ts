@@ -1,7 +1,7 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { generateVariable } from '../helpers';
-import sharedStyles, { Size } from '../shared';
+import sharedStyles, { AlignPosition, AlignPositionAndSpacing, NamedSize, NumberedSize } from '../shared';
 
 const styles = css`
   :host {
@@ -49,49 +49,45 @@ const styles = css`
   }
 `;
 
-type AlignX = '' | 'center' | 'end';
-type AlignY = '' | 'center' | 'end' | 'between' | 'around';
-type Space = '' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900' | '1000';
-// type Size = '' | 'xxs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
-
 @customElement('we-column')
 export default class Column extends LitElement {
   static styles = [sharedStyles, styles];
 
-  @property({ type: String, reflect: true }) alignX: AlignX = '';
-  @property({ type: String, reflect: true }) alignY: AlignY = '';
+  @property({ type: String, reflect: true }) alignX: AlignPosition = '';
+  @property({ type: String, reflect: true }) alignY: AlignPositionAndSpacing = '';
   @property({ type: Boolean, reflect: true }) wrap = false;
   @property({ type: Boolean, reflect: true }) reverse = false;
-  @property({ type: String, reflect: true }) gap: Space = '';
-  @property({ type: String, reflect: true }) p: Space = '';
-  @property({ type: String, reflect: true }) pl: Space = '';
-  @property({ type: String, reflect: true }) pr: Space = '';
-  @property({ type: String, reflect: true }) pt: Space = '';
-  @property({ type: String, reflect: true }) pb: Space = '';
-  @property({ type: String, reflect: true }) px: Space = '';
-  @property({ type: String, reflect: true }) py: Space = '';
-  @property({ type: String, reflect: true }) m: Space = '';
-  @property({ type: String, reflect: true }) ml: Space = '';
-  @property({ type: String, reflect: true }) mr: Space = '';
-  @property({ type: String, reflect: true }) mt: Space = '';
-  @property({ type: String, reflect: true }) mb: Space = '';
-  @property({ type: String, reflect: true }) mx: Space = '';
-  @property({ type: String, reflect: true }) my: Space = '';
-  @property({ type: String, reflect: true }) r: Size = '';
-  @property({ type: String, reflect: true }) rt: Size = '';
-  @property({ type: String, reflect: true }) rb: Size = '';
-  @property({ type: String, reflect: true }) rl: Size = '';
-  @property({ type: String, reflect: true }) rr: Size = '';
-  @property({ type: String, reflect: true }) rtl: Size = '';
-  @property({ type: String, reflect: true }) rtr: Size = '';
-  @property({ type: String, reflect: true }) rbr: Size = '';
-  @property({ type: String, reflect: true }) rbl: Size = '';
+  @property({ type: String, reflect: true }) gap: NumberedSize = '';
+  @property({ type: String, reflect: true }) p: NumberedSize = '';
+  @property({ type: String, reflect: true }) pl: NumberedSize = '';
+  @property({ type: String, reflect: true }) pr: NumberedSize = '';
+  @property({ type: String, reflect: true }) pt: NumberedSize = '';
+  @property({ type: String, reflect: true }) pb: NumberedSize = '';
+  @property({ type: String, reflect: true }) px: NumberedSize = '';
+  @property({ type: String, reflect: true }) py: NumberedSize = '';
+  @property({ type: String, reflect: true }) m: NumberedSize = '';
+  @property({ type: String, reflect: true }) ml: NumberedSize = '';
+  @property({ type: String, reflect: true }) mr: NumberedSize = '';
+  @property({ type: String, reflect: true }) mt: NumberedSize = '';
+  @property({ type: String, reflect: true }) mb: NumberedSize = '';
+  @property({ type: String, reflect: true }) mx: NumberedSize = '';
+  @property({ type: String, reflect: true }) my: NumberedSize = '';
+  @property({ type: String, reflect: true }) r: NamedSize = '';
+  @property({ type: String, reflect: true }) rt: NamedSize = '';
+  @property({ type: String, reflect: true }) rb: NamedSize = '';
+  @property({ type: String, reflect: true }) rl: NamedSize = '';
+  @property({ type: String, reflect: true }) rr: NamedSize = '';
+  @property({ type: String, reflect: true }) rtl: NamedSize = '';
+  @property({ type: String, reflect: true }) rtr: NamedSize = '';
+  @property({ type: String, reflect: true }) rbr: NamedSize = '';
+  @property({ type: String, reflect: true }) rbl: NamedSize = '';
   @property({ type: String, reflect: true }) bg = '';
   @property({ type: String, reflect: true }) color = '';
   @property({ type: String, reflect: true }) class: string = '';
 
   updated(props: Map<string, any>) {
     super.updated(props);
+
     // handle dynamic props
     if (props.has('gap')) this.style.setProperty('--gap', `var(--we-space-${this.gap})`);
     if (props.has('bg')) this.style.setProperty('--bg-color', `var(--we-color-${this.bg})`);
@@ -140,34 +136,34 @@ declare global {
   namespace JSX {
     interface IntrinsicElements {
       'we-column': {
-        alignX?: AlignX;
-        alignY?: AlignY;
-        gap?: Space;
+        alignX?: AlignPosition;
+        alignY?: AlignPositionAndSpacing;
+        gap?: NumberedSize;
         wrap?: boolean;
         reverse?: boolean;
-        p?: Space;
-        pl?: Space;
-        pr?: Space;
-        pt?: Space;
-        pb?: Space;
-        px?: Space;
-        py?: Space;
-        m?: Space;
-        ml?: Space;
-        mr?: Space;
-        mt?: Space;
-        mb?: Space;
-        mx?: Space;
-        my?: Space;
-        r?: Size;
-        rt?: Size;
-        rb?: Size;
-        rl?: Size;
-        rr?: Size;
-        rtl?: Size;
-        rtr?: Size;
-        rbr?: Size;
-        rbl?: Size;
+        p?: NumberedSize;
+        pl?: NumberedSize;
+        pr?: NumberedSize;
+        pt?: NumberedSize;
+        pb?: NumberedSize;
+        px?: NumberedSize;
+        py?: NumberedSize;
+        m?: NumberedSize;
+        ml?: NumberedSize;
+        mr?: NumberedSize;
+        mt?: NumberedSize;
+        mb?: NumberedSize;
+        mx?: NumberedSize;
+        my?: NumberedSize;
+        r?: NamedSize;
+        rt?: NamedSize;
+        rb?: NamedSize;
+        rl?: NamedSize;
+        rr?: NamedSize;
+        rtl?: NamedSize;
+        rtr?: NamedSize;
+        rbr?: NamedSize;
+        rbl?: NamedSize;
         bg?: string;
         color?: string;
         class?: string;

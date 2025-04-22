@@ -186,7 +186,7 @@ export default class Button extends LitElement {
   @property({ type: Boolean, reflect: true }) full = false;
   @property({ type: Boolean, reflect: true }) circle = false;
 
-  handleClick(event: MouseEvent) {
+  onClick(event: MouseEvent) {
     if (this.disabled || this.loading) {
       event.preventDefault();
       event.stopPropagation();
@@ -196,7 +196,7 @@ export default class Button extends LitElement {
   render() {
     return this.href
       ? html`
-          <a .href=${this.href} @click=${this.handleClick} target="_blank" part="base">
+          <a .href=${this.href} @click=${this.onClick} target="_blank" part="base">
             <we-spinner></we-spinner>
             <slot name="start"></slot>
             <slot></slot>
@@ -204,7 +204,7 @@ export default class Button extends LitElement {
           </a>
         `
       : html`
-          <button ?disabled=${this.disabled || this.loading} @click=${this.handleClick} part="base">
+          <button ?disabled=${this.disabled || this.loading} @click=${this.onClick} part="base">
             <we-spinner></we-spinner>
             <slot name="start"></slot>
             <slot></slot>

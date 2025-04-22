@@ -2,7 +2,7 @@ import { toSvg } from 'jdenticon';
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
-import sharedStyles from '../shared';
+import sharedStyles, { NamedSize } from '../shared';
 
 const styles = css`
   :host {
@@ -86,8 +86,6 @@ const styles = css`
   }
 `;
 
-type Size = '' | 'xxs' | 'xs' | 'sm' | 'lg' | 'xl' | 'xxl';
-
 @customElement('we-avatar')
 export default class Component extends LitElement {
   static styles = [sharedStyles, styles];
@@ -98,45 +96,23 @@ export default class Component extends LitElement {
   @property({ type: Boolean, reflect: true }) online = false;
   @property({ type: String, reflect: true }) initials = '';
   @property({ type: String }) icon = '';
-  @property({ type: String, reflect: true }) size: Size = '';
+  @property({ type: String, reflect: true }) size: NamedSize = '';
+  @property({ attribute: false }) onClick: undefined | (() => void) = undefined;
 
-  // firstUpdated() {
-  //   const canvas = this.shadowRoot?.querySelector('#identicon');
-  //   const opts = {
-  //     hash: this.hash,
-  //     size: 100,
-  //   };
-  //   if (canvas) {
-  //     //renderIcon(opts, canvas);
-  //   }
-  // }
+  private renderContent() {
+    return this.src
+      ? html`<img part="img" .src=${this.src} />`
+      : this.hash
+        ? unsafeSVG(toSvg(this.hash || '', 100))
+        : this.initials
+          ? html`<span part="initials">${this.initials}</span>`
+          : html`<we-icon part="icon" name=${this.icon || 'user'}></we-icon>`;
+  }
 
   render() {
-    if (this.src) {
-      return html`
-        <button part="base">
-          <img part="img" .src=${this.src} />
-        </button>
-      `;
-    }
-
-    if (this.hash) {
-      return html`<button part="base">${unsafeSVG(toSvg(this.hash || '', 100))}</button>`;
-    }
-
-    if (this.initials) {
-      return html`
-        <button part="base">
-          <span part="initials">${this.initials}</span>
-        </button>
-      `;
-    }
-
-    return html`
-      <button part="base">
-        <we-icon part="icon" name=${this.icon}></we-icon>
-      </button>
-    `;
+    return this.onClick
+      ? html` <button part="base" @click=${this.onClick}>${this.renderContent()}</button> `
+      : html` <div part="base">${this.renderContent()}</div> `;
   }
 }
 
@@ -150,7 +126,7 @@ declare global {
         online?: boolean;
         initials?: string;
         icon?: string;
-        size?: Size;
+        size?: NamedSize;
         style?: any;
         children?: any;
         onClick?: (event: MouseEvent) => void;
