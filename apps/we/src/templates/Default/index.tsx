@@ -6,8 +6,9 @@ import dynamic from 'next/dynamic';
 import LoadingState from '../../components/LoadingState';
 import Header from './components/Header';
 import Modals from './components/Modals';
-import SidebarLeft from './components/Sidebars/SidebarLeft';
-import SidebarRight from './components/Sidebars/SidebarRight';
+import SidebarLeft from './components/OuterSidebars/SidebarLeft';
+import SidebarRight from './components/OuterSidebars/SidebarRight';
+import styles from './index.module.scss';
 
 const ImportElements = dynamic(() => import('@we/elements').then(() => () => null), {
   ssr: false,
@@ -23,7 +24,7 @@ export default function DeafultTemplate({ children: pageContent }: Readonly<{ ch
 
       <we-row alignX="center" style={{ width: '100vw' }}>
         <SidebarLeft />
-        <we-column bg="ui-25" style={{ width: '100%', minHeight: '100vh', margin: '0 74px', position: 'relative' }}>
+        <we-column bg="ui-25" class={styles.centerColumn}>
           <Header />
           {pageContent}
         </we-column>

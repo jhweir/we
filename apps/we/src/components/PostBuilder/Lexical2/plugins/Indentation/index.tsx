@@ -49,7 +49,7 @@ function tabKeyPress(event: KeyboardEvent, editor: LexicalEditor): boolean {
     if (event.shiftKey) {
       // Fallback on deafult handling if list item isn't nested
       const listParent = listNode.getParent();
-      console.log('listParent', listParent);
+      // console.log('listParent', listParent);
       if (!$isListItemNode(listParent)) return false;
       else {
         // Todo: handle empty list items here... (need further step up the tree...)

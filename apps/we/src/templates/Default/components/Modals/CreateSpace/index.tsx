@@ -1,5 +1,9 @@
 import { useAdamContext } from '@/contexts/AdamContext';
+import Block from '@/models/Block';
 import Space from '@/models/Space';
+import CollectionBlock from '@/models/block-types/CollectionBlock';
+import ImageBlock from '@/models/block-types/ImageBlock';
+import TextBlock from '@/models/block-types/TextBlock';
 import { useState } from 'react';
 
 type SpaceVisibility = 'hidden' | 'private' | 'public';
@@ -25,8 +29,9 @@ export default function CreateSpaceModal() {
     const spacePerspective = await ad4mClient.perspective.add(name);
     console.log('spacePerspective', spacePerspective);
 
-    // Add the Space model to the perspectives SDNA so we can start using it
-    await spacePerspective.ensureSDNASubjectClass(Space);
+    // Add models to the perspectives SDNA
+    const models = [Space, Block, ImageBlock, TextBlock, CollectionBlock];
+    await Promise.all(models.map((model) => spacePerspective.ensureSDNASubjectClass(model)));
 
     // Create an instance of the space model and save it in the perspective
     const spaceModel = new Space(spacePerspective); // , undefined, undefined
