@@ -1,17 +1,14 @@
 {
   "compilerOptions": {
-    "target": "ES2019", // Compile to ES2019 for modern features
-    "module": "ESNext", // Use the latest module system
-    "strict": true, // Enable all strict type-checking options
-    "moduleResolution": "node", // Resolve modules like Node.js
-    "esModuleInterop": true, // Enable interoperability between CommonJS and ES Modules
-    "forceConsistentCasingInFileNames": true, // Enforce consistent casing in file names
-    "skipLibCheck": true, // Skip type checking of declaration files
-    "declaration": true, // Generate declaration files (.d.ts)
-    "sourceMap": true, // Generate source maps for debugging
-    "baseUrl": ".", // Set the base directory for resolving non-relative modules
-    "paths": {
-      "*": ["node_modules/*"] // Define module resolution paths
-    }
+    "target": "ES2020",
+    "module": "ESNext",
+    "strict": true,
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "sourceMap": true,
+    "baseUrl": "."
   }
 }
