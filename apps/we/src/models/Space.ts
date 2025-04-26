@@ -2,9 +2,6 @@ import { Ad4mModel, Collection, Flag, ModelOptions, Property } from '@coasys/ad4
 
 @ModelOptions({ name: 'Space' })
 export default class Space extends Ad4mModel {
-  @Flag({ through: 'we://has_flag', value: 'we://space' })
-  type: string = 'we://space';
-
   @Property({ through: 'we://has_uuid', resolveLanguage: 'literal', writable: true })
   uuid: string = '';
 
