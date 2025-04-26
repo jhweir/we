@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@coasys/ad4m": "0.10.1-release-candidate-3",
-    "@coasys/ad4m-connect": "0.10.1-release-candidate-3",
+    "@coasys/ad4m-connect": "file:../../../ad4m/connect",
     "@lexical/code": "^0.29.0",
     "@lexical/link": "^0.29.0",
     "@lexical/list": "^0.29.0",
