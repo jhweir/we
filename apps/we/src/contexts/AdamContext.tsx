@@ -3,7 +3,7 @@
 import Space from '@/models/Space';
 import { Ad4mClient, AITask, Perspective } from '@coasys/ad4m';
 import Ad4mConnect from '@coasys/ad4m-connect';
-import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { createContext, Dispatch, ReactNode, SetStateAction, useContext, useEffect, useState } from 'react';
 
 export type Theme = { name: string; icon: string };
 export type IconWeight = 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone';
@@ -19,9 +19,9 @@ export interface IAdamContext {
   myAI: { models: any[]; tasks: AITask[] };
   myThemeSettings: ThemeSettings;
   activeModals: ActiveModals;
-  setMySpaces: React.Dispatch<React.SetStateAction<Space[]>>;
-  setMyThemeSettings: React.Dispatch<React.SetStateAction<ThemeSettings>>;
-  setActiveModals: React.Dispatch<React.SetStateAction<ActiveModals>>;
+  setMySpaces: Dispatch<SetStateAction<Space[]>>;
+  setMyThemeSettings: Dispatch<SetStateAction<ThemeSettings>>;
+  setActiveModals: Dispatch<SetStateAction<ActiveModals>>;
 }
 
 const themes = {
@@ -83,15 +83,10 @@ const AdamContext = ({ children }: { children: ReactNode }) => {
   async function getMySpaces(client: Ad4mClient): Promise<void> {
     try {
       const spacePerspectives = await client.perspective.all();
-      console.log('spacePerspectives', spacePerspectives);
       const spaces = await Promise.all(
-        spacePerspectives.map(async (spacePerspective) => {
-          const [space] = await Space.findAll(spacePerspective);
-          return space;
-        }),
+        spacePerspectives.map(async (spacePerspective) => (await Space.findAll(spacePerspective))[0]),
       );
-      console.log('spaces', spaces);
-      setMySpaces(spaces.sort((a, b) => Number(a.timestamp) - Number(b.timestamp)));
+      setMySpaces(spaces.filter((s) => s).sort((a, b) => Number(a.timestamp) - Number(b.timestamp)));
     } catch (error) {
       console.error('AdamContext: getMySpaces error', error);
     }
@@ -128,6 +123,10 @@ const AdamContext = ({ children }: { children: ReactNode }) => {
 
     setLoading(false);
   }
+
+  useEffect(() => {
+    console.log('AdamContext mounted');
+  }, [])
 
   useEffect(() => {
     getData();
