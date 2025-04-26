@@ -90,7 +90,7 @@ const styles = css`
 export default class Component extends LitElement {
   static styles = [sharedStyles, styles];
 
-  @property({ type: String, reflect: true }) src = '';
+  @property({ type: String, reflect: true }) image = '';
   @property({ type: String, reflect: true }) hash = '';
   @property({ type: Boolean, reflect: true }) selected = false;
   @property({ type: Boolean, reflect: true }) online = false;
@@ -100,8 +100,8 @@ export default class Component extends LitElement {
   @property({ attribute: false }) onClick: undefined | (() => void) = undefined;
 
   private renderContent() {
-    return this.src
-      ? html`<img part="img" .src=${this.src} />`
+    return this.image
+      ? html`<img part="img" .src=${this.image} />`
       : this.hash
         ? unsafeSVG(toSvg(this.hash || '', 100))
         : this.initials
@@ -120,12 +120,12 @@ declare global {
   namespace JSX {
     interface IntrinsicElements {
       'we-avatar': {
-        src?: string;
+        image?: string;
         hash?: string;
-        selected?: boolean;
-        online?: boolean;
         initials?: string;
         icon?: string;
+        selected?: boolean;
+        online?: boolean;
         size?: NamedSize;
         style?: any;
         children?: any;

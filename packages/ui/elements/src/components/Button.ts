@@ -165,6 +165,7 @@ const styles = css`
   }
 
   :host([circle]) {
+    --we-button-padding: 0;
     --we-button-width: var(--we-button-height);
     --we-button-border-radius: 50%;
   }
@@ -193,22 +194,21 @@ export default class Button extends LitElement {
     }
   }
 
+  private renderContent() {
+    return html`
+      <we-spinner></we-spinner>
+      <slot name="start"></slot>
+      <slot></slot>
+      <slot name="end"></slot>
+    `;
+  }
+
   render() {
     return this.href
-      ? html`
-          <a .href=${this.href} @click=${this.onClick} target="_blank" part="base">
-            <we-spinner></we-spinner>
-            <slot name="start"></slot>
-            <slot></slot>
-            <slot name="end"></slot>
-          </a>
-        `
+      ? html`<a .href=${this.href} @click=${this.onClick} target="_blank" part="base"> ${this.renderContent()} </a>`
       : html`
           <button ?disabled=${this.disabled || this.loading} @click=${this.onClick} part="base">
-            <we-spinner></we-spinner>
-            <slot name="start"></slot>
-            <slot></slot>
-            <slot name="end"></slot>
+            ${this.renderContent()}
           </button>
         `;
   }
@@ -227,6 +227,7 @@ declare global {
         full?: boolean;
         circle?: boolean;
         slot?: string;
+        key?: string;
         class?: string;
         style?: any;
         children?: any;
