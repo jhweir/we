@@ -1,6 +1,6 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import sharedStyles from '../shared';
+import sharedStyles from '../styles/shared';
 
 const styles = css`
   :host {
@@ -62,7 +62,7 @@ const styles = css`
 `;
 
 @customElement('we-menu-group')
-export default class Component extends LitElement {
+export default class MenuGroup extends LitElement {
   static styles = [styles, sharedStyles];
 
   @property({ type: Boolean, reflect: true }) collapsible = false;

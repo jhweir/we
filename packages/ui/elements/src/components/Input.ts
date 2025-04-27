@@ -1,6 +1,6 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import sharedStyles from '../shared';
+import sharedStyles from '../styles/shared';
 
 const styles = css`
   :host {

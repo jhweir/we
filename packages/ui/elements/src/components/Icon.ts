@@ -2,7 +2,7 @@ import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { generateVariable } from '../helpers';
-import sharedStyles from '../shared';
+import sharedStyles from '../styles/shared';
 
 const styles = css`
   :host {

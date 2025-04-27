@@ -4,20 +4,177 @@
   "modules": [
     {
       "kind": "javascript-module",
-      "path": "src/main.ts",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/shared.ts",
-      "declarations": [],
+      "path": "src/components/Avatar.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "Avatar",
+          "members": [
+            {
+              "kind": "field",
+              "name": "image",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "image",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "hash",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "hash",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "selected",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "selected",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "online",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "online",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "initials",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "initials",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "icon",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "icon"
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "onClick",
+              "type": {
+                "text": "undefined | (() => void)"
+              },
+              "default": "undefined"
+            },
+            {
+              "kind": "method",
+              "name": "renderContent",
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "image",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "image"
+            },
+            {
+              "name": "hash",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "hash"
+            },
+            {
+              "name": "selected",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "selected"
+            },
+            {
+              "name": "online",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "online"
+            },
+            {
+              "name": "initials",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "initials"
+            },
+            {
+              "name": "icon",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "icon"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "fieldName": "size"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "we-avatar",
+          "customElement": true
+        }
+      ],
       "exports": [
         {
           "kind": "js",
           "name": "default",
           "declaration": {
-            "module": "src/shared.ts"
+            "name": "Avatar",
+            "module": "src/components/Avatar.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "we-avatar",
+          "declaration": {
+            "name": "Avatar",
+            "module": "src/components/Avatar.ts"
           }
         }
       ]
@@ -35,7 +192,7 @@
               "kind": "field",
               "name": "variant",
               "type": {
-                "text": "Variant"
+                "text": "BadgeVariant"
               },
               "default": "''",
               "attribute": "variant",
@@ -45,7 +202,7 @@
               "kind": "field",
               "name": "size",
               "type": {
-                "text": "Size"
+                "text": "BadgeSize"
               },
               "default": "''",
               "attribute": "size",
@@ -56,7 +213,7 @@
             {
               "name": "variant",
               "type": {
-                "text": "Variant"
+                "text": "BadgeVariant"
               },
               "default": "''",
               "fieldName": "variant"
@@ -64,7 +221,7 @@
             {
               "name": "size",
               "type": {
-                "text": "Size"
+                "text": "BadgeSize"
               },
               "default": "''",
               "fieldName": "size"
@@ -188,7 +345,7 @@
             },
             {
               "kind": "method",
-              "name": "handleClick",
+              "name": "onClick",
               "parameters": [
                 {
                   "name": "event",
@@ -197,6 +354,11 @@
                   }
                 }
               ]
+            },
+            {
+              "kind": "method",
+              "name": "renderContent",
+              "privacy": "private"
             }
           ],
           "attributes": [
@@ -305,7 +467,7 @@
               "kind": "field",
               "name": "alignX",
               "type": {
-                "text": "AlignX"
+                "text": "AlignPosition"
               },
               "default": "''",
               "attribute": "alignX",
@@ -315,7 +477,7 @@
               "kind": "field",
               "name": "alignY",
               "type": {
-                "text": "AlignY"
+                "text": "AlignPositionAndSpacing"
               },
               "default": "''",
               "attribute": "alignY",
@@ -343,22 +505,242 @@
             },
             {
               "kind": "field",
-              "name": "radius",
+              "name": "gap",
               "type": {
-                "text": "Size"
+                "text": "NumberedSize"
               },
               "default": "''",
-              "attribute": "radius",
+              "attribute": "gap",
               "reflects": true
             },
             {
               "kind": "field",
-              "name": "gap",
+              "name": "p",
               "type": {
-                "text": "Space"
+                "text": "NumberedSize"
               },
               "default": "''",
-              "attribute": "gap",
+              "attribute": "p",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pl",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "pl",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pr",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "pr",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pt",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "pt",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pb",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "pb",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "px",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "px",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "py",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "py",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "m",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "m",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "ml",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "ml",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "mr",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "mr",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "mt",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "mt",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "mb",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "mb",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "mx",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "mx",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "my",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "my",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "r",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "attribute": "r",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "rt",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "attribute": "rt",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "rb",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "attribute": "rb",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "rl",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "attribute": "rl",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "rr",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "attribute": "rr",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "rtl",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "attribute": "rtl",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "rtr",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "attribute": "rtr",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "rbr",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "attribute": "rbr",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "rbl",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "attribute": "rbl",
               "reflects": true
             },
             {
@@ -383,146 +765,6 @@
             },
             {
               "kind": "field",
-              "name": "p",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "attribute": "p",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "pl",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "attribute": "pl",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "pr",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "attribute": "pr",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "pt",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "attribute": "pt",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "pb",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "attribute": "pb",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "px",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "attribute": "px",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "py",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "attribute": "py",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "m",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "attribute": "m",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "ml",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "attribute": "ml",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "mr",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "attribute": "mr",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "mt",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "attribute": "mt",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "mb",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "attribute": "mb",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "mx",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "attribute": "mx",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "my",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "attribute": "my",
-              "reflects": true
-            },
-            {
-              "kind": "field",
               "name": "class",
               "type": {
                 "text": "string"
@@ -530,31 +772,13 @@
               "default": "''",
               "attribute": "class",
               "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "style",
-              "type": {
-                "text": "any"
-              },
-              "attribute": "style",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "styleSheet",
-              "type": {
-                "text": "CSSStyleSheet | null"
-              },
-              "privacy": "private",
-              "default": "null"
             }
           ],
           "attributes": [
             {
               "name": "alignX",
               "type": {
-                "text": "AlignX"
+                "text": "AlignPosition"
               },
               "default": "''",
               "fieldName": "alignX"
@@ -562,7 +786,7 @@
             {
               "name": "alignY",
               "type": {
-                "text": "AlignY"
+                "text": "AlignPositionAndSpacing"
               },
               "default": "''",
               "fieldName": "alignY"
@@ -584,20 +808,196 @@
               "fieldName": "reverse"
             },
             {
-              "name": "radius",
-              "type": {
-                "text": "Size"
-              },
-              "default": "''",
-              "fieldName": "radius"
-            },
-            {
               "name": "gap",
               "type": {
-                "text": "Space"
+                "text": "NumberedSize"
               },
               "default": "''",
               "fieldName": "gap"
+            },
+            {
+              "name": "p",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "p"
+            },
+            {
+              "name": "pl",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "pl"
+            },
+            {
+              "name": "pr",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "pr"
+            },
+            {
+              "name": "pt",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "pt"
+            },
+            {
+              "name": "pb",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "pb"
+            },
+            {
+              "name": "px",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "px"
+            },
+            {
+              "name": "py",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "py"
+            },
+            {
+              "name": "m",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "m"
+            },
+            {
+              "name": "ml",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "ml"
+            },
+            {
+              "name": "mr",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "mr"
+            },
+            {
+              "name": "mt",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "mt"
+            },
+            {
+              "name": "mb",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "mb"
+            },
+            {
+              "name": "mx",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "mx"
+            },
+            {
+              "name": "my",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "my"
+            },
+            {
+              "name": "r",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "fieldName": "r"
+            },
+            {
+              "name": "rt",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "fieldName": "rt"
+            },
+            {
+              "name": "rb",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "fieldName": "rb"
+            },
+            {
+              "name": "rl",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "fieldName": "rl"
+            },
+            {
+              "name": "rr",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "fieldName": "rr"
+            },
+            {
+              "name": "rtl",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "fieldName": "rtl"
+            },
+            {
+              "name": "rtr",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "fieldName": "rtr"
+            },
+            {
+              "name": "rbr",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "fieldName": "rbr"
+            },
+            {
+              "name": "rbl",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "fieldName": "rbl"
             },
             {
               "name": "bg",
@@ -616,131 +1016,12 @@
               "fieldName": "color"
             },
             {
-              "name": "p",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "fieldName": "p"
-            },
-            {
-              "name": "pl",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "fieldName": "pl"
-            },
-            {
-              "name": "pr",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "fieldName": "pr"
-            },
-            {
-              "name": "pt",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "fieldName": "pt"
-            },
-            {
-              "name": "pb",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "fieldName": "pb"
-            },
-            {
-              "name": "px",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "fieldName": "px"
-            },
-            {
-              "name": "py",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "fieldName": "py"
-            },
-            {
-              "name": "m",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "fieldName": "m"
-            },
-            {
-              "name": "ml",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "fieldName": "ml"
-            },
-            {
-              "name": "mr",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "fieldName": "mr"
-            },
-            {
-              "name": "mt",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "fieldName": "mt"
-            },
-            {
-              "name": "mb",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "fieldName": "mb"
-            },
-            {
-              "name": "mx",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "fieldName": "mx"
-            },
-            {
-              "name": "my",
-              "type": {
-                "text": "Space"
-              },
-              "default": "''",
-              "fieldName": "my"
-            },
-            {
               "name": "class",
               "type": {
                 "text": "string"
               },
               "default": "''",
               "fieldName": "class"
-            },
-            {
-              "name": "style",
-              "type": {
-                "text": "any"
-              },
-              "fieldName": "style"
             }
           ],
           "superclass": {
@@ -772,6 +1053,1144 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/components/Icon.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "Icon",
+          "members": [
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "name",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "Size"
+              },
+              "default": "''",
+              "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "color",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "color",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "weight",
+              "type": {
+                "text": "Weight"
+              },
+              "default": "'regular'",
+              "attribute": "weight",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "svg",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "error",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
+            {
+              "kind": "method",
+              "name": "loadIcon",
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "name"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "Size"
+              },
+              "default": "''",
+              "fieldName": "size"
+            },
+            {
+              "name": "color",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "color"
+            },
+            {
+              "name": "weight",
+              "type": {
+                "text": "Weight"
+              },
+              "default": "'regular'",
+              "fieldName": "weight"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "we-icon",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "Icon",
+            "module": "src/components/Icon.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "we-icon",
+          "declaration": {
+            "name": "Icon",
+            "module": "src/components/Icon.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Size",
+          "declaration": {
+            "name": "Size",
+            "module": "src/components/Icon.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Weight",
+          "declaration": {
+            "name": "Weight",
+            "module": "src/components/Icon.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/Input.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "Input",
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "value",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "max",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "max",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "min",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "min",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "maxlength",
+              "default": "Infinity",
+              "attribute": "maxlength",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "minlength",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "minlength",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pattern",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "pattern",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "label",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "name",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "step",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "step",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "placeholder",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "placeholder",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "errorText",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "errorText",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "helpText",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "helpText",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "autocomplete",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "autocomplete",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "autovalidate",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "autovalidate",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "autofocus",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "autofocus",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "disabled",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "full",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "full",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "error",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "error",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "required",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "required",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "readonly",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "readonly",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "type",
+              "type": {
+                "text": "string"
+              },
+              "default": "'text'",
+              "attribute": "type",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "select"
+            },
+            {
+              "kind": "method",
+              "name": "focus"
+            },
+            {
+              "kind": "method",
+              "name": "validate"
+            },
+            {
+              "kind": "method",
+              "name": "onInput",
+              "parameters": [
+                {
+                  "name": "e",
+                  "type": {
+                    "text": "InputEvent"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "onChange",
+              "parameters": [
+                {
+                  "name": "e",
+                  "type": {
+                    "text": "Event"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "onFocus",
+              "parameters": [
+                {
+                  "name": "e",
+                  "type": {
+                    "text": "FocusEvent"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "onBlur",
+              "parameters": [
+                {
+                  "name": "e",
+                  "type": {
+                    "text": "FocusEvent"
+                  }
+                }
+              ]
+            }
+          ],
+          "events": [
+            {
+              "name": "validate",
+              "type": {
+                "text": "CustomEvent"
+              }
+            },
+            {
+              "name": "input",
+              "type": {
+                "text": "CustomEvent"
+              }
+            },
+            {
+              "name": "change",
+              "type": {
+                "text": "CustomEvent"
+              }
+            },
+            {
+              "name": "focus",
+              "type": {
+                "text": "CustomEvent"
+              }
+            },
+            {
+              "name": "blur",
+              "type": {
+                "text": "CustomEvent"
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "value"
+            },
+            {
+              "name": "max",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "max"
+            },
+            {
+              "name": "min",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "min"
+            },
+            {
+              "name": "maxlength",
+              "default": "Infinity",
+              "fieldName": "maxlength"
+            },
+            {
+              "name": "minlength",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "minlength"
+            },
+            {
+              "name": "pattern",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "pattern"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "label"
+            },
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "name"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "size"
+            },
+            {
+              "name": "step",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "step"
+            },
+            {
+              "name": "placeholder",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "placeholder"
+            },
+            {
+              "name": "errorText",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "errorText"
+            },
+            {
+              "name": "helpText",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "helpText"
+            },
+            {
+              "name": "autocomplete",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "autocomplete"
+            },
+            {
+              "name": "autovalidate",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "autovalidate"
+            },
+            {
+              "name": "autofocus",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "autofocus"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "disabled"
+            },
+            {
+              "name": "full",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "full"
+            },
+            {
+              "name": "error",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "error"
+            },
+            {
+              "name": "required",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "required"
+            },
+            {
+              "name": "readonly",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "readonly"
+            },
+            {
+              "name": "type",
+              "type": {
+                "text": "string"
+              },
+              "default": "'text'",
+              "fieldName": "type"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "we-input",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "Input",
+            "module": "src/components/Input.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "we-input",
+          "declaration": {
+            "name": "Input",
+            "module": "src/components/Input.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/Menu.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "Menu",
+          "members": [],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "we-menu",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "Menu",
+            "module": "src/components/Menu.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "we-menu",
+          "declaration": {
+            "name": "Menu",
+            "module": "src/components/Menu.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/MenuGroup.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "MenuGroup",
+          "members": [
+            {
+              "kind": "field",
+              "name": "collapsible",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "collapsible",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "open",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "title",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "title",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "collapsibleContent"
+            },
+            {
+              "kind": "method",
+              "name": "normal"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "collapsible",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "collapsible"
+            },
+            {
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "open"
+            },
+            {
+              "name": "title",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "title"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "we-menu-group",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "MenuGroup",
+            "module": "src/components/MenuGroup.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "we-menu-group",
+          "declaration": {
+            "name": "MenuGroup",
+            "module": "src/components/MenuGroup.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/MenuItem.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "MenuItem",
+          "members": [
+            {
+              "kind": "field",
+              "name": "selected",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "selected",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "active",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "_value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''"
+            },
+            {
+              "kind": "field",
+              "name": "_label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''"
+            },
+            {
+              "kind": "field",
+              "name": "label"
+            },
+            {
+              "kind": "field",
+              "name": "value"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "selected",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "selected"
+            },
+            {
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "active"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "we-menu-item",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "MenuItem",
+            "module": "src/components/MenuItem.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "we-menu-item",
+          "declaration": {
+            "name": "MenuItem",
+            "module": "src/components/MenuItem.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/Modal.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "Modal",
+          "members": [
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "ModalSize"
+              },
+              "default": "''",
+              "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "close",
+              "type": {
+                "text": "() => void"
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "size",
+              "type": {
+                "text": "ModalSize"
+              },
+              "default": "''",
+              "fieldName": "size"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "we-modal",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "Modal",
+            "module": "src/components/Modal.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "we-modal",
+          "declaration": {
+            "name": "Modal",
+            "module": "src/components/Modal.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/Popover.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "Popover",
+          "members": [
+            {
+              "kind": "field",
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "open",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "placement",
+              "type": {
+                "text": "Placement"
+              },
+              "default": "'auto'",
+              "attribute": "placement",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "event",
+              "type": {
+                "text": "Event"
+              },
+              "default": "'click'",
+              "attribute": "event",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "clientY",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "clientX",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "popperInstance",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "triggerPart",
+              "type": {
+                "text": "HTMLElement"
+              },
+              "readonly": true
+            },
+            {
+              "kind": "field",
+              "name": "contentPart",
+              "type": {
+                "text": "HTMLElement"
+              },
+              "readonly": true
+            },
+            {
+              "kind": "field",
+              "name": "triggerAssignedNode",
+              "type": {
+                "text": "Node"
+              },
+              "readonly": true
+            },
+            {
+              "kind": "field",
+              "name": "contentAssignedNode",
+              "type": {
+                "text": "Node"
+              },
+              "readonly": true
+            },
+            {
+              "kind": "method",
+              "name": "destroyPopper",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "_createPopover"
+            }
+          ],
+          "events": [
+            {
+              "name": "toggle",
+              "type": {
+                "text": "CustomEvent"
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "open"
+            },
+            {
+              "name": "placement",
+              "type": {
+                "text": "Placement"
+              },
+              "default": "'auto'",
+              "fieldName": "placement"
+            },
+            {
+              "name": "event",
+              "type": {
+                "text": "Event"
+              },
+              "default": "'click'",
+              "fieldName": "event"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "we-popover",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "Popover",
+            "module": "src/components/Popover.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "we-popover",
+          "declaration": {
+            "name": "Popover",
+            "module": "src/components/Popover.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/components/Row.ts",
       "declarations": [
         {
@@ -783,7 +2202,7 @@
               "kind": "field",
               "name": "alignX",
               "type": {
-                "text": "AlignX"
+                "text": "AlignPositionAndSpacing"
               },
               "default": "''",
               "attribute": "alignX",
@@ -793,10 +2212,210 @@
               "kind": "field",
               "name": "alignY",
               "type": {
-                "text": "AlignY"
+                "text": "AlignPosition"
               },
               "default": "''",
               "attribute": "alignY",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "wrap",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "wrap",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "reverse",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "reverse",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "radius",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "attribute": "radius",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "gap",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "gap",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "p",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "p",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pl",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "pl",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pr",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "pr",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pt",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "pt",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pb",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "pb",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "px",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "px",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "py",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "py",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "m",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "m",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "ml",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "ml",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "mr",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "mr",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "mt",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "mt",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "mb",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "mb",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "mx",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "mx",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "my",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "my",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "bg",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "bg",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "color",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "color",
               "reflects": true
             },
             {
@@ -808,22 +2427,13 @@
               "default": "''",
               "attribute": "class",
               "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "style",
-              "type": {
-                "text": "any"
-              },
-              "attribute": "style",
-              "reflects": true
             }
           ],
           "attributes": [
             {
               "name": "alignX",
               "type": {
-                "text": "AlignX"
+                "text": "AlignPositionAndSpacing"
               },
               "default": "''",
               "fieldName": "alignX"
@@ -831,10 +2441,170 @@
             {
               "name": "alignY",
               "type": {
-                "text": "AlignY"
+                "text": "AlignPosition"
               },
               "default": "''",
               "fieldName": "alignY"
+            },
+            {
+              "name": "wrap",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "wrap"
+            },
+            {
+              "name": "reverse",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "reverse"
+            },
+            {
+              "name": "radius",
+              "type": {
+                "text": "NamedSize"
+              },
+              "default": "''",
+              "fieldName": "radius"
+            },
+            {
+              "name": "gap",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "gap"
+            },
+            {
+              "name": "p",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "p"
+            },
+            {
+              "name": "pl",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "pl"
+            },
+            {
+              "name": "pr",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "pr"
+            },
+            {
+              "name": "pt",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "pt"
+            },
+            {
+              "name": "pb",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "pb"
+            },
+            {
+              "name": "px",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "px"
+            },
+            {
+              "name": "py",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "py"
+            },
+            {
+              "name": "m",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "m"
+            },
+            {
+              "name": "ml",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "ml"
+            },
+            {
+              "name": "mr",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "mr"
+            },
+            {
+              "name": "mt",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "mt"
+            },
+            {
+              "name": "mb",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "mb"
+            },
+            {
+              "name": "mx",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "mx"
+            },
+            {
+              "name": "my",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "my"
+            },
+            {
+              "name": "bg",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "bg"
+            },
+            {
+              "name": "color",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "color"
             },
             {
               "name": "class",
@@ -843,13 +2613,6 @@
               },
               "default": "''",
               "fieldName": "class"
-            },
-            {
-              "name": "style",
-              "type": {
-                "text": "any"
-              },
-              "fieldName": "style"
             }
           ],
           "superclass": {
@@ -886,7 +2649,7 @@
         {
           "kind": "class",
           "description": "",
-          "name": "Component",
+          "name": "Spinner",
           "members": [
             {
               "kind": "field",
@@ -922,7 +2685,7 @@
           "kind": "js",
           "name": "default",
           "declaration": {
-            "name": "Component",
+            "name": "Spinner",
             "module": "src/components/Spinner.ts"
           }
         },
@@ -930,8 +2693,205 @@
           "kind": "custom-element-definition",
           "name": "we-spinner",
           "declaration": {
-            "name": "Component",
+            "name": "Spinner",
             "module": "src/components/Spinner.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/Text.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "Text",
+          "members": [
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "variant",
+              "type": {
+                "text": "Variant"
+              },
+              "default": "'body'",
+              "attribute": "variant",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tag",
+              "type": {
+                "text": "Tag"
+              },
+              "default": "'p'",
+              "attribute": "tag",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "nomargin",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "nomargin",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "inline",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "inline",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "uppercase",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "uppercase",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "color",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "color",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "weight",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "weight",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "size",
+              "type": {
+                "text": "NumberedSize"
+              },
+              "default": "''",
+              "fieldName": "size"
+            },
+            {
+              "name": "variant",
+              "type": {
+                "text": "Variant"
+              },
+              "default": "'body'",
+              "fieldName": "variant"
+            },
+            {
+              "name": "tag",
+              "type": {
+                "text": "Tag"
+              },
+              "default": "'p'",
+              "fieldName": "tag"
+            },
+            {
+              "name": "nomargin",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "nomargin"
+            },
+            {
+              "name": "inline",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "inline"
+            },
+            {
+              "name": "uppercase",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "uppercase"
+            },
+            {
+              "name": "color",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "color"
+            },
+            {
+              "name": "weight",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "weight"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "we-text",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "Text",
+            "module": "src/components/Text.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "we-text",
+          "declaration": {
+            "name": "Text",
+            "module": "src/components/Text.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/styles/shared.ts",
+      "declarations": [],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "src/styles/shared.ts"
           }
         }
       ]

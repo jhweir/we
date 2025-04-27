@@ -2,7 +2,7 @@ import { toSvg } from 'jdenticon';
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
-import sharedStyles, { NamedSize } from '../shared';
+import sharedStyles, { NamedSize } from '../styles/shared';
 
 const styles = css`
   :host {
@@ -87,7 +87,7 @@ const styles = css`
 `;
 
 @customElement('we-avatar')
-export default class Component extends LitElement {
+export default class Avatar extends LitElement {
   static styles = [sharedStyles, styles];
 
   @property({ type: String, reflect: true }) image = '';

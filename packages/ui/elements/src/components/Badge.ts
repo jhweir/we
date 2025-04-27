@@ -1,6 +1,7 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import sharedStyles from '../shared';
+import sharedStyles from '../styles/shared';
+import { BadgeSize, BadgeVariant } from '../types';
 
 const styles = css`
   :host {
@@ -46,15 +47,19 @@ const styles = css`
   }
 `;
 
-type Variant = '' | 'primary' | 'success' | 'danger' | 'warning';
-type Size = '' | 'sm' | 'lg';
+// export interface BadgeProps {
+//   variant?: Variant;
+//   size?: Size;
+//   children?: any;
+//   // [key: string]: any;
+// }
 
 @customElement('we-badge')
 export default class Badge extends LitElement {
   static styles = [sharedStyles, styles];
 
-  @property({ type: String, reflect: true }) variant: Variant = '';
-  @property({ type: String, reflect: true }) size: Size = '';
+  @property({ type: String, reflect: true }) variant: BadgeVariant = '';
+  @property({ type: String, reflect: true }) size: BadgeSize = '';
 
   render() {
     return html`<span part="base">

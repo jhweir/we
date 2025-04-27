@@ -3,27 +3,50 @@
   "version": "1.0.0",
   "type": "module",
   "exports": {
-    ".": {
-      "types": "./dist/main.d.ts",
-      "default": "./dist/main.js"
-    },
-    "./*": {
-      "types": "./dist/components/*.d.ts",
-      "default": "./dist/components/*.js"
-    },
-    "./Badge": {
-      "types": "./dist/components/Badge.d.ts",
-      "import": "./dist/components/Badge.js",
-      "default": "./dist/components/Badge.js"
-    },
+    "./variables": "./dist/styles/variables.css",
     "./themes/*": "./dist/styles/themes/*.css",
-    "./variables.css": "./dist/styles/variables.css"
+    "./react": {
+      "import": "./dist/index.js",
+      "types": "./dist/runtime/react/index.d.ts"
+    },
+    "./react/*": {
+      "import": "./dist/components/*.js",
+      "types": "./dist/runtime/react/components/*.d.ts"
+    },
+    "./react-jsx": {
+      "import": "./dist/index.js",
+      "types": "./dist/runtime/react-jsx/index.d.ts"
+    },
+    "./react-jsx/*": {
+      "import": "./dist/components/*.js",
+      "types": "./dist/runtime/react-jsx/components/*.d.ts"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "react": [
+        "./dist/runtime/react/index.d.ts"
+      ],
+      "react/*": [
+        "./dist/runtime/react/components/*.d.ts"
+      ],
+      "react-jsx": [
+        "./dist/runtime/react-jsx/index.d.ts"
+      ],
+      "react-jsx/*": [
+        "./dist/runtime/react-jsx/components/*.d.ts"
+      ],
+      "*": [
+        "./dist/runtime/global/index.d.ts"
+      ]
+    }
   },
   "scripts": {
     "start": "pnpm build:cem && storybook dev -p 6006",
     "storybook:build": "storybook build",
-    "build": "rimraf dist && rollup -c rollup.config.js",
+    "build": "pnpm build:cem && rimraf dist && rollup -c && pnpm build:types",
     "build:cem": "cem analyze --litelement --globs src/**/*.ts",
+    "build:types": "node scripts/generate-runtime-types.js",
     "lint:check": "pnpm run lint:ts:check && pnpm run lint:css:check",
     "lint:ts:check": "eslint src/**/*.ts --config eslint.config.js",
     "lint:css:check": "stylelint src/**/*.css",

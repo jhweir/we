@@ -4,7 +4,7 @@ import copy from 'rollup-plugin-copy';
 import typescript from 'rollup-plugin-typescript2';
 
 export default {
-  input: { main: 'src/main.ts' },
+  input: { index: 'src/index.ts' },
   output: {
     dir: 'dist',
     format: 'es',
@@ -31,8 +31,9 @@ export default {
     terser(),
     copy({
       targets: [
-        { src: 'src/themes/*', dest: 'dist/styles/themes' },
-        { src: 'src/variables.css', dest: 'dist/styles' },
+        { src: 'src/styles/themes/*', dest: 'dist/styles/themes' },
+        { src: 'src/styles/variables.css', dest: 'dist/styles' },
+        { src: 'src/types.ts', dest: 'dist/types', rename: 'shared.d.ts' },
       ],
     }),
   ],

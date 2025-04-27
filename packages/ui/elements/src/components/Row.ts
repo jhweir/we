@@ -1,7 +1,7 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { generateVariable } from '../helpers';
-import sharedStyles, { AlignPosition, AlignPositionAndSpacing, NamedSize, NumberedSize } from '../shared';
+import sharedStyles, { AlignPosition, AlignPositionAndSpacing, NamedSize, NumberedSize } from '../styles/shared';
 
 const styles = css`
   :host {
