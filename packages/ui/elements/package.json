@@ -3,8 +3,19 @@
   "version": "1.0.0",
   "type": "module",
   "exports": {
-    ".": "./dist/main.js",
-    "./*": "./dist/components/*.js",
+    ".": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
+    "./*": {
+      "types": "./dist/components/*.d.ts",
+      "default": "./dist/components/*.js"
+    },
+    "./Badge": {
+      "types": "./dist/components/Badge.d.ts",
+      "import": "./dist/components/Badge.js",
+      "default": "./dist/components/Badge.js"
+    },
     "./themes/*": "./dist/styles/themes/*.css",
     "./variables.css": "./dist/styles/variables.css"
   },

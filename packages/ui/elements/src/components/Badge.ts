@@ -63,14 +63,14 @@ export default class Badge extends LitElement {
   }
 }
 
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'we-badge': {
-        variant?: Variant;
-        size?: Size;
-        children?: any;
-      };
-    }
-  }
-}
+// declare global {
+//   namespace JSX {
+//     interface IntrinsicElements {
+//       'we-badge': {
+//         variant?: Variant;
+//         size?: Size;
+//         children?: any;
+//       };
+//     }
+//   }
+// }
