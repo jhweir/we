@@ -5,6 +5,14 @@
   "exports": {
     "./variables": "./dist/styles/variables.css",
     "./themes/*": "./dist/styles/themes/*.css",
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/runtime/global/index.d.ts"
+    },
+    "./*": {
+      "import": "./dist/components/*.js",
+      "types": "./dist/runtime/global/components/*.d.ts"
+    },
     "./react": {
       "import": "./dist/index.js",
       "types": "./dist/runtime/react/index.d.ts"
@@ -20,6 +28,14 @@
     "./react-jsx/*": {
       "import": "./dist/components/*.js",
       "types": "./dist/runtime/react-jsx/components/*.d.ts"
+    },
+    "./react-jsxdev": {
+      "import": "./dist/index.js",
+      "types": "./dist/runtime/react-jsxdev/index.d.ts"
+    },
+    "./react-jsxdev/*": {
+      "import": "./dist/components/*.js",
+      "types": "./dist/runtime/react-jsxdev/components/*.d.ts"
     }
   },
   "typesVersions": {
@@ -35,6 +51,12 @@
       ],
       "react-jsx/*": [
         "./dist/runtime/react-jsx/components/*.d.ts"
+      ],
+      "react-jsxdev": [
+        "./dist/runtime/react-jsxdev/index.d.ts"
+      ],
+      "react-jsxdev/*": [
+        "./dist/runtime/react-jsxdev/components/*.d.ts"
       ],
       "*": [
         "./dist/runtime/global/index.d.ts"

@@ -53,7 +53,14 @@ const RUNTIMES: Runtime[] = [
   { name: 'global' },
   { name: 'react', moduleName: 'react' },
   { name: 'react-jsx', moduleName: 'react/jsx-runtime' },
-  { name: 'react-jsx-dev', moduleName: 'react/jsx-dev-runtime' },
+  { name: 'react-jsxdev', moduleName: 'react/jsx-dev-runtime' },
+  // Todo:
+  // { name: 'preact', moduleName: 'preact', extends: 'Preact.JSX.IntrinsicElements' },
+  // { name: 'preact-jsx', moduleName: 'preact/jsx-runtime' },
+  // { name: 'solid', moduleName: 'solid-js/jsx-runtime' },
+  // { name: 'vue', moduleName: '@vue/runtime-dom' },
+  // { name: 'svelte', moduleName: 'svelte' },
+  // { name: 'qwik', moduleName: '@builder.io/qwik' },
 ];
 
 function indent(level: number): string {
@@ -194,11 +201,15 @@ function generateJsxDeclaration(runtime: Runtime, tagName: string | null, conten
   // Format the property content based on whether it's for a component or index
   const propertyContent = tagName ? [`'${tagName}': {`, content, `${indent(3)}};`].join('\n') : `${content};`;
 
+  // Determine the prefix for the JSX namespace based on the runtime
+  let extensionPrefix = '';
+  if (runtime.name.split('-')[0] === 'react') extensionPrefix = 'React.';
+
   // Create the declaration with the appropriate type and content
   return [
     `${declarationType} {`,
     `${indent(1)}namespace JSX {`,
-    `${indent(2)}interface IntrinsicElements {`,
+    `${indent(2)}interface IntrinsicElements extends ${extensionPrefix}JSX.IntrinsicElements {`,
     `${indent(3)}${propertyContent}`,
     `${indent(2)}}`,
     `${indent(1)}}`,
@@ -228,8 +239,12 @@ function generateComponentDeclaration(
     ...Object.entries(properties).map(([name, prop]) => `${indent(4)}${name}?: ${prop.type};`),
 
     // Add standard properties
+    `${indent(4)}key?: string | number;`,
+    `${indent(4)}slot?: string | number;`,
+    `${indent(4)}id?: string;`,
+    `${indent(4)}class?: string;`,
+    `${indent(4)}style?: any;`,
     `${indent(4)}children?: any;`,
-    `${indent(4)}[key: string]: any;`,
   ].join('\n');
 
   // Create JSX declaration using the helper function
