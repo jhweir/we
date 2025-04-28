@@ -17,7 +17,7 @@ export default function SidebarLeft() {
   const wecoLogo = 'https://avatars.githubusercontent.com/u/34165012?s=200&v=4';
 
   return (
-    <we-column py="700" alignX="center" alignY="between" bg="ui-0" class={`${styles.sidebar} ${styles.left}`}>
+    <we-column py="700" ax="center" ay="between" bg="ui-0" class={`${styles.sidebar} ${styles.left}`}>
       {/* <we-column gap="400">
         <CircleButton image={wecoLogo} onClick={() => router.push('/')} />
         <CircleButton icon="magnifying-glass" onClick={() => router.push('/search')} />

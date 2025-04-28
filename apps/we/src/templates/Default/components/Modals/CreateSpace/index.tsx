@@ -50,7 +50,7 @@ export default function CreateSpaceModal() {
 
   return (
     <we-modal close={close}>
-      <we-column p="600" gap="400" alignX="center">
+      <we-column p="600" gap="400" ax="center">
         <we-text variant="heading">Create a new space</we-text>
 
         <we-input

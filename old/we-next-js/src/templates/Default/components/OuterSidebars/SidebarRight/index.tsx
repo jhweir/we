@@ -7,7 +7,7 @@ export default function SidebarRight() {
   const { iconWeight } = myThemeSettings;
 
   return (
-    <we-column p="400" alignY="between" bg="ui-0" class={`${styles.sidebar} ${styles.right}`}>
+    <we-column p="400" ay="between" bg="ui-0" class={`${styles.sidebar} ${styles.right}`}>
       <we-column gap="400">
         <Link href="/">
           <we-avatar src="https://weco-prod-user-flag-images.s3.eu-west-1.amazonaws.com/user-flag-image-1-1-1597655878532-gif-1693527111503.gif" />

@@ -6,7 +6,8 @@ export default function Header() {
   const { allThemes, currentTheme, iconWeight } = myThemeSettings;
 
   return (
-    <we-row p="300" alignX="end" class={styles.header}>
+    <we-row p="300" ax="end" class={styles.header}>
+      <div key={5}>test</div>
       <we-popover placement="bottom-end">
         <we-button size="sm" slot="trigger" variant="subtle">
           <we-icon name={currentTheme.icon} weight={iconWeight} />

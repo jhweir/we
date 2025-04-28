@@ -22,7 +22,7 @@ export default function DeafultTemplate({ children: pageContent }: Readonly<{ ch
 
       <Modals />
 
-      <we-row alignX="center" style={{ width: '100vw' }}>
+      <we-row ax="center" style={{ width: '100vw' }}>
         <SidebarLeft />
         <we-column bg="ui-25" class={styles.centerColumn}>
           <Header />

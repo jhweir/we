@@ -23,22 +23,22 @@ const styles = css`
     background-color: var(--bg-color);
     color: var(--color);
   }
-  :host([alignX='center']) {
+  :host([ax='center']) {
     align-items: center;
   }
-  :host([alignX='end']) {
+  :host([ax='end']) {
     align-items: flex-end;
   }
-  :host([alignY='center']) {
+  :host([ay='center']) {
     justify-content: center;
   }
-  :host([alignY='end']) {
+  :host([ay='end']) {
     justify-content: flex-end;
   }
-  :host([alignY='between']) {
+  :host([ay='between']) {
     justify-content: space-between;
   }
-  :host([alignY='around']) {
+  :host([ay='around']) {
     justify-content: space-around;
   }
   :host([wrap]) {
@@ -53,8 +53,8 @@ const styles = css`
 export default class Column extends LitElement {
   static styles = [sharedStyles, styles];
 
-  @property({ type: String, reflect: true }) alignX: AlignPosition = '';
-  @property({ type: String, reflect: true }) alignY: AlignPositionAndSpacing = '';
+  @property({ type: String, reflect: true }) ax: AlignPosition = '';
+  @property({ type: String, reflect: true }) ay: AlignPositionAndSpacing = '';
   @property({ type: Boolean, reflect: true }) wrap = false;
   @property({ type: Boolean, reflect: true }) reverse = false;
   @property({ type: String, reflect: true }) gap: NumberedSize = '';
@@ -136,8 +136,8 @@ declare global {
   namespace JSX {
     interface IntrinsicElements {
       'we-column': {
-        alignX?: AlignPosition;
-        alignY?: AlignPositionAndSpacing;
+        ax?: AlignPosition;
+        ay?: AlignPositionAndSpacing;
         gap?: NumberedSize;
         wrap?: boolean;
         reverse?: boolean;

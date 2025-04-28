@@ -141,7 +141,7 @@ function SaveButton() {
   }
 
   return (
-    <we-row alignX="end" mt="600">
+    <we-row ax="end" mt="600">
       <we-button variant="ghost" onClick={save}>
         <we-icon name="floppy-disk" />
       </we-button>

@@ -23,22 +23,22 @@ const styles = css`
     background-color: var(--bg-color);
     color: var(--color);
   }
-  :host([alignX='center']) {
+  :host([ax='center']) {
     justify-content: center;
   }
-  :host([alignX='end']) {
+  :host([ax='end']) {
     justify-content: flex-end;
   }
-  :host([alignX='between']) {
+  :host([ax='between']) {
     justify-content: space-between;
   }
-  :host([alignX='around']) {
+  :host([ax='around']) {
     justify-content: space-around;
   }
-  :host([alignY='center']) {
+  :host([ay='center']) {
     align-items: center;
   }
-  :host([alignY='end']) {
+  :host([ay='end']) {
     align-items: flex-end;
   }
   :host([wrap]) {
@@ -53,8 +53,8 @@ const styles = css`
 export default class Row extends LitElement {
   static styles = [sharedStyles, styles];
 
-  @property({ type: String, reflect: true }) alignX: AlignPositionAndSpacing = '';
-  @property({ type: String, reflect: true }) alignY: AlignPosition = '';
+  @property({ type: String, reflect: true }) ax: AlignPositionAndSpacing = '';
+  @property({ type: String, reflect: true }) ay: AlignPosition = '';
   @property({ type: Boolean, reflect: true }) wrap = false;
   @property({ type: Boolean, reflect: true }) reverse = false;
   @property({ type: String, reflect: true }) radius: NamedSize = '';
@@ -75,7 +75,6 @@ export default class Row extends LitElement {
   @property({ type: String, reflect: true }) my: NumberedSize = '';
   @property({ type: String, reflect: true }) bg = '';
   @property({ type: String, reflect: true }) color = '';
-  @property({ type: String, reflect: true }) class: string = '';
 
   updated(props: Map<string, any>) {
     super.updated(props);
@@ -114,36 +113,36 @@ export default class Row extends LitElement {
   }
 }
 
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'we-row': {
-        alignX?: AlignPositionAndSpacing;
-        alignY?: AlignPosition;
-        gap?: NumberedSize;
-        wrap?: boolean;
-        reverse?: boolean;
-        radius?: NamedSize;
-        p?: NumberedSize;
-        pl?: NumberedSize;
-        pr?: NumberedSize;
-        pt?: NumberedSize;
-        pb?: NumberedSize;
-        px?: NumberedSize;
-        py?: NumberedSize;
-        m?: NumberedSize;
-        ml?: NumberedSize;
-        mr?: NumberedSize;
-        mt?: NumberedSize;
-        mb?: NumberedSize;
-        mx?: NumberedSize;
-        my?: NumberedSize;
-        bg?: string;
-        color?: string;
-        class?: string;
-        style?: any;
-        children?: any;
-      };
-    }
-  }
-}
+// declare global {
+//   namespace JSX {
+//     interface IntrinsicElements {
+//       'we-row': {
+//         ax?: AlignPositionAndSpacing;
+//         ay?: AlignPosition;
+//         gap?: NumberedSize;
+//         wrap?: boolean;
+//         reverse?: boolean;
+//         radius?: NamedSize;
+//         p?: NumberedSize;
+//         pl?: NumberedSize;
+//         pr?: NumberedSize;
+//         pt?: NumberedSize;
+//         pb?: NumberedSize;
+//         px?: NumberedSize;
+//         py?: NumberedSize;
+//         m?: NumberedSize;
+//         ml?: NumberedSize;
+//         mr?: NumberedSize;
+//         mt?: NumberedSize;
+//         mb?: NumberedSize;
+//         mx?: NumberedSize;
+//         my?: NumberedSize;
+//         bg?: string;
+//         color?: string;
+//         class?: string;
+//         style?: any;
+//         children?: any;
+//       };
+//     }
+//   }
+// }
