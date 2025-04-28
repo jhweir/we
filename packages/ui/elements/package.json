@@ -46,15 +46,7 @@
     "storybook:build": "storybook build",
     "build": "pnpm build:cem && rimraf dist && rollup -c && pnpm build:types",
     "build:cem": "cem analyze --litelement --globs src/**/*.ts",
-    "build:types": "node scripts/generate-runtime-types.js",
-    "lint:check": "pnpm run lint:ts:check && pnpm run lint:css:check",
-    "lint:ts:check": "eslint src/**/*.ts --config eslint.config.js",
-    "lint:css:check": "stylelint src/**/*.css",
-    "lint:fix": "pnpm run lint:ts:fix && pnpm run lint:css:fix",
-    "lint:ts:fix": "eslint ./src --ext .ts --fix --config .eslintrc.cjs",
-    "lint:css:fix": "stylelint src/**/*.css --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "build:types": "tsx scripts/generate-runtime-types.ts",
     "prepublish": "pnpm build",
     "publish": "npm publish --access public"
   },
@@ -72,12 +64,14 @@
     "@storybook/addon-essentials": "8.4.6",
     "@storybook/web-components": "8.4.6",
     "@storybook/web-components-vite": "8.4.6",
-    "glob": "^11.0.0",
+    "glob": "^11.0.2",
     "rimraf": "^6.0.1",
     "rollup": "^4.28.1",
     "rollup-plugin-copy": "^3.5.0",
     "rollup-plugin-postcss": "^4.0.2",
     "rollup-plugin-typescript2": "^0.36.0",
-    "storybook": "8.4.6"
+    "storybook": "8.4.6",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.2"
   }
 }
