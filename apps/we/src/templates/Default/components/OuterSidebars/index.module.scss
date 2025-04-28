@@ -1,11 +1,11 @@
-@import '../../variables.scss';
+@use '../../variables.scss' as vars;
 
 .sidebar {
   position: fixed;
   top: 0;
   height: 100vh;
   z-index: 100;
-  width: $outerSidebarWidth;
+  width: vars.$outerSidebarWidth;
 
   a {
     // box-shadow: 0 0 0 0.5px rgba(black, 0.1);

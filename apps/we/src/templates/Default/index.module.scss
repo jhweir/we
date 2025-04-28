@@ -1,8 +1,8 @@
-@import './variables.scss';
+@use './variables.scss' as vars;
 
 .centerColumn {
   width: 100%;
   min-height: 100vh;
-  margin: 0 $outerSidebarWidth;
+  margin: 0 vars.$outerSidebarWidth;
   position: relative;
 }
