@@ -21,16 +21,3 @@ export default class Menu extends LitElement {
     return html` <div part="base" role="menu"><slot></slot></div>`;
   }
 }
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'we-menu': {
-        slot?: string;
-        class?: string;
-        style?: any;
-        children?: any;
-      };
-    }
-  }
-}

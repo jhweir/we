@@ -2,25 +2,7 @@ import { createPopper, VirtualElement } from '@popperjs/core';
 import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import sharedStyles from '../styles/shared';
-
-type Placement =
-  | 'auto'
-  | 'auto-start'
-  | 'auto-end'
-  | 'top'
-  | 'top-start'
-  | 'top-end'
-  | 'bottom'
-  | 'bottom-start'
-  | 'bottom-end'
-  | 'right'
-  | 'right-start'
-  | 'right-end'
-  | 'left'
-  | 'left-start'
-  | 'left-end';
-
-type Event = 'contextmenu' | 'mouseover' | 'click';
+import { PopoverEvent, PopoverPlacement } from '../types';
 
 const styles = css`
   :host [part='content'] {
@@ -63,8 +45,8 @@ export default class Popover extends LitElement {
   static styles = [sharedStyles, styles];
 
   @property({ type: Boolean, reflect: true }) open = false;
-  @property({ type: String, reflect: true }) placement: Placement = 'auto';
-  @property({ type: String, reflect: true }) event: Event = 'click';
+  @property({ type: String, reflect: true }) placement: PopoverPlacement = 'auto';
+  @property({ type: String, reflect: true }) event: PopoverEvent = 'click';
 
   @state() clientY = 0;
   @state() clientX = 0;
@@ -157,7 +139,7 @@ export default class Popover extends LitElement {
       };
 
       this.popperInstance = createPopper(virtualElement, content, {
-        placement: this.placement as Placement,
+        placement: this.placement as PopoverPlacement,
         strategy: 'fixed',
         // modifiers: [{ name: 'offset', options: { offset: [10, 10] } }],
       });
@@ -166,7 +148,7 @@ export default class Popover extends LitElement {
       this.popperInstance.update();
     } else {
       this.popperInstance = createPopper(trigger, content, {
-        placement: this.placement as Placement,
+        placement: this.placement as PopoverPlacement,
         strategy: 'fixed',
         modifiers: [
           { name: 'offset', options: { offset: [0, 10] } },
@@ -192,20 +174,5 @@ export default class Popover extends LitElement {
         <span part="content"><slot name="content"></slot></span>
       </div>
     `;
-  }
-}
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'we-popover': {
-        open?: boolean;
-        placement?: Placement;
-        event?: Event;
-        class?: string;
-        style?: any;
-        children?: any;
-      };
-    }
   }
 }

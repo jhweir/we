@@ -1,6 +1,7 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import sharedStyles, { NumberedSize } from '../styles/shared';
+import { allowedTextTags, TextTag, TextVariant } from '../types';
 
 const styles = css`
   :host {
@@ -109,7 +110,6 @@ const styles = css`
   }
 `;
 
-const allowedTags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'small', 'b', 'i', 'span', 'label', 'div'] as const;
 const templates = {
   h1: html`<h1 part="base"><slot></slot></h1>`,
   h2: html`<h2 part="base"><slot></slot></h2>`,
@@ -126,16 +126,13 @@ const templates = {
   div: html`<div part="base"><slot></slot></div>`,
 };
 
-type Tag = (typeof allowedTags)[number];
-type Variant = '' | 'heading' | 'heading-sm' | 'heading-lg' | 'subheading' | 'ingress' | 'body' | 'label' | 'footnote';
-
 @customElement('we-text')
 export default class Text extends LitElement {
   static styles = [sharedStyles, styles];
 
   @property({ type: String, reflect: true }) size: NumberedSize = '';
-  @property({ type: String, reflect: true }) variant: Variant = 'body';
-  @property({ type: String, reflect: true }) tag: Tag = 'p';
+  @property({ type: String, reflect: true }) variant: TextVariant = 'body';
+  @property({ type: String, reflect: true }) tag: TextTag = 'p';
   @property({ type: Boolean, reflect: true }) nomargin = false;
   @property({ type: Boolean, reflect: true }) inline = false;
   @property({ type: Boolean, reflect: true }) uppercase = false;
@@ -161,27 +158,7 @@ export default class Text extends LitElement {
   }
 
   render() {
-    const tag = allowedTags.includes(this.tag) ? this.tag : 'p';
+    const tag = allowedTextTags.includes(this.tag) ? this.tag : 'p';
     return templates[tag];
-  }
-}
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'we-text': {
-        size?: NumberedSize;
-        variant?: Variant;
-        tag?: Tag;
-        nomargin?: boolean;
-        inline?: boolean;
-        uppercase?: boolean;
-        color?: string;
-        weight?: string;
-        class?: string;
-        style?: any;
-        children?: any;
-      };
-    }
   }
 }

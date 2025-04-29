@@ -71,6 +71,7 @@ export default class MenuItem extends LitElement {
 
   @property({ type: Boolean, reflect: true }) selected = false;
   @property({ type: Boolean, reflect: true }) active = false;
+  @property({ attribute: false }) onClick: (event: MouseEvent) => void = () => {};
 
   @state()
   _value = '';
@@ -104,24 +105,5 @@ export default class MenuItem extends LitElement {
       </div>
       <slot name="end"></slot>
     </div>`;
-  }
-}
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'we-menu-item': {
-        label?: string;
-        value?: string;
-        selected?: boolean;
-        active?: boolean;
-        slot?: string;
-        class?: string;
-        style?: any;
-        key?: string;
-        children?: any;
-        onClick?: (event: MouseEvent) => void;
-      };
-    }
   }
 }

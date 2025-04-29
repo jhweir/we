@@ -1,6 +1,7 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import sharedStyles from '../styles/shared';
+import { SpinnerSize } from '../types';
 
 const styles = css`
   :host {
@@ -81,7 +82,7 @@ const styles = css`
 export default class Spinner extends LitElement {
   static styles = [sharedStyles, styles];
 
-  @property({ type: String, reflect: true }) size: '' | 'sm' | 'lg' = '';
+  @property({ type: String, reflect: true }) size: SpinnerSize = '';
 
   render() {
     return html`<div class="lds-ring">
@@ -90,13 +91,5 @@ export default class Spinner extends LitElement {
       <div></div>
       <div></div>
     </div>`;
-  }
-}
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'we-spinner': { size?: '' | 'sm' | 'lg' };
-    }
   }
 }

@@ -17,11 +17,11 @@
     "@lexical/react": "^0.29.0",
     "@lexical/rich-text": "^0.29.0",
     "@lexical/utils": "^0.29.0",
+    "@we/elements": "workspace:*",
     "lexical": "^0.29.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.5.2",
-    "@we/elements": "workspace:*"
+    "react-router-dom": "^7.5.2"
   },
   "devDependencies": {
     "@types/react": "^19.1.2",

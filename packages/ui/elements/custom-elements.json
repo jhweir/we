@@ -267,7 +267,7 @@
               "kind": "field",
               "name": "variant",
               "type": {
-                "text": "Variant | undefined"
+                "text": "ButtonVariant | undefined"
               },
               "default": "'default'",
               "attribute": "variant",
@@ -277,7 +277,7 @@
               "kind": "field",
               "name": "size",
               "type": {
-                "text": "Size | undefined"
+                "text": "ButtonSize | undefined"
               },
               "default": "'md'",
               "attribute": "size",
@@ -344,8 +344,16 @@
               "reflects": true
             },
             {
-              "kind": "method",
+              "kind": "field",
               "name": "onClick",
+              "type": {
+                "text": "(event: MouseEvent) => void"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "handleClick",
+              "privacy": "private",
               "parameters": [
                 {
                   "name": "event",
@@ -365,7 +373,7 @@
             {
               "name": "variant",
               "type": {
-                "text": "Variant | undefined"
+                "text": "ButtonVariant | undefined"
               },
               "default": "'default'",
               "fieldName": "variant"
@@ -373,7 +381,7 @@
             {
               "name": "size",
               "type": {
-                "text": "Size | undefined"
+                "text": "ButtonSize | undefined"
               },
               "default": "'md'",
               "fieldName": "size"
@@ -465,22 +473,22 @@
           "members": [
             {
               "kind": "field",
-              "name": "alignX",
+              "name": "ax",
               "type": {
                 "text": "AlignPosition"
               },
               "default": "''",
-              "attribute": "alignX",
+              "attribute": "ax",
               "reflects": true
             },
             {
               "kind": "field",
-              "name": "alignY",
+              "name": "ay",
               "type": {
                 "text": "AlignPositionAndSpacing"
               },
               "default": "''",
-              "attribute": "alignY",
+              "attribute": "ay",
               "reflects": true
             },
             {
@@ -776,20 +784,20 @@
           ],
           "attributes": [
             {
-              "name": "alignX",
+              "name": "ax",
               "type": {
                 "text": "AlignPosition"
               },
               "default": "''",
-              "fieldName": "alignX"
+              "fieldName": "ax"
             },
             {
-              "name": "alignY",
+              "name": "ay",
               "type": {
                 "text": "AlignPositionAndSpacing"
               },
               "default": "''",
-              "fieldName": "alignY"
+              "fieldName": "ay"
             },
             {
               "name": "wrap",
@@ -1072,16 +1080,6 @@
             },
             {
               "kind": "field",
-              "name": "size",
-              "type": {
-                "text": "Size"
-              },
-              "default": "''",
-              "attribute": "size",
-              "reflects": true
-            },
-            {
-              "kind": "field",
               "name": "color",
               "type": {
                 "text": "string"
@@ -1092,9 +1090,19 @@
             },
             {
               "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "IconSize"
+              },
+              "default": "''",
+              "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
               "name": "weight",
               "type": {
-                "text": "Weight"
+                "text": "IconWeight"
               },
               "default": "'regular'",
               "attribute": "weight",
@@ -1104,10 +1112,10 @@
               "kind": "field",
               "name": "svg",
               "type": {
-                "text": "string | null"
+                "text": "string | undefined"
               },
               "privacy": "private",
-              "default": "null"
+              "default": "undefined"
             },
             {
               "kind": "field",
@@ -1134,14 +1142,6 @@
               "fieldName": "name"
             },
             {
-              "name": "size",
-              "type": {
-                "text": "Size"
-              },
-              "default": "''",
-              "fieldName": "size"
-            },
-            {
               "name": "color",
               "type": {
                 "text": "string"
@@ -1150,9 +1150,17 @@
               "fieldName": "color"
             },
             {
+              "name": "size",
+              "type": {
+                "text": "IconSize"
+              },
+              "default": "''",
+              "fieldName": "size"
+            },
+            {
               "name": "weight",
               "type": {
-                "text": "Weight"
+                "text": "IconWeight"
               },
               "default": "'regular'",
               "fieldName": "weight"
@@ -1180,22 +1188,6 @@
           "name": "we-icon",
           "declaration": {
             "name": "Icon",
-            "module": "src/components/Icon.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Size",
-          "declaration": {
-            "name": "Size",
-            "module": "src/components/Icon.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Weight",
-          "declaration": {
-            "name": "Weight",
             "module": "src/components/Icon.ts"
           }
         }
@@ -1428,6 +1420,34 @@
               "reflects": true
             },
             {
+              "kind": "field",
+              "name": "onInput",
+              "type": {
+                "text": "(event: InputEvent) => void"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "onChange",
+              "type": {
+                "text": "(event: Event) => void"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "onFocus",
+              "type": {
+                "text": "(event: FocusEvent) => void"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "onBlur",
+              "type": {
+                "text": "(event: FocusEvent) => void"
+              }
+            },
+            {
               "kind": "method",
               "name": "select"
             },
@@ -1441,7 +1461,7 @@
             },
             {
               "kind": "method",
-              "name": "onInput",
+              "name": "handleInput",
               "parameters": [
                 {
                   "name": "e",
@@ -1453,7 +1473,7 @@
             },
             {
               "kind": "method",
-              "name": "onChange",
+              "name": "handleChange",
               "parameters": [
                 {
                   "name": "e",
@@ -1465,7 +1485,7 @@
             },
             {
               "kind": "method",
-              "name": "onFocus",
+              "name": "handleFocus",
               "parameters": [
                 {
                   "name": "e",
@@ -1477,7 +1497,7 @@
             },
             {
               "kind": "method",
-              "name": "onBlur",
+              "name": "handleBlur",
               "parameters": [
                 {
                   "name": "e",
@@ -1890,6 +1910,13 @@
             },
             {
               "kind": "field",
+              "name": "onClick",
+              "type": {
+                "text": "(event: MouseEvent) => void"
+              }
+            },
+            {
+              "kind": "field",
               "name": "_value",
               "type": {
                 "text": "string"
@@ -2045,7 +2072,7 @@
               "kind": "field",
               "name": "placement",
               "type": {
-                "text": "Placement"
+                "text": "PopoverPlacement"
               },
               "default": "'auto'",
               "attribute": "placement",
@@ -2055,7 +2082,7 @@
               "kind": "field",
               "name": "event",
               "type": {
-                "text": "Event"
+                "text": "PopoverEvent"
               },
               "default": "'click'",
               "attribute": "event",
@@ -2148,7 +2175,7 @@
             {
               "name": "placement",
               "type": {
-                "text": "Placement"
+                "text": "PopoverPlacement"
               },
               "default": "'auto'",
               "fieldName": "placement"
@@ -2156,7 +2183,7 @@
             {
               "name": "event",
               "type": {
-                "text": "Event"
+                "text": "PopoverEvent"
               },
               "default": "'click'",
               "fieldName": "event"
@@ -2200,22 +2227,22 @@
           "members": [
             {
               "kind": "field",
-              "name": "alignX",
+              "name": "ax",
               "type": {
                 "text": "AlignPositionAndSpacing"
               },
               "default": "''",
-              "attribute": "alignX",
+              "attribute": "ax",
               "reflects": true
             },
             {
               "kind": "field",
-              "name": "alignY",
+              "name": "ay",
               "type": {
                 "text": "AlignPosition"
               },
               "default": "''",
-              "attribute": "alignY",
+              "attribute": "ay",
               "reflects": true
             },
             {
@@ -2417,34 +2444,24 @@
               "default": "''",
               "attribute": "color",
               "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "class",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "class",
-              "reflects": true
             }
           ],
           "attributes": [
             {
-              "name": "alignX",
+              "name": "ax",
               "type": {
                 "text": "AlignPositionAndSpacing"
               },
               "default": "''",
-              "fieldName": "alignX"
+              "fieldName": "ax"
             },
             {
-              "name": "alignY",
+              "name": "ay",
               "type": {
                 "text": "AlignPosition"
               },
               "default": "''",
-              "fieldName": "alignY"
+              "fieldName": "ay"
             },
             {
               "name": "wrap",
@@ -2605,14 +2622,6 @@
               },
               "default": "''",
               "fieldName": "color"
-            },
-            {
-              "name": "class",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "class"
             }
           ],
           "superclass": {
@@ -2655,7 +2664,7 @@
               "kind": "field",
               "name": "size",
               "type": {
-                "text": "'' | 'sm' | 'lg'"
+                "text": "SpinnerSize"
               },
               "default": "''",
               "attribute": "size",
@@ -2666,7 +2675,7 @@
             {
               "name": "size",
               "type": {
-                "text": "'' | 'sm' | 'lg'"
+                "text": "SpinnerSize"
               },
               "default": "''",
               "fieldName": "size"
@@ -2722,7 +2731,7 @@
               "kind": "field",
               "name": "variant",
               "type": {
-                "text": "Variant"
+                "text": "TextVariant"
               },
               "default": "'body'",
               "attribute": "variant",
@@ -2732,7 +2741,7 @@
               "kind": "field",
               "name": "tag",
               "type": {
-                "text": "Tag"
+                "text": "TextTag"
               },
               "default": "'p'",
               "attribute": "tag",
@@ -2801,7 +2810,7 @@
             {
               "name": "variant",
               "type": {
-                "text": "Variant"
+                "text": "TextVariant"
               },
               "default": "'body'",
               "fieldName": "variant"
@@ -2809,7 +2818,7 @@
             {
               "name": "tag",
               "type": {
-                "text": "Tag"
+                "text": "TextTag"
               },
               "default": "'p'",
               "fieldName": "tag"

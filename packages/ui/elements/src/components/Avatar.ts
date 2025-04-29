@@ -115,22 +115,3 @@ export default class Avatar extends LitElement {
       : html` <div part="base">${this.renderContent()}</div> `;
   }
 }
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'we-avatar': {
-        image?: string;
-        hash?: string;
-        initials?: string;
-        icon?: string;
-        selected?: boolean;
-        online?: boolean;
-        size?: NamedSize;
-        style?: any;
-        children?: any;
-        onClick?: (event: MouseEvent) => void;
-      };
-    }
-  }
-}

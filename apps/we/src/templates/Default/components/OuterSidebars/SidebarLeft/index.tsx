@@ -18,7 +18,7 @@ export default function SidebarLeft() {
 
   return (
     <we-column py="700" ax="center" ay="between" bg="ui-0" class={`${styles.sidebar} ${styles.left}`}>
-      {/* <we-column gap="400">
+      <we-column gap="400">
         <CircleButton image={wecoLogo} onClick={() => router.push('/')} />
         <CircleButton icon="magnifying-glass" onClick={() => router.push('/search')} />
         <CircleButton icon="users-three" onClick={() => router.push('/all-spaces')} />
@@ -30,7 +30,7 @@ export default function SidebarLeft() {
 
       <we-column gap="400">
         <CircleButton icon="gear" onClick={() => router.push('/settings')} />
-      </we-column> */}
+      </we-column>
     </we-column>
   );
 }

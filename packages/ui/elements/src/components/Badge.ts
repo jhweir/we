@@ -47,13 +47,6 @@ const styles = css`
   }
 `;
 
-// export interface BadgeProps {
-//   variant?: Variant;
-//   size?: Size;
-//   children?: any;
-//   // [key: string]: any;
-// }
-
 @customElement('we-badge')
 export default class Badge extends LitElement {
   static styles = [sharedStyles, styles];
@@ -67,15 +60,3 @@ export default class Badge extends LitElement {
     </span>`;
   }
 }
-
-// declare global {
-//   namespace JSX {
-//     interface IntrinsicElements {
-//       'we-badge': {
-//         variant?: Variant;
-//         size?: Size;
-//         children?: any;
-//       };
-//     }
-//   }
-// }

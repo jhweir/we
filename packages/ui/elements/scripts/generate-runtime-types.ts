@@ -43,6 +43,7 @@ interface CemData {
         attribute?: boolean;
         type?: { text?: string };
         default?: string;
+        readonly?: boolean;
       }>;
     }>;
     path?: string;
@@ -172,14 +173,17 @@ function extractComponentsFromManifest(cemData: CemData): Component[] {
           const customTypes = new Set<string>();
 
           declaration.members
-            ?.filter((member) => member.kind === 'field' && member.attribute)
+            ?.filter((member) => member.kind === 'field' && !member.name.startsWith('_'))
             .forEach((member) => {
-              let typeName = member.type?.text || 'any';
               // Clean up type name
+              let typeName = member.type?.text || 'any';
               if (typeName.includes(' | undefined')) typeName = typeName.replace(' | undefined', '');
-              // Track custom types
-              if (!['string', 'boolean', 'number', 'any'].includes(typeName)) customTypes.add(typeName);
-              // Store component properties
+              // Keep track of custom types needed for declaration
+              const isBasicType = ['string', 'boolean', 'number', 'any'].includes(typeName);
+              const isReadonly = member.readonly;
+              const isFunction = typeName.includes('=>');
+              if (!isReadonly && !isFunction && !isBasicType) customTypes.add(typeName);
+              // Store the property
               properties[member.name] = { name: member.name, type: typeName, default: member.default };
             });
 

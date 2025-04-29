@@ -111,18 +111,3 @@ export default class MenuGroup extends LitElement {
     return this.collapsible ? this.collapsibleContent() : this.normal();
   }
 }
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'we-menu-group': {
-        collapsible?: boolean;
-        open?: boolean;
-        title?: string;
-        class?: string;
-        style?: any;
-        children?: any;
-      };
-    }
-  }
-}

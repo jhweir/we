@@ -1,6 +1,7 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import sharedStyles from '../styles/shared';
+import { ModalSize } from '../types';
 
 const styles = css`
   :host {
@@ -123,8 +124,6 @@ const styles = css`
   }
 `;
 
-type ModalSize = '' | 'xs' | 'sm' | 'lg' | 'xl' | 'fullscreen';
-
 @customElement('we-modal')
 export default class Modal extends LitElement {
   static styles = [sharedStyles, styles];
@@ -150,19 +149,5 @@ export default class Modal extends LitElement {
         </div>
       </div>
     `;
-  }
-}
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'we-modal': {
-        size?: ModalSize;
-        class?: string;
-        style?: any;
-        children?: any;
-        close?: () => void;
-      };
-    }
   }
 }

@@ -1,6 +1,7 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import sharedStyles from '../styles/shared';
+import { ButtonSize, ButtonVariant } from '../types';
 import './Spinner';
 
 const styles = css`
@@ -171,27 +172,26 @@ const styles = css`
   }
 `;
 
-type Variant = 'default' | 'primary' | 'link' | 'subtle' | 'transparent' | 'ghost';
-type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
-
 @customElement('we-button')
 export default class Button extends LitElement {
   static styles = [sharedStyles, styles];
 
-  @property({ type: String, reflect: true }) variant?: Variant = 'default';
-  @property({ type: String, reflect: true }) size?: Size = 'md';
+  @property({ type: String, reflect: true }) variant?: ButtonVariant = 'default';
+  @property({ type: String, reflect: true }) size?: ButtonSize = 'md';
   @property({ type: String, reflect: true }) href?: string = '';
   @property({ type: Boolean, reflect: true }) disabled = false;
   @property({ type: Boolean, reflect: true }) loading = false;
   @property({ type: Boolean, reflect: true }) square = false;
   @property({ type: Boolean, reflect: true }) full = false;
   @property({ type: Boolean, reflect: true }) circle = false;
+  @property({ attribute: false }) onClick: (event: MouseEvent) => void = () => {};
 
-  onClick(event: MouseEvent) {
+  private handleClick(event: MouseEvent) {
     if (this.disabled || this.loading) {
       event.preventDefault();
       event.stopPropagation();
     }
+    this.onClick(event);
   }
 
   private renderContent() {
@@ -205,34 +205,11 @@ export default class Button extends LitElement {
 
   render() {
     return this.href
-      ? html`<a .href=${this.href} @click=${this.onClick} target="_blank" part="base"> ${this.renderContent()} </a>`
+      ? html`<a .href=${this.href} @click=${this.handleClick} target="_blank" part="base"> ${this.renderContent()} </a>`
       : html`
-          <button ?disabled=${this.disabled || this.loading} @click=${this.onClick} part="base">
+          <button ?disabled=${this.disabled || this.loading} @click=${this.handleClick} part="base">
             ${this.renderContent()}
           </button>
         `;
-  }
-}
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'we-button': {
-        variant?: Variant;
-        size?: Size;
-        href?: string;
-        disabled?: boolean;
-        loading?: boolean;
-        square?: boolean;
-        full?: boolean;
-        circle?: boolean;
-        slot?: string;
-        key?: string;
-        class?: string;
-        style?: any;
-        children?: any;
-        onClick?: (event: MouseEvent) => void;
-      };
-    }
   }
 }

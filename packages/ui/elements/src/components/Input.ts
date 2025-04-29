@@ -105,6 +105,10 @@ export default class Input extends LitElement {
   @property({ type: Boolean, reflect: true }) required = false;
   @property({ type: Boolean, reflect: true }) readonly = false;
   @property({ type: String, reflect: true }) type = 'text';
+  @property({ attribute: false }) onInput: (event: InputEvent) => void = () => {};
+  @property({ attribute: false }) onChange: (event: Event) => void = () => {};
+  @property({ attribute: false }) onFocus: (event: FocusEvent) => void = () => {};
+  @property({ attribute: false }) onBlur: (event: FocusEvent) => void = () => {};
 
   select() {
     this.renderRoot.querySelector('input')?.select();
@@ -121,25 +125,25 @@ export default class Input extends LitElement {
     return this.error;
   }
 
-  onInput(e: InputEvent) {
+  handleInput(e: InputEvent) {
     e.stopPropagation();
     this.value = (e.target as HTMLInputElement)?.value;
     this.dispatchEvent(new CustomEvent('input', { detail: this.value, bubbles: true, composed: true }));
   }
 
-  onChange(e: Event) {
+  handleChange(e: Event) {
     e.stopPropagation();
     this.value = (e.target as HTMLInputElement)?.value;
     this.dispatchEvent(new CustomEvent('change', e));
   }
 
-  onFocus(e: FocusEvent) {
+  handleFocus(e: FocusEvent) {
     e.stopPropagation();
     this.value = (e.target as HTMLInputElement)?.value;
     this.dispatchEvent(new CustomEvent('focus', e));
   }
 
-  onBlur(e: FocusEvent) {
+  handleBlur(e: FocusEvent) {
     e.stopPropagation();
     if (this.autovalidate) this.validate();
     this.dispatchEvent(new CustomEvent('blur', e));
@@ -167,10 +171,10 @@ export default class Input extends LitElement {
             ?readonly=${this.readonly}
             ?required=${this.required}
             ?disabled=${this.disabled}
-            @input=${this.onInput}
-            @change=${this.onChange}
-            @blur=${this.onBlur}
-            @focus=${this.onFocus}
+            @input=${this.handleInput}
+            @change=${this.handleChange}
+            @blur=${this.handleBlur}
+            @focus=${this.handleFocus}
           />
           <slot part="end" name="end"></slot>
         </div>
@@ -183,44 +187,5 @@ export default class Input extends LitElement {
             : null}
       </div>
     `;
-  }
-}
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'we-input': {
-        value?: string;
-        type?: string;
-        max?: string;
-        min?: string;
-        maxlength?: number;
-        minlength?: number;
-        pattern?: string;
-        label?: string;
-        name?: string;
-        size?: string;
-        step?: string;
-        placeholder?: string;
-        errorText?: string;
-        helpText?: string;
-        autocomplete?: string;
-        autovalidate?: boolean;
-        autofocus?: boolean;
-        disabled?: boolean;
-        full?: boolean;
-        error?: boolean;
-        required?: boolean;
-        readonly?: boolean;
-        onInput?: (e: InputEvent) => void;
-        onChange?: (e: Event) => void;
-        onFocus?: (e: FocusEvent) => void;
-        onBlur?: (e: FocusEvent) => void;
-        validate?: () => boolean;
-        class?: string;
-        style?: any;
-        children?: any;
-      };
-    }
   }
 }
