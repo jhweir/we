@@ -770,16 +770,6 @@
               "default": "''",
               "attribute": "color",
               "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "class",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "class",
-              "reflects": true
             }
           ],
           "attributes": [
@@ -1022,14 +1012,6 @@
               },
               "default": "''",
               "fieldName": "color"
-            },
-            {
-              "name": "class",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "class"
             }
           ],
           "superclass": {

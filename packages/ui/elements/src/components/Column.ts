@@ -83,7 +83,6 @@ export default class Column extends LitElement {
   @property({ type: String, reflect: true }) rbl: NamedSize = '';
   @property({ type: String, reflect: true }) bg = '';
   @property({ type: String, reflect: true }) color = '';
-  @property({ type: String, reflect: true }) class: string = '';
 
   updated(props: Map<string, any>) {
     super.updated(props);
