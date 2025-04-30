@@ -1,5 +1,5 @@
-import { promises as fs } from 'fs';
-import path from 'path';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 
 interface Runtime {
   name: string;
@@ -55,8 +55,7 @@ const RUNTIMES: Runtime[] = [
   { name: 'react', moduleName: 'react' },
   { name: 'react-jsx', moduleName: 'react/jsx-runtime' },
   { name: 'react-jsxdev', moduleName: 'react/jsx-dev-runtime' },
-  // Todo:
-  // { name: 'preact', moduleName: 'preact', extends: 'Preact.JSX.IntrinsicElements' },
+  // { name: 'preact', moduleName: 'preact' },
   // { name: 'preact-jsx', moduleName: 'preact/jsx-runtime' },
   // { name: 'solid', moduleName: 'solid-js/jsx-runtime' },
   // { name: 'vue', moduleName: '@vue/runtime-dom' },
@@ -124,7 +123,6 @@ async function generateRuntimeTypes(): Promise<void> {
   }
 }
 
-// Extract type definitions and their dependencies
 function extractTypeDefinitions(content: string): Map<string, TypeInfo> {
   const typeMap = new Map<string, TypeInfo>();
   const constMap = new Map<string, string>();
@@ -158,7 +156,6 @@ function extractTypeDefinitions(content: string): Map<string, TypeInfo> {
   return typeMap;
 }
 
-// Extract components from the manifest
 function extractComponentsFromManifest(cemData: CemData): Component[] {
   return cemData.modules
     .filter((module) => module.declarations)
@@ -178,11 +175,13 @@ function extractComponentsFromManifest(cemData: CemData): Component[] {
               // Clean up type name
               let typeName = member.type?.text || 'any';
               if (typeName.includes(' | undefined')) typeName = typeName.replace(' | undefined', '');
+
               // Keep track of custom types needed for declaration
               const isBasicType = ['string', 'boolean', 'number', 'any'].includes(typeName);
               const isReadonly = member.readonly;
               const isFunction = typeName.includes('=>');
               if (!isReadonly && !isFunction && !isBasicType) customTypes.add(typeName);
+
               // Store the property
               properties[member.name] = { name: member.name, type: typeName, default: member.default };
             });
@@ -202,26 +201,39 @@ function generateJsxDeclaration(runtime: Runtime, tagName: string | null, conten
   // Determine module or global declaration
   const declarationType = runtime.name === 'global' ? 'declare global' : `declare module '${runtime.moduleName}'`;
 
-  // Format the property content based on whether it's for a component or index
+  // Format the property content based on whether it's for an individual component file or part of an index
   const propertyContent = tagName ? [`'${tagName}': {`, content, `${indent(3)}};`].join('\n') : `${content};`;
 
   // Determine the prefix for the JSX namespace based on the runtime
-  let extensionPrefix = '';
-  if (runtime.name.split('-')[0] === 'react') extensionPrefix = 'React.';
+  const reactRuntime = runtime.name.split('-')[0] === 'react';
+  const extensionPrefix = reactRuntime ? 'React.' : '';
 
   // Create the declaration with the appropriate type and content
-  return [
+  const intrinsicElementsDeclaration = [
     `${declarationType} {`,
     `${indent(1)}namespace JSX {`,
     `${indent(2)}interface IntrinsicElements extends ${extensionPrefix}JSX.IntrinsicElements {`,
     `${indent(3)}${propertyContent}`,
     `${indent(2)}}`,
-    `${indent(1)}}`,
-    `}`,
-  ].join('\n');
+  ];
+
+  const fixForReactChildren = [
+    '',
+    `${indent(2)}// Added to fix declaration conflict with the children prop in React`,
+    `${indent(2)}interface ElementChildrenAttribute {`,
+    `${indent(3)}children: React.ReactNode;`,
+    `${indent(2)}}`,
+  ];
+
+  const closingBrackets = [`${indent(1)}}`, `}`];
+
+  const declaration = reactRuntime
+    ? [...intrinsicElementsDeclaration, ...fixForReactChildren, ...closingBrackets]
+    : [...intrinsicElementsDeclaration, ...closingBrackets];
+
+  return declaration.join('\n');
 }
 
-// Generate component declaration file
 function generateComponentDeclaration(
   component: Component,
   runtime: Runtime,
@@ -233,7 +245,7 @@ function generateComponentDeclaration(
   const typeContent = generateTypeContent(
     customTypes,
     typeDefinitions,
-    // Pass the component when handling the global runtime for error handling
+    // Include the component with the global runtime for error handling
     runtime.name === 'global' ? component : undefined,
   );
 
@@ -261,7 +273,6 @@ function generateComponentDeclaration(
   return { declarationFile, formattedPropTypes: propTypes };
 }
 
-// Generate index file for a runtime
 async function generateRuntimeIndex(
   components: Component[],
   runtime: Runtime,
@@ -291,7 +302,6 @@ async function generateRuntimeIndex(
   await Promise.all([fs.writeFile(`dist/runtime/${runtime.name}/index.d.ts`, indexContent)]);
 }
 
-// Generate type definitions content
 function generateTypeContent(
   customTypes: Set<string>,
   typeDefinitions: Map<string, TypeInfo>,
