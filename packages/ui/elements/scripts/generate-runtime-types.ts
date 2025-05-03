@@ -227,9 +227,11 @@ function generateJsxDeclaration(runtime: Runtime, tagName: string | null, conten
 
   const closingBrackets = [`${indent(1)}}`, `}`];
 
-  const declaration = reactRuntime
-    ? [...intrinsicElementsDeclaration, ...fixForReactChildren, ...closingBrackets]
-    : [...intrinsicElementsDeclaration, ...closingBrackets];
+  const declaration = [
+    ...intrinsicElementsDeclaration,
+    ...(reactRuntime ? fixForReactChildren : []),
+    ...closingBrackets,
+  ];
 
   return declaration.join('\n');
 }
