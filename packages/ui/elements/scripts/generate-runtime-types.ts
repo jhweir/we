@@ -4,6 +4,7 @@ import * as path from 'node:path';
 interface Runtime {
   name: string;
   moduleName?: string;
+  namespace?: string;
 }
 
 interface ComponentProperty {
@@ -55,11 +56,11 @@ const RUNTIMES: Runtime[] = [
   { name: 'react', moduleName: 'react' },
   { name: 'react-jsx', moduleName: 'react/jsx-runtime' },
   { name: 'react-jsxdev', moduleName: 'react/jsx-dev-runtime' },
+  { name: 'svelte', namespace: 'svelteHTML' },
   // { name: 'preact', moduleName: 'preact' },
   // { name: 'preact-jsx', moduleName: 'preact/jsx-runtime' },
   // { name: 'solid', moduleName: 'solid-js/jsx-runtime' },
   // { name: 'vue', moduleName: '@vue/runtime-dom' },
-  // { name: 'svelte', moduleName: 'svelte' },
   // { name: 'qwik', moduleName: '@builder.io/qwik' },
 ];
 
@@ -197,22 +198,21 @@ function extractComponentsFromManifest(cemData: CemData): Component[] {
     });
 }
 
-function generateJsxDeclaration(runtime: Runtime, tagName: string | null, content: string): string {
+function generateDeclaration(runtime: Runtime, tagName: string | null, content: string): string {
   // Determine module or global declaration
-  const declarationType = runtime.name === 'global' ? 'declare global' : `declare module '${runtime.moduleName}'`;
+  const declarationType = runtime.moduleName ? `declare module '${runtime.moduleName}'` : 'declare global';
 
   // Format the property content based on whether it's for an individual component file or part of an index
   const propertyContent = tagName ? [`'${tagName}': {`, content, `${indent(3)}};`].join('\n') : `${content};`;
 
   // Determine the prefix for the JSX namespace based on the runtime
   const reactRuntime = runtime.name.split('-')[0] === 'react';
-  const extensionPrefix = reactRuntime ? 'React.' : '';
 
   // Create the declaration with the appropriate type and content
   const intrinsicElementsDeclaration = [
     `${declarationType} {`,
-    `${indent(1)}namespace JSX {`,
-    `${indent(2)}interface IntrinsicElements extends ${extensionPrefix}JSX.IntrinsicElements {`,
+    `${indent(1)}namespace ${runtime.namespace || 'JSX'} {`,
+    `${indent(2)}interface IntrinsicElements ${reactRuntime ? 'extends ReactJSX.IntrinsicElements ' : ''}{`,
     `${indent(3)}${propertyContent}`,
     `${indent(2)}}`,
   ];
@@ -227,10 +227,13 @@ function generateJsxDeclaration(runtime: Runtime, tagName: string | null, conten
 
   const closingBrackets = [`${indent(1)}}`, `}`];
 
+  const emptyModuleExport = ['', 'export {};'];
+
   const declaration = [
     ...intrinsicElementsDeclaration,
     ...(reactRuntime ? fixForReactChildren : []),
     ...closingBrackets,
+    ...(runtime.name === 'svelte' ? emptyModuleExport : []),
   ];
 
   return declaration.join('\n');
@@ -265,11 +268,11 @@ function generateComponentDeclaration(
     `${indent(4)}children?: any;`,
   ].join('\n');
 
-  // Create JSX declaration using the helper function
-  const jsxDeclaration = generateJsxDeclaration(runtime, tagName, propTypes);
+  // Create declaration using the helper function
+  const declaration = generateDeclaration(runtime, tagName, propTypes);
 
   // Create the final declaration file content
-  const declarationFile = `// Generated type declaration for ${tagName} in ${runtime.name} runtime\n// Generated from custom-elements.json\n\n${typeContent}${jsxDeclaration}\n`;
+  const declarationFile = `// Generated type declaration for ${tagName} in ${runtime.name} runtime\n// Generated from custom-elements.json\n\n${typeContent}${declaration}\n`;
 
   // Return both the file content and formatted prop types
   return { declarationFile, formattedPropTypes: propTypes };
@@ -294,11 +297,11 @@ async function generateRuntimeIndex(
     )
     .join(`;\n${indent(3)}`); // Add indentation after each semicolon
 
-  // Create JSX declaration using the helper function (no tag name for index)
-  const jsxDeclaration = generateJsxDeclaration(runtime, null, componentDeclarations);
+  // Create declaration using the helper function (no tag name for index files)
+  const declaration = generateDeclaration(runtime, null, componentDeclarations);
 
   // Create the index file content
-  const indexContent = `// Combined ${runtime.name} runtime declarations for all components\n// Generated from custom-elements.json\n\n${typeContent}${jsxDeclaration}\n`;
+  const indexContent = `// Combined ${runtime.name} runtime declarations for all components\n// Generated from custom-elements.json\n\n${typeContent}${declaration}\n`;
 
   // Write the files
   await Promise.all([fs.writeFile(`dist/runtime/${runtime.name}/index.d.ts`, indexContent)]);

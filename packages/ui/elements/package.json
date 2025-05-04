@@ -36,6 +36,14 @@
     "./react-jsxdev/*": {
       "import": "./dist/components/*.js",
       "types": "./dist/runtime/react-jsxdev/components/*.d.ts"
+    },
+    "./svelte": {
+      "import": "./dist/index.js",
+      "types": "./dist/runtime/svelte/index.d.ts"
+    },
+    "./svelte/*": {
+      "import": "./dist/components/*.js",
+      "types": "./dist/runtime/svelte/components/*.d.ts"
     }
   },
   "typesVersions": {
