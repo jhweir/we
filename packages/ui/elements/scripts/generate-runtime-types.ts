@@ -212,7 +212,7 @@ function generateDeclaration(runtime: Runtime, tagName: string | null, content: 
   const intrinsicElementsDeclaration = [
     `${declarationType} {`,
     `${indent(1)}namespace ${runtime.namespace || 'JSX'} {`,
-    `${indent(2)}interface IntrinsicElements ${reactRuntime ? 'extends ReactJSX.IntrinsicElements ' : ''}{`,
+    `${indent(2)}interface IntrinsicElements ${reactRuntime ? 'extends React.JSX.IntrinsicElements ' : ''}{`,
     `${indent(3)}${propertyContent}`,
     `${indent(2)}}`,
   ];
