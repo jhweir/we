@@ -3,5 +3,5 @@
 </script>
 
 <div>
-	<Test title="Title prop" />
+	<Test title="daaaa"/>
 </div>
