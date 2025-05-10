@@ -57,9 +57,9 @@ const RUNTIMES: Runtime[] = [
   { name: 'react-jsx', moduleName: 'react/jsx-runtime' },
   { name: 'react-jsxdev', moduleName: 'react/jsx-dev-runtime' },
   { name: 'svelte', namespace: 'svelteHTML' },
+  { name: 'solid', moduleName: 'solid-js' },
   // { name: 'preact', moduleName: 'preact' },
   // { name: 'preact-jsx', moduleName: 'preact/jsx-runtime' },
-  // { name: 'solid', moduleName: 'solid-js/jsx-runtime' },
   // { name: 'vue', moduleName: '@vue/runtime-dom' },
   // { name: 'qwik', moduleName: '@builder.io/qwik' },
 ];
@@ -208,7 +208,9 @@ function generateDeclaration(runtime: Runtime, tagName: string | null, content: 
   // Determine the prefix for the JSX namespace based on the runtime
   const reactRuntime = runtime.name.split('-')[0] === 'react';
 
-  // Create the declaration with the appropriate type and content
+  // Create the declaration lines
+  const solidImport = ["import 'solid-js'", ''];
+
   const intrinsicElementsDeclaration = [
     `${declarationType} {`,
     `${indent(1)}namespace ${runtime.namespace || 'JSX'} {`,
@@ -230,6 +232,7 @@ function generateDeclaration(runtime: Runtime, tagName: string | null, content: 
   const emptyModuleExport = ['', 'export {};'];
 
   const declaration = [
+    ...(runtime.name === 'solid' ? solidImport : []),
     ...intrinsicElementsDeclaration,
     ...(reactRuntime ? fixForReactChildren : []),
     ...closingBrackets,
