@@ -1,21 +1,19 @@
-import '@we/elements/solid';
-import '@we/elements/themes/dark';
-import '@we/elements/variables';
+import ContextProvider from '@/contexts/ContextProvider';
+import DefaultTemplate from '@/templates';
+import { Route, Router } from '@solidjs/router';
 
-import type { Component } from 'solid-js';
-import Test from './test';
+import HomePage from './pages/Home';
+// import NewPost from './pages/NewPost';
+// import SpacePage from './pages/SpacePage';
 
-const App: Component = () => {
+export default function App() {
   return (
-    <we-row bg="ui-300" ax="center" style={{ width: '100vw' }}>
-      <we-badge variant="success">Badge ?</we-badge>
-      <Test title="yooo">
-        <div>Test</div>
-        <p>Wassup</p>
-        <p>Hey</p>
-      </Test>
-    </we-row>
+    <ContextProvider>
+      <Router root={DefaultTemplate}>
+        <Route path="/" component={HomePage} />
+        {/* <Route path="/new" component={NewPost} />
+        <Route path="/space/:spaceHandle/*" component={SpacePage} /> */}
+      </Router>
+    </ContextProvider>
   );
-};
-
-export default App;
+}

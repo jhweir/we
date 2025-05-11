@@ -96,6 +96,15 @@ importers:
 
   apps/we-solid:
     dependencies:
+      '@coasys/ad4m':
+        specifier: 0.10.1-release-candidate-3
+        version: 0.10.1-release-candidate-3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@coasys/ad4m-connect':
+        specifier: file:../../../ad4m/connect
+        version: file:../ad4m/connect(esbuild@0.25.3)
+      '@solidjs/router':
+        specifier: ^0.15.3
+        version: 0.15.3(solid-js@1.9.6)
       '@we/elements':
         specifier: workspace:*
         version: link:../../packages/ui/elements
@@ -1152,6 +1161,11 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@solidjs/router@0.15.3':
+    resolution: {integrity: sha512-iEbW8UKok2Oio7o6Y4VTzLj+KFCmQPGEpm1fS3xixwFBdclFVBvaQVeibl1jys4cujfAK5Kn6+uG2uBm3lxOMw==}
+    peerDependencies:
+      solid-js: ^1.8.6
+
   '@storybook/addon-actions@8.4.6':
     resolution: {integrity: sha512-vbplwjMj7UXbdzoFhQkqFHLQAPJX8OVGTM9Q+yjuWDHViaKKUlgRWp0jclT7aIDNJQU2a6wJbTimHgJeF16Vhg==}
     peerDependencies:
@@ -1486,9 +1500,6 @@ packages:
 
   '@types/node@22.15.17':
     resolution: {integrity: sha512-wIX2aSZL5FE+MR0JlvF87BNVrtFWf6AE6rxSE9X7OwnVvoyCQjpzSRJ+M87se/4QCkCiebQAqrJ0y6fwIyi7nw==}
-
-  '@types/node@22.15.3':
-    resolution: {integrity: sha512-lX7HFZeHf4QG/J7tBZqrCAXwz9J5RD56Y6MpP0eJkka8p+K0RY/yBTW7CYFJ4VGCclxqOLKmiGP5juQc6MKgcw==}
 
   '@types/react-dom@19.1.2':
     resolution: {integrity: sha512-XGJkWF41Qq305SKWEILa1O8vzhb3aOo3ogBlSmiqNko/WmRb6QIaweuZCXjKygVDXpzXb5wyxKTSOsmkuqj+Qw==}
@@ -4185,6 +4196,26 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.8
       '@jridgewell/trace-mapping': 0.3.25
 
+  '@apollo/client@3.7.10(graphql@15.7.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@graphql-typed-document-node/core': 3.2.0(graphql@15.7.2)
+      '@wry/context': 0.7.4
+      '@wry/equality': 0.5.7
+      '@wry/trie': 0.3.2
+      graphql: 15.7.2
+      graphql-tag: 2.12.6(graphql@15.7.2)
+      hoist-non-react-statics: 3.3.2
+      optimism: 0.16.2
+      prop-types: 15.8.1
+      response-iterator: 0.2.20
+      symbol-observable: 4.0.0
+      ts-invariant: 0.10.3
+      tslib: 2.8.1
+      zen-observable-ts: 1.2.5
+    optionalDependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+
   '@apollo/client@3.7.10(graphql@15.7.2)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
       '@graphql-typed-document-node/core': 3.2.0(graphql@15.7.2)
@@ -4336,6 +4367,27 @@ snapshots:
       lit: 2.8.0
     transitivePeerDependencies:
       - esbuild
+
+  '@coasys/ad4m@0.10.1-release-candidate-3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@apollo/client': 3.7.10(graphql@15.7.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@holochain/client': 0.16.0
+      '@types/jest': 26.0.24
+      base64-js: 1.5.1
+      class-validator: 0.13.2
+      express: 4.18.2
+      graphql: 15.7.2
+      pako: 2.1.0
+      reflect-metadata: 0.1.14
+      type-graphql: 1.1.1(class-validator@0.13.2)(graphql@15.7.2)
+    transitivePeerDependencies:
+      - bufferutil
+      - graphql-ws
+      - react
+      - react-dom
+      - subscriptions-transport-ws
+      - supports-color
+      - utf-8-validate
 
   '@coasys/ad4m@0.10.1-release-candidate-3(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
@@ -4648,7 +4700,7 @@ snapshots:
     dependencies:
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 22.15.3
+      '@types/node': 22.15.17
       '@types/yargs': 15.0.19
       chalk: 4.1.2
 
@@ -5016,6 +5068,10 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.40.0':
     optional: true
+
+  '@solidjs/router@0.15.3(solid-js@1.9.6)':
+    dependencies:
+      solid-js: 1.9.6
 
   '@storybook/addon-actions@8.4.6(storybook@8.4.6(prettier@3.5.3))':
     dependencies:
@@ -5396,10 +5452,6 @@ snapshots:
   '@types/minimatch@5.1.2': {}
 
   '@types/node@22.15.17':
-    dependencies:
-      undici-types: 6.21.0
-
-  '@types/node@22.15.3':
     dependencies:
       undici-types: 6.21.0
 
@@ -7960,7 +8012,7 @@ snapshots:
   type-graphql@1.1.1(class-validator@0.13.2)(graphql@15.7.2):
     dependencies:
       '@types/glob': 7.2.0
-      '@types/node': 22.15.3
+      '@types/node': 22.15.17
       '@types/semver': 7.7.0
       class-validator: 0.13.2
       glob: 7.2.3
