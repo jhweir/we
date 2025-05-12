@@ -7,4 +7,5 @@ export default defineConfig({
   server: { port: 3000 },
   build: { target: 'esnext' },
   resolve: { alias: [{ find: '@', replacement: resolve(__dirname, 'src') }] },
+  assetsInclude: ['**/*.glb'],
 });

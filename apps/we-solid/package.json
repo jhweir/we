@@ -11,6 +11,7 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@types/three": "^0.176.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.0",
     "vite-plugin-solid": "^2.11.6"
@@ -20,6 +21,8 @@
     "@coasys/ad4m-connect": "file:../../../ad4m/connect",
     "@solidjs/router": "^0.15.3",
     "@we/elements": "workspace:*",
-    "solid-js": "^1.9.5"
+    "gsap": "^3.13.0",
+    "solid-js": "^1.9.5",
+    "three": "^0.176.0"
   }
 }
