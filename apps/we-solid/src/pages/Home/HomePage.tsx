@@ -1,10 +1,12 @@
 import wecubeModel from '@/assets/wecube-beveled.glb';
 import { gsap } from 'gsap';
-import { createSignal, onCleanup, onMount, Show } from 'solid-js';
+import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import styles from './HomePage.module.scss';
+
+type MaterialType = 'gold' | 'white' | 'glass';
 
 export function HomePage() {
   // DOM references
@@ -14,6 +16,40 @@ export function HomePage() {
   const [isModelLoaded, setIsModelLoaded] = createSignal(false);
   const [debugMessage, setDebugMessage] = createSignal('Initializing...');
   const [showPlaceholder, setShowPlaceholder] = createSignal(true);
+  const [selectedMaterial, setSelectedMaterial] = createSignal<MaterialType>('glass');
+
+  const materials = {
+    gold: new THREE.MeshPhysicalMaterial({
+      color: 0xd4af37,
+      metalness: 1.0,
+      roughness: 0.1,
+      reflectivity: 1.0,
+      envMapIntensity: 1.0,
+      clearcoat: 0.5,
+      clearcoatRoughness: 0.1,
+    }),
+    white: new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      metalness: 0.0,
+      roughness: 0.8,
+      envMapIntensity: 0.3,
+    }),
+    glass: new THREE.MeshPhysicalMaterial({
+      color: 0xffffff, // Clear glass
+      metalness: 0.0, // Non-metallic
+      roughness: 0.0, // Perfectly smooth
+      transmission: 1.0, // Maximum transparency for refraction
+      transparent: true, // Enable transparency
+      ior: 1.52, // Index of refraction for glass (controls bending)
+      thickness: 0.5, // Material thickness (0-10, affects refraction strength)
+      envMapIntensity: 1.0, // Environment map reflections
+      side: THREE.DoubleSide, // Render both sides
+      clearcoat: 0.1, // Slight clearcoat
+      clearcoatRoughness: 0.0, // Smooth clearcoat
+      attenuationDistance: 0.5, // Control color shift through thickness
+      attenuationColor: new THREE.Color(0.9, 0.9, 1.0), // Subtle blue tint at thicker areas
+    }),
+  };
 
   // Three.js objects
   let scene: THREE.Scene | undefined;
@@ -34,9 +70,6 @@ export function HomePage() {
     { position: [0, 0, 15], roll: 0, name: 'Bottom' },
   ];
 
-  /**
-   * Initialize Three.js scene, camera, renderer and controls
-   */
   const initThreeJS = () => {
     if (!containerRef) {
       setDebugMessage('Container reference not available');
@@ -60,9 +93,66 @@ export function HomePage() {
       scene = new THREE.Scene();
       scene.background = new THREE.Color(styles.backgroundColor);
 
+      // new THREE.TextureLoader().load('https://threejs.org/examples/textures/2294472375_24a3b8ef46_o.jpg', (texture) => {
+      //   texture.mapping = THREE.EquirectangularReflectionMapping;
+      //   scene!.background = texture;
+      //   // scene!.environment = texture; // Also use for reflections
+      // });
+
+      // // Create a proper skybox mesh
+      // const createSkybox = () => {
+      //   if (!scene) return;
+
+      //   // Create a large cube geometry for the skybox
+      //   const geometry = new THREE.BoxGeometry(30, 30, 30);
+
+      //   // Load textures for each face
+      //   const textureLoader = new THREE.TextureLoader();
+      //   const basePath = 'https://threejs.org/examples/textures/cube/Park3Med/';
+
+      //   const materials = [
+      //     new THREE.MeshBasicMaterial({
+      //       map: textureLoader.load(basePath + 'px.jpg'),
+      //       side: THREE.BackSide,
+      //     }),
+      //     new THREE.MeshBasicMaterial({
+      //       map: textureLoader.load(basePath + 'nx.jpg'),
+      //       side: THREE.BackSide,
+      //     }),
+      //     new THREE.MeshBasicMaterial({
+      //       map: textureLoader.load(basePath + 'py.jpg'),
+      //       side: THREE.BackSide,
+      //     }),
+      //     new THREE.MeshBasicMaterial({
+      //       map: textureLoader.load(basePath + 'ny.jpg'),
+      //       side: THREE.BackSide,
+      //     }),
+      //     new THREE.MeshBasicMaterial({
+      //       map: textureLoader.load(basePath + 'pz.jpg'),
+      //       side: THREE.BackSide,
+      //     }),
+      //     new THREE.MeshBasicMaterial({
+      //       map: textureLoader.load(basePath + 'nz.jpg'),
+      //       side: THREE.BackSide,
+      //     }),
+      //   ];
+
+      //   // Create mesh with materials
+      //   const skybox = new THREE.Mesh(geometry, materials);
+
+      //   // Add to scene
+      //   scene.add(skybox);
+
+      //   return skybox;
+      // };
+
+      // // Create skybox
+      // createSkybox();
+
       // Create camera
+      const zoomFactor = 1.5;
       const aspect = width / height;
-      const frustumSize = 10;
+      const frustumSize = 10 * zoomFactor;
 
       camera = new THREE.OrthographicCamera(
         (frustumSize * aspect) / -2,
@@ -70,7 +160,7 @@ export function HomePage() {
         frustumSize / 2,
         frustumSize / -2,
         0.1,
-        1000,
+        2000,
       );
 
       // Set initial camera position
@@ -86,11 +176,22 @@ export function HomePage() {
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.0;
 
+      // Enable physically correct lights
+      // renderer.physicallyCorrectLights = true;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.0;
+
+      // Enable transmissive materials to render refractions
+      // This is key for refractive effects to work!
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
       // Setup environment mapping
       setupEnvironmentMap();
 
-      // Add lighting
-      setupLighting();
+      // // Add lighting
+      // setupLighting();
 
       // Setup OrbitControls
       controls = new OrbitControls(camera, renderer.domElement);
@@ -128,9 +229,6 @@ export function HomePage() {
     }
   };
 
-  /**
-   * Load environment map for reflections/lighting
-   */
   const setupEnvironmentMap = () => {
     if (!renderer || !scene) return;
 
@@ -138,33 +236,83 @@ export function HomePage() {
     pmremGenerator.compileEquirectangularShader();
 
     new THREE.TextureLoader().load('https://threejs.org/examples/textures/2294472375_24a3b8ef46_o.jpg', (texture) => {
+      console.log('Environment map loaded successfully');
       texture.mapping = THREE.EquirectangularReflectionMapping;
       const envMap = pmremGenerator.fromEquirectangular(texture).texture;
       scene!.environment = envMap;
+      // scene!.background = envMap;
       pmremGenerator.dispose();
+
+      if (model) {
+        model.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.material) {
+            child.material.needsUpdate = true;
+          }
+        });
+      }
+
+      console.log('Environment map applied to scene');
     });
+
+    addDebugSphere();
   };
 
-  /**
-   * Setup scene lighting
-   */
+  const addDebugSphere = () => {
+    if (!scene) return;
+
+    // Create a highly reflective sphere
+    const geometry = new THREE.SphereGeometry(0.3, 32, 32);
+    const material = materials.glass;
+    // new THREE.MeshStandardMaterial({
+    //   color: 0xffffff,
+    //   metalness: 1.0,
+    //   roughness: 0.0,
+    //   envMapIntensity: 1.0,
+    // });
+
+    const sphere = new THREE.Mesh(geometry, material);
+    sphere.position.set(3, 0, 1); // Position it to the side of your model
+    scene.add(sphere);
+
+    // // Create a cube with the same material
+    // const cubeGeometry = new THREE.BoxGeometry(1.5, 1.5, 1.5); // Slightly larger to be visible
+    // const cube = new THREE.Mesh(cubeGeometry, material);
+    // cube.position.set(-3, 0, 0); // Position it to the left of your model
+    // scene.add(cube);
+
+    // const truncatedIcosahedronGeometry = new THREE.IcosahedronGeometry(1, 1);
+    // const truncatedIcosahedron = new THREE.Mesh(truncatedIcosahedronGeometry, material);
+    // truncatedIcosahedron.position.set(-3, 2.5, 0);
+    // scene.add(truncatedIcosahedron);
+  };
+
   const setupLighting = () => {
     if (!scene) return;
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
-    directionalLight.position.set(0, 10, 20);
-    scene.add(directionalLight);
+    // Primary directional light (key light)
+    const mainLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    mainLight.position.set(10, 20, 15); // Position for nice shadows
+    scene.add(mainLight);
 
-    // Add light helper for debugging
-    const lightHelper = new THREE.DirectionalLightHelper(directionalLight, 2);
-    scene.add(lightHelper);
+    // Secondary directional light (fill light)
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    fillLight.position.set(-10, 10, -10); // Opposite side from main light
+    scene.add(fillLight);
 
-    return { directionalLight, lightHelper };
+    // Ambient light to brighten shadows
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+    scene.add(ambientLight);
+
+    // Add helpers for debugging (uncomment if needed)
+    const mainLightHelper = new THREE.DirectionalLightHelper(mainLight, 2);
+    scene.add(mainLightHelper);
+
+    const fillLightHelper = new THREE.DirectionalLightHelper(fillLight, 2);
+    scene.add(fillLightHelper);
+
+    return { mainLight, fillLight, ambientLight, mainLightHelper, fillLightHelper };
   };
 
-  /**
-   * Load 3D model and apply materials
-   */
   const loadModel = () => {
     if (!scene) return;
 
@@ -178,7 +326,9 @@ export function HomePage() {
         if (model && model.children[0]) {
           // Apply material
           const mesh = model.children[0] as THREE.Mesh;
-          mesh.material = createGoldMaterial();
+
+          // Apply material after ensuring normals
+          mesh.material = materials[selectedMaterial()];
 
           // Center model
           const box = new THREE.Box3().setFromObject(model);
@@ -212,48 +362,6 @@ export function HomePage() {
         setDebugMessage('Error loading model: ' + error.message);
       },
     );
-  };
-
-  /**
-   * Create gold material for the model
-   */
-  const createGoldMaterial = () => {
-    return new THREE.MeshStandardMaterial({
-      color: 0xd4af37,
-      metalness: 1.0,
-      roughness: 0.1,
-      envMapIntensity: 1.0,
-    });
-  };
-
-  /**
-   * Create white matte material
-   */
-  const createWhiteMaterial = () => {
-    return new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      metalness: 0.0,
-      roughness: 0.8,
-      envMapIntensity: 0.3,
-    });
-  };
-
-  /**
-   * Create glass material
-   */
-  const createGlassMaterial = () => {
-    return new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      metalness: 0.5,
-      roughness: 0.5,
-      transmission: 0.9,
-      transparent: true,
-      opacity: 0.9,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.0,
-      ior: 1.5,
-      envMapIntensity: 1.0,
-    });
   };
 
   /**
@@ -431,13 +539,38 @@ export function HomePage() {
     setTimeout(initThreeJS, 100);
   });
 
+  // Create an effect to update material when selection changes
+  createEffect(() => {
+    const materialName = selectedMaterial(); // Track this dependency
+
+    if (model) {
+      model.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.material = materials[materialName as MaterialType] || materials['gold'];
+          child.material.needsUpdate = true;
+        }
+      });
+    }
+  });
+
   return (
     <div class={styles.page}>
-      <div class={styles.controls} style={{ 'margin-top': '60px' }}>
-        <button onClick={cycleToNextView}>Change View</button>
-      </div>
+      <div ref={(el) => (containerRef = el)} class={styles.modelViewer} onClick={cycleToNextView}>
+        <we-row p="300" ax="end" class={styles.header}>
+          <we-popover placement="bottom-end">
+            <we-button size="sm" slot="trigger" variant="subtle">
+              {selectedMaterial()}
+            </we-button>
+            <we-menu slot="content">
+              {Object.keys(materials).map((material) => (
+                <we-menu-item key={material} onClick={() => setSelectedMaterial(material as MaterialType)}>
+                  {material}
+                </we-menu-item>
+              ))}
+            </we-menu>
+          </we-popover>
+        </we-row>
 
-      <div ref={(el) => (containerRef = el)} class={styles.modelViewer}>
         <Show when={showPlaceholder()}>
           <div class={styles.placeholder}></div>
         </Show>
