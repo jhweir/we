@@ -18,6 +18,7 @@ export function HomePage() {
   const [showPlaceholder, setShowPlaceholder] = createSignal(true);
   const [selectedMaterial, setSelectedMaterial] = createSignal<MaterialType>('glass');
 
+  // Materials definitions
   const materials = {
     gold: new THREE.MeshPhysicalMaterial({
       color: 0xd4af37,
@@ -40,8 +41,8 @@ export function HomePage() {
       roughness: 0.0, // Perfectly smooth
       transmission: 1.0, // Maximum transparency for refraction
       transparent: true, // Enable transparency
-      ior: 1.52, // Index of refraction for glass (controls bending)
-      thickness: 0.5, // Material thickness (0-10, affects refraction strength)
+      ior: 2, // Index of refraction for glass (controls bending)
+      thickness: 5, // Material thickness (0-10, affects refraction strength)
       envMapIntensity: 1.0, // Environment map reflections
       side: THREE.DoubleSide, // Render both sides
       clearcoat: 0.1, // Slight clearcoat
@@ -57,6 +58,7 @@ export function HomePage() {
   let renderer: THREE.WebGLRenderer | undefined;
   let controls: OrbitControls | undefined;
   let model: THREE.Object3D | undefined;
+  let room: { floor: THREE.Mesh; walls: THREE.Mesh[] } | undefined;
 
   // Tracking current view
   let currentViewIndex = 0;
@@ -91,63 +93,6 @@ export function HomePage() {
     try {
       // Create scene
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(styles.backgroundColor);
-
-      // new THREE.TextureLoader().load('https://threejs.org/examples/textures/2294472375_24a3b8ef46_o.jpg', (texture) => {
-      //   texture.mapping = THREE.EquirectangularReflectionMapping;
-      //   scene!.background = texture;
-      //   // scene!.environment = texture; // Also use for reflections
-      // });
-
-      // // Create a proper skybox mesh
-      // const createSkybox = () => {
-      //   if (!scene) return;
-
-      //   // Create a large cube geometry for the skybox
-      //   const geometry = new THREE.BoxGeometry(30, 30, 30);
-
-      //   // Load textures for each face
-      //   const textureLoader = new THREE.TextureLoader();
-      //   const basePath = 'https://threejs.org/examples/textures/cube/Park3Med/';
-
-      //   const materials = [
-      //     new THREE.MeshBasicMaterial({
-      //       map: textureLoader.load(basePath + 'px.jpg'),
-      //       side: THREE.BackSide,
-      //     }),
-      //     new THREE.MeshBasicMaterial({
-      //       map: textureLoader.load(basePath + 'nx.jpg'),
-      //       side: THREE.BackSide,
-      //     }),
-      //     new THREE.MeshBasicMaterial({
-      //       map: textureLoader.load(basePath + 'py.jpg'),
-      //       side: THREE.BackSide,
-      //     }),
-      //     new THREE.MeshBasicMaterial({
-      //       map: textureLoader.load(basePath + 'ny.jpg'),
-      //       side: THREE.BackSide,
-      //     }),
-      //     new THREE.MeshBasicMaterial({
-      //       map: textureLoader.load(basePath + 'pz.jpg'),
-      //       side: THREE.BackSide,
-      //     }),
-      //     new THREE.MeshBasicMaterial({
-      //       map: textureLoader.load(basePath + 'nz.jpg'),
-      //       side: THREE.BackSide,
-      //     }),
-      //   ];
-
-      //   // Create mesh with materials
-      //   const skybox = new THREE.Mesh(geometry, materials);
-
-      //   // Add to scene
-      //   scene.add(skybox);
-
-      //   return skybox;
-      // };
-
-      // // Create skybox
-      // createSkybox();
 
       // Create camera
       const zoomFactor = 1.5;
@@ -168,7 +113,7 @@ export function HomePage() {
       camera.lookAt(0, 0, 0);
       camera.up.set(0, 1, 0);
 
-      // Create renderer
+      // Create renderer with shadow support
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(width, height);
       renderer.setPixelRatio(window.devicePixelRatio);
@@ -176,22 +121,18 @@ export function HomePage() {
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.0;
 
-      // Enable physically correct lights
-      // renderer.physicallyCorrectLights = true;
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.0;
-
-      // Enable transmissive materials to render refractions
-      // This is key for refractive effects to work!
+      // Enable shadows
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
       // Setup environment mapping
       setupEnvironmentMap();
 
-      // // Add lighting
-      // setupLighting();
+      // Create room
+      createRoom();
+
+      // Add lighting
+      setupLighting();
 
       // Setup OrbitControls
       controls = new OrbitControls(camera, renderer.domElement);
@@ -202,6 +143,9 @@ export function HomePage() {
 
       // Load 3D model
       loadModel();
+
+      // Add debug sphere
+      addDebugSphere();
 
       // Remove placeholder and add canvas to DOM
       setShowPlaceholder(false);
@@ -229,6 +173,70 @@ export function HomePage() {
     }
   };
 
+  /**
+   * Create a room with walls and floor
+   */
+  const createRoom = () => {
+    if (!scene) return;
+
+    // Room dimensions
+    const roomWidth = 30;
+    const roomHeight = 15;
+    const roomDepth = 30;
+
+    // Room material
+    const wallMaterial = new THREE.MeshStandardMaterial({
+      color: 0xf0f0f0,
+      roughness: 0.7,
+      metalness: 0.0,
+    });
+
+    // Create floor
+    const floorGeometry = new THREE.PlaneGeometry(roomWidth, roomDepth);
+    const floor = new THREE.Mesh(floorGeometry, wallMaterial.clone());
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -5;
+    floor.receiveShadow = true;
+    // scene.add(floor);
+
+    // Create walls
+    const walls: THREE.Mesh[] = [];
+
+    // Back wall
+    const backWallGeometry = new THREE.PlaneGeometry(roomWidth, roomHeight);
+    const backWall = new THREE.Mesh(backWallGeometry, wallMaterial.clone());
+    backWall.position.z = -roomDepth / 2;
+    backWall.position.y = roomHeight / 2 - 5;
+    backWall.receiveShadow = true;
+    // scene.add(backWall);
+    walls.push(backWall);
+
+    // Left wall
+    const leftWallGeometry = new THREE.PlaneGeometry(roomDepth, roomHeight);
+    const leftWall = new THREE.Mesh(leftWallGeometry, wallMaterial.clone());
+    leftWall.rotation.y = Math.PI / 2;
+    leftWall.position.x = -roomWidth / 2;
+    leftWall.position.y = roomHeight / 2 - 5;
+    leftWall.receiveShadow = true;
+    // scene.add(leftWall);
+    walls.push(leftWall);
+
+    // Right wall
+    const rightWall = new THREE.Mesh(leftWallGeometry.clone(), wallMaterial.clone());
+    rightWall.rotation.y = -Math.PI / 2;
+    rightWall.position.x = roomWidth / 2;
+    rightWall.position.y = roomHeight / 2 - 5;
+    rightWall.receiveShadow = true;
+    // scene.add(rightWall);
+    walls.push(rightWall);
+
+    room = { floor, walls };
+    return room;
+  };
+
+  /**
+   * Setup environment map for reflections
+   */
   const setupEnvironmentMap = () => {
     if (!renderer || !scene) return;
 
@@ -240,7 +248,6 @@ export function HomePage() {
       texture.mapping = THREE.EquirectangularReflectionMapping;
       const envMap = pmremGenerator.fromEquirectangular(texture).texture;
       scene!.environment = envMap;
-      // scene!.background = envMap;
       pmremGenerator.dispose();
 
       if (model) {
@@ -253,66 +260,79 @@ export function HomePage() {
 
       console.log('Environment map applied to scene');
     });
-
-    addDebugSphere();
   };
 
+  /**
+   * Add a debug glass sphere to test materials
+   */
   const addDebugSphere = () => {
     if (!scene) return;
 
-    // Create a highly reflective sphere
-    const geometry = new THREE.SphereGeometry(0.3, 32, 32);
-    const material = materials.glass;
-    // new THREE.MeshStandardMaterial({
-    //   color: 0xffffff,
-    //   metalness: 1.0,
-    //   roughness: 0.0,
-    //   envMapIntensity: 1.0,
-    // });
+    // // Create a reflective sphere
+    // const geometry = new THREE.SphereGeometry(0.8, 32, 32);
+    // const sphere = new THREE.Mesh(geometry, materials.glass);
+    // sphere.position.set(3, 0, 0);
+    // sphere.castShadow = true;
+    // sphere.receiveShadow = true;
+    // scene.add(sphere);
 
-    const sphere = new THREE.Mesh(geometry, material);
-    sphere.position.set(3, 0, 1); // Position it to the side of your model
-    scene.add(sphere);
-
-    // // Create a cube with the same material
-    // const cubeGeometry = new THREE.BoxGeometry(1.5, 1.5, 1.5); // Slightly larger to be visible
-    // const cube = new THREE.Mesh(cubeGeometry, material);
-    // cube.position.set(-3, 0, 0); // Position it to the left of your model
+    // // Add a cube with the same material
+    // const cubeGeometry = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+    // const cube = new THREE.Mesh(cubeGeometry, materials.gold);
+    // cube.position.set(-3, 0, 0);
+    // cube.castShadow = true;
+    // cube.receiveShadow = true;
     // scene.add(cube);
-
-    // const truncatedIcosahedronGeometry = new THREE.IcosahedronGeometry(1, 1);
-    // const truncatedIcosahedron = new THREE.Mesh(truncatedIcosahedronGeometry, material);
-    // truncatedIcosahedron.position.set(-3, 2.5, 0);
-    // scene.add(truncatedIcosahedron);
   };
 
+  /**
+   * Setup lighting with shadows
+   */
   const setupLighting = () => {
     if (!scene) return;
 
     // Primary directional light (key light)
     const mainLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    mainLight.position.set(10, 20, 15); // Position for nice shadows
+    mainLight.position.set(10, 20, 15);
+
+    // Configure shadow properties
+    mainLight.castShadow = true;
+    mainLight.shadow.mapSize.width = 1024;
+    mainLight.shadow.mapSize.height = 1024;
+    mainLight.shadow.camera.near = 0.5;
+    mainLight.shadow.camera.far = 50;
+
+    // Adjust shadow camera frustum
+    const d = 15;
+    mainLight.shadow.camera.left = -d;
+    mainLight.shadow.camera.right = d;
+    mainLight.shadow.camera.top = d;
+    mainLight.shadow.camera.bottom = -d;
+
     scene.add(mainLight);
 
     // Secondary directional light (fill light)
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    fillLight.position.set(-10, 10, -10); // Opposite side from main light
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    fillLight.position.set(-10, 10, -10);
     scene.add(fillLight);
 
     // Ambient light to brighten shadows
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
     scene.add(ambientLight);
 
-    // Add helpers for debugging (uncomment if needed)
+    // Add helpers for debugging
     const mainLightHelper = new THREE.DirectionalLightHelper(mainLight, 2);
     scene.add(mainLightHelper);
 
-    const fillLightHelper = new THREE.DirectionalLightHelper(fillLight, 2);
-    scene.add(fillLightHelper);
+    const shadowCameraHelper = new THREE.CameraHelper(mainLight.shadow.camera);
+    scene.add(shadowCameraHelper);
 
-    return { mainLight, fillLight, ambientLight, mainLightHelper, fillLightHelper };
+    return { mainLight, fillLight, ambientLight, mainLightHelper, shadowCameraHelper };
   };
 
+  /**
+   * Load the 3D model and apply materials
+   */
   const loadModel = () => {
     if (!scene) return;
 
@@ -327,7 +347,11 @@ export function HomePage() {
           // Apply material
           const mesh = model.children[0] as THREE.Mesh;
 
-          // Apply material after ensuring normals
+          // Enable shadows
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+
+          // Apply material based on selection
           mesh.material = materials[selectedMaterial()];
 
           // Center model
@@ -340,13 +364,13 @@ export function HomePage() {
 
           // Add model to pivot
           pivotGroup.add(model);
-          model.position.set(-center.x, -center.y, -center.z);
+          model.position.set(-center.x, -center.y + 1, -center.z); // Lift slightly above floor
 
           // Set model reference to pivot group
           model = pivotGroup;
 
           // Apply initial rotation for isometric view
-          model.rotation.set(THREE.MathUtils.degToRad(55), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(-45));
+          model.rotation.set(THREE.MathUtils.degToRad(54), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(-45));
 
           // Update state
           setIsModelLoaded(true);
@@ -379,7 +403,7 @@ export function HomePage() {
       controls!.update();
 
       // Update light helpers
-      updateLightHelpers();
+      updateHelpers();
 
       // Render scene
       renderer!.render(scene!, camera!);
@@ -394,14 +418,14 @@ export function HomePage() {
   };
 
   /**
-   * Update light helpers
+   * Update helpers (light helpers, camera helpers)
    */
-  const updateLightHelpers = () => {
+  const updateHelpers = () => {
     if (!scene) return;
 
-    // Find and update all light helpers
+    // Find and update all helpers
     scene.traverse((child) => {
-      if (child instanceof THREE.DirectionalLightHelper) {
+      if (child instanceof THREE.DirectionalLightHelper || child instanceof THREE.CameraHelper) {
         child.update();
       }
     });
@@ -416,7 +440,7 @@ export function HomePage() {
     const width = containerRef.clientWidth;
     const height = containerRef.clientHeight;
     const aspect = width / height;
-    const frustumSize = 10;
+    const frustumSize = 10 * 1.5; // Apply zoom factor
 
     // Update camera
     const orthoCam = camera as THREE.OrthographicCamera;
@@ -452,6 +476,7 @@ export function HomePage() {
     renderer = undefined;
     controls = undefined;
     model = undefined;
+    room = undefined;
   };
 
   /**
@@ -546,7 +571,7 @@ export function HomePage() {
     if (model) {
       model.traverse((child) => {
         if (child instanceof THREE.Mesh) {
-          child.material = materials[materialName as MaterialType] || materials['gold'];
+          child.material = materials[materialName as MaterialType];
           child.material.needsUpdate = true;
         }
       });
