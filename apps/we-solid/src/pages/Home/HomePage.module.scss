@@ -1,8 +1,10 @@
 $backgroundColor: #bbd4e1;
 $glassColor: #dd1b1b;
+$blue: #4bbaf1;
 
 :export {
   backgroundColor: $backgroundColor;
+  blue: $blue;
 }
 
 .page {
