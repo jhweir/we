@@ -41,7 +41,7 @@ const defaultAdamContext: IAdamContext = {
   myAI: () => ({ models: [], tasks: [] }),
   myThemeSettings: () => ({
     allThemes: [themes.light, themes.dark],
-    currentTheme: themes.light,
+    currentTheme: themes.dark,
     iconWeight: 'regular',
     currentTemplate: 'default',
   }),

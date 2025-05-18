@@ -19,9 +19,15 @@
   "dependencies": {
     "@coasys/ad4m": "0.10.1-release-candidate-3",
     "@coasys/ad4m-connect": "file:../../../ad4m/connect",
+    "@lexical/list": "^0.30.0",
+    "@lexical/markdown": "^0.30.0",
+    "@lexical/rich-text": "^0.30.0",
+    "@lexical/utils": "^0.30.0",
     "@solidjs/router": "^0.15.3",
     "@we/elements": "workspace:*",
     "gsap": "^3.13.0",
+    "lexical": "^0.30.0",
+    "lexical-solid": "^0.21.0",
     "solid-js": "^1.9.5",
     "three": "^0.176.0"
   }

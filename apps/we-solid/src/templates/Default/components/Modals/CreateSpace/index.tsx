@@ -22,6 +22,7 @@ export default function CreateSpaceModal() {
   }
 
   async function createSpace() {
+    console.log('createspace', name(), description(), locations(), visibility());
     const client = ad4mClient();
     if (!client) return;
     setLoading(true);
