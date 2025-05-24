@@ -97,6 +97,7 @@ export function AdamProvider(props: ParentProps) {
         spacePerspectives.map(async (spacePerspective) => (await Space.findAll(spacePerspective))[0]),
       );
       setMySpaces(spaces.filter((s) => s).sort((a, b) => Number(a.timestamp) - Number(b.timestamp)));
+      console.log('Updated mySpaces:', mySpaces());
     } catch (error) {
       console.error('AdamContext: getMySpaces error', error);
     }

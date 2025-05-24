@@ -4,36 +4,36 @@ import ImageBlock from '@/models/block-types/ImageBlock';
 import TextBlock from '@/models/block-types/TextBlock';
 import Space from '@/models/Space';
 import { PerspectiveProxy } from '@coasys/ad4m';
+// import { useLocation } from '@solidjs/router';
 import { Accessor, createContext, createEffect, createSignal, ParentProps, Setter, useContext } from 'solid-js';
 import { useAdamContext } from './AdamContext';
 
-// Define the context interface
 export interface ISpaceContext {
-  loading: Accessor<boolean>; // Accessor for loading state
-  spaceId: Accessor<string>; // Accessor for space ID
-  spacePerspective: Accessor<PerspectiveProxy | null>; // Accessor for the space perspective
-  spaceData: Accessor<Space>; // Accessor for space data
-  spacePosts: Accessor<any[]>; // Accessor for space posts
-  getSpacePosts: (spacePerspective: PerspectiveProxy) => Promise<void>; // Function to fetch space posts
+  loading: Accessor<boolean>;
+  spaceId: Accessor<string>;
+  spacePerspective: Accessor<PerspectiveProxy | null>;
+  spaceData: Accessor<Partial<Space>>;
+  spacePosts: Accessor<any[]>;
+  getSpacePosts: (spacePerspective: PerspectiveProxy) => Promise<void>;
   setSpaceId: Setter<string>;
 }
 
-// Default values for the context
-const defaultSpaceContext: ISpaceContext = {
+const defaultSpaceData: Partial<Space> = {
+  author: '',
+  timestamp: '',
+  name: '',
+  description: '',
+  uuid: '',
+  visibility: '',
+  locations: [],
+};
+
+const defaults: ISpaceContext = {
   loading: () => true,
   spaceId: () => '',
   setSpaceId: () => null,
   spacePerspective: () => null,
-  spaceData: () =>
-    ({
-      author: '',
-      timestamp: '',
-      name: '',
-      description: '',
-      uuid: '',
-      visibility: '',
-      locations: [],
-    }) as any,
+  spaceData: () => defaultSpaceData,
   spacePosts: () => [],
   getSpacePosts: async () => {},
 };
@@ -41,20 +41,19 @@ const defaultSpaceContext: ISpaceContext = {
 type BlockType = ImageBlock | TextBlock | CollectionBlock;
 
 // Create the context
-const SpaceContext = createContext<ISpaceContext>(defaultSpaceContext);
+const SpaceContext = createContext<ISpaceContext>(defaults);
 
 // Create the provider component
 export function SpaceProvider(props: ParentProps) {
   const { ad4mClient } = useAdamContext();
+  // const location = useLocation();
 
   // Signals for managing state
-  const [loading, setLoading] = createSignal<boolean>(defaultSpaceContext.loading());
-  const [spaceId, setSpaceId] = createSignal<string>(defaultSpaceContext.spaceId());
-  const [spacePerspective, setSpacePerspective] = createSignal<PerspectiveProxy | null>(
-    defaultSpaceContext.spacePerspective(),
-  );
-  const [spaceData, setSpaceData] = createSignal<Space>(defaultSpaceContext.spaceData());
-  const [spacePosts, setSpacePosts] = createSignal<any[]>(defaultSpaceContext.spacePosts());
+  const [loading, setLoading] = createSignal<boolean>(defaults.loading());
+  const [spaceId, setSpaceId] = createSignal<string>(defaults.spaceId());
+  const [spacePerspective, setSpacePerspective] = createSignal<PerspectiveProxy | null>(defaults.spacePerspective());
+  const [spaceData, setSpaceData] = createSignal<Partial<Space>>(defaults.spaceData());
+  const [spacePosts, setSpacePosts] = createSignal<any[]>(defaults.spacePosts());
 
   // Fetch space data
   async function getSpaceData(): Promise<void> {
@@ -123,6 +122,10 @@ export function SpaceProvider(props: ParentProps) {
   createEffect(() => {
     if (ad4mClient() && spaceId()) getData();
   });
+
+  // createEffect(() => {
+  //   console.log('new location: ', location.pathname);
+  // });
 
   // Create context value - access all signals to get current values
   const contextValue: ISpaceContext = {
