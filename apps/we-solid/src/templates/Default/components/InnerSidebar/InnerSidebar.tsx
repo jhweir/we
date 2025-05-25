@@ -1,7 +1,7 @@
-import { useSpaceContext } from '@/contexts/SpaceContext';
+import { useSpaceStore } from '@/stores/SpaceStore';
 
 export default function SidebarLeft() {
-  const { spaceData } = useSpaceContext();
+  const spaceStore = useSpaceStore();
 
   return (
     <we-column
@@ -13,11 +13,11 @@ export default function SidebarLeft() {
         <we-row gap="300" ay="center">
           <we-avatar size="xxl" image="https://avatars.githubusercontent.com/u/34165012?s=200&v=4" />
           <we-text size="800" weight="500" nomargin>
-            {spaceData().name}
+            {spaceStore.state.space.name}
           </we-text>
         </we-row>
 
-        <we-text>{spaceData().description}</we-text>
+        <we-text>{spaceStore.state.space.description}</we-text>
       </we-column>
     </we-column>
   );

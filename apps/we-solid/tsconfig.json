@@ -12,7 +12,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "@assets/*": ["./src/assets/*"],
-      "@contexts/*": ["./src/contexts/*"],
+      "@contexts/*": ["src/stores/*"],
       "@components/*": ["./src/components/*"],
       "@models/*": ["./src/models/*"],
       "@pages/*": ["./src/pages/*"],

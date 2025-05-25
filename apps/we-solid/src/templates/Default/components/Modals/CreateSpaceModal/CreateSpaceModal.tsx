@@ -1,15 +1,15 @@
-import { useAdamContext } from '@/contexts/AdamContext';
 import Block from '@/models/Block';
 import Space from '@/models/Space';
 import CollectionBlock from '@/models/block-types/CollectionBlock';
 import ImageBlock from '@/models/block-types/ImageBlock';
 import TextBlock from '@/models/block-types/TextBlock';
+import { useAdamStore } from '@/stores/AdamStore';
 import { createSignal } from 'solid-js';
 
 type SpaceVisibility = 'hidden' | 'private' | 'public';
 
 export default function CreateSpaceModal() {
-  const { ad4mClient, setActiveModals, setMySpaces } = useAdamContext();
+  const adamStore = useAdamStore();
 
   const [name, setName] = createSignal('');
   const [description, setDescription] = createSignal('');
@@ -18,12 +18,12 @@ export default function CreateSpaceModal() {
   const [loading, setLoading] = createSignal(false);
 
   function close() {
-    setActiveModals((prev) => ({ ...prev, createSpace: false }));
+    adamStore.actions.setActiveModals((prev) => ({ ...prev, createSpace: false }));
   }
 
   async function createSpace() {
     console.log('createspace', name(), description(), locations(), visibility());
-    const client = ad4mClient();
+    const client = adamStore.state.ad4mClient;
     if (!client) return;
     setLoading(true);
 
@@ -45,7 +45,7 @@ export default function CreateSpaceModal() {
     console.log('spaceModel', spaceModel);
 
     // Update AdamContext state with the new space
-    setMySpaces((prev) => [...prev, spaceModel]);
+    adamStore.actions.setMySpaces((prev) => [...prev, spaceModel]);
 
     close();
   }

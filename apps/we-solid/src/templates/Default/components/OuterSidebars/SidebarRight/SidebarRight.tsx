@@ -1,8 +1,8 @@
-import { useAdamContext } from '@/contexts/AdamContext';
+import { useAdamStore } from '@/stores/AdamStore';
 import styles from '../OuterSidebars.module.scss';
 
 export default function SidebarRight() {
-  const { myThemeSettings } = useAdamContext();
+  const adamStore = useAdamStore();
   // const { iconWeight } = myThemeSettings;
 
   return (

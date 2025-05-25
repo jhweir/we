@@ -1,4 +1,4 @@
-import { useAdamContext } from '@/contexts/AdamContext';
+import { useAdamStore } from '@/stores/AdamStore';
 import DefaultTemplate from '@/templates/Default/DefaultTemplate';
 import { ParentProps } from 'solid-js';
 
@@ -12,8 +12,8 @@ function getTemplateComponent(templateId: string) {
 }
 
 export default function Template(props: ParentProps) {
-  const { myThemeSettings } = useAdamContext();
-  const TemplateComponent = getTemplateComponent('default'); // myThemeSettings.currentTemplate
+  const adamStore = useAdamStore();
+  const TemplateComponent = getTemplateComponent('default'); // adamStore.state.myThemeSettings.currentTemplate
 
   return <TemplateComponent>{props.children}</TemplateComponent>;
 }

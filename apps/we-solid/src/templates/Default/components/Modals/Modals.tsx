@@ -1,8 +1,8 @@
-import { useAdamContext } from '@/contexts/AdamContext';
+import { useAdamStore } from '@/stores/AdamStore';
 import CreateSpaceModal from './CreateSpaceModal';
 
 export default function Modals() {
-  const { activeModals } = useAdamContext();
+  const adamStore = useAdamStore();
 
-  return <>{activeModals().createSpace && <CreateSpaceModal />}</>;
+  return <>{adamStore.state.activeModals.createSpace && <CreateSpaceModal />}</>;
 }

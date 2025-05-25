@@ -1,4 +1,4 @@
-import { useAdamContext } from '@/contexts/AdamContext';
+import { useAdamStore } from '@/stores/AdamStore';
 import { useNavigate } from '@solidjs/router';
 import styles from '../OuterSidebars.module.scss';
 
@@ -16,10 +16,8 @@ function CircleButton(props: { key?: string; icon?: string; image?: string; init
 }
 
 export default function SidebarLeft() {
-  const { mySpaces, setActiveModals } = useAdamContext();
+  const adamStore = useAdamStore();
   const navigate = useNavigate();
-
-  console.log('*** mySpaces', mySpaces());
 
   return (
     <we-column py="700" ax="center" ay="between" bg="ui-0" class={`${styles.sidebar} ${styles.left}`}>
@@ -27,11 +25,13 @@ export default function SidebarLeft() {
         <CircleButton image={WECO_LOGO} onClick={() => navigate('/')} />
         <CircleButton icon="magnifying-glass" onClick={() => navigate('/search')} />
         <CircleButton icon="users-three" onClick={() => navigate('/all-spaces')} />
-        {console.log('Rendering spaces:', mySpaces())}
-        {mySpaces().map((space) => (
+        {adamStore.state.mySpaces.map((space) => (
           <CircleButton key={space.uuid} initials={space.name} onClick={() => navigate(`/space/${space.uuid}`)} />
         ))}
-        <CircleButton icon="plus" onClick={() => setActiveModals((prev) => ({ ...prev, createSpace: true }))} />
+        <CircleButton
+          icon="plus"
+          onClick={() => adamStore.actions.setActiveModals((prev) => ({ ...prev, createSpace: true }))}
+        />
       </we-column>
 
       <we-column gap="400">
