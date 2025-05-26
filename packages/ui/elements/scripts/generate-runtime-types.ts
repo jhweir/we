@@ -80,8 +80,7 @@ async function generateRuntimeTypes(): Promise<void> {
       fs.readFile(path.resolve(process.cwd(), 'src/types.ts'), 'utf8'),
     ]);
 
-    // Extract type definitions and components
-    const typeDefinitions = extractTypeDefinitions(typesContent);
+    // Extract components from the custom-elements.json manifest
     const components = extractComponentsFromManifest(cemData);
 
     console.log(`Found ${components.length} components`);
@@ -98,11 +97,7 @@ async function generateRuntimeTypes(): Promise<void> {
         await Promise.all(
           components.map(async (component) => {
             // Generate declaration content
-            const { declarationFile, formattedPropTypes } = generateComponentDeclaration(
-              component,
-              runtime,
-              typeDefinitions,
-            );
+            const { declarationFile, formattedPropTypes } = generateComponentDeclaration(component, runtime);
 
             // Write component declaration file
             await fs.writeFile(`dist/runtime/${runtime.name}/components/${component.className}.d.ts`, declarationFile);
@@ -113,7 +108,7 @@ async function generateRuntimeTypes(): Promise<void> {
         );
 
         // Generate index file using the already processed declarations
-        await generateRuntimeIndex(components, runtime, typeDefinitions, formattedDeclarations);
+        await generateRuntimeIndex(components, runtime, formattedDeclarations);
 
         console.log(`✅ Type declarations generated for ${runtime.name} runtime`);
       }),
@@ -124,39 +119,6 @@ async function generateRuntimeTypes(): Promise<void> {
     console.error('Error generating types:', err);
     process.exit(1);
   }
-}
-
-function extractTypeDefinitions(content: string): Map<string, TypeInfo> {
-  const typeMap = new Map<string, TypeInfo>();
-  const constMap = new Map<string, string>();
-
-  // Extract constants (both exported and non-exported)
-  const constRegex = /(?:export\s+)?const\s+(\w+)\s*=\s*([^;]+);/g;
-  const constMatches = [...content.matchAll(constRegex)];
-  constMatches.forEach(([, name, definition]) => constMap.set(name, definition.trim()));
-
-  // Extract type definitions
-  const typeRegex = /export\s+type\s+(\w+)\s*=\s*([^;]+);/g;
-  const typeMatches = [...content.matchAll(typeRegex)];
-  typeMatches.forEach(([, name, definition]) => {
-    const constDependencies: string[] = [];
-    const constDefinitions: Record<string, string> = {};
-
-    // Check for typeof references
-    const typeofRegex = /\(typeof\s+(\w+)\)\[number\]/g;
-    const typeofMatches = [...definition.matchAll(typeofRegex)];
-    for (const [, referencedConst] of typeofMatches) {
-      if (constMap.has(referencedConst)) {
-        constDependencies.push(referencedConst);
-        constDefinitions[referencedConst] = constMap.get(referencedConst) || '';
-      }
-    }
-
-    // Store the type with its dependencies
-    typeMap.set(name, { definition: definition.trim(), constDependencies, constDefinitions });
-  });
-
-  return typeMap;
 }
 
 function extractComponentsFromManifest(cemData: CemData): Component[] {
@@ -244,20 +206,11 @@ function generateDeclaration(runtime: Runtime, tagName: string | null, content: 
   return declaration.join('\n');
 }
 
-function generateComponentDeclaration(
-  component: Component,
-  runtime: Runtime,
-  typeDefinitions: Map<string, TypeInfo>,
-): DeclarationOutput {
+function generateComponentDeclaration(component: Component, runtime: Runtime): DeclarationOutput {
   const { tagName, properties, customTypes } = component;
 
   // Collect required constants and types
-  const typeContent = generateTypeContent(
-    customTypes,
-    typeDefinitions,
-    // Include the component with the global runtime for error handling
-    runtime.name === 'global' ? component : undefined,
-  );
+  const types = generateTypeContent(customTypes, false);
 
   // Generate property definitions with consistent indentation
   const propTypes = [
@@ -277,7 +230,7 @@ function generateComponentDeclaration(
   const declaration = generateDeclaration(runtime, tagName, propTypes);
 
   // Create the final declaration file content
-  const declarationFile = `// Generated type declaration for ${tagName} in ${runtime.name} runtime\n// Generated from custom-elements.json\n\n${typeContent}${declaration}\n`;
+  const declarationFile = `// Generated type declaration for ${tagName} in ${runtime.name} runtime\n// Generated from custom-elements.json\n\n${types}${declaration}\n`;
 
   // Return both the file content and formatted prop types
   return { declarationFile, formattedPropTypes: propTypes };
@@ -286,14 +239,13 @@ function generateComponentDeclaration(
 async function generateRuntimeIndex(
   components: Component[],
   runtime: Runtime,
-  typeDefinitions: Map<string, TypeInfo>,
   formattedDeclarations: Record<string, string>,
 ): Promise<void> {
   // Collect all unique custom types
   const allCustomTypes = new Set<string>(components.flatMap((component) => Array.from(component.customTypes)));
 
   // Generate type content
-  const typeContent = generateTypeContent(allCustomTypes, typeDefinitions);
+  const types = generateTypeContent(allCustomTypes, true);
 
   // Use the pre-generated component declarations
   const componentDeclarations = components
@@ -306,55 +258,19 @@ async function generateRuntimeIndex(
   const declaration = generateDeclaration(runtime, null, componentDeclarations);
 
   // Create the index file content
-  const indexContent = `// Combined ${runtime.name} runtime declarations for all components\n// Generated from custom-elements.json\n\n${typeContent}${declaration}\n`;
+  const indexContent = `// Combined ${runtime.name} runtime declarations for all components\n// Generated from custom-elements.json\n\n${types}${declaration}\n`;
 
   // Write the files
   await Promise.all([fs.writeFile(`dist/runtime/${runtime.name}/index.d.ts`, indexContent)]);
 }
 
-function generateTypeContent(
-  customTypes: Set<string>,
-  typeDefinitions: Map<string, TypeInfo>,
-  component?: Component,
-): string {
+function generateTypeContent(customTypes: Set<string>, index: boolean): string {
   // Early return if no custom types
   if (customTypes.size === 0) return '';
 
-  // Collect needed constants
-  const constants = new Map<string, string>();
+  const path = index ? '../../types' : `../../../types`;
 
-  // Check each type for dependencies
-  for (const typeName of customTypes) {
-    const typeInfo = typeDefinitions.get(typeName);
-    if (typeInfo?.constDependencies?.length) {
-      for (const constName of typeInfo.constDependencies) {
-        if (typeInfo.constDefinitions[constName]) {
-          constants.set(constName, typeInfo.constDefinitions[constName]);
-        }
-      }
-    }
-  }
-
-  // Generate content
-  let content = '';
-
-  // Add constants
-  if (constants.size > 0) {
-    for (const [constName, constDef] of constants) content += `declare const ${constName} = ${constDef};\n`;
-    content += '\n';
-  }
-
-  // Add type definitions
-  for (const typeName of customTypes) {
-    const typeInfo = typeDefinitions.get(typeName);
-    if (typeInfo) content += `type ${typeName} = ${typeInfo.definition};\n`;
-    else {
-      content += `type ${typeName} = any; // Type not found in types.ts \n`;
-      if (component) console.log(`❌ Type ${typeName} not found in ${component?.tagName}, defaulting to 'any'`);
-    }
-  }
-
-  return `${content}\n`;
+  return `import { ${Array.from(customTypes).join(', ')} } from '${path}';\n\n`;
 }
 
 // Run the generator

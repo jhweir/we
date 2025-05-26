@@ -1,7 +1,7 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import sharedStyles, { NumberedSize } from '../styles/shared';
-import { allowedTextTags, TextTag, TextVariant } from '../types';
+import { TextTag, TextVariant } from '../types';
 
 const styles = css`
   :host {
@@ -158,7 +158,7 @@ export default class Text extends LitElement {
   }
 
   render() {
-    const tag = allowedTextTags.includes(this.tag) ? this.tag : 'p';
+    const tag = this.tag || 'p';
     return templates[tag];
   }
 }

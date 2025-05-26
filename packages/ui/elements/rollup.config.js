@@ -42,6 +42,7 @@ export default {
       targets: [
         { src: 'src/styles/themes/*', dest: 'dist/styles/themes' },
         { src: 'src/styles/variables.css', dest: 'dist/styles' },
+        { src: 'src/types.ts', dest: 'dist' },
       ],
     }),
   ],
