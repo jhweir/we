@@ -70,57 +70,6 @@ function indent(level: number): string {
   return ' '.repeat(level * 2); // 2 spaces per indentation level
 }
 
-async function generateRuntimeTypes(): Promise<void> {
-  try {
-    // Load source files
-    const [cemData, typesContent] = await Promise.all([
-      fs
-        .readFile(path.resolve(process.cwd(), 'custom-elements.json'), 'utf8')
-        .then((data) => JSON.parse(data) as CemData),
-      fs.readFile(path.resolve(process.cwd(), 'src/types.ts'), 'utf8'),
-    ]);
-
-    // Extract components from the custom-elements.json manifest
-    const components = extractComponentsFromManifest(cemData);
-
-    console.log(`Found ${components.length} components`);
-    console.log('Generating type declarations...');
-
-    // Process all runtimes in parallel
-    await Promise.all(
-      RUNTIMES.map(async (runtime) => {
-        // Create directory
-        await fs.mkdir(`dist/runtime/${runtime.name}/components`, { recursive: true });
-
-        // Generate all component declarations and collect them
-        const formattedDeclarations: Record<string, string> = {};
-        await Promise.all(
-          components.map(async (component) => {
-            // Generate declaration content
-            const { declarationFile, formattedPropTypes } = generateComponentDeclaration(component, runtime);
-
-            // Write component declaration file
-            await fs.writeFile(`dist/runtime/${runtime.name}/components/${component.className}.d.ts`, declarationFile);
-
-            // Store formatted prop types for index reuse
-            formattedDeclarations[component.tagName] = formattedPropTypes;
-          }),
-        );
-
-        // Generate index file using the already processed declarations
-        await generateRuntimeIndex(components, runtime, formattedDeclarations);
-
-        console.log(`✅ Type declarations generated for ${runtime.name} runtime`);
-      }),
-    );
-
-    console.log('✅ All runtime type declarations generated successfully!');
-  } catch (err) {
-    console.error('Error generating types:', err);
-    process.exit(1);
-  }
-}
-
 function extractComponentsFromManifest(cemData: CemData): Component[] {
   return cemData.modules
     .filter((module) => module.declarations)
@@ -162,7 +111,29 @@ function extractComponentsFromManifest(cemData: CemData): Component[] {
     });
 }
 
-function generateDeclaration(runtime: Runtime, tagName: string | null, content: string): string {
+function generateProps(component: Component, typesPath: string): string {
+  return [
+    // Map properties from the component
+    ...Object.entries(component.properties).map(([name, prop]) => {
+      let typeDefinition = prop.type;
+
+      // Check if it's a custom type that should be imported
+      if (component.customTypes.has(typeDefinition)) typeDefinition = `import('${typesPath}').${typeDefinition}`;
+
+      return `${indent(4)}${name}?: ${typeDefinition};`;
+    }),
+
+    // Add standard properties
+    `${indent(4)}key?: string | number;`,
+    `${indent(4)}slot?: string | number;`,
+    `${indent(4)}id?: string;`,
+    `${indent(4)}class?: string;`,
+    `${indent(4)}style?: any;`,
+    `${indent(4)}children?: any;`,
+  ].join('\n');
+}
+
+function generateDeclaration(runtime: Runtime, content: string, tagName?: string): string {
   // Determine module or global declaration
   const declarationType = runtime.moduleName ? `declare module '${runtime.moduleName}'` : 'declare global';
 
@@ -206,71 +177,59 @@ function generateDeclaration(runtime: Runtime, tagName: string | null, content: 
   return declaration.join('\n');
 }
 
-function generateComponentDeclaration(component: Component, runtime: Runtime): DeclarationOutput {
-  const { tagName, properties, customTypes } = component;
-
-  // Collect required constants and types
-  const types = generateTypeContent(customTypes, false);
-
-  // Generate property definitions with consistent indentation
-  const propTypes = [
-    // Map properties from the component
-    ...Object.entries(properties).map(([name, prop]) => `${indent(4)}${name}?: ${prop.type};`),
-
-    // Add standard properties
-    `${indent(4)}key?: string | number;`,
-    `${indent(4)}slot?: string | number;`,
-    `${indent(4)}id?: string;`,
-    `${indent(4)}class?: string;`,
-    `${indent(4)}style?: any;`,
-    `${indent(4)}children?: any;`,
-  ].join('\n');
-
-  // Create declaration using the helper function
-  const declaration = generateDeclaration(runtime, tagName, propTypes);
-
-  // Create the final declaration file content
-  const declarationFile = `// Generated type declaration for ${tagName} in ${runtime.name} runtime\n// Generated from custom-elements.json\n\n${types}${declaration}\n`;
-
-  // Return both the file content and formatted prop types
-  return { declarationFile, formattedPropTypes: propTypes };
+async function generateComponentDeclaration(component: Component, runtime: Runtime) {
+  const componentProps = generateProps(component, `../../../types`);
+  const declaration = generateDeclaration(runtime, componentProps, component.tagName);
+  const declarationFile = `// Generated type declaration for ${component.tagName} in ${runtime.name} runtime\n// Generated from custom-elements.json\n\n${declaration}\n`;
+  await fs.writeFile(`dist/runtime/${runtime.name}/components/${component.className}.d.ts`, declarationFile);
 }
 
-async function generateRuntimeIndex(
-  components: Component[],
-  runtime: Runtime,
-  formattedDeclarations: Record<string, string>,
-): Promise<void> {
-  // Collect all unique custom types
-  const allCustomTypes = new Set<string>(components.flatMap((component) => Array.from(component.customTypes)));
-
-  // Generate type content
-  const types = generateTypeContent(allCustomTypes, true);
-
-  // Use the pre-generated component declarations
-  const componentDeclarations = components
+async function generateIndexDeclaration(components: Component[], runtime: Runtime): Promise<void> {
+  const componentsProps = components
     .map((component) =>
-      [`'${component.tagName}': {`, formattedDeclarations[component.tagName], `${indent(3)}}`].join('\n'),
+      [`'${component.tagName}': {`, generateProps(component, `../../types`), `${indent(3)}}`].join('\n'),
     )
-    .join(`;\n${indent(3)}`); // Add indentation after each semicolon
+    .join(`;\n${indent(3)}`); // Add indentation and semicolon between components
 
-  // Create declaration using the helper function (no tag name for index files)
-  const declaration = generateDeclaration(runtime, null, componentDeclarations);
-
-  // Create the index file content
-  const indexContent = `// Combined ${runtime.name} runtime declarations for all components\n// Generated from custom-elements.json\n\n${types}${declaration}\n`;
-
-  // Write the files
-  await Promise.all([fs.writeFile(`dist/runtime/${runtime.name}/index.d.ts`, indexContent)]);
+  const declaration = generateDeclaration(runtime, componentsProps);
+  const declarationFile = `// Combined ${runtime.name} runtime declarations for all components\n// Generated from custom-elements.json\n\n${declaration}\n`;
+  await fs.writeFile(`dist/runtime/${runtime.name}/index.d.ts`, declarationFile);
 }
 
-function generateTypeContent(customTypes: Set<string>, index: boolean): string {
-  // Early return if no custom types
-  if (customTypes.size === 0) return '';
+async function generateRuntimeTypes(): Promise<void> {
+  try {
+    // Load source files
+    const cemData = await fs
+      .readFile(path.resolve(process.cwd(), 'custom-elements.json'), 'utf8')
+      .then((data) => JSON.parse(data) as CemData);
 
-  const path = index ? '../../types' : `../../../types`;
+    // Extract components from the custom-elements.json manifest
+    const components = extractComponentsFromManifest(cemData);
 
-  return `import { ${Array.from(customTypes).join(', ')} } from '${path}';\n\n`;
+    console.log(`Found ${components.length} components`);
+    console.log('Generating type declarations...');
+
+    // Process all runtimes in parallel
+    await Promise.all(
+      RUNTIMES.map(async (runtime) => {
+        // Create directory
+        await fs.mkdir(`dist/runtime/${runtime.name}/components`, { recursive: true });
+
+        // Generate individual component declarations
+        await Promise.all(components.map(async (component) => generateComponentDeclaration(component, runtime)));
+
+        // Generate index file declaration
+        await generateIndexDeclaration(components, runtime);
+
+        console.log(`✅ Type declarations generated for ${runtime.name} runtime`);
+      }),
+    );
+
+    console.log('✅ All runtime type declarations generated successfully!');
+  } catch (err) {
+    console.error('Error generating types:', err);
+    process.exit(1);
+  }
 }
 
 // Run the generator
