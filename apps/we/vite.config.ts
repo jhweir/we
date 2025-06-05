@@ -1,11 +1,11 @@
-import react from '@vitejs/plugin-react-swc';
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
+import solidPlugin from 'vite-plugin-solid';
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react({ tsDecorators: true })],
-  resolve: {
-    alias: [{ find: '@', replacement: resolve(__dirname, 'src') }],
-  },
+  plugins: [solidPlugin()], // { tsDecorators: true }
+  server: { port: 3000 },
+  build: { target: 'esnext' },
+  resolve: { alias: [{ find: '@', replacement: resolve(__dirname, 'src') }] },
+  assetsInclude: ['**/*.glb'],
 });

@@ -1,18 +1,22 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "target": "ESNext",
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "types": ["vite/client"],
+    "noEmit": true,
+    "isolatedModules": true,
+    "experimentalDecorators": true,
     "baseUrl": ".",
-    "paths": { "@/*": ["./src/*"] }
-    // "allowImportingTsExtensions": true,
-    // "isolatedModules": true,
-    // "moduleDetection": "force",
-    // "noEmit": true,
-    // "experimentalDecorators": true,
-    // "allowSyntheticDefaultImports": true,
-    // "esModuleInterop": true,
-    // "skipLibCheck": true, // Added to avoid issues with third-party libraries
-    // "resolveJsonModule": true
-  },
-  "files": [],
-  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
+    "paths": {
+      "@/*": ["./src/*"],
+      "@assets/*": ["./src/assets/*"],
+      "@contexts/*": ["src/stores/*"],
+      "@components/*": ["./src/components/*"],
+      "@models/*": ["./src/models/*"],
+      "@pages/*": ["./src/pages/*"],
+      "@templates/*": ["./src/templates/*"]
+    }
+  }
 }

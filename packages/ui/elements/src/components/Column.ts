@@ -49,6 +49,39 @@ const styles = css`
   }
 `;
 
+// export interface ColumnProps {
+//   ax?: AlignPosition;
+//   ay?: AlignPositionAndSpacing;
+//   wrap?: boolean;
+//   reverse?: boolean;
+//   gap?: NumberedSize;
+//   p?: NumberedSize;
+//   pl?: NumberedSize;
+//   pr?: NumberedSize;
+//   pt?: NumberedSize;
+//   pb?: NumberedSize;
+//   px?: NumberedSize;
+//   py?: NumberedSize;
+//   m?: NumberedSize;
+//   ml?: NumberedSize;
+//   mr?: NumberedSize;
+//   mt?: NumberedSize;
+//   mb?: NumberedSize;
+//   mx?: NumberedSize;
+//   my?: NumberedSize;
+//   r?: NamedSize;
+//   rt?: NamedSize;
+//   rb?: NamedSize;
+//   rl?: NamedSize;
+//   rr?: NamedSize;
+//   rtl?: NamedSize;
+//   rtr?: NamedSize;
+//   rbr?: NamedSize;
+//   rbl?: NamedSize;
+//   bg?: string;
+//   color?: string;
+// }
+
 @customElement('we-column')
 export default class Column extends LitElement {
   static styles = [sharedStyles, styles];
@@ -87,7 +120,7 @@ export default class Column extends LitElement {
   updated(props: Map<string, any>) {
     super.updated(props);
 
-    // handle dynamic props
+    // Update CSS variables based on properties
     if (props.has('gap')) this.style.setProperty('--gap', `var(--we-space-${this.gap})`);
     if (props.has('bg')) this.style.setProperty('--bg-color', `var(--we-color-${this.bg})`);
     if (props.has('color')) this.style.setProperty('--color', `var(--we-color-${this.color})`);
@@ -129,4 +162,104 @@ export default class Column extends LitElement {
   render() {
     return html`<slot></slot>`;
   }
+}
+
+export type ColumnProps = {
+  [K in keyof Column as K extends
+    | 'ax'
+    | 'ay'
+    | 'wrap'
+    | 'reverse'
+    | 'gap'
+    | 'p'
+    | 'pl'
+    | 'pr'
+    | 'pt'
+    | 'pb'
+    | 'px'
+    | 'py'
+    | 'm'
+    | 'ml'
+    | 'mr'
+    | 'mt'
+    | 'mb'
+    | 'mx'
+    | 'my'
+    | 'r'
+    | 'rt'
+    | 'rb'
+    | 'rl'
+    | 'rr'
+    | 'rtl'
+    | 'rtr'
+    | 'rbr'
+    | 'rbl'
+    | 'bg'
+    | 'color'
+    ? K
+    : never]?: Column[K];
+};
+
+export function generateColumnStyles(props: ColumnProps): Record<string, string> {
+  const style: Record<string, string> = {
+    display: 'flex',
+    flexDirection: props.reverse ? 'column-reverse' : 'column',
+    flexWrap: props.wrap ? 'wrap' : 'nowrap',
+  };
+
+  // Alignment
+  if (props.ax === 'center') style.alignItems = 'center';
+  else if (props.ax === 'end') style.alignItems = 'flex-end';
+  else style.alignItems = 'flex-start';
+
+  if (props.ay === 'center') style.justifyContent = 'center';
+  else if (props.ay === 'end') style.justifyContent = 'flex-end';
+  else if (props.ay === 'between') style.justifyContent = 'space-between';
+  else if (props.ay === 'around') style.justifyContent = 'space-around';
+  else style.justifyContent = 'flex-start';
+
+  // Spacing
+  if (props.gap) style.gap = `var(--we-space-${props.gap})`;
+
+  // Padding
+  const padding = [
+    generateVariable('we-space', props.pt || props.py || props.p),
+    generateVariable('we-space', props.pr || props.px || props.p),
+    generateVariable('we-space', props.pb || props.py || props.p),
+    generateVariable('we-space', props.pl || props.px || props.p),
+  ]
+    .join(' ')
+    .trim();
+
+  if (padding) style.padding = padding;
+
+  // Margin
+  const margin = [
+    generateVariable('we-space', props.mt || props.my || props.m),
+    generateVariable('we-space', props.mr || props.mx || props.m),
+    generateVariable('we-space', props.mb || props.my || props.m),
+    generateVariable('we-space', props.ml || props.mx || props.m),
+  ]
+    .join(' ')
+    .trim();
+
+  if (margin) style.margin = margin;
+
+  // Border radius
+  const borderRadius = [
+    generateVariable('we-size', props.rtl || props.rt || props.rl || props.r),
+    generateVariable('we-size', props.rtr || props.rt || props.rr || props.r),
+    generateVariable('we-size', props.rbr || props.rb || props.rr || props.r),
+    generateVariable('we-size', props.rbl || props.rb || props.rl || props.r),
+  ]
+    .join(' ')
+    .trim();
+
+  if (borderRadius) style.borderRadius = borderRadius;
+
+  // Colors
+  if (props.bg) style.backgroundColor = `var(--we-color-${props.bg})`;
+  if (props.color) style.color = `var(--we-color-${props.color})`;
+
+  return style;
 }

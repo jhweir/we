@@ -1020,6 +1020,23 @@
           },
           "tagName": "we-column",
           "customElement": true
+        },
+        {
+          "kind": "function",
+          "name": "generateColumnStyles",
+          "return": {
+            "type": {
+              "text": "Record<string, string>"
+            }
+          },
+          "parameters": [
+            {
+              "name": "props",
+              "type": {
+                "text": "ColumnProps"
+              }
+            }
+          ]
         }
       ],
       "exports": [
@@ -1036,6 +1053,14 @@
           "name": "we-column",
           "declaration": {
             "name": "Column",
+            "module": "src/components/Column.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "generateColumnStyles",
+          "declaration": {
+            "name": "generateColumnStyles",
             "module": "src/components/Column.ts"
           }
         }
