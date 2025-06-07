@@ -3,7 +3,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-interface Runtime {
+interface Framework {
   name: string;
   moduleName?: string;
   namespace?: string;
@@ -23,18 +23,7 @@ interface Component {
   filePath: string;
 }
 
-interface TypeInfo {
-  definition: string;
-  constDependencies: string[];
-  constDefinitions: Record<string, string>;
-}
-
-interface DeclarationOutput {
-  declarationFile: string;
-  formattedPropTypes: string;
-}
-
-interface CemData {
+interface CustomElementsManifest {
   modules: Array<{
     declarations?: Array<{
       kind: string;
@@ -53,24 +42,26 @@ interface CemData {
   }>;
 }
 
-const RUNTIMES: Runtime[] = [
-  { name: 'global' },
-  { name: 'react', moduleName: 'react' },
-  { name: 'react-jsx', moduleName: 'react/jsx-runtime' },
-  { name: 'react-jsxdev', moduleName: 'react/jsx-dev-runtime' },
-  { name: 'svelte', namespace: 'svelteHTML' },
-  { name: 'solid', moduleName: 'solid-js' },
+const FRAMEWORKS = {
+  global: [{ name: 'global' }],
+  react: [
+    { name: 'react', moduleName: 'react' },
+    { name: 'react-jsx', moduleName: 'react/jsx-runtime' },
+    { name: 'react-jsxdev', moduleName: 'react/jsx-dev-runtime' },
+  ],
+  svelte: [{ name: 'svelte', namespace: 'svelteHTML' }],
+  solid: [{ name: 'solid', moduleName: 'solid-js' }],
   // { name: 'preact', moduleName: 'preact' },
   // { name: 'preact-jsx', moduleName: 'preact/jsx-runtime' },
   // { name: 'vue', moduleName: '@vue/runtime-dom' },
   // { name: 'qwik', moduleName: '@builder.io/qwik' },
-];
+};
 
 function indent(level: number): string {
   return ' '.repeat(level * 2); // 2 spaces per indentation level
 }
 
-function extractComponentsFromManifest(cemData: CemData): Component[] {
+function extractComponentsFromCustomElementsManifest(cemData: CustomElementsManifest): Component[] {
   return cemData.modules
     .filter((module) => module.declarations)
     .flatMap((module) => {
@@ -111,7 +102,7 @@ function extractComponentsFromManifest(cemData: CemData): Component[] {
     });
 }
 
-function generateProps(component: Component, typesPath: string): string {
+function generateComponentProps(component: Component, typesPath: string): string {
   return [
     // Map properties from the component
     ...Object.entries(component.properties).map(([name, prop]) => {
@@ -133,22 +124,22 @@ function generateProps(component: Component, typesPath: string): string {
   ].join('\n');
 }
 
-function generateDeclaration(runtime: Runtime, content: string, tagName?: string): string {
+function buildDeclarationContent(framework: Framework, content: string, tagName?: string): string {
   // Determine module or global declaration
-  const declarationType = runtime.moduleName ? `declare module '${runtime.moduleName}'` : 'declare global';
+  const declarationType = framework.moduleName ? `declare module '${framework.moduleName}'` : 'declare global';
 
   // Format the property content based on whether it's for an individual component file or part of an index
   const propertyContent = tagName ? [`'${tagName}': {`, content, `${indent(3)}};`].join('\n') : `${content};`;
 
-  // Determine the prefix for the JSX namespace based on the runtime
-  const reactRuntime = runtime.name.split('-')[0] === 'react';
+  // Determine the prefix for the JSX namespace based on the framework
+  const reactRuntime = framework.name.split('-')[0] === 'react';
 
   // Create the declaration lines
   const solidImport = ["import 'solid-js'", ''];
 
   const intrinsicElementsDeclaration = [
     `${declarationType} {`,
-    `${indent(1)}namespace ${runtime.namespace || 'JSX'} {`,
+    `${indent(1)}namespace ${framework.namespace || 'JSX'} {`,
     `${indent(2)}interface IntrinsicElements ${reactRuntime ? 'extends React.JSX.IntrinsicElements ' : ''}{`,
     `${indent(3)}${propertyContent}`,
     `${indent(2)}}`,
@@ -167,65 +158,66 @@ function generateDeclaration(runtime: Runtime, content: string, tagName?: string
   const emptyModuleExport = ['', 'export {};'];
 
   const declaration = [
-    ...(runtime.name === 'solid' ? solidImport : []),
+    ...(framework.name === 'solid' ? solidImport : []),
     ...intrinsicElementsDeclaration,
     ...(reactRuntime ? fixForReactChildren : []),
     ...closingBrackets,
-    ...(runtime.name === 'svelte' ? emptyModuleExport : []),
+    ...(framework.name === 'svelte' ? emptyModuleExport : []),
+    '',
   ];
 
   return declaration.join('\n');
 }
 
-async function generateComponentDeclaration(component: Component, runtime: Runtime) {
-  const componentProps = generateProps(component, `../../../types`);
-  const declaration = generateDeclaration(runtime, componentProps, component.tagName);
-  const declarationFile = `// Generated type declaration for ${component.tagName} in ${runtime.name} runtime\n// Generated from custom-elements.json\n\n${declaration}\n`;
-  await fs.writeFile(`dist/runtime/${runtime.name}/components/${component.className}.d.ts`, declarationFile);
+async function generateComponentDeclaration(component: Component, framework: Framework) {
+  const componentProps = generateComponentProps(component, `../../../types`);
+  const declaration = buildDeclarationContent(framework, componentProps, component.tagName);
+  await fs.writeFile(`dist/types/${framework.name}/components/${component.className}.d.ts`, declaration);
 }
 
-async function generateIndexDeclaration(components: Component[], runtime: Runtime): Promise<void> {
+async function generateFrameworkIndexFile(components: Component[], framework: Framework): Promise<void> {
   const componentsProps = components
     .map((component) =>
-      [`'${component.tagName}': {`, generateProps(component, `../../types`), `${indent(3)}}`].join('\n'),
+      [`'${component.tagName}': {`, generateComponentProps(component, `../../types`), `${indent(3)}}`].join('\n'),
     )
     .join(`;\n${indent(3)}`); // Add indentation and semicolon between components
 
-  const declaration = generateDeclaration(runtime, componentsProps);
-  const declarationFile = `// Combined ${runtime.name} runtime declarations for all components\n// Generated from custom-elements.json\n\n${declaration}\n`;
-  await fs.writeFile(`dist/runtime/${runtime.name}/index.d.ts`, declarationFile);
+  const declaration = buildDeclarationContent(framework, componentsProps);
+  await fs.writeFile(`dist/types/${framework.name}/index.d.ts`, declaration);
 }
 
-async function generateRuntimeTypes(): Promise<void> {
+async function generateFrameworkDeclarations(): Promise<void> {
   try {
     // Load source files
     const cemData = await fs
       .readFile(path.resolve(process.cwd(), 'custom-elements.json'), 'utf8')
-      .then((data) => JSON.parse(data) as CemData);
+      .then((data) => JSON.parse(data) as CustomElementsManifest);
 
     // Extract components from the custom-elements.json manifest
-    const components = extractComponentsFromManifest(cemData);
+    const components = extractComponentsFromCustomElementsManifest(cemData);
 
     console.log(`Found ${components.length} components`);
     console.log('Generating type declarations...');
 
-    // Process all runtimes in parallel
+    // Process all frameworks in parallel
     await Promise.all(
-      RUNTIMES.map(async (runtime) => {
-        // Create directory
-        await fs.mkdir(`dist/runtime/${runtime.name}/components`, { recursive: true });
+      Object.values(FRAMEWORKS)
+        .flat()
+        .map(async (framework) => {
+          // Create directory
+          await fs.mkdir(`dist/types/${framework.name}/components`, { recursive: true });
 
-        // Generate individual component declarations
-        await Promise.all(components.map(async (component) => generateComponentDeclaration(component, runtime)));
+          // Generate individual component declarations
+          await Promise.all(components.map(async (component) => generateComponentDeclaration(component, framework)));
 
-        // Generate index file declaration
-        await generateIndexDeclaration(components, runtime);
+          // Generate index file declaration
+          await generateFrameworkIndexFile(components, framework);
 
-        console.log(`✅ Type declarations generated for ${runtime.name} runtime`);
-      }),
+          console.log(`✅ Type declarations generated for ${framework.name}`);
+        }),
     );
 
-    console.log('✅ All runtime type declarations generated successfully!');
+    console.log('✅ All type declarations generated successfully!');
   } catch (err) {
     console.error('Error generating types:', err);
     process.exit(1);
@@ -233,6 +225,6 @@ async function generateRuntimeTypes(): Promise<void> {
 }
 
 // Run the generator
-generateRuntimeTypes();
+generateFrameworkDeclarations();
 
-export default generateRuntimeTypes;
+export default generateFrameworkDeclarations;

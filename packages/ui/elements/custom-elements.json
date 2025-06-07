@@ -4,7 +4,7 @@
   "modules": [
     {
       "kind": "javascript-module",
-      "path": "src/components/Avatar.ts",
+      "path": "src/components/avatar.ts",
       "declarations": [
         {
           "kind": "class",
@@ -166,7 +166,7 @@
           "name": "default",
           "declaration": {
             "name": "Avatar",
-            "module": "src/components/Avatar.ts"
+            "module": "src/components/avatar.ts"
           }
         },
         {
@@ -174,14 +174,14 @@
           "name": "we-avatar",
           "declaration": {
             "name": "Avatar",
-            "module": "src/components/Avatar.ts"
+            "module": "src/components/avatar.ts"
           }
         }
       ]
     },
     {
       "kind": "javascript-module",
-      "path": "src/components/Badge.ts",
+      "path": "src/components/badge.ts",
       "declarations": [
         {
           "kind": "class",
@@ -241,7 +241,7 @@
           "name": "default",
           "declaration": {
             "name": "Badge",
-            "module": "src/components/Badge.ts"
+            "module": "src/components/badge.ts"
           }
         },
         {
@@ -249,14 +249,14 @@
           "name": "we-badge",
           "declaration": {
             "name": "Badge",
-            "module": "src/components/Badge.ts"
+            "module": "src/components/badge.ts"
           }
         }
       ]
     },
     {
       "kind": "javascript-module",
-      "path": "src/components/Button.ts",
+      "path": "src/components/button.ts",
       "declarations": [
         {
           "kind": "class",
@@ -449,7 +449,7 @@
           "name": "default",
           "declaration": {
             "name": "Button",
-            "module": "src/components/Button.ts"
+            "module": "src/components/button.ts"
           }
         },
         {
@@ -457,14 +457,14 @@
           "name": "we-button",
           "declaration": {
             "name": "Button",
-            "module": "src/components/Button.ts"
+            "module": "src/components/button.ts"
           }
         }
       ]
     },
     {
       "kind": "javascript-module",
-      "path": "src/components/Column.ts",
+      "path": "src/components/column.ts",
       "declarations": [
         {
           "kind": "class",
@@ -1045,7 +1045,7 @@
           "name": "default",
           "declaration": {
             "name": "Column",
-            "module": "src/components/Column.ts"
+            "module": "src/components/column.ts"
           }
         },
         {
@@ -1053,7 +1053,7 @@
           "name": "we-column",
           "declaration": {
             "name": "Column",
-            "module": "src/components/Column.ts"
+            "module": "src/components/column.ts"
           }
         },
         {
@@ -1061,14 +1061,14 @@
           "name": "generateColumnStyles",
           "declaration": {
             "name": "generateColumnStyles",
-            "module": "src/components/Column.ts"
+            "module": "src/components/column.ts"
           }
         }
       ]
     },
     {
       "kind": "javascript-module",
-      "path": "src/components/Icon.ts",
+      "path": "src/components/icon.ts",
       "declarations": [
         {
           "kind": "class",
@@ -1187,7 +1187,7 @@
           "name": "default",
           "declaration": {
             "name": "Icon",
-            "module": "src/components/Icon.ts"
+            "module": "src/components/icon.ts"
           }
         },
         {
@@ -1195,14 +1195,14 @@
           "name": "we-icon",
           "declaration": {
             "name": "Icon",
-            "module": "src/components/Icon.ts"
+            "module": "src/components/icon.ts"
           }
         }
       ]
     },
     {
       "kind": "javascript-module",
-      "path": "src/components/Input.ts",
+      "path": "src/components/input.ts",
       "declarations": [
         {
           "kind": "class",
@@ -1736,7 +1736,7 @@
           "name": "default",
           "declaration": {
             "name": "Input",
-            "module": "src/components/Input.ts"
+            "module": "src/components/input.ts"
           }
         },
         {
@@ -1744,50 +1744,14 @@
           "name": "we-input",
           "declaration": {
             "name": "Input",
-            "module": "src/components/Input.ts"
+            "module": "src/components/input.ts"
           }
         }
       ]
     },
     {
       "kind": "javascript-module",
-      "path": "src/components/Menu.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "Menu",
-          "members": [],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "we-menu",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "name": "Menu",
-            "module": "src/components/Menu.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "we-menu",
-          "declaration": {
-            "name": "Menu",
-            "module": "src/components/Menu.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/components/MenuGroup.ts",
+      "path": "src/components/menu-group.ts",
       "declarations": [
         {
           "kind": "class",
@@ -1873,7 +1837,7 @@
           "name": "default",
           "declaration": {
             "name": "MenuGroup",
-            "module": "src/components/MenuGroup.ts"
+            "module": "src/components/menu-group.ts"
           }
         },
         {
@@ -1881,14 +1845,14 @@
           "name": "we-menu-group",
           "declaration": {
             "name": "MenuGroup",
-            "module": "src/components/MenuGroup.ts"
+            "module": "src/components/menu-group.ts"
           }
         }
       ]
     },
     {
       "kind": "javascript-module",
-      "path": "src/components/MenuItem.ts",
+      "path": "src/components/menu-item.ts",
       "declarations": [
         {
           "kind": "class",
@@ -1979,7 +1943,7 @@
           "name": "default",
           "declaration": {
             "name": "MenuItem",
-            "module": "src/components/MenuItem.ts"
+            "module": "src/components/menu-item.ts"
           }
         },
         {
@@ -1987,14 +1951,50 @@
           "name": "we-menu-item",
           "declaration": {
             "name": "MenuItem",
-            "module": "src/components/MenuItem.ts"
+            "module": "src/components/menu-item.ts"
           }
         }
       ]
     },
     {
       "kind": "javascript-module",
-      "path": "src/components/Modal.ts",
+      "path": "src/components/menu.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "Menu",
+          "members": [],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "we-menu",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "Menu",
+            "module": "src/components/menu.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "we-menu",
+          "declaration": {
+            "name": "Menu",
+            "module": "src/components/menu.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/modal.ts",
       "declarations": [
         {
           "kind": "class",
@@ -2043,7 +2043,7 @@
           "name": "default",
           "declaration": {
             "name": "Modal",
-            "module": "src/components/Modal.ts"
+            "module": "src/components/modal.ts"
           }
         },
         {
@@ -2051,14 +2051,14 @@
           "name": "we-modal",
           "declaration": {
             "name": "Modal",
-            "module": "src/components/Modal.ts"
+            "module": "src/components/modal.ts"
           }
         }
       ]
     },
     {
       "kind": "javascript-module",
-      "path": "src/components/Popover.ts",
+      "path": "src/components/popover.ts",
       "declarations": [
         {
           "kind": "class",
@@ -2210,7 +2210,7 @@
           "name": "default",
           "declaration": {
             "name": "Popover",
-            "module": "src/components/Popover.ts"
+            "module": "src/components/popover.ts"
           }
         },
         {
@@ -2218,14 +2218,14 @@
           "name": "we-popover",
           "declaration": {
             "name": "Popover",
-            "module": "src/components/Popover.ts"
+            "module": "src/components/popover.ts"
           }
         }
       ]
     },
     {
       "kind": "javascript-module",
-      "path": "src/components/Row.ts",
+      "path": "src/components/row.ts",
       "declarations": [
         {
           "kind": "class",
@@ -2645,7 +2645,7 @@
           "name": "default",
           "declaration": {
             "name": "Row",
-            "module": "src/components/Row.ts"
+            "module": "src/components/row.ts"
           }
         },
         {
@@ -2653,14 +2653,14 @@
           "name": "we-row",
           "declaration": {
             "name": "Row",
-            "module": "src/components/Row.ts"
+            "module": "src/components/row.ts"
           }
         }
       ]
     },
     {
       "kind": "javascript-module",
-      "path": "src/components/Spinner.ts",
+      "path": "src/components/spinner.ts",
       "declarations": [
         {
           "kind": "class",
@@ -2702,7 +2702,7 @@
           "name": "default",
           "declaration": {
             "name": "Spinner",
-            "module": "src/components/Spinner.ts"
+            "module": "src/components/spinner.ts"
           }
         },
         {
@@ -2710,14 +2710,14 @@
           "name": "we-spinner",
           "declaration": {
             "name": "Spinner",
-            "module": "src/components/Spinner.ts"
+            "module": "src/components/spinner.ts"
           }
         }
       ]
     },
     {
       "kind": "javascript-module",
-      "path": "src/components/Text.ts",
+      "path": "src/components/text.ts",
       "declarations": [
         {
           "kind": "class",
@@ -2885,7 +2885,7 @@
           "name": "default",
           "declaration": {
             "name": "Text",
-            "module": "src/components/Text.ts"
+            "module": "src/components/text.ts"
           }
         },
         {
@@ -2893,7 +2893,7 @@
           "name": "we-text",
           "declaration": {
             "name": "Text",
-            "module": "src/components/Text.ts"
+            "module": "src/components/text.ts"
           }
         }
       ]

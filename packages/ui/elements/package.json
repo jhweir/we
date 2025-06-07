@@ -7,99 +7,99 @@
     "./themes/*": "./dist/styles/themes/*.css",
     ".": {
       "import": "./dist/index.js",
-      "types": "./dist/runtime/global/index.d.ts"
+      "types": "./dist/types/global/index.d.ts"
     },
     "./*": {
       "import": "./dist/components/*.js",
-      "types": "./dist/runtime/global/components/*.d.ts"
+      "types": "./dist/types/global/components/*.d.ts"
     },
     "./react": {
       "import": "./dist/index.js",
-      "types": "./dist/runtime/react/index.d.ts"
+      "types": "./dist/types/react/index.d.ts"
     },
     "./react/*": {
       "import": "./dist/components/*.js",
-      "types": "./dist/runtime/react/components/*.d.ts"
+      "types": "./dist/types/react/components/*.d.ts"
     },
     "./react-jsx": {
       "import": "./dist/index.js",
-      "types": "./dist/runtime/react-jsx/index.d.ts"
+      "types": "./dist/types/react-jsx/index.d.ts"
     },
     "./react-jsx/*": {
       "import": "./dist/components/*.js",
-      "types": "./dist/runtime/react-jsx/components/*.d.ts"
+      "types": "./dist/types/react-jsx/components/*.d.ts"
     },
     "./react-jsxdev": {
       "import": "./dist/index.js",
-      "types": "./dist/runtime/react-jsxdev/index.d.ts"
+      "types": "./dist/types/react-jsxdev/index.d.ts"
     },
     "./react-jsxdev/*": {
       "import": "./dist/components/*.js",
-      "types": "./dist/runtime/react-jsxdev/components/*.d.ts"
+      "types": "./dist/types/react-jsxdev/components/*.d.ts"
     },
     "./svelte": {
       "import": "./dist/index.js",
-      "types": "./dist/runtime/svelte/index.d.ts"
+      "types": "./dist/types/svelte/index.d.ts"
     },
     "./svelte/*": {
       "import": "./dist/components/*.js",
-      "types": "./dist/runtime/svelte/components/*.d.ts"
+      "types": "./dist/types/svelte/components/*.d.ts"
     },
     "./solid": {
       "import": "./dist/index.js",
-      "types": "./dist/runtime/solid/index.d.ts"
+      "types": "./dist/types/solid/index.d.ts"
     },
     "./solid/*": {
       "import": "./dist/components/*.js",
-      "types": "./dist/runtime/solid/components/*.d.ts"
+      "types": "./dist/types/solid/components/*.d.ts"
     }
   },
   "typesVersions": {
     "*": {
       "*": [
-        "./dist/runtime/global/index.d.ts"
+        "./dist/types/global/index.d.ts"
       ],
       "/*": [
-        "./dist/runtime/global/components/*.d.ts"
+        "./dist/types/global/components/*.d.ts"
       ],
       "react": [
-        "./dist/runtime/react/index.d.ts"
+        "./dist/types/react/index.d.ts"
       ],
       "react/*": [
-        "./dist/runtime/react/components/*.d.ts"
+        "./dist/types/react/components/*.d.ts"
       ],
       "react-jsx": [
-        "./dist/runtime/react-jsx/index.d.ts"
+        "./dist/types/react-jsx/index.d.ts"
       ],
       "react-jsx/*": [
-        "./dist/runtime/react-jsx/components/*.d.ts"
+        "./dist/types/react-jsx/components/*.d.ts"
       ],
       "react-jsxdev": [
-        "./dist/runtime/react-jsxdev/index.d.ts"
+        "./dist/types/react-jsxdev/index.d.ts"
       ],
       "react-jsxdev/*": [
-        "./dist/runtime/react-jsxdev/components/*.d.ts"
+        "./dist/types/react-jsxdev/components/*.d.ts"
       ],
       "svelte": [
-        "./dist/runtime/svelte/index.d.ts"
+        "./dist/types/svelte/index.d.ts"
       ],
       "svelte/*": [
-        "./dist/runtime/svelte/components/*.d.ts"
+        "./dist/types/svelte/components/*.d.ts"
       ],
       "solid": [
-        "./dist/runtime/solid/index.d.ts"
+        "./dist/types/solid/index.d.ts"
       ],
       "solid/*": [
-        "./dist/runtime/solid/components/*.d.ts"
+        "./dist/types/solid/components/*.d.ts"
       ]
     }
   },
   "scripts": {
     "start": "pnpm build:cem && storybook dev -p 6006",
     "storybook:build": "storybook build",
-    "build": "pnpm build:cem && rimraf dist && rollup -c && pnpm build:types",
+    "build": "pnpm build:cem && rimraf dist && rollup -c && pnpm build:declarations",
     "build:cem": "cem analyze --litelement --globs src/**/*.ts",
-    "build:types": "tsx scripts/generate-runtime-types.ts",
+    "build:declarations": "tsx scripts/generate-framework-declarations.ts",
     "prepublish": "pnpm build",
     "publish": "npm publish --access public"
   },
@@ -122,6 +122,7 @@
     "rimraf": "^6.0.1",
     "rollup": "^4.28.1",
     "rollup-plugin-copy": "^3.5.0",
+    "rollup-plugin-esbuild": "^6.2.1",
     "rollup-plugin-postcss": "^4.0.2",
     "rollup-plugin-typescript2": "^0.36.0",
     "storybook": "8.4.6",

@@ -49,39 +49,6 @@ const styles = css`
   }
 `;
 
-// export interface ColumnProps {
-//   ax?: AlignPosition;
-//   ay?: AlignPositionAndSpacing;
-//   wrap?: boolean;
-//   reverse?: boolean;
-//   gap?: NumberedSize;
-//   p?: NumberedSize;
-//   pl?: NumberedSize;
-//   pr?: NumberedSize;
-//   pt?: NumberedSize;
-//   pb?: NumberedSize;
-//   px?: NumberedSize;
-//   py?: NumberedSize;
-//   m?: NumberedSize;
-//   ml?: NumberedSize;
-//   mr?: NumberedSize;
-//   mt?: NumberedSize;
-//   mb?: NumberedSize;
-//   mx?: NumberedSize;
-//   my?: NumberedSize;
-//   r?: NamedSize;
-//   rt?: NamedSize;
-//   rb?: NamedSize;
-//   rl?: NamedSize;
-//   rr?: NamedSize;
-//   rtl?: NamedSize;
-//   rtr?: NamedSize;
-//   rbr?: NamedSize;
-//   rbl?: NamedSize;
-//   bg?: string;
-//   color?: string;
-// }
-
 @customElement('we-column')
 export default class Column extends LitElement {
   static styles = [sharedStyles, styles];
