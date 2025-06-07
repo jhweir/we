@@ -3,13 +3,14 @@ import Space from '@/models/Space';
 import CollectionBlock from '@/models/block-types/CollectionBlock';
 import ImageBlock from '@/models/block-types/ImageBlock';
 import TextBlock from '@/models/block-types/TextBlock';
-import { useAdamStore } from '@/stores/AdamStore';
+import { useAdamStore, useModalStore } from '@/stores';
 import { createSignal } from 'solid-js';
 
 type SpaceVisibility = 'hidden' | 'private' | 'public';
 
 export default function CreateSpaceModal() {
   const adamStore = useAdamStore();
+  const modalStore = useModalStore();
 
   const [name, setName] = createSignal('');
   const [description, setDescription] = createSignal('');
@@ -18,7 +19,7 @@ export default function CreateSpaceModal() {
   const [loading, setLoading] = createSignal(false);
 
   function close() {
-    adamStore.actions.setActiveModals((prev) => ({ ...prev, createSpace: false }));
+    modalStore.actions.closeModal('createSpace');
   }
 
   async function createSpace() {
@@ -29,23 +30,22 @@ export default function CreateSpaceModal() {
 
     // Create the perspective for the space
     const spacePerspective = await client.perspective.add(name());
-    console.log('spacePerspective', spacePerspective);
 
     // Add models to the perspectives SDNA
     const models = [Space, Block, ImageBlock, TextBlock, CollectionBlock];
     await Promise.all(models.map((model) => spacePerspective.ensureSDNASubjectClass(model)));
 
     // Create an instance of the space model and save it in the perspective
-    const spaceModel = new Space(spacePerspective); // , undefined, undefined
-    spaceModel.uuid = spacePerspective.uuid;
-    spaceModel.name = name();
-    spaceModel.description = description();
-    await spaceModel.save();
+    const space = new Space(spacePerspective);
+    space.uuid = spacePerspective.uuid;
+    space.name = name();
+    space.description = description();
+    await space.save();
 
-    console.log('spaceModel', spaceModel);
+    console.log('New space', space);
 
-    // Update AdamContext state with the new space
-    adamStore.actions.setMySpaces((prev) => [...prev, spaceModel]);
+    // Add the new space to the Adam store
+    adamStore.actions.addNewSpace(space);
 
     close();
   }

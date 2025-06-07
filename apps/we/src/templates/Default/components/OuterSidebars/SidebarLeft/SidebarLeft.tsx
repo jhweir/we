@@ -1,4 +1,4 @@
-import { useAdamStore } from '@/stores/AdamStore';
+import { useAdamStore, useModalStore } from '@/stores';
 import { useNavigate } from '@solidjs/router';
 import styles from '../OuterSidebars.module.scss';
 
@@ -17,6 +17,7 @@ function CircleButton(props: { key?: string; icon?: string; image?: string; init
 
 export default function SidebarLeft() {
   const adamStore = useAdamStore();
+  const modalStore = useModalStore();
   const navigate = useNavigate();
 
   return (
@@ -28,10 +29,7 @@ export default function SidebarLeft() {
         {adamStore.state.mySpaces.map((space) => (
           <CircleButton key={space.uuid} initials={space.name} onClick={() => navigate(`/space/${space.uuid}`)} />
         ))}
-        <CircleButton
-          icon="plus"
-          onClick={() => adamStore.actions.setActiveModals((prev) => ({ ...prev, createSpace: true }))}
-        />
+        <CircleButton icon="plus" onClick={() => modalStore.actions.openModal('createSpace')} />
       </we-column>
 
       <we-column gap="400">
