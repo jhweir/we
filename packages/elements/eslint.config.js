@@ -6,7 +6,7 @@
 import litPlugin from 'eslint-plugin-lit';
 // import prettierPlugin from 'eslint-plugin-prettier';
 // import globals from 'globals';
-import globalConfig from '../../../eslint.config.js';
+import globalConfig from '../../eslint.config.js';
 
 // can effect roll up process, needs to align with rollup and tsconfig
 export default [
