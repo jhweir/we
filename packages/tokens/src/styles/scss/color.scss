@@ -1,0 +1,199 @@
+/* SYSTEM CONFIGURATION */
+$color-multiplier: 1;
+$color-subtractor: 0%;
+$color-saturation: 60%;
+$ui-saturation: 10%;
+
+/* HUE VALUES */
+$hue-primary: 610;
+$hue-success: 130;
+$hue-warning: 45;
+$hue-danger: 350;
+$hue-ui: $hue-primary;
+
+/* LIGHTNESS SCALE */
+$lightness-scale: (
+  '0': 100%,
+  '25': 97.5%,
+  '50': 95%,
+  '75': 92.5%,
+  '100': 90%,
+  '200': 80%,
+  '300': 70%,
+  '400': 60%,
+  '500': 50%,
+  '600': 40%,
+  '700': 30%,
+  '800': 20%,
+  '900': 10%,
+  '1000': 0%,
+);
+
+/* COLOR TYPES */
+$color-types: (
+  'primary': (
+    hue: $hue-primary,
+    saturation: $color-saturation,
+  ),
+  'success': (
+    hue: $hue-success,
+    saturation: $color-saturation,
+  ),
+  'warning': (
+    hue: $hue-warning,
+    saturation: $color-saturation,
+  ),
+  'danger': (
+    hue: $hue-danger,
+    saturation: $color-saturation,
+  ),
+  'ui': (
+    hue: $hue-ui,
+    saturation: $ui-saturation,
+  ),
+);
+
+/* HELPER FUNCTIONS */
+@function find-lightness($lightness) {
+  @return calc((#{$lightness} - var(--we-color-subtractor)) * var(--we-color-multiplier));
+}
+
+@function find-hsl($hue, $lightness-var, $saturation) {
+  @return hsl(var(--we-color-#{$hue}-hue) var(#{$saturation}) var(--we-color-lightness-#{$lightness-var}));
+}
+
+:root {
+  /* SYSTEM CONFIGURATION */
+  --we-color-multiplier: #{$color-multiplier};
+  --we-color-subtractor: #{$color-subtractor};
+  --we-color-saturation: #{$color-saturation};
+  --we-color-ui-saturation: #{$ui-saturation};
+
+  /* LIGHTNESS SCALE */
+  @each $lightness-key, $lightness-value in $lightness-scale {
+    --we-color-lightness-#{$lightness-key}: #{find-lightness($lightness-value)};
+  }
+
+  /* COLOR PALETTES */
+  @each $color-type, $values in $color-types {
+    $hue: map-get($values, 'hue');
+    $saturation: map-get($values, 'saturation');
+
+    // Set color type hue
+    --we-color-#{$color-type}-hue: #{$hue};
+
+    // Generate color variants
+    @each $lightness-key, $lightness-value in $lightness-scale {
+      --we-color-#{$color-type}-#{$lightness-key}: #{find-hsl($color-type, $lightness-key, $saturation)};
+    }
+  }
+
+  /* UTILITY COLORS */
+  --we-color-white: #ffffff;
+  --we-color-black: #000000;
+
+  /* SEMANTIC COLORS */
+  --we-color-focus: var(--we-color-primary-500);
+  --we-focus-outline: 0 0 0 2px var(--we-color-focus);
+}
+
+// :root {
+//   /* COLOR SYSTEM VARIABLES */
+//   --we-color-saturation: 60%;
+//   --we-color-subtractor: 0%;
+//   --we-color-multiplier: 1;
+
+//   /* LIGHTNESS */
+//   --we-color-lightness-0: calc((100% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+//   --we-color-lightness-25: calc((97.5% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+//   --we-color-lightness-50: calc((95% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+//   --we-color-lightness-75: calc((92.5% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+//   --we-color-lightness-100: calc((90% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+//   --we-color-lightness-200: calc((80% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+//   --we-color-lightness-300: calc((70% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+//   --we-color-lightness-400: calc((60% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+//   --we-color-lightness-500: calc((50% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+//   --we-color-lightness-600: calc((40% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+//   --we-color-lightness-700: calc((30% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+//   --we-color-lightness-800: calc((20% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+//   --we-color-lightness-900: calc((10% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+//   --we-color-lightness-1000: calc((0% - var(--we-color-subtractor)) * var(--we-color-multiplier));
+
+//   /* PRIMARY COLORS */
+//   --we-color-primary-hue: 610;
+//   --we-color-primary-50: hsl(var(--we-color-primary-hue) var(--we-color-saturation) var(--we-color-lightness-50));
+//   --we-color-primary-100: hsl(var(--we-color-primary-hue) var(--we-color-saturation) var(--we-color-lightness-100));
+//   --we-color-primary-200: hsl(var(--we-color-primary-hue) var(--we-color-saturation) var(--we-color-lightness-200));
+//   --we-color-primary-300: hsl(var(--we-color-primary-hue) var(--we-color-saturation) var(--we-color-lightness-300));
+//   --we-color-primary-400: hsl(var(--we-color-primary-hue) var(--we-color-saturation) var(--we-color-lightness-400));
+//   --we-color-primary-500: hsl(var(--we-color-primary-hue) var(--we-color-saturation) var(--we-color-lightness-500));
+//   --we-color-primary-600: hsl(var(--we-color-primary-hue) var(--we-color-saturation) var(--we-color-lightness-600));
+//   --we-color-primary-700: hsl(var(--we-color-primary-hue) var(--we-color-saturation) var(--we-color-lightness-700));
+//   --we-color-primary-800: hsl(var(--we-color-primary-hue) var(--we-color-saturation) var(--we-color-lightness-800));
+//   --we-color-primary-900: hsl(var(--we-color-primary-hue) var(--we-color-saturation) var(--we-color-lightness-900));
+
+//   /* SECONDARY COLORS */
+//   --we-color-success-hue: 130;
+//   --we-color-success-50: hsl(var(--we-color-success-hue) var(--we-color-saturation) var(--we-color-lightness-50));
+//   --we-color-success-100: hsl(var(--we-color-success-hue) var(--we-color-saturation) var(--we-color-lightness-100));
+//   --we-color-success-200: hsl(var(--we-color-success-hue) var(--we-color-saturation) var(--we-color-lightness-200));
+//   --we-color-success-300: hsl(var(--we-color-success-hue) var(--we-color-saturation) var(--we-color-lightness-300));
+//   --we-color-success-400: hsl(var(--we-color-success-hue) var(--we-color-saturation) var(--we-color-lightness-400));
+//   --we-color-success-500: hsl(var(--we-color-success-hue) var(--we-color-saturation) var(--we-color-lightness-500));
+//   --we-color-success-600: hsl(var(--we-color-success-hue) var(--we-color-saturation) var(--we-color-lightness-600));
+//   --we-color-success-700: hsl(var(--we-color-success-hue) var(--we-color-saturation) var(--we-color-lightness-700));
+//   --we-color-success-800: hsl(var(--we-color-success-hue) var(--we-color-saturation) var(--we-color-lightness-800));
+//   --we-color-success-900: hsl(var(--we-color-success-hue) var(--we-color-saturation) var(--we-color-lightness-900));
+
+//   /* WARNING COLORS */
+//   --we-color-warning-hue: 45;
+//   --we-color-warning-50: hsl(var(--we-color-warning-hue) var(--we-color-saturation) var(--we-color-lightness-50));
+//   --we-color-warning-100: hsl(var(--we-color-warning-hue) var(--we-color-saturation) var(--we-color-lightness-100));
+//   --we-color-warning-200: hsl(var(--we-color-warning-hue) var(--we-color-saturation) var(--we-color-lightness-200));
+//   --we-color-warning-300: hsl(var(--we-color-warning-hue) var(--we-color-saturation) var(--we-color-lightness-300));
+//   --we-color-warning-400: hsl(var(--we-color-warning-hue) var(--we-color-saturation) var(--we-color-lightness-400));
+//   --we-color-warning-500: hsl(var(--we-color-warning-hue) var(--we-color-saturation) var(--we-color-lightness-500));
+//   --we-color-warning-600: hsl(var(--we-color-warning-hue) var(--we-color-saturation) var(--we-color-lightness-600));
+//   --we-color-warning-700: hsl(var(--we-color-warning-hue) var(--we-color-saturation) var(--we-color-lightness-700));
+//   --we-color-warning-800: hsl(var(--we-color-warning-hue) var(--we-color-saturation) var(--we-color-lightness-800));
+//   --we-color-warning-900: hsl(var(--we-color-warning-hue) var(--we-color-saturation) var(--we-color-lightness-900));
+
+//   /* DANGER COLORS */
+//   --we-color-danger-hue: 350;
+//   --we-color-danger-50: hsl(var(--we-color-danger-hue) var(--we-color-saturation) var(--we-color-lightness-50));
+//   --we-color-danger-100: hsl(var(--we-color-danger-hue) var(--we-color-saturation) var(--we-color-lightness-100));
+//   --we-color-danger-200: hsl(var(--we-color-danger-hue) var(--we-color-saturation) var(--we-color-lightness-200));
+//   --we-color-danger-300: hsl(var(--we-color-danger-hue) var(--we-color-saturation) var(--we-color-lightness-300));
+//   --we-color-danger-400: hsl(var(--we-color-danger-hue) var(--we-color-saturation) var(--we-color-lightness-400));
+//   --we-color-danger-500: hsl(var(--we-color-danger-hue) var(--we-color-saturation) var(--we-color-lightness-500));
+//   --we-color-danger-600: hsl(var(--we-color-danger-hue) var(--we-color-saturation) var(--we-color-lightness-600));
+//   --we-color-danger-700: hsl(var(--we-color-danger-hue) var(--we-color-saturation) var(--we-color-lightness-700));
+//   --we-color-danger-800: hsl(var(--we-color-danger-hue) var(--we-color-saturation) var(--we-color-lightness-800));
+//   --we-color-danger-900: hsl(var(--we-color-danger-hue) var(--we-color-saturation) var(--we-color-lightness-900));
+
+//   /* UI COLORS */
+//   --we-color-ui-hue: var(--we-color-primary-hue);
+//   --we-color-ui-saturation: 10%;
+//   --we-color-ui-0: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-0));
+//   --we-color-ui-25: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-25));
+//   --we-color-ui-50: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-50));
+//   --we-color-ui-75: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-75));
+//   --we-color-ui-100: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-100));
+//   --we-color-ui-200: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-200));
+//   --we-color-ui-300: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-300));
+//   --we-color-ui-400: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-400));
+//   --we-color-ui-500: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-500));
+//   --we-color-ui-600: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-600));
+//   --we-color-ui-700: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-700));
+//   --we-color-ui-800: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-800));
+//   --we-color-ui-900: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-900));
+//   --we-color-ui-1000: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-1000));
+
+//   /* BLACK & WHITE */
+//   --we-color-white: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-0));
+//   --we-color-black: hsl(var(--we-color-ui-hue) var(--we-color-ui-saturation) var(--we-color-lightness-1000));
+
+//   /* FOCUS COLORS */
+//   --we-color-focus: var(--we-color-primary-500);
+//   --we-focus-outline: 0px 0px 0px 4px var(--we-color-focus);
+// }

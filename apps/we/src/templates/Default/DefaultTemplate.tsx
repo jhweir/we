@@ -26,9 +26,9 @@ export default function DeafultTemplate(props: ParentProps) {
     <>
       <Modals />
 
-      <Column>
+      {/* <Column>
         <p>Yoo im in a column</p>
-      </Column>
+      </Column> */}
 
       <we-row ax="center" style={{ width: '100vw' }}>
         <SidebarLeft />

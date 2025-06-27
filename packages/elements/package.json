@@ -94,6 +94,9 @@
       ]
     }
   },
+  "keywords": [],
+  "author": "James Weir",
+  "license": "MIT",
   "scripts": {
     "start": "pnpm build:cem && storybook dev -p 6006",
     "storybook:build": "storybook build",

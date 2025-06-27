@@ -1,0 +1,36 @@
+{
+  "name": "@we/themes",
+  "version": "0.1.0",
+  "description": "Style themes for WE",
+  "main": "./dist/index.css",
+  "style": "./dist/index.css",
+  "exports": {
+    ".": "./dist/index.css",
+    "./dark": "./dist/dark/index.css",
+    "./black": "./dist/black/index.css",
+    "./retro": "./dist/retro/index.css",
+    "./cyberpunk": "./dist/cyberpunk/index.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": true,
+  "keywords": [],
+  "author": "James Weir",
+  "license": "MIT",
+  "scripts": {
+    "build": "rimraf dist && postcss 'src/**/index.css' --base src --dir dist"
+  },
+  "dependencies": {
+    "@we/tokens": "workspace:*"
+  },
+  "devDependencies": {
+    "postcss": "^8.4.23",
+    "postcss-cli": "^10.1.0",
+    "postcss-import": "^15.1.0",
+    "rimraf": "^6.0.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

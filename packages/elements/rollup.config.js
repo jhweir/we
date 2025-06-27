@@ -4,7 +4,6 @@ import { glob } from 'glob';
 import copy from 'rollup-plugin-copy';
 import typescript from 'rollup-plugin-typescript2';
 
-// Find all component files to include as entry points
 const componentEntries = glob.sync('src/components/**/*.ts').reduce((acc, file) => {
   const name = file.replace('src/', '').replace('.ts', '');
   acc[name] = file;

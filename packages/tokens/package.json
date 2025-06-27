@@ -1,0 +1,47 @@
+{
+  "name": "@we/tokens",
+  "version": "0.1.0",
+  "description": "Design tokens for WE",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    },
+    "./styles": {
+      "import": "./dist/styles/index.js",
+      "types": "./dist/styles/index.d.ts"
+    },
+    "./styles/css": "./dist/styles/css/index.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
+  "keywords": [],
+  "author": "James Weir",
+  "license": "MIT",
+  "scripts": {
+    "build": "rimraf dist && rollup -c"
+  },
+  "dependencies": {
+    "@we/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.3.0",
+    "@rollup/plugin-terser": "^0.4.4",
+    "rimraf": "^6.0.1",
+    "rollup": "^4.28.1",
+    "rollup-plugin-sass-modules": "^1.4.0",
+    "rollup-plugin-typescript2": "^0.36.0",
+    "sass": "^1.89.2",
+    "typescript": "^5.7.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
