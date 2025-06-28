@@ -2,6 +2,10 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 interface Framework {
   name: string;
@@ -172,7 +176,16 @@ function buildDeclarationContent(framework: Framework, content: string, tagName?
 async function generateComponentDeclaration(component: Component, framework: Framework) {
   const componentProps = generateComponentProps(component, `../../../types`);
   const declaration = buildDeclarationContent(framework, componentProps, component.tagName);
-  await fs.writeFile(`dist/types/${framework.name}/components/${component.className}.d.ts`, declaration);
+
+  // Resolve output path relative to script location
+  const outputPath = path.resolve(
+    __dirname,
+    '../dist/types',
+    framework.name,
+    'components',
+    `${component.className}.d.ts`,
+  );
+  await fs.writeFile(outputPath, declaration);
 }
 
 async function generateFrameworkIndexFile(components: Component[], framework: Framework): Promise<void> {
@@ -183,15 +196,17 @@ async function generateFrameworkIndexFile(components: Component[], framework: Fr
     .join(`;\n${indent(3)}`); // Add indentation and semicolon between components
 
   const declaration = buildDeclarationContent(framework, componentsProps);
-  await fs.writeFile(`dist/types/${framework.name}/index.d.ts`, declaration);
+
+  // Resolve output path relative to script location
+  const outputPath = path.resolve(__dirname, '../dist/types', framework.name, 'index.d.ts');
+  await fs.writeFile(outputPath, declaration);
 }
 
 async function generateFrameworkDeclarations(): Promise<void> {
   try {
-    // Load source files
-    const cemData = await fs
-      .readFile(path.resolve(process.cwd(), 'custom-elements.json'), 'utf8')
-      .then((data) => JSON.parse(data) as CustomElementsManifest);
+    // Load source files - resolve path relative to script location
+    const cemPath = path.resolve(__dirname, '../custom-elements.json');
+    const cemData = await fs.readFile(cemPath, 'utf8').then((data) => JSON.parse(data) as CustomElementsManifest);
 
     // Extract components from the custom-elements.json manifest
     const components = extractComponentsFromCustomElementsManifest(cemData);
@@ -204,8 +219,9 @@ async function generateFrameworkDeclarations(): Promise<void> {
       Object.values(FRAMEWORKS)
         .flat()
         .map(async (framework) => {
-          // Create directory
-          await fs.mkdir(`dist/types/${framework.name}/components`, { recursive: true });
+          // Create directory - resolve path relative to script location
+          const frameworkDir = path.resolve(__dirname, '../dist/types', framework.name, 'components');
+          await fs.mkdir(frameworkDir, { recursive: true });
 
           // Generate individual component declarations
           await Promise.all(components.map(async (component) => generateComponentDeclaration(component, framework)));

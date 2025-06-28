@@ -1,36 +1,29 @@
-import resolve from '@rollup/plugin-node-resolve';
-import terser from '@rollup/plugin-terser';
-import sassModules from 'rollup-plugin-sass-modules';
-import typescript from 'rollup-plugin-typescript2';
+import { nodeResolve } from '@rollup/plugin-node-resolve';
+import typescript from '@rollup/plugin-typescript';
+import { defineConfig } from 'rollup';
+import { cssGenerator } from './dist/plugins/css-generator.js';
 
-export default {
-  input: { 'styles/index': 'src/styles/index.ts' },
+export default defineConfig({
+  input: 'src/index.ts',
   output: {
     dir: 'dist',
     format: 'es',
-    sourcemap: true,
     preserveModules: true,
     preserveModulesRoot: 'src',
+    sourcemap: true,
   },
   plugins: [
     typescript({
-      tsconfig: 'tsconfig.json',
-      useTsconfigDeclarationDir: true,
+      tsconfig: './tsconfig.json',
       declaration: true,
       declarationDir: 'dist',
     }),
-    resolve({
-      preferBuiltins: false,
-      browser: true,
-      mainFields: ['module', 'main'],
-    }),
-    terser({ format: { comments: false } }),
-    sassModules({
-      outputDir: 'dist/styles/css',
-      outputStyle: 'compressed',
-      sourceMap: true,
-      autoModules: false,
-      filenameFn: (filename) => filename.replace(/\.scss$/, '.css'),
+    nodeResolve(),
+    cssGenerator({
+      outputDir: 'dist/css',
     }),
   ],
-};
+  external: (id) => {
+    return id.startsWith('node:');
+  },
+});

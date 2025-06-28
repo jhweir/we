@@ -8,13 +8,15 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     },
-    "./styles": {
-      "import": "./dist/styles/index.js",
-      "types": "./dist/styles/index.d.ts"
+    "./*": {
+      "import": "./dist/*.js",
+      "types": "./dist/*.d.ts"
     },
-    "./styles/css": "./dist/styles/css/index.css"
+    "./css": "./dist/css/index.css",
+    "./css/*": "./dist/css/*.css"
   },
   "files": [
     "dist"
@@ -22,23 +24,27 @@
   "sideEffects": [
     "*.css"
   ],
-  "keywords": [],
+  "keywords": [
+    "design-tokens",
+    "css",
+    "design-system",
+    "tokens"
+  ],
   "author": "James Weir",
   "license": "MIT",
   "scripts": {
-    "build": "rimraf dist && rollup -c"
-  },
-  "dependencies": {
-    "@we/types": "workspace:*"
+    "clean": "rimraf dist dist-plugins",
+    "build:plugin": "esbuild plugins/css-generator.ts --outfile=dist/plugins/css-generator.js --format=esm --platform=node",
+    "build:tokens": "rollup -c",
+    "build": "npm run clean && npm run build:plugin && npm run build:tokens"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.3.0",
-    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^12.1.4",
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.25.5",
     "rimraf": "^6.0.1",
     "rollup": "^4.28.1",
-    "rollup-plugin-sass-modules": "^1.4.0",
-    "rollup-plugin-typescript2": "^0.36.0",
-    "sass": "^1.89.2",
     "typescript": "^5.7.2"
   },
   "publishConfig": {
