@@ -9,6 +9,8 @@ export type HexColor = `#${string}`;
 
 // Literal union types
 export type ColorHueToken = 'ui' | 'primary' | 'success' | 'warning' | 'danger';
+export type ColorBaseToken = 'white' | 'black';
+export type ColorConfigToken = 'multiplier' | 'subtractor' | 'saturation' | 'uiSaturation';
 export type ColorLightnessToken =
   | '0'
   | '25'
@@ -24,8 +26,6 @@ export type ColorLightnessToken =
   | '800'
   | '900'
   | '1000';
-export type ColorBaseToken = 'white' | 'black';
-export type ColorConfigToken = 'multiplier' | 'subtractor' | 'saturation' | 'uiSaturation';
 
 /**
  * Color system configuration values.

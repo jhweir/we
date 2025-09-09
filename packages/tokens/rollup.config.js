@@ -5,25 +5,11 @@ import { cssGenerator } from './dist/plugins/css-generator.js';
 
 export default defineConfig({
   input: 'src/index.ts',
-  output: {
-    dir: 'dist',
-    format: 'es',
-    preserveModules: true,
-    preserveModulesRoot: 'src',
-    sourcemap: true,
-  },
+  output: { dir: 'dist', format: 'es', preserveModules: true, preserveModulesRoot: 'src', sourcemap: true },
   plugins: [
-    typescript({
-      tsconfig: './tsconfig.json',
-      declaration: true,
-      declarationDir: 'dist',
-    }),
+    typescript({ tsconfig: './tsconfig.json', declaration: true, declarationDir: 'dist' }),
     nodeResolve(),
-    cssGenerator({
-      outputDir: 'dist/css',
-    }),
+    cssGenerator({ outputDir: 'dist/css' }),
   ],
-  external: (id) => {
-    return id.startsWith('node:');
-  },
+  external: (id) => id.startsWith('node:'),
 });

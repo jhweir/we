@@ -1,8 +1,12 @@
+@import '@we/tokens/css';
+
+/* ===== BASE THEME VARIABLES ===== */
 html.black {
   --we-color-subtractor: 100%;
   --we-color-multiplier: -1;
 }
 
+/* ===== ELEMENTS OVERRIDES ===== */
 html.black we-tooltip::part(tooltip) {
   background: var(--we-color-ui-100);
   color: var(--we-color-black);
@@ -14,3 +18,13 @@ html.black we-menu-item::part(base) {
   margin-right: var(--we-space-400);
   border-radius: 6px;
 }
+
+/* ===== COMPONENTS OVERRIDES ===== */
+/* html.black .we-card {
+  box-shadow: var(--we-depth-400);
+} */
+
+/* ===== WIDGETS OVERRIDES ===== */
+/* html.black .we-data-table {
+  border: var(--we-border-width) solid var(--we-border-color-strong);
+} */
