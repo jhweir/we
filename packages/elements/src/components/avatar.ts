@@ -2,7 +2,8 @@ import { toSvg } from 'jdenticon';
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
-import sharedStyles, { NamedSize } from '../styles/shared';
+import sharedStyles from '../styles/shared';
+import { SizeToken } from '../types';
 
 const styles = css`
   :host {
@@ -96,7 +97,7 @@ export default class Avatar extends LitElement {
   @property({ type: Boolean, reflect: true }) online = false;
   @property({ type: String, reflect: true }) initials = '';
   @property({ type: String }) icon = '';
-  @property({ type: String, reflect: true }) size: NamedSize = '';
+  @property({ type: String, reflect: true }) size?: SizeToken;
   @property({ attribute: false }) onClick: undefined | (() => void) = undefined;
 
   private renderContent() {

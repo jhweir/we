@@ -6,6 +6,8 @@
 // import '@we/elements/variables';
 
 import '@we/elements/solid';
+import '@we/themes';
+import '@we/tokens/css';
 // import { Column, Post } from '@we/components/solid';
 // import { PostFeed } from '@we/widgets/solid';
 // import '@we/themes';
@@ -34,6 +36,7 @@ export default function DeafultTemplate(props: ParentProps) {
         <SidebarLeft />
         <we-column bg="ui-25" class={styles.centerColumn}>
           <Header />
+          {/* <we-badge variant='success'>Badge test</we-badge> */}
           {props.children}
         </we-column>
         <SidebarRight />

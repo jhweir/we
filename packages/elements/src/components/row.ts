@@ -1,7 +1,8 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { generateVariable } from '../helpers';
-import sharedStyles, { AlignPosition, AlignPositionAndSpacing, NamedSize, NumberedSize } from '../styles/shared';
+import sharedStyles, { AlignPosition, AlignPositionAndSpacing } from '../styles/shared';
+import { SizeToken, SpaceToken } from '../types';
 
 const styles = css`
   :host {
@@ -57,22 +58,22 @@ export default class Row extends LitElement {
   @property({ type: String, reflect: true }) ay: AlignPosition = '';
   @property({ type: Boolean, reflect: true }) wrap = false;
   @property({ type: Boolean, reflect: true }) reverse = false;
-  @property({ type: String, reflect: true }) radius: NamedSize = '';
-  @property({ type: String, reflect: true }) gap: NumberedSize = '';
-  @property({ type: String, reflect: true }) p: NumberedSize = '';
-  @property({ type: String, reflect: true }) pl: NumberedSize = '';
-  @property({ type: String, reflect: true }) pr: NumberedSize = '';
-  @property({ type: String, reflect: true }) pt: NumberedSize = '';
-  @property({ type: String, reflect: true }) pb: NumberedSize = '';
-  @property({ type: String, reflect: true }) px: NumberedSize = '';
-  @property({ type: String, reflect: true }) py: NumberedSize = '';
-  @property({ type: String, reflect: true }) m: NumberedSize = '';
-  @property({ type: String, reflect: true }) ml: NumberedSize = '';
-  @property({ type: String, reflect: true }) mr: NumberedSize = '';
-  @property({ type: String, reflect: true }) mt: NumberedSize = '';
-  @property({ type: String, reflect: true }) mb: NumberedSize = '';
-  @property({ type: String, reflect: true }) mx: NumberedSize = '';
-  @property({ type: String, reflect: true }) my: NumberedSize = '';
+  @property({ type: String, reflect: true }) radius?: SizeToken;
+  @property({ type: String, reflect: true }) gap?: SpaceToken;
+  @property({ type: String, reflect: true }) p?: SpaceToken;
+  @property({ type: String, reflect: true }) pl?: SpaceToken;
+  @property({ type: String, reflect: true }) pr?: SpaceToken;
+  @property({ type: String, reflect: true }) pt?: SpaceToken;
+  @property({ type: String, reflect: true }) pb?: SpaceToken;
+  @property({ type: String, reflect: true }) px?: SpaceToken;
+  @property({ type: String, reflect: true }) py?: SpaceToken;
+  @property({ type: String, reflect: true }) m?: SpaceToken;
+  @property({ type: String, reflect: true }) ml?: SpaceToken;
+  @property({ type: String, reflect: true }) mr?: SpaceToken;
+  @property({ type: String, reflect: true }) mt?: SpaceToken;
+  @property({ type: String, reflect: true }) mb?: SpaceToken;
+  @property({ type: String, reflect: true }) mx?: SpaceToken;
+  @property({ type: String, reflect: true }) my?: SpaceToken;
   @property({ type: String, reflect: true }) bg = '';
   @property({ type: String, reflect: true }) color = '';
 

@@ -1,4 +1,4 @@
-html.cyberpunk {
+html[data-we-theme='cyberpunk'] {
   --we-color-multiplier: -1;
   --we-color-subtractor: 110%;
   --we-font-family: monospace;
@@ -10,7 +10,7 @@ html.cyberpunk {
   --we-size-lg: 50px;
 }
 
-html.cyberpunk we-text[variant^='heading'] {
+html[data-we-theme='cyberpunk'] we-text[variant^='heading'] {
   display: block;
   position: relative;
   animation-name: glitched;
@@ -21,12 +21,12 @@ html.cyberpunk we-text[variant^='heading'] {
   --we-text-color: var(--we-color-primary-500);
 }
 
-html.cyberpunk we-button::part(base) {
+html[data-we-theme='cyberpunk'] we-button::part(base) {
   cursor: pointer;
   clip-path: polygon(-15px 0%, calc(100% + 15px) 0%, calc(100% + 15px) 100%, 20px 100%, -15px calc(100% - 35px));
 }
 
-html.cyberpunk we-button:hover {
+html[data-we-theme='cyberpunk'] we-button:hover {
   display: inline-block;
   animation-name: glitched;
   animation-duration: 2s;
@@ -35,18 +35,18 @@ html.cyberpunk we-button:hover {
   animation-timing-function: ease-out;
 }
 
-html.cyberpunk we-menu-item::part(base) {
+html[data-we-theme='cyberpunk'] we-menu-item::part(base) {
   margin-top: var(--we-space-100);
   margin-left: var(--we-space-300);
   margin-right: 0;
   clip-path: polygon(90% 0, 0 0, 0 50%, 5% 100%, 0% 100%, 100% 100%, 100% 0%);
 }
 
-html.cyberpunk we-tab-item::part(base) {
+html[data-we-theme='cyberpunk'] we-tab-item::part(base) {
   clip-path: polygon(87% 0, 0 0, 0 50%, 13% 100%, 88% 100%, 100% 100%, 99% 16%);
 }
 
-html.cyberpunk we-input::part(input-wrapper) {
+html[data-we-theme='cyberpunk'] we-input::part(input-wrapper) {
   height: 60px;
   font-size: 16px;
   border: 10px solid var(--we-color-primary-500);
@@ -69,11 +69,11 @@ html.cyberpunk we-input::part(input-wrapper) {
   );
 }
 
-html.cyberpunk we-input::part(input-wrapper):focus-within {
+html[data-we-theme='cyberpunk'] we-input::part(input-wrapper):focus-within {
   border-color: var(--we-color-primary-500);
 }
 
-html.cyberpunk we-text[variant^='heading']::after {
+html[data-we-theme='cyberpunk'] we-text[variant^='heading']::after {
   display: block;
   content: '';
   width: 100%;

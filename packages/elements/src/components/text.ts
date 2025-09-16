@@ -1,7 +1,7 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import sharedStyles, { NumberedSize } from '../styles/shared';
-import { TextTag, TextVariant } from '../types';
+import sharedStyles from '../styles/shared';
+import { SpaceToken, TextTag, TextVariant } from '../types';
 
 const styles = css`
   :host {
@@ -130,7 +130,7 @@ const templates = {
 export default class Text extends LitElement {
   static styles = [sharedStyles, styles];
 
-  @property({ type: String, reflect: true }) size: NumberedSize = '';
+  @property({ type: String, reflect: true }) size?: SpaceToken;
   @property({ type: String, reflect: true }) variant: TextVariant = 'body';
   @property({ type: String, reflect: true }) tag: TextTag = 'p';
   @property({ type: Boolean, reflect: true }) nomargin = false;

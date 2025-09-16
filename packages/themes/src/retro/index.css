@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
-html.retro {
+html[data-we-theme='retro'] {
   --we-color-primary-hue: 230 !important;
   --we-border-radius: 0px;
   --we-border-color: silver;
@@ -8,15 +8,15 @@ html.retro {
   --we-size-sm: 30px;
   --we-size-md: 40px;
   --we-size-lg: 50px;
-  --we-scrollbar-thumb-box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey,
-    inset 2px 2px #dfdfdf;
+  --we-scrollbar-thumb-box-shadow:
+    inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey, inset 2px 2px #dfdfdf;
   --we-scrollbar-thumb-background: #dfdfdf;
   --we-scrollbar-background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='2' height='2' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M1 0H0v1h1v1h1V1H1V0z' fill='silver'/%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M2 0H1v1H0v1h1V1h1V0z' fill='%23fff'/%3E%3C/svg%3E");
   --we-scrollbar-width: 16px;
   --we-scrollbar-thumb-border-radius: 0;
 }
 
-html.retro we-modal::part(modal) {
+html[data-we-theme='retro'] we-modal::part(modal) {
   position: relative;
   background: silver;
   box-shadow:
@@ -27,7 +27,7 @@ html.retro we-modal::part(modal) {
   padding: 0;
 }
 
-html.retro we-modal::part(close-button) {
+html[data-we-theme='retro'] we-modal::part(close-button) {
   top: 10px;
   right: 10px;
   padding: var(--we-space-200);
@@ -44,13 +44,13 @@ html.retro we-modal::part(close-button) {
   justify-content: center;
 }
 
-html.retro we-modal::part(header) {
+html[data-we-theme='retro'] we-modal::part(header) {
   display: block;
   height: 50px;
   background: linear-gradient(90deg, navy, #1084d0);
 }
 
-html.retro we-toggle::part(indicator) {
+html[data-we-theme='retro'] we-toggle::part(indicator) {
   border-radius: 0;
   box-shadow:
     inset -1px -1px #0a0a0a,
@@ -59,7 +59,7 @@ html.retro we-toggle::part(indicator) {
     inset 2px 2px #dfdfdf;
 }
 
-html.retro we-toggle::part(toggle) {
+html[data-we-theme='retro'] we-toggle::part(toggle) {
   border-radius: 0;
   box-shadow:
     inset -1px -1px #0a0a0a,
@@ -68,7 +68,7 @@ html.retro we-toggle::part(toggle) {
     inset 2px 2px #dfdfdf;
 }
 
-html.retro we-avatar::part(base) {
+html[data-we-theme='retro'] we-avatar::part(base) {
   border-radius: 0;
   border: 0;
   box-shadow:
@@ -78,16 +78,16 @@ html.retro we-avatar::part(base) {
     inset 2px 2px #dfdfdf;
 }
 
-html.retro we-avatar[selected]::part(base) {
+html[data-we-theme='retro'] we-avatar[selected]::part(base) {
   border-radius: 0;
   box-shadow: 0 0 0 2px var(--we-color-primary-500);
 }
 
-html.retro we-avatar::part(img) {
+html[data-we-theme='retro'] we-avatar::part(img) {
   border-radius: 0;
 }
 
-html.retro we-button::part(base) {
+html[data-we-theme='retro'] we-button::part(base) {
   background: silver !important;
   color: #222 !important;
   font-weight: 400;
@@ -99,11 +99,11 @@ html.retro we-button::part(base) {
     inset 2px 2px #dfdfdf;
 }
 
-html.retro we-button[disabled]::part(base) {
+html[data-we-theme='retro'] we-button[disabled]::part(base) {
   text-shadow: 1px 1px 0 #fff;
 }
 
-html.retro we-button::part(base):active {
+html[data-we-theme='retro'] we-button::part(base):active {
   box-shadow:
     inset -1px -1px #fff,
     inset 1px 1px #0a0a0a,
@@ -111,7 +111,7 @@ html.retro we-button::part(base):active {
     inset 2px 2px grey;
 }
 
-html.retro we-button[variant='primary']::part(base) {
+html[data-we-theme='retro'] we-button[variant='primary']::part(base) {
   border: 0;
   box-shadow:
     inset -1px -1px #0a0a0a,
@@ -120,37 +120,37 @@ html.retro we-button[variant='primary']::part(base) {
     inset 2px 2px #dfdfdf;
 }
 
-html.retro we-button[circle]::part(base) {
+html[data-we-theme='retro'] we-button[circle]::part(base) {
   border-radius: 0;
 }
 
-html.retro we-tabs::part(base) {
+html[data-we-theme='retro'] we-tabs::part(base) {
   background: none;
   border: 0;
 }
 
-html.retro we-tabs::part(base)::before {
+html[data-we-theme='retro'] we-tabs::part(base)::before {
   content: none;
 }
 
-html.retro we-menu::part(base) {
+html[data-we-theme='retro'] we-menu::part(base) {
   background: var(--we-color-ui-100);
 }
 
-html.retro we-menu-group-item::part(summary) {
+html[data-we-theme='retro'] we-menu-group-item::part(summary) {
   padding-left: var(--we-space-300);
 }
 
-html.retro we-menu-group-item::part(content) {
+html[data-we-theme='retro'] we-menu-group-item::part(content) {
   border-left: 1px dotted grey;
   margin-left: var(--we-space-500);
 }
 
-html.retro we-menu-item::part(base) {
+html[data-we-theme='retro'] we-menu-item::part(base) {
   position: relative;
 }
 
-html.retro we-menu-item::part(base)::after {
+html[data-we-theme='retro'] we-menu-item::part(base)::after {
   position: absolute;
   content: '';
   display: block;
@@ -160,7 +160,7 @@ html.retro we-menu-item::part(base)::after {
   border-top: 1px dotted grey;
 }
 
-html.retro we-tab-item::part(base) {
+html[data-we-theme='retro'] we-tab-item::part(base) {
   box-shadow:
     inset -1px -1px #0a0a0a,
     inset 1px 1px #fff,
@@ -168,7 +168,7 @@ html.retro we-tab-item::part(base) {
     inset 2px 2px #dfdfdf;
 }
 
-html.retro we-input::part(input-wrapper) {
+html[data-we-theme='retro'] we-input::part(input-wrapper) {
   background: white;
   border: 0;
   box-shadow:
@@ -178,7 +178,7 @@ html.retro we-input::part(input-wrapper) {
     inset 2px 2px #dfdfdf;
 }
 
-html.retro we-input::part(input-wrapper):focus-within {
+html[data-we-theme='retro'] we-input::part(input-wrapper):focus-within {
   border: 0;
   box-shadow:
     inset -1px -1px #0a0a0a,

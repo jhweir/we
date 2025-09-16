@@ -30,7 +30,7 @@ export type {
 export type { ScrollbarToken } from './component.js';
 export type { DepthToken } from './effect.js';
 export type { FontFamilyToken, FontSizeToken } from './font.js';
-export type { NamedSizeToken } from './size.js';
+export type { SizeToken } from './size.js';
 export type { SpaceToken } from './space.js';
 
 /**

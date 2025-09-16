@@ -107,6 +107,7 @@
     "publish": "npm publish --access public"
   },
   "dependencies": {
+    "@we/tokens": "workspace:*",
     "@phosphor-icons/core": "^2.1.1",
     "@popperjs/core": "^2.11.8",
     "jdenticon": "3.3.0",

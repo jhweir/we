@@ -21,7 +21,7 @@
   "scripts": {
     "build": "rimraf dist && postcss 'src/**/index.css' --base src --dir dist"
   },
-  "dependencies": {
+  "peerDependencies": {
     "@we/tokens": "workspace:*"
   },
   "devDependencies": {

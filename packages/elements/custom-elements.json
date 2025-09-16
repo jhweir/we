@@ -74,9 +74,8 @@
               "kind": "field",
               "name": "size",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "attribute": "size",
               "reflects": true
             },
@@ -146,9 +145,8 @@
             {
               "name": "size",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "fieldName": "size"
             }
           ],
@@ -515,9 +513,8 @@
               "kind": "field",
               "name": "gap",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "gap",
               "reflects": true
             },
@@ -525,9 +522,8 @@
               "kind": "field",
               "name": "p",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "p",
               "reflects": true
             },
@@ -535,9 +531,8 @@
               "kind": "field",
               "name": "pl",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "pl",
               "reflects": true
             },
@@ -545,9 +540,8 @@
               "kind": "field",
               "name": "pr",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "pr",
               "reflects": true
             },
@@ -555,9 +549,8 @@
               "kind": "field",
               "name": "pt",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "pt",
               "reflects": true
             },
@@ -565,9 +558,8 @@
               "kind": "field",
               "name": "pb",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "pb",
               "reflects": true
             },
@@ -575,9 +567,8 @@
               "kind": "field",
               "name": "px",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "px",
               "reflects": true
             },
@@ -585,9 +576,8 @@
               "kind": "field",
               "name": "py",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "py",
               "reflects": true
             },
@@ -595,9 +585,8 @@
               "kind": "field",
               "name": "m",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "m",
               "reflects": true
             },
@@ -605,9 +594,8 @@
               "kind": "field",
               "name": "ml",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "ml",
               "reflects": true
             },
@@ -615,9 +603,8 @@
               "kind": "field",
               "name": "mr",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "mr",
               "reflects": true
             },
@@ -625,9 +612,8 @@
               "kind": "field",
               "name": "mt",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "mt",
               "reflects": true
             },
@@ -635,9 +621,8 @@
               "kind": "field",
               "name": "mb",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "mb",
               "reflects": true
             },
@@ -645,9 +630,8 @@
               "kind": "field",
               "name": "mx",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "mx",
               "reflects": true
             },
@@ -655,9 +639,8 @@
               "kind": "field",
               "name": "my",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "my",
               "reflects": true
             },
@@ -665,9 +648,8 @@
               "kind": "field",
               "name": "r",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "attribute": "r",
               "reflects": true
             },
@@ -675,9 +657,8 @@
               "kind": "field",
               "name": "rt",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "attribute": "rt",
               "reflects": true
             },
@@ -685,9 +666,8 @@
               "kind": "field",
               "name": "rb",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "attribute": "rb",
               "reflects": true
             },
@@ -695,9 +675,8 @@
               "kind": "field",
               "name": "rl",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "attribute": "rl",
               "reflects": true
             },
@@ -705,9 +684,8 @@
               "kind": "field",
               "name": "rr",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "attribute": "rr",
               "reflects": true
             },
@@ -715,9 +693,8 @@
               "kind": "field",
               "name": "rtl",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "attribute": "rtl",
               "reflects": true
             },
@@ -725,9 +702,8 @@
               "kind": "field",
               "name": "rtr",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "attribute": "rtr",
               "reflects": true
             },
@@ -735,9 +711,8 @@
               "kind": "field",
               "name": "rbr",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "attribute": "rbr",
               "reflects": true
             },
@@ -745,9 +720,8 @@
               "kind": "field",
               "name": "rbl",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "attribute": "rbl",
               "reflects": true
             },
@@ -808,193 +782,169 @@
             {
               "name": "gap",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "gap"
             },
             {
               "name": "p",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "p"
             },
             {
               "name": "pl",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "pl"
             },
             {
               "name": "pr",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "pr"
             },
             {
               "name": "pt",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "pt"
             },
             {
               "name": "pb",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "pb"
             },
             {
               "name": "px",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "px"
             },
             {
               "name": "py",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "py"
             },
             {
               "name": "m",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "m"
             },
             {
               "name": "ml",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "ml"
             },
             {
               "name": "mr",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "mr"
             },
             {
               "name": "mt",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "mt"
             },
             {
               "name": "mb",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "mb"
             },
             {
               "name": "mx",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "mx"
             },
             {
               "name": "my",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "my"
             },
             {
               "name": "r",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "fieldName": "r"
             },
             {
               "name": "rt",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "fieldName": "rt"
             },
             {
               "name": "rb",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "fieldName": "rb"
             },
             {
               "name": "rl",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "fieldName": "rl"
             },
             {
               "name": "rr",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "fieldName": "rr"
             },
             {
               "name": "rtl",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "fieldName": "rtl"
             },
             {
               "name": "rtr",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "fieldName": "rtr"
             },
             {
               "name": "rbr",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "fieldName": "rbr"
             },
             {
               "name": "rbl",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "fieldName": "rbl"
             },
             {
@@ -2276,9 +2226,8 @@
               "kind": "field",
               "name": "radius",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "attribute": "radius",
               "reflects": true
             },
@@ -2286,9 +2235,8 @@
               "kind": "field",
               "name": "gap",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "gap",
               "reflects": true
             },
@@ -2296,9 +2244,8 @@
               "kind": "field",
               "name": "p",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "p",
               "reflects": true
             },
@@ -2306,9 +2253,8 @@
               "kind": "field",
               "name": "pl",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "pl",
               "reflects": true
             },
@@ -2316,9 +2262,8 @@
               "kind": "field",
               "name": "pr",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "pr",
               "reflects": true
             },
@@ -2326,9 +2271,8 @@
               "kind": "field",
               "name": "pt",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "pt",
               "reflects": true
             },
@@ -2336,9 +2280,8 @@
               "kind": "field",
               "name": "pb",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "pb",
               "reflects": true
             },
@@ -2346,9 +2289,8 @@
               "kind": "field",
               "name": "px",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "px",
               "reflects": true
             },
@@ -2356,9 +2298,8 @@
               "kind": "field",
               "name": "py",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "py",
               "reflects": true
             },
@@ -2366,9 +2307,8 @@
               "kind": "field",
               "name": "m",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "m",
               "reflects": true
             },
@@ -2376,9 +2316,8 @@
               "kind": "field",
               "name": "ml",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "ml",
               "reflects": true
             },
@@ -2386,9 +2325,8 @@
               "kind": "field",
               "name": "mr",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "mr",
               "reflects": true
             },
@@ -2396,9 +2334,8 @@
               "kind": "field",
               "name": "mt",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "mt",
               "reflects": true
             },
@@ -2406,9 +2343,8 @@
               "kind": "field",
               "name": "mb",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "mb",
               "reflects": true
             },
@@ -2416,9 +2352,8 @@
               "kind": "field",
               "name": "mx",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "mx",
               "reflects": true
             },
@@ -2426,9 +2361,8 @@
               "kind": "field",
               "name": "my",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "my",
               "reflects": true
             },
@@ -2489,129 +2423,113 @@
             {
               "name": "radius",
               "type": {
-                "text": "NamedSize"
+                "text": "SizeToken | undefined"
               },
-              "default": "''",
               "fieldName": "radius"
             },
             {
               "name": "gap",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "gap"
             },
             {
               "name": "p",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "p"
             },
             {
               "name": "pl",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "pl"
             },
             {
               "name": "pr",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "pr"
             },
             {
               "name": "pt",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "pt"
             },
             {
               "name": "pb",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "pb"
             },
             {
               "name": "px",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "px"
             },
             {
               "name": "py",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "py"
             },
             {
               "name": "m",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "m"
             },
             {
               "name": "ml",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "ml"
             },
             {
               "name": "mr",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "mr"
             },
             {
               "name": "mt",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "mt"
             },
             {
               "name": "mb",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "mb"
             },
             {
               "name": "mx",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "mx"
             },
             {
               "name": "my",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "my"
             },
             {
@@ -2728,9 +2646,8 @@
               "kind": "field",
               "name": "size",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "attribute": "size",
               "reflects": true
             },
@@ -2809,9 +2726,8 @@
             {
               "name": "size",
               "type": {
-                "text": "NumberedSize"
+                "text": "SpaceToken | undefined"
               },
-              "default": "''",
               "fieldName": "size"
             },
             {

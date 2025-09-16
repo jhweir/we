@@ -1,11 +1,13 @@
-const namedSize = ['', 'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl'] as const;
-const numberedSize = ['', '100', '200', '300', '400', '500', '600', '700', '800', '900', '1000'] as const;
+export type { SizeToken, SpaceToken } from '@we/tokens';
+
+// const namedSize = ['', 'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl'] as const;
+// const numberedSize = ['', '100', '200', '300', '400', '500', '600', '700', '800', '900', '1000'] as const;
 const alignPosition = ['', 'center', 'end'] as const;
 const alignPositionAndSpacing = [...alignPosition, 'between', 'around'] as const;
 const allowedTextTags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'small', 'b', 'i', 'span', 'label', 'div'] as const;
 
-export type NamedSize = (typeof namedSize)[number];
-export type NumberedSize = (typeof numberedSize)[number];
+// export type NamedSize = (typeof namedSize)[number];
+// export type NumberedSize = (typeof numberedSize)[number];
 export type AlignPosition = (typeof alignPosition)[number];
 export type AlignPositionAndSpacing = (typeof alignPositionAndSpacing)[number];
 export type TextTag = (typeof allowedTextTags)[number];

@@ -17,8 +17,10 @@
     "vite-plugin-solid": "^2.11.6"
   },
   "dependencies": {
-    "@coasys/ad4m": "0.10.1-release-candidate-3",
-    "@coasys/ad4m-connect": "file:../../../ad4m/connect",
+    "@we/tokens": "workspace:*",
+    "@we/themes": "workspace:*",
+    "@coasys/ad4m": "0.10.1",
+    "@coasys/ad4m-connect": "0.10.1",
     "@lexical/list": "^0.30.0",
     "@lexical/markdown": "^0.30.0",
     "@lexical/rich-text": "^0.30.0",

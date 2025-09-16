@@ -4,7 +4,7 @@
  */
 
 // Literal union type for named sizes
-export type NamedSizeToken = 'xxs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
+export type SizeToken = 'xxs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
 
 /**
  * Named size scale.
@@ -19,4 +19,4 @@ export const size = {
   lg: '3.25rem', // ~52px - Large
   xl: '3.8rem', // ~61px - Extra large
   xxl: '5rem', // ~80px - Extra extra large
-} satisfies Record<NamedSizeToken, string>;
+} satisfies Record<SizeToken, string>;

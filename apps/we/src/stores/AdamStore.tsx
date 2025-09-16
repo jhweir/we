@@ -5,17 +5,8 @@ import { createContext, createEffect, ParentProps, useContext } from 'solid-js';
 import { createStore } from 'solid-js/store';
 
 // TODO:
-// + move theme settings and ai to separate stores
-// + move types to a separate file
+// + move ai to separate stores
 
-export type Theme = { name: string; icon: string };
-export type IconWeight = 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone';
-export type ThemeSettings = {
-  allThemes: Theme[];
-  currentTheme: Theme;
-  iconWeight: IconWeight;
-  currentTemplate: string;
-};
 export interface AdamStore {
   state: {
     loading: boolean;
@@ -24,24 +15,11 @@ export interface AdamStore {
     mySpaces: Space[];
     // TODO: move to separate stores
     myAI: { models: any[]; tasks: AITask[] };
-    myThemeSettings: ThemeSettings;
   };
   actions: {
     addNewSpace: (space: Space) => void;
   };
 }
-
-const themes = {
-  light: { name: 'Light', icon: 'sun' },
-  dark: { name: 'Dark', icon: 'moon' },
-};
-
-const defaultThemeSettings: ThemeSettings = {
-  allThemes: [themes.light, themes.dark],
-  currentTheme: themes.dark,
-  iconWeight: 'regular',
-  currentTemplate: 'default',
-};
 
 const adamContext = createContext<AdamStore>();
 
@@ -52,19 +30,18 @@ export function AdamProvider(props: ParentProps) {
     me: undefined,
     mySpaces: [],
     myAI: { models: [], tasks: [] },
-    myThemeSettings: defaultThemeSettings,
   });
 
   async function getAdamClient() {
     try {
-      const ui = Ad4mConnect({
+      const connect = Ad4mConnect({
         appName: 'WE',
         appDesc: 'Social media for a new internet',
         appDomain: 'ad4m.weco.io',
         appIconPath: 'https://avatars.githubusercontent.com/u/34165012',
         capabilities: [{ with: { domain: '*', pointers: ['*'] }, can: ['*'] }],
       });
-      return await ui.connect();
+      return await connect.getAd4mClient();
     } catch (error) {
       console.error('AdamStore: getAdamClient error', error);
     }
@@ -102,15 +79,6 @@ export function AdamProvider(props: ParentProps) {
     }
   }
 
-  async function getMyThemeSettings(client: Ad4mClient): Promise<void> {
-    try {
-      // Get theme settings from personal settings perspective
-      // setState('myThemeSettings', ...)
-    } catch (error) {
-      console.error('AdamStore: getMyThemeSettings error', error);
-    }
-  }
-
   async function initialiseStore(): Promise<void> {
     // First get the ad4m client
     const client = await getAdamClient();
@@ -119,7 +87,7 @@ export function AdamProvider(props: ParentProps) {
     setState('ad4mClient', client);
 
     // Then use it to fetch all other required data
-    await Promise.all([getMe(client), getMySpaces(client), getMyThemeSettings(client)]);
+    await Promise.all([getMe(client), getMySpaces(client)]);
 
     setState('loading', false);
   }
@@ -131,11 +99,6 @@ export function AdamProvider(props: ParentProps) {
   createEffect(() => {
     console.log('AdamContext mounted');
     initialiseStore();
-  });
-
-  createEffect(() => {
-    document.documentElement.classList.remove('dark', 'light');
-    document.documentElement.classList.add(state.myThemeSettings.currentTheme.name.toLowerCase());
   });
 
   return <adamContext.Provider value={{ state, actions }}>{props.children}</adamContext.Provider>;

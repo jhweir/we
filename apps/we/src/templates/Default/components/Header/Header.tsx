@@ -1,29 +1,29 @@
-import { useAdamStore } from '@/stores/AdamStore';
+import { useThemeStore } from '@/stores';
 import styles from './Header.module.scss';
 
 export default function Header() {
-  const adamStore = useAdamStore();
+  const { state, actions } = useThemeStore();
+  const iconWeight = 'regular';
 
-  // TODO: move theme settins into a separate store
+  // Derive keys for setTheme (store exposes only display objects)
+  const items = () => state.all.map((t) => ({ key: t.name.toLowerCase() as any, ...t }));
 
   return (() => {
-    const { allThemes, currentTheme, iconWeight } = adamStore.state.myThemeSettings;
+    const current = state.current();
 
     return (
       <we-row p="300" ax="end" class={styles.header}>
         <we-popover placement="bottom-end">
           <we-button size="sm" slot="trigger" variant="subtle">
-            <we-icon name={currentTheme.icon} weight={iconWeight} />
-            {currentTheme.name}
+            <we-icon name={current.icon} weight={iconWeight} />
+            {current.name}
           </we-button>
+
           <we-menu slot="content">
-            {allThemes.map((theme) => (
-              <we-menu-item
-                key={theme.name}
-                onClick={() => adamStore.actions.setMyThemeSettings((prev) => ({ ...prev, currentTheme: theme }))}
-              >
-                <we-icon slot="start" name={theme.icon} weight={iconWeight} />
-                {theme.name}
+            {items().map((t) => (
+              <we-menu-item key={t.key} onClick={() => actions.setTheme(t.key)}>
+                <we-icon slot="start" name={t.icon} weight={iconWeight} />
+                {t.name}
               </we-menu-item>
             ))}
           </we-menu>
