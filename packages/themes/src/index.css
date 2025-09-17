@@ -1,9 +1,10 @@
-@import './dark/index.css';
-@import './black/index.css';
-@import './retro/index.css';
-@import './cyberpunk/index.css';
+@import url('./dark/index.css');
+@import url('./black/index.css');
+@import url('./retro/index.css');
+@import url('./cyberpunk/index.css');
 
 /* Theme switching mechanism (optional) */
+
 /* :root {
     --we-theme-transition-duration: 200ms;
   }

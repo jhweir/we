@@ -1,4 +1,5 @@
 /* ===== BASE THEME VARIABLES ===== */
+
 html[data-we-theme='black'] {
   --we-color-subtractor: 100%;
   --we-color-multiplier: -1;
@@ -18,11 +19,13 @@ html[data-we-theme='black'] we-menu-item::part(base) {
 }
 
 /* ===== COMPONENTS OVERRIDES ===== */
+
 /* html[data-we-theme='black'] .we-card {
   box-shadow: var(--we-depth-400);
 } */
 
 /* ===== WIDGETS OVERRIDES ===== */
+
 /* html[data-we-theme='black'] .we-data-table {
   border: var(--we-border-width) solid var(--we-border-color-strong);
 } */

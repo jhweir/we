@@ -1,1 +1,5 @@
-module.exports = { plugins: [require('postcss-import')({ path: ['src'] })] };
+import postcssImport from 'postcss-import';
+
+export default {
+  plugins: [postcssImport({ path: ['src'] })],
+};

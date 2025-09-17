@@ -2,6 +2,7 @@
   "name": "@we/themes",
   "version": "0.1.0",
   "description": "Style themes for WE",
+  "type": "module",
   "main": "./dist/index.css",
   "style": "./dist/index.css",
   "exports": {
