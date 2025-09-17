@@ -1,7 +1,6 @@
 import './components/avatar';
 import './components/badge';
 import './components/button';
-import './components/column';
 import './components/icon';
 import './components/input';
 import './components/menu';
@@ -9,6 +8,5 @@ import './components/menu-group';
 import './components/menu-item';
 import './components/modal';
 import './components/popover';
-import './components/row';
 import './components/spinner';
 import './components/text';

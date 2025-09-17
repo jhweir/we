@@ -1,5 +1,6 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+
 import { generateVariable } from '../helpers';
 import sharedStyles, { AlignPosition, AlignPositionAndSpacing } from '../styles/shared';
 import { SizeToken, SpaceToken } from '../types';

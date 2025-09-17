@@ -1,6 +1,7 @@
 import { createPopper, VirtualElement } from '@popperjs/core';
 import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+
 import sharedStyles from '../styles/shared';
 import { PopoverEvent, PopoverPlacement } from '../types';
 
@@ -56,7 +57,7 @@ export default class Popover extends LitElement {
     this._createPopover = this._createPopover.bind(this);
   }
 
-  private popperInstance: any = null;
+  private popperInstance: import('@popperjs/core').Instance | null = null;
 
   get triggerPart(): HTMLElement {
     const trigger = this.renderRoot.querySelector<HTMLElement>("[part='trigger']");
@@ -89,7 +90,7 @@ export default class Popover extends LitElement {
   firstUpdated() {
     const trigger = this.triggerPart;
     if (trigger) {
-      trigger.addEventListener(this.event, (e: any) => {
+      trigger.addEventListener(this.event, (e: MouseEvent) => {
         e.preventDefault();
         this.clientY = e.clientY;
         this.clientX = e.clientX;
@@ -103,8 +104,14 @@ export default class Popover extends LitElement {
       }
 
       // Handle click outside
-      window.addEventListener('mousedown', (e: any) => {
-        var path = e.path || (e.composedPath && e.composedPath());
+      window.addEventListener('mousedown', (e: MouseEvent) => {
+        let path: EventTarget[] = [];
+        if (typeof e.composedPath === 'function') {
+          path = e.composedPath();
+        } else if ('path' in e && Array.isArray((e as { path: unknown }).path)) {
+          path = (e as { path: EventTarget[] }).path;
+        }
+
         const clickedTrigger = path.includes(this.triggerAssignedNode);
         const clickedInside = path.includes(this.contentAssignedNode);
         if (!clickedInside && !clickedTrigger) this.open = false;
@@ -158,7 +165,7 @@ export default class Popover extends LitElement {
     }
   }
 
-  shouldUpdate(props: Map<string, any>) {
+  shouldUpdate(props: Map<string, unknown>) {
     if (props.has('open')) {
       this.dispatchEvent(new CustomEvent('toggle', { bubbles: true }));
       if (this.open) this._createPopover();

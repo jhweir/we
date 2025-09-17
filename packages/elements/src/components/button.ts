@@ -1,8 +1,10 @@
+import './spinner';
+
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+
 import sharedStyles from '../styles/shared';
 import { ButtonSize, ButtonVariant } from '../types';
-import './spinner';
 
 const styles = css`
   :host {

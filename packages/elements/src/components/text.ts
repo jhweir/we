@@ -1,5 +1,6 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+
 import sharedStyles from '../styles/shared';
 import { SpaceToken, TextTag, TextVariant } from '../types';
 
@@ -139,7 +140,7 @@ export default class Text extends LitElement {
   @property({ type: String, reflect: true }) color = '';
   @property({ type: String, reflect: true }) weight = '';
 
-  updated(changedProperties: Map<string, any>) {
+  updated(changedProperties: Map<string, unknown>) {
     super.updated(changedProperties);
 
     // Handle dynamic props

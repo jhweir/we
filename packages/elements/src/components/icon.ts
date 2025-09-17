@@ -1,6 +1,7 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
+
 import { generateVariable } from '../helpers';
 import sharedStyles from '../styles/shared';
 import { IconSize, IconWeight } from '../types';
@@ -69,7 +70,7 @@ export default class Icon extends LitElement {
     }
   }
 
-  updated(props: Map<string, any>) {
+  updated(props: Map<string, unknown>) {
     super.updated(props);
     if (props.has('name') || props.has('weight')) this.loadIcon();
     if (props.has('color'))

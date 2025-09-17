@@ -3,5 +3,5 @@
   "compilerOptions": {
     "experimentalDecorators": true
   },
-  "include": ["src/index.ts", "src/helpers.ts", "src/components/**/*.ts"]
+  "include": ["src/index.ts", "src/helpers.ts", "src/components/**/*.ts", "scripts/generate-framework-declarations.ts"]
 }
