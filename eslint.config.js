@@ -3,7 +3,9 @@ import tsPlugin from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 import eslintConfigPrettier from 'eslint-config-prettier';
 import prettierPlugin from 'eslint-plugin-prettier';
-import prettierConfig from './.prettierrc.json';
+import simpleImportSortPlugin from 'eslint-plugin-simple-import-sort';
+
+import prettierConfig from './.prettierrc.json' with { type: 'json' };
 
 export default [
   {
@@ -15,15 +17,41 @@ export default [
   {
     name: 'javascript/recommended',
     files: ['**/*.js', '**/*.jsx'],
-    rules: { ...js.configs.recommended.rules },
+    plugins: { 'simple-import-sort': simpleImportSortPlugin },
+    rules: {
+      ...js.configs.recommended.rules,
+      'simple-import-sort/imports': 'error',
+    },
   },
   {
     name: 'typescript/recommended',
     files: ['**/*.ts', '**/*.tsx'],
-    plugins: { '@typescript-eslint': tsPlugin },
+    plugins: { '@typescript-eslint': tsPlugin, 'simple-import-sort': simpleImportSortPlugin },
     languageOptions: { parser: tsParser, parserOptions: { project: './tsconfig.json' } },
-    rules: { ...tsPlugin.configs.recommended.rules },
+    rules: {
+      ...tsPlugin.configs.recommended.rules,
+      'simple-import-sort/imports': 'error',
+    },
   },
+  // {
+  //   name: 'javascript/recommended',
+  //   files: ['**/*.js', '**/*.jsx'],
+  //   rules: { ...js.configs.recommended.rules },
+  // },
+  // {
+  //   name: 'typescript/recommended',
+  //   files: ['**/*.ts', '**/*.tsx'],
+  //   plugins: { '@typescript-eslint': tsPlugin },
+  //   languageOptions: { parser: tsParser, parserOptions: { project: './tsconfig.json' } },
+  //   rules: { ...tsPlugin.configs.recommended.rules },
+  // },
+  // {
+  //   name: 'simple-import-sort',
+  //   plugins: { 'simple-import-sort': simpleImportSortPlugin },
+  //   rules: {
+  //     'simple-import-sort/imports': 'error',
+  //   },
+  // },
   // turn off any rules that conflict with prettier
   eslintConfigPrettier,
 ];
