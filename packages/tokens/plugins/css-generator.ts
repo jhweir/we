@@ -1,6 +1,16 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+
 import type { Plugin } from 'rollup';
+
+import { animation as animationTokens } from '../src/animation';
+import { border as borderTokens } from '../src/border';
+import { color as colorTokens } from '../src/color';
+import { component as componentTokens } from '../src/component';
+import { effect as effectTokens } from '../src/effect';
+import { font as fontTokens } from '../src/font';
+import { size as sizeTokens } from '../src/size';
+import { space as spaceTokens } from '../src/space';
 
 interface CssGeneratorOptions {
   outputDir?: string;
@@ -50,7 +60,7 @@ export function cssGenerator(options: CssGeneratorOptions = {}): Plugin {
 }
 
 // Helper functions for CSS generation
-function generateAnimationCSS(animation: any, outputDir: string) {
+function generateAnimationCSS(animation: typeof animationTokens, outputDir: string) {
   const transitionVars = Object.entries(animation.transition)
     .map(([key, value]) => `  --we-transition-${key}: ${value};`)
     .join('\n');
@@ -65,7 +75,7 @@ ${transitionVars}
   fs.writeFileSync(path.join(outputDir, 'animation.css'), css);
 }
 
-function generateBorderCSS(border: any, outputDir: string) {
+function generateBorderCSS(border: typeof borderTokens, outputDir: string) {
   const radiusVars = Object.entries(border.radius)
     .map(([key, value]) => {
       const varName = key === 'base' ? '--we-border-radius' : `--we-border-radius-${key}`;
@@ -90,7 +100,7 @@ ${radiusVars}
   fs.writeFileSync(path.join(outputDir, 'border.css'), css);
 }
 
-function generateColorCSS(color: any, outputDir: string) {
+function generateColorCSS(color: typeof colorTokens, outputDir: string) {
   const hueVars = Object.entries(color.hues)
     .map(([key, value]) => `  --we-color-${key}-hue: ${value};`)
     .join('\n');
@@ -146,7 +156,7 @@ ${colorPalettes}
   fs.writeFileSync(path.join(outputDir, 'color.css'), css);
 }
 
-function generateComponentCSS(component: any, outputDir: string) {
+function generateComponentCSS(component: typeof componentTokens, outputDir: string) {
   const scrollbarVars = Object.entries(component.scrollbar)
     .filter(([key]) => key !== 'thumbBorderRadius' && key !== 'thumbBackground') // Handle these separately
     .map(([key, value]) => `  --we-scrollbar-${key}: ${value};`)
@@ -164,7 +174,7 @@ ${scrollbarVars}
   fs.writeFileSync(path.join(outputDir, 'component.css'), css);
 }
 
-function generateEffectCSS(effect: any, outputDir: string) {
+function generateEffectCSS(effect: typeof effectTokens, outputDir: string) {
   const depthVars = Object.entries(effect.depth)
     .filter(([key]) => key !== 'none') // Handle 'none' separately to put it first
     .map(([key, value]) => `  --we-depth-${key}: ${value};`)
@@ -181,7 +191,7 @@ ${depthVars}
   fs.writeFileSync(path.join(outputDir, 'effect.css'), css);
 }
 
-function generateFontCSS(font: any, outputDir: string) {
+function generateFontCSS(font: typeof fontTokens, outputDir: string) {
   const fontSizeVars = Object.entries(font.size)
     .filter(([key]) => key !== 'base') // Handle 'base' separately to put it first
     .map(([key, value]) => `  --we-font-size-${key}: ${value};`)
@@ -201,7 +211,7 @@ ${fontSizeVars}
   fs.writeFileSync(path.join(outputDir, 'font.css'), css);
 }
 
-function generateSizeCSS(size: any, outputDir: string) {
+function generateSizeCSS(size: typeof sizeTokens, outputDir: string) {
   const sizeVars = Object.entries(size)
     .map(([key, value]) => `  --we-size-${key}: ${value};`)
     .join('\n');
@@ -216,7 +226,7 @@ ${sizeVars}
   fs.writeFileSync(path.join(outputDir, 'size.css'), css);
 }
 
-function generateSpaceCSS(space: any, outputDir: string) {
+function generateSpaceCSS(space: typeof spaceTokens, outputDir: string) {
   const spaceVars = Object.entries(space)
     .map(([key, value]) => `  --we-space-${key}: ${value};`)
     .join('\n');
