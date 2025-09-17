@@ -19,6 +19,7 @@
   "dependencies": {
     "@we/tokens": "workspace:*",
     "@we/themes": "workspace:*",
+    "@we/components": "workspace:*",
     "@coasys/ad4m": "0.10.1",
     "@coasys/ad4m-connect": "0.10.1",
     "@lexical/list": "^0.30.0",

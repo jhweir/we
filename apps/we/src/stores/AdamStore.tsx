@@ -98,7 +98,7 @@ export function AdamProvider(props: ParentProps) {
 
   createEffect(() => {
     console.log('AdamContext mounted');
-    initialiseStore();
+    // initialiseStore();
   });
 
   return <adamContext.Provider value={{ state, actions }}>{props.children}</adamContext.Provider>;
