@@ -10,11 +10,11 @@ import { color } from './color.js';
 import { component } from './component.js';
 import { effect } from './effect.js';
 import { font } from './font.js';
-import { size } from './size.js';
+import { avatarSize, radius, size } from './size.js';
 import { space } from './space.js';
 
 // Re-export all token objects
-export { animation, border, color, component, effect, font, size, space };
+export { animation, border, color, component, effect, font, size, radius, avatarSize, space };
 
 // Export token types
 export type { AnimationTransitionToken } from './animation.js';
@@ -30,7 +30,7 @@ export type {
 export type { ScrollbarToken } from './component.js';
 export type { DepthToken } from './effect.js';
 export type { FontFamilyToken, FontSizeToken } from './font.js';
-export type { SizeToken } from './size.js';
+export type { SizeToken, RadiusToken, AvatarSizeToken } from './size.js';
 export type { SpaceToken } from './space.js';
 
 /**
@@ -38,4 +38,4 @@ export type { SpaceToken } from './space.js';
  * This object combines all token categories into a single, organized structure
  * for applications that need access to the full design system.
  */
-export const tokens = { animation, border, color, component, effect, font, size, space };
+export const tokens = { animation, border, color, component, effect, font, size, radius, avatarSize, space };

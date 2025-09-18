@@ -1,6 +1,6 @@
 import { JSX } from 'solid-js';
 
-import { Column, Row } from '../../../index';
+import { Column, Row } from '../../index';
 
 export interface PostCardProps {
   creator: {
@@ -15,7 +15,7 @@ export interface PostCardProps {
 
 export function PostCard(props: PostCardProps) {
   return (
-    <Column p="400" class={`we-post-card ${props.class || ''}`} style={props.style} data-we-card>
+    <Column bg="ui-100" r="md" p="400" class={`we-post-card ${props.class || ''}`} style={props.style} data-we-card>
       <Row>
         <we-avatar image={props.creator.avatarUrl} size="md" />
       </Row>

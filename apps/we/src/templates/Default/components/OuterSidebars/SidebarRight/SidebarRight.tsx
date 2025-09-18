@@ -1,13 +1,15 @@
-import { useAdamStore } from '@/stores/AdamStore';
+import { Column } from '@we/components/solid';
+
+// import { useAdamStore } from '@/stores/AdamStore';
 import styles from '../OuterSidebars.module.scss';
 
 export default function SidebarRight() {
-  const adamStore = useAdamStore();
+  // const adamStore = useAdamStore();
   // const { iconWeight } = myThemeSettings;
 
   return (
-    <we-column p="400" ay="between" bg="ui-0" class={`${styles.sidebar} ${styles.right}`}>
-      {/* <we-column gap="400">
+    <Column p="400" ay="between" bg="ui-0" class={`${styles.sidebar} ${styles.right}`}>
+      {/* <Column gap="400">
         <Link href="/">
           <we-avatar src="https://weco-prod-user-flag-images.s3.eu-west-1.amazonaws.com/user-flag-image-1-1-1597655878532-gif-1693527111503.gif" />
         </Link>
@@ -26,13 +28,13 @@ export default function SidebarRight() {
 
         <Link href="/posts/1">1</Link>
         <Link href="/posts/2">2</Link>
-      </we-column>
+      </Column>
 
-      <we-column gap="400">
+      <Column gap="400">
         <Link href="/">
           <we-icon name="question" weight={iconWeight} color="ui-700" />
         </Link>
-      </we-column> */}
-    </we-column>
+      </Column> */}
+    </Column>
   );
 }

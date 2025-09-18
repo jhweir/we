@@ -34,7 +34,7 @@
     "typescript": "^5.7.2"
   },
   "scripts": {
-    "build:css": "bash scripts/build-css-modules.sh",
+    "build:css": "sass src/styles/index.scss dist/styles/index.css --no-source-map --style=compressed",
     "build": "tsup --config tsup.config.ts && pnpm build:css",
     "clean": "rimraf dist"
   },

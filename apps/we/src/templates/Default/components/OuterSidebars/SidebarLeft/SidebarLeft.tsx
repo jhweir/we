@@ -1,5 +1,8 @@
-import { useAdamStore, useModalStore } from '@/stores';
 import { useNavigate } from '@solidjs/router';
+import { Column } from '@we/components/solid';
+
+import { useAdamStore, useModalStore } from '@/stores';
+
 import styles from '../OuterSidebars.module.scss';
 
 const WECO_LOGO = 'https://avatars.githubusercontent.com/u/34165012?s=200&v=4';
@@ -21,8 +24,8 @@ export default function SidebarLeft() {
   const navigate = useNavigate();
 
   return (
-    <we-column py="700" ax="center" ay="between" bg="ui-0" class={`${styles.sidebar} ${styles.left}`}>
-      <we-column gap="400">
+    <Column py="700" ax="center" ay="between" bg="ui-0" class={`${styles.sidebar} ${styles.left}`}>
+      <Column gap="400">
         <CircleButton image={WECO_LOGO} onClick={() => navigate('/')} />
         <CircleButton icon="magnifying-glass" onClick={() => navigate('/search')} />
         <CircleButton icon="users-three" onClick={() => navigate('/all-spaces')} />
@@ -30,11 +33,11 @@ export default function SidebarLeft() {
           <CircleButton key={space.uuid} initials={space.name} onClick={() => navigate(`/space/${space.uuid}`)} />
         ))}
         <CircleButton icon="plus" onClick={() => modalStore.actions.openModal('createSpace')} />
-      </we-column>
+      </Column>
 
-      <we-column gap="400">
+      <Column gap="400">
         <CircleButton icon="gear" onClick={() => navigate('/settings')} />
-      </we-column>
-    </we-column>
+      </Column>
+    </Column>
   );
 }

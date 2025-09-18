@@ -1,4 +1,7 @@
-import { useThemeStore } from '@/stores';
+import { Row } from '@we/components/solid';
+
+import { ThemeName, useThemeStore } from '@/stores';
+
 import styles from './Header.module.scss';
 
 export default function Header() {
@@ -6,17 +9,15 @@ export default function Header() {
   const iconWeight = 'regular';
 
   // Derive keys for setTheme (store exposes only display objects)
-  const items = () => state.all.map((t) => ({ key: t.name.toLowerCase() as any, ...t }));
+  const items = () => state.all.map((t) => ({ key: t.name.toLowerCase() as ThemeName, ...t }));
 
   return (() => {
-    const current = state.current();
-
     return (
-      <we-row p="300" ax="end" class={styles.header}>
+      <Row p="300" ax="end" class={styles.header}>
         <we-popover placement="bottom-end">
           <we-button size="sm" slot="trigger" variant="subtle">
-            <we-icon name={current.icon} weight={iconWeight} />
-            {current.name}
+            <we-icon name={state.current().icon} weight={iconWeight} />
+            {state.current().name}
           </we-button>
 
           <we-menu slot="content">
@@ -28,7 +29,7 @@ export default function Header() {
             ))}
           </we-menu>
         </we-popover>
-      </we-row>
+      </Row>
     );
   })();
 }

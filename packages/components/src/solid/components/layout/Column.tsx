@@ -1,7 +1,7 @@
 import { JSX, splitProps } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 
-import type { AlignPosition, AlignPositionAndSpacing, SizeToken, SpaceToken } from '../../../shared/types';
+import type { AlignPosition, AlignPositionAndSpacing, RadiusToken, SpaceToken } from '../../../shared/types';
 
 type ColumnPropsBase = {
   // Flex basics
@@ -30,15 +30,15 @@ type ColumnPropsBase = {
   my?: SpaceToken;
 
   // Radius
-  r?: SizeToken;
-  rt?: SizeToken;
-  rb?: SizeToken;
-  rl?: SizeToken;
-  rr?: SizeToken;
-  rtl?: SizeToken;
-  rtr?: SizeToken;
-  rbr?: SizeToken;
-  rbl?: SizeToken;
+  r?: RadiusToken;
+  rt?: RadiusToken;
+  rb?: RadiusToken;
+  rl?: RadiusToken;
+  rr?: RadiusToken;
+  rtl?: RadiusToken;
+  rtr?: RadiusToken;
+  rbr?: RadiusToken;
+  rbl?: RadiusToken;
 
   // Colors
   bg?: string;
@@ -100,7 +100,7 @@ export function Column(allProps: ColumnProps) {
   ]
     .join(' ')
     .trim();
-  if (padding) style.padding = padding;
+  if (padding !== '0 0 0 0') style.padding = padding;
 
   // Margin
   const margin = [
@@ -111,18 +111,18 @@ export function Column(allProps: ColumnProps) {
   ]
     .join(' ')
     .trim();
-  if (margin) style.margin = margin;
+  if (margin !== '0 0 0 0') style.margin = margin;
 
   // Border radius (TL TR BR BL)
   const radius = [
-    tokenVar('size', props.rtl || props.rt || props.rl || props.r),
-    tokenVar('size', props.rtr || props.rt || props.rr || props.r),
-    tokenVar('size', props.rbr || props.rb || props.rr || props.r),
-    tokenVar('size', props.rbl || props.rb || props.rl || props.r),
+    tokenVar('radius', props.rtl || props.rt || props.rl || props.r),
+    tokenVar('radius', props.rtr || props.rt || props.rr || props.r),
+    tokenVar('radius', props.rbr || props.rb || props.rr || props.r),
+    tokenVar('radius', props.rbl || props.rb || props.rl || props.r),
   ]
     .join(' ')
     .trim();
-  if (radius) style['border-radius'] = radius;
+  if (radius !== '0 0 0 0') style['border-radius'] = radius;
 
   // Colors
   if (props.bg) style['background-color'] = `var(--we-color-${props.bg})`;

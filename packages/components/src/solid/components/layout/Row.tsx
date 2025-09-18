@@ -1,7 +1,7 @@
 import { JSX, splitProps } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 
-import type { AlignPosition, AlignPositionAndSpacing, SizeToken, SpaceToken } from '../../../shared/types';
+import type { AlignPosition, AlignPositionAndSpacing, RadiusToken, SpaceToken } from '../../../shared/types';
 
 type RowPropsBase = {
   // Flex basics
@@ -30,15 +30,15 @@ type RowPropsBase = {
   my?: SpaceToken;
 
   // Radius
-  r?: SizeToken;
-  rt?: SizeToken;
-  rb?: SizeToken;
-  rl?: SizeToken;
-  rr?: SizeToken;
-  rtl?: SizeToken;
-  rtr?: SizeToken;
-  rbr?: SizeToken;
-  rbl?: SizeToken;
+  r?: RadiusToken;
+  rt?: RadiusToken;
+  rb?: RadiusToken;
+  rl?: RadiusToken;
+  rr?: RadiusToken;
+  rtl?: RadiusToken;
+  rtr?: RadiusToken;
+  rbr?: RadiusToken;
+  rbl?: RadiusToken;
 
   // Colors
   bg?: string;

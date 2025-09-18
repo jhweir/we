@@ -9,7 +9,7 @@ import { color as colorTokens } from '../src/color';
 import { component as componentTokens } from '../src/component';
 import { effect as effectTokens } from '../src/effect';
 import { font as fontTokens } from '../src/font';
-import { size as sizeTokens } from '../src/size';
+import { avatarSize as avatarSizeTokens, radius as radiusTokens, size as sizeTokens } from '../src/size';
 import { space as spaceTokens } from '../src/space';
 
 interface CssGeneratorOptions {
@@ -35,7 +35,7 @@ export function cssGenerator(options: CssGeneratorOptions = {}): Plugin {
 
         // Use dynamic import to load the compiled tokens
         const tokens = await import(`file://${indexFile}`);
-        const { animation, border, color, component, effect, font, size, space } = tokens;
+        const { animation, border, color, component, effect, font, size, radius, avatarSize, space } = tokens;
 
         // Generate CSS files
         generateAnimationCSS(animation, outputDir);
@@ -44,7 +44,7 @@ export function cssGenerator(options: CssGeneratorOptions = {}): Plugin {
         generateComponentCSS(component, outputDir);
         generateEffectCSS(effect, outputDir);
         generateFontCSS(font, outputDir);
-        generateSizeCSS(size, outputDir);
+        generateSizeCSS(size, radius, avatarSize, outputDir);
         generateSpaceCSS(space, outputDir);
 
         // Generate combined index file
@@ -211,9 +211,22 @@ ${fontSizeVars}
   fs.writeFileSync(path.join(outputDir, 'font.css'), css);
 }
 
-function generateSizeCSS(size: typeof sizeTokens, outputDir: string) {
+function generateSizeCSS(
+  size: typeof sizeTokens,
+  radius: typeof radiusTokens,
+  avatarSize: typeof avatarSizeTokens,
+  outputDir: string,
+) {
   const sizeVars = Object.entries(size)
     .map(([key, value]) => `  --we-size-${key}: ${value};`)
+    .join('\n');
+
+  const radiusVars = Object.entries(radius)
+    .map(([key, value]) => `  --we-radius-${key}: ${value};`)
+    .join('\n');
+
+  const avatarVars = Object.entries(avatarSize)
+    .map(([key, value]) => `  --we-avatar-size-${key}: ${value};`)
     .join('\n');
 
   const css = `/* SIZE TOKENS - Generated from JS tokens */
@@ -221,6 +234,12 @@ function generateSizeCSS(size: typeof sizeTokens, outputDir: string) {
 :root {
   /* Component Sizes */
 ${sizeVars}
+
+  /* Border Radius Sizes */
+${radiusVars}
+
+  /* Avatar Sizes */
+${avatarVars}
 }`;
 
   fs.writeFileSync(path.join(outputDir, 'size.css'), css);

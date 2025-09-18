@@ -1,11 +1,11 @@
 import {
   Accessor,
-  ParentProps,
   createContext,
   createEffect,
   createMemo,
   createSignal,
   onMount,
+  ParentProps,
   useContext,
 } from 'solid-js';
 
@@ -17,7 +17,7 @@ const THEMES = {
   cyberpunk: { name: 'Cyberpunk', icon: 'cpu' },
 } as const;
 
-type ThemeName = keyof typeof THEMES;
+export type ThemeName = keyof typeof THEMES;
 type Theme = (typeof THEMES)[ThemeName];
 
 const THEME_KEY = 'we.theme';
