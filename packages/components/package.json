@@ -12,6 +12,9 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./styles": {
+      "import": "./dist/styles/index.css"
+    },
     "./solid": {
       "types": "./dist/solid/index.d.ts",
       "import": "./dist/solid/index.js"
@@ -25,12 +28,14 @@
     "@we/elements": "workspace:*",
     "@we/tokens": "workspace:*",
     "esbuild-plugin-solid": "^0.6.0",
+    "sass": "^1.92.1",
     "solid-js": "^1.9.0",
     "tsup": "^8.3.0",
     "typescript": "^5.7.2"
   },
   "scripts": {
-    "build": "tsup --config tsup.config.ts",
+    "build:css": "bash scripts/build-css-modules.sh",
+    "build": "tsup --config tsup.config.ts && pnpm build:css",
     "clean": "rimraf dist"
   },
   "publishConfig": {

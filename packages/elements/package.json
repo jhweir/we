@@ -52,6 +52,9 @@
     "./solid/*": {
       "import": "./dist/components/*.js",
       "types": "./dist/types/solid/components/*.d.ts"
+    },
+    "./solid/types": {
+      "types": "./dist/types/solid/index.d.ts"
     }
   },
   "typesVersions": {

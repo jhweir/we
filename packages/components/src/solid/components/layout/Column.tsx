@@ -1,7 +1,7 @@
 import { JSX, splitProps } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 
-import type { AlignPosition, AlignPositionAndSpacing, SizeToken, SpaceToken } from '../../shared/types';
+import type { AlignPosition, AlignPositionAndSpacing, SizeToken, SpaceToken } from '../../../shared/types';
 
 type ColumnPropsBase = {
   // Flex basics
@@ -68,8 +68,6 @@ export function Column(allProps: ColumnProps) {
     'as','style','children', // Other
   ] as const);
 
-  const Tag = () => props.as || 'div';
-
   // Flex basics
   const style: JSX.CSSProperties = {
     display: 'flex',
@@ -131,7 +129,7 @@ export function Column(allProps: ColumnProps) {
   if (props.color) style.color = `var(--we-color-${props.color})`;
 
   return (
-    <Dynamic component={Tag()} style={style} {...rest}>
+    <Dynamic component={props.as || 'div'} style={style} {...rest}>
       {props.children}
     </Dynamic>
   );
