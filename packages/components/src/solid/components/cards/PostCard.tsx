@@ -15,22 +15,29 @@ export interface PostCardProps {
 
 export function PostCard(props: PostCardProps) {
   return (
-    <Column bg="ui-100" r="md" p="400" class={`we-post-card ${props.class || ''}`} style={props.style} data-we-card>
-      <Row>
+    <Column
+      class={`we-post-card ${props.class || ''}`}
+      style={props.style}
+      bg="ui-100"
+      gap="300"
+      p="400"
+      r="md"
+      data-we-card
+    >
+      <Row ay="center" gap="300">
         <we-avatar image={props.creator.avatarUrl} size="md" />
-      </Row>
-      {/* <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--we-space-200)' }}>
-        <we-avatar image={props.user.avatarUrl} size="md" />
-        <we-text tag="b" size="lg">
-          {props.user.name}
+        <we-text size="600" nomargin>
+          {props.creator.name}
         </we-text>
-      </div>
-      <we-text tag="h3" size="xl" style={{ margin: 'var(--we-space-200) 0 var(--we-space-100) 0' }}>
-        {props.title}
-      </we-text>
-      <we-text tag="p" size="md">
-        {props.content}
-      </we-text> */}
+      </Row>
+      <Column gap="100">
+        <we-text tag="h3" size="600" weight="600" nomargin>
+          {props.title}
+        </we-text>
+        <we-text tag="p" size="400" nomargin>
+          {props.content}
+        </we-text>
+      </Column>
     </Column>
   );
 }

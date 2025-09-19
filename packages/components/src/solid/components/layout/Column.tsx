@@ -5,8 +5,8 @@ import type { AlignPosition, AlignPositionAndSpacing, RadiusToken, SpaceToken } 
 
 type ColumnPropsBase = {
   // Flex basics
-  ax?: AlignPosition;
-  ay?: AlignPositionAndSpacing;
+  ax?: AlignPosition; // Align X axis (←→)
+  ay?: AlignPositionAndSpacing; // Align Y axis (↑↓)
   wrap?: boolean;
   reverse?: boolean;
   gap?: SpaceToken;

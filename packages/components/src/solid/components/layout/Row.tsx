@@ -5,8 +5,8 @@ import type { AlignPosition, AlignPositionAndSpacing, RadiusToken, SpaceToken } 
 
 type RowPropsBase = {
   // Flex basics
-  ax?: AlignPositionAndSpacing; // main axis (X)
-  ay?: AlignPosition; // cross axis (Y)
+  ax?: AlignPositionAndSpacing; // Align X axis (←→)
+  ay?: AlignPosition; // Align Y axis (↑↓)
   wrap?: boolean;
   reverse?: boolean;
   gap?: SpaceToken;
