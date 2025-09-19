@@ -1,9 +1,10 @@
+// import type { Instance as PopperInstance } from '@popperjs/core';
 import { createPopper, VirtualElement } from '@popperjs/core';
 import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import sharedStyles from '../styles/shared';
-import { PopoverEvent, PopoverPlacement } from '../types';
+import { Placement, PopoverEvent } from '../types';
 
 const styles = css`
   :host [part='content'] {
@@ -46,7 +47,7 @@ export default class Popover extends LitElement {
   static styles = [sharedStyles, styles];
 
   @property({ type: Boolean, reflect: true }) open = false;
-  @property({ type: String, reflect: true }) placement: PopoverPlacement = 'auto';
+  @property({ type: String, reflect: true }) placement: Placement = 'auto';
   @property({ type: String, reflect: true }) event: PopoverEvent = 'click';
 
   @state() clientY = 0;
@@ -57,7 +58,7 @@ export default class Popover extends LitElement {
     this._createPopover = this._createPopover.bind(this);
   }
 
-  private popperInstance: import('@popperjs/core').Instance | null = null;
+  private popperInstance: any | null = null;
 
   get triggerPart(): HTMLElement {
     const trigger = this.renderRoot.querySelector<HTMLElement>("[part='trigger']");
@@ -146,7 +147,7 @@ export default class Popover extends LitElement {
       };
 
       this.popperInstance = createPopper(virtualElement, content, {
-        placement: this.placement as PopoverPlacement,
+        placement: this.placement as Placement,
         strategy: 'fixed',
         // modifiers: [{ name: 'offset', options: { offset: [10, 10] } }],
       });
@@ -155,7 +156,7 @@ export default class Popover extends LitElement {
       this.popperInstance.update();
     } else {
       this.popperInstance = createPopper(trigger, content, {
-        placement: this.placement as PopoverPlacement,
+        placement: this.placement as Placement,
         strategy: 'fixed',
         modifiers: [
           { name: 'offset', options: { offset: [0, 10] } },

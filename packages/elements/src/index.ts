@@ -10,3 +10,4 @@ import './components/modal';
 import './components/popover';
 import './components/spinner';
 import './components/text';
+import './components/tooltip';

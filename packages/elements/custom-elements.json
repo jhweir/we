@@ -1473,7 +1473,7 @@
               "kind": "field",
               "name": "placement",
               "type": {
-                "text": "PopoverPlacement"
+                "text": "Placement"
               },
               "default": "'auto'",
               "attribute": "placement",
@@ -1509,7 +1509,7 @@
               "kind": "field",
               "name": "popperInstance",
               "type": {
-                "text": "any"
+                "text": "any | null"
               },
               "privacy": "private",
               "default": "null"
@@ -1576,7 +1576,7 @@
             {
               "name": "placement",
               "type": {
-                "text": "PopoverPlacement"
+                "text": "Placement"
               },
               "default": "'auto'",
               "fieldName": "placement"
@@ -1851,6 +1851,164 @@
           "declaration": {
             "name": "Text",
             "module": "src/components/text.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/tooltip.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "Tooltip",
+          "members": [
+            {
+              "kind": "field",
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "open",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "title",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "title",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "placement",
+              "type": {
+                "text": "Placement"
+              },
+              "default": "'top'",
+              "attribute": "placement",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "strategy",
+              "type": {
+                "text": "TooltipStrategy"
+              },
+              "default": "'absolute'",
+              "attribute": "strategy",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "popperInstance",
+              "type": {
+                "text": "ReturnType<typeof createPopper> | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "tooltipEl",
+              "readonly": true
+            },
+            {
+              "kind": "field",
+              "name": "triggerEl",
+              "readonly": true
+            },
+            {
+              "kind": "method",
+              "name": "createPopperInstance",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "destroyPopperInstance",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "show",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "hide",
+              "privacy": "private"
+            }
+          ],
+          "events": [
+            {
+              "name": "toggle",
+              "type": {
+                "text": "CustomEvent"
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "open"
+            },
+            {
+              "name": "title",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "title"
+            },
+            {
+              "name": "placement",
+              "type": {
+                "text": "Placement"
+              },
+              "default": "'top'",
+              "fieldName": "placement"
+            },
+            {
+              "name": "strategy",
+              "type": {
+                "text": "TooltipStrategy"
+              },
+              "default": "'absolute'",
+              "fieldName": "strategy"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "we-tooltip",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "Tooltip",
+            "module": "src/components/tooltip.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "we-tooltip",
+          "declaration": {
+            "name": "Tooltip",
+            "module": "src/components/tooltip.ts"
           }
         }
       ]

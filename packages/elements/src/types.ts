@@ -23,7 +23,7 @@ export type TextVariant =
   | 'body'
   | 'label'
   | 'footnote';
-export type PopoverPlacement =
+export type Placement =
   | 'auto'
   | 'auto-start'
   | 'auto-end'
@@ -39,3 +39,4 @@ export type PopoverPlacement =
   | 'left'
   | 'left-start'
   | 'left-end';
+export type TooltipStrategy = 'absolute' | 'fixed';
