@@ -11,7 +11,15 @@ export interface CircleButtonProps {
 
 export function CircleButton(props: CircleButtonProps) {
   return (
-    <we-button slot="trigger" circle variant="ghost" onClick={props.onClick} class={props.class} style={props.style}>
+    <we-button
+      slot="trigger"
+      circle
+      variant="ghost"
+      onClick={props.onClick}
+      class={props.class}
+      style={props.style}
+      data-we-button
+    >
       <we-tooltip placement="right" title={props.name}>
         {props.image ? (
           <we-avatar image={props.image} />

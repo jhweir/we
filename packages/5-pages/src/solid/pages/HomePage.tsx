@@ -14,7 +14,7 @@ export function HomePage(props: HomePageProps) {
       ax="center"
       bg="ui-0"
       p="500"
-      data-we-sidebar
+      data-we-page
     >
       <we-text size="600">Home page!!!</we-text>
     </Column>
