@@ -1,2 +1,2 @@
 // Layout
-export { Sidebar, type SidebarProps } from './components/Sidebar';
+export { SidebarWidget, type SidebarWidgetProps } from './components/SidebarWidget';

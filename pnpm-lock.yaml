@@ -67,19 +67,19 @@ importers:
         version: 0.15.3(solid-js@1.9.7)
       '@we/components':
         specifier: workspace:*
-        version: link:../../packages/components
+        version: link:../../packages/3-components
       '@we/elements':
         specifier: workspace:*
-        version: link:../../packages/elements
+        version: link:../../packages/2-elements
       '@we/themes':
         specifier: workspace:*
-        version: link:../../packages/themes
+        version: link:../../packages/1-themes
       '@we/tokens':
         specifier: workspace:*
-        version: link:../../packages/tokens
+        version: link:../../packages/0-tokens
       '@we/widgets':
         specifier: workspace:*
-        version: link:../../packages/widgets
+        version: link:../../packages/4-widgets
       gsap:
         specifier: ^3.13.0
         version: 3.13.0
@@ -109,31 +109,50 @@ importers:
         specifier: ^2.11.6
         version: 2.11.6(solid-js@1.9.7)(vite@6.3.5(@types/node@22.15.30)(sass-embedded@1.92.1)(sass@1.92.1)(terser@5.41.0)(tsx@4.19.4)(yaml@2.8.0))
 
-  packages/components:
+  packages/0-tokens:
     devDependencies:
-      '@we/elements':
-        specifier: workspace:*
-        version: link:../elements
-      '@we/tokens':
-        specifier: workspace:*
-        version: link:../tokens
-      esbuild-plugin-solid:
-        specifier: ^0.6.0
-        version: 0.6.0(esbuild@0.25.5)(solid-js@1.9.7)
-      sass:
-        specifier: ^1.92.1
-        version: 1.92.1
-      solid-js:
-        specifier: ^1.9.0
-        version: 1.9.7
-      tsup:
-        specifier: ^8.3.0
-        version: 8.5.0(postcss@8.5.6)(tsx@4.19.4)(typescript@5.8.3)(yaml@2.8.0)
+      '@rollup/plugin-node-resolve':
+        specifier: ^15.3.0
+        version: 15.3.1(rollup@4.42.0)
+      '@rollup/plugin-typescript':
+        specifier: ^12.1.4
+        version: 12.1.4(rollup@4.42.0)(tslib@2.8.1)(typescript@5.8.3)
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.1
+      esbuild:
+        specifier: ^0.25.5
+        version: 0.25.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      rollup:
+        specifier: ^4.28.1
+        version: 4.42.0
       typescript:
         specifier: ^5.7.2
         version: 5.8.3
 
-  packages/elements:
+  packages/1-themes:
+    dependencies:
+      '@we/tokens':
+        specifier: workspace:*
+        version: link:../0-tokens
+    devDependencies:
+      postcss:
+        specifier: ^8.4.23
+        version: 8.5.6
+      postcss-cli:
+        specifier: ^10.1.0
+        version: 10.1.0(postcss@8.5.6)
+      postcss-import:
+        specifier: ^15.1.0
+        version: 15.1.0(postcss@8.5.6)
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+
+  packages/2-elements:
     dependencies:
       '@phosphor-icons/core':
         specifier: ^2.1.1
@@ -143,7 +162,7 @@ importers:
         version: 2.11.8
       '@we/tokens':
         specifier: workspace:*
-        version: link:../tokens
+        version: link:../0-tokens
       jdenticon:
         specifier: 3.3.0
         version: 3.3.0
@@ -212,60 +231,41 @@ importers:
         specifier: ^5.7.2
         version: 5.8.3
 
-  packages/themes:
-    dependencies:
+  packages/3-components:
+    devDependencies:
+      '@we/elements':
+        specifier: workspace:*
+        version: link:../2-elements
       '@we/tokens':
         specifier: workspace:*
-        version: link:../tokens
-    devDependencies:
-      postcss:
-        specifier: ^8.4.23
-        version: 8.5.4
-      postcss-cli:
-        specifier: ^10.1.0
-        version: 10.1.0(postcss@8.5.4)
-      postcss-import:
-        specifier: ^15.1.0
-        version: 15.1.0(postcss@8.5.4)
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.0.1
-
-  packages/tokens:
-    devDependencies:
-      '@rollup/plugin-node-resolve':
-        specifier: ^15.3.0
-        version: 15.3.1(rollup@4.42.0)
-      '@rollup/plugin-typescript':
-        specifier: ^12.1.4
-        version: 12.1.4(rollup@4.42.0)(tslib@2.8.1)(typescript@5.8.3)
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.1
-      esbuild:
-        specifier: ^0.25.5
-        version: 0.25.5
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.0.1
-      rollup:
-        specifier: ^4.28.1
-        version: 4.42.0
+        version: link:../0-tokens
+      esbuild-plugin-solid:
+        specifier: ^0.6.0
+        version: 0.6.0(esbuild@0.25.5)(solid-js@1.9.7)
+      sass:
+        specifier: ^1.92.1
+        version: 1.92.1
+      solid-js:
+        specifier: ^1.9.0
+        version: 1.9.7
+      tsup:
+        specifier: ^8.3.0
+        version: 8.5.0(postcss@8.5.6)(tsx@4.19.4)(typescript@5.8.3)(yaml@2.8.0)
       typescript:
         specifier: ^5.7.2
         version: 5.8.3
 
-  packages/widgets:
+  packages/4-widgets:
     devDependencies:
       '@we/components':
         specifier: workspace:*
-        version: link:../components
+        version: link:../3-components
       '@we/elements':
         specifier: workspace:*
-        version: link:../elements
+        version: link:../2-elements
       '@we/tokens':
         specifier: workspace:*
-        version: link:../tokens
+        version: link:../0-tokens
       esbuild-plugin-solid:
         specifier: ^0.6.0
         version: 0.6.0(esbuild@0.25.5)(solid-js@1.9.7)
@@ -4272,7 +4272,7 @@ snapshots:
 
   '@babel/helper-annotate-as-pure@7.27.3':
     dependencies:
-      '@babel/types': 7.27.6
+      '@babel/types': 7.28.4
 
   '@babel/helper-compilation-targets@7.27.2':
     dependencies:
@@ -4300,7 +4300,7 @@ snapshots:
   '@babel/helper-member-expression-to-functions@7.27.1':
     dependencies:
       '@babel/traverse': 7.28.4
-      '@babel/types': 7.27.6
+      '@babel/types': 7.28.4
     transitivePeerDependencies:
       - supports-color
 
@@ -4326,7 +4326,7 @@ snapshots:
 
   '@babel/helper-optimise-call-expression@7.27.1':
     dependencies:
-      '@babel/types': 7.27.6
+      '@babel/types': 7.28.4
 
   '@babel/helper-plugin-utils@7.27.1': {}
 
@@ -4341,8 +4341,8 @@ snapshots:
 
   '@babel/helper-skip-transparent-expression-wrappers@7.27.1':
     dependencies:
-      '@babel/traverse': 7.27.4
-      '@babel/types': 7.27.6
+      '@babel/traverse': 7.28.4
+      '@babel/types': 7.28.4
     transitivePeerDependencies:
       - supports-color
 
@@ -4796,8 +4796,8 @@ snapshots:
 
   '@jridgewell/source-map@0.3.6':
     dependencies:
-      '@jridgewell/gen-mapping': 0.3.8
-      '@jridgewell/trace-mapping': 0.3.25
+      '@jridgewell/gen-mapping': 0.3.13
+      '@jridgewell/trace-mapping': 0.3.31
 
   '@jridgewell/sourcemap-codec@1.5.0': {}
 
@@ -7085,7 +7085,7 @@ snapshots:
       postcss-selector-parser: 6.1.2
       postcss-value-parser: 4.2.0
 
-  postcss-cli@10.1.0(postcss@8.5.4):
+  postcss-cli@10.1.0(postcss@8.5.6):
     dependencies:
       chokidar: 3.6.0
       dependency-graph: 0.11.0
@@ -7093,9 +7093,9 @@ snapshots:
       get-stdin: 9.0.0
       globby: 13.2.2
       picocolors: 1.1.1
-      postcss: 8.5.4
-      postcss-load-config: 4.0.2(postcss@8.5.4)
-      postcss-reporter: 7.1.0(postcss@8.5.4)
+      postcss: 8.5.6
+      postcss-load-config: 4.0.2(postcss@8.5.6)
+      postcss-reporter: 7.1.0(postcss@8.5.6)
       pretty-hrtime: 1.0.3
       read-cache: 1.0.0
       slash: 5.1.0
@@ -7133,9 +7133,9 @@ snapshots:
     dependencies:
       postcss: 8.5.6
 
-  postcss-import@15.1.0(postcss@8.5.4):
+  postcss-import@15.1.0(postcss@8.5.6):
     dependencies:
-      postcss: 8.5.4
+      postcss: 8.5.6
       postcss-value-parser: 4.2.0
       read-cache: 1.0.0
       resolve: 1.22.10
@@ -7147,12 +7147,12 @@ snapshots:
     optionalDependencies:
       postcss: 8.5.6
 
-  postcss-load-config@4.0.2(postcss@8.5.4):
+  postcss-load-config@4.0.2(postcss@8.5.6):
     dependencies:
       lilconfig: 3.1.3
       yaml: 2.8.0
     optionalDependencies:
-      postcss: 8.5.4
+      postcss: 8.5.6
 
   postcss-load-config@6.0.1(postcss@8.5.6)(tsx@4.19.4)(yaml@2.8.0):
     dependencies:
@@ -7296,10 +7296,10 @@ snapshots:
       postcss: 8.5.6
       postcss-value-parser: 4.2.0
 
-  postcss-reporter@7.1.0(postcss@8.5.4):
+  postcss-reporter@7.1.0(postcss@8.5.6):
     dependencies:
       picocolors: 1.1.1
-      postcss: 8.5.4
+      postcss: 8.5.6
       thenby: 1.3.4
 
   postcss-resolve-nested-selector@0.1.6: {}
@@ -7890,7 +7890,7 @@ snapshots:
 
   sucrase@3.35.0:
     dependencies:
-      '@jridgewell/gen-mapping': 0.3.8
+      '@jridgewell/gen-mapping': 0.3.13
       commander: 4.1.1
       glob: 10.4.5
       lines-and-columns: 1.2.4
@@ -7951,7 +7951,7 @@ snapshots:
   terser@5.41.0:
     dependencies:
       '@jridgewell/source-map': 0.3.6
-      acorn: 8.14.1
+      acorn: 8.15.0
       commander: 2.20.3
       source-map-support: 0.5.21
 
@@ -8071,7 +8071,7 @@ snapshots:
 
   unplugin@1.16.1:
     dependencies:
-      acorn: 8.14.1
+      acorn: 8.15.0
       webpack-virtual-modules: 0.6.2
 
   update-browserslist-db@1.1.3(browserslist@4.25.0):

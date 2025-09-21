@@ -1,5 +1,5 @@
 import { useNavigate } from '@solidjs/router';
-import { CircleButton, Column } from '@we/components/solid';
+import { SidebarWidget } from '@we/widgets/solid';
 
 import { useAdamStore, useModalStore } from '@/stores';
 
@@ -12,21 +12,25 @@ export default function SidebarLeft() {
   const modalStore = useModalStore();
   const navigate = useNavigate();
 
-  return (
-    <Column py="700" ax="center" ay="between" bg="ui-0" class={`${styles.sidebar} ${styles.left}`}>
-      <Column gap="400">
-        <CircleButton name="Home" image={WECO_LOGO} onClick={() => navigate('/')} />
-        <CircleButton name="Search" icon="magnifying-glass" onClick={() => navigate('/search')} />
-        <CircleButton name="Spaces" icon="users-three" onClick={() => navigate('/all-spaces')} />
-        {adamStore.state.mySpaces.map((space) => (
-          <CircleButton name={space.name} onClick={() => navigate(`/space/${space.uuid}`)} />
-        ))}
-        <CircleButton name="New space" icon="plus" onClick={() => modalStore.actions.openModal('createSpace')} />
-      </Column>
+  const topButtons = [
+    { name: 'Home', image: WECO_LOGO, onClick: () => navigate('/') },
+    { name: 'Search', icon: 'magnifying-glass', onClick: () => navigate('/search') },
+    { name: 'Spaces', icon: 'users-three', onClick: () => navigate('/all-spaces') },
+    ...adamStore.state.mySpaces.map((space) => ({
+      name: space.name,
+      onClick: () => navigate(`/space/${space.uuid}`),
+    })),
+    { name: 'New space', icon: 'plus', onClick: () => modalStore.actions.openModal('createSpace') },
+  ];
 
-      <Column gap="400">
-        <CircleButton name="Settings" icon="gear" onClick={() => navigate('/settings')} />
-      </Column>
-    </Column>
+  const bottomButtons = [{ name: 'Settings', icon: 'gear', onClick: () => navigate('/settings') }];
+
+  return (
+    <SidebarWidget
+      class={`${styles.sidebar} ${styles.left}`}
+      width={90}
+      topButtons={topButtons}
+      bottomButtons={bottomButtons}
+    />
   );
 }
