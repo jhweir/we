@@ -19,7 +19,7 @@ export interface SidebarWidgetProps {
 export function SidebarWidget(props: SidebarWidgetProps) {
   return (
     <Column
-      class={`we-sidebar ${props.class || ''}`}
+      class={`we-sidebar-widget ${props.class || ''}`}
       style={{ width: `${props.width}px`, ...props.style }}
       ax="center"
       ay="between"

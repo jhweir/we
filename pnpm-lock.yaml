@@ -282,6 +282,36 @@ importers:
         specifier: ^5.7.2
         version: 5.8.3
 
+  packages/5-pages:
+    devDependencies:
+      '@we/components':
+        specifier: workspace:*
+        version: link:../3-components
+      '@we/elements':
+        specifier: workspace:*
+        version: link:../2-elements
+      '@we/tokens':
+        specifier: workspace:*
+        version: link:../0-tokens
+      '@we/widgets':
+        specifier: workspace:*
+        version: link:../4-widgets
+      esbuild-plugin-solid:
+        specifier: ^0.6.0
+        version: 0.6.0(esbuild@0.25.5)(solid-js@1.9.7)
+      sass:
+        specifier: ^1.92.1
+        version: 1.92.1
+      solid-js:
+        specifier: ^1.9.0
+        version: 1.9.7
+      tsup:
+        specifier: ^8.3.0
+        version: 8.5.0(postcss@8.5.6)(tsx@4.19.4)(typescript@5.8.3)(yaml@2.8.0)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.8.3
+
 packages:
 
   '@ampproject/remapping@2.3.0':
