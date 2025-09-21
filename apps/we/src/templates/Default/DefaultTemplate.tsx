@@ -4,11 +4,12 @@ import '@we/elements/solid';
 import '@we/components/styles';
 
 import { Column, PostCard, Row } from '@we/components/solid';
+import { Sidebar } from '@we/widgets/solid';
 import { ParentProps } from 'solid-js';
 
 import Header from './components/Header';
 import Modals from './components/Modals/Modals';
-import SidebarLeft from './components/OuterSidebars/SidebarLeft/SidebarLeft';
+// import SidebarLeft from './components/OuterSidebars/SidebarLeft/SidebarLeft';
 import SidebarRight from './components/OuterSidebars/SidebarRight/SidebarRight';
 import styles from './DefaultTemplate.module.scss';
 
@@ -30,7 +31,10 @@ export default function DeafultTemplate(props: ParentProps) {
       <Modals />
 
       <Row ax="center" style={{ width: '100vw' }}>
-        <SidebarLeft />
+        {/* <SidebarLeft /> */}
+        <Sidebar width={90}>
+          <p>tooo</p>
+        </Sidebar>
         <Column bg="ui-25" class={styles.centerColumn}>
           <Header />
           <Column p="1000">
