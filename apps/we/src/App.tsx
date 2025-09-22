@@ -1,10 +1,10 @@
-import StoreProvider from '@/stores/StoreProvider';
-import DefaultTemplate from '@/templates/TemplateProvider';
 import { Route, Router } from '@solidjs/router';
 
 import HomePage from '@/pages/home';
 import NewPost from '@/pages/new';
 import SpacePage from '@/pages/space';
+import StoreProvider from '@/stores/StoreProvider';
+import DefaultTemplate from '@/templates/TemplateProvider';
 
 export default function App() {
   return (

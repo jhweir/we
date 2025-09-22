@@ -1,8 +1,9 @@
-import Space from '@/models/Space';
 import { Ad4mClient, Agent, AITask } from '@coasys/ad4m';
 import Ad4mConnect from '@coasys/ad4m-connect';
 import { createContext, createEffect, ParentProps, useContext } from 'solid-js';
 import { createStore } from 'solid-js/store';
+
+import Space from '@/models/Space';
 
 // TODO:
 // + move ai to separate stores

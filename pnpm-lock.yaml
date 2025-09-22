@@ -71,6 +71,12 @@ importers:
       '@we/elements':
         specifier: workspace:*
         version: link:../../packages/2-elements
+      '@we/pages':
+        specifier: workspace:*
+        version: link:../../packages/5-pages
+      '@we/templates':
+        specifier: workspace:*
+        version: link:../../packages/6-templates
       '@we/themes':
         specifier: workspace:*
         version: link:../../packages/1-themes
@@ -313,6 +319,10 @@ importers:
         version: 5.8.3
 
   packages/6-templates:
+    dependencies:
+      zod:
+        specifier: ^4.1.11
+        version: 4.1.11
     devDependencies:
       '@we/components':
         specifier: workspace:*
@@ -4261,6 +4271,9 @@ packages:
 
   zen-observable@0.8.15:
     resolution: {integrity: sha512-PQ2PC7R9rslx84ndNBZB/Dkv8V8fZEpk83RLgXtYd0fwUgEjseMn1Dgajh2x6S8QbZAFa9p2qVCEuYZNgve0dQ==}
+
+  zod@4.1.11:
+    resolution: {integrity: sha512-WPsqwxITS2tzx1bzhIKsEs19ABD5vmCVa4xBo2tq/SrV4RNZtfws1EnCWQXM6yh8bD08a1idvkB5MZSBiZsjwg==}
 
 snapshots:
 
@@ -8288,3 +8301,5 @@ snapshots:
       zen-observable: 0.8.15
 
   zen-observable@0.8.15: {}
+
+  zod@4.1.11: {}

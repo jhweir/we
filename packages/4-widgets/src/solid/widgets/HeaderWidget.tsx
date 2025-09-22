@@ -2,9 +2,9 @@ import { Row } from '@we/components/solid';
 import { JSX } from 'solid-js';
 
 export interface HeaderWidgetProps {
-  themes: { key: string; name: string; icon: string }[];
-  currentTheme: { key: string; name: string; icon: string };
-  setTheme: (key: string) => void;
+  themes: { name: string; icon: string }[];
+  currentTheme: { name: string; icon: string };
+  setTheme: (themeName: string) => void;
   class?: string;
   style?: JSX.CSSProperties;
 }
@@ -22,7 +22,7 @@ export default function Header(props: HeaderWidgetProps) {
 
         <we-menu slot="content">
           {props.themes.map((theme) => (
-            <we-menu-item key={theme.key} onClick={() => props.setTheme(theme.key)}>
+            <we-menu-item key={theme.name} onClick={() => props.setTheme(theme.name)}>
               <we-icon slot="start" name={theme.icon} weight={iconWeight} />
               {theme.name}
             </we-menu-item>
