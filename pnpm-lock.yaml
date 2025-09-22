@@ -67,25 +67,25 @@ importers:
         version: 0.15.3(solid-js@1.9.7)
       '@we/components':
         specifier: workspace:*
-        version: link:../../packages/3-components
+        version: link:../../packages/design-system/4-components
       '@we/elements':
         specifier: workspace:*
-        version: link:../../packages/2-elements
+        version: link:../../packages/design-system/3-elements
       '@we/pages':
         specifier: workspace:*
-        version: link:../../packages/5-pages
+        version: link:../../packages/design-system/6-pages
       '@we/templates':
         specifier: workspace:*
-        version: link:../../packages/6-templates
+        version: link:../../packages/design-system/7-templates
       '@we/themes':
         specifier: workspace:*
-        version: link:../../packages/1-themes
+        version: link:../../packages/design-system/2-themes
       '@we/tokens':
         specifier: workspace:*
-        version: link:../../packages/0-tokens
+        version: link:../../packages/design-system/1-tokens
       '@we/widgets':
         specifier: workspace:*
-        version: link:../../packages/4-widgets
+        version: link:../../packages/design-system/5-widgets
       gsap:
         specifier: ^3.13.0
         version: 3.13.0
@@ -115,7 +115,7 @@ importers:
         specifier: ^2.11.6
         version: 2.11.6(solid-js@1.9.7)(vite@6.3.5(@types/node@22.15.30)(sass-embedded@1.92.1)(sass@1.92.1)(terser@5.41.0)(tsx@4.19.4)(yaml@2.8.0))
 
-  packages/0-tokens:
+  packages/design-system/1-tokens:
     devDependencies:
       '@rollup/plugin-node-resolve':
         specifier: ^15.3.0
@@ -139,11 +139,11 @@ importers:
         specifier: ^5.7.2
         version: 5.8.3
 
-  packages/1-themes:
+  packages/design-system/2-themes:
     dependencies:
       '@we/tokens':
         specifier: workspace:*
-        version: link:../0-tokens
+        version: link:../1-tokens
     devDependencies:
       postcss:
         specifier: ^8.4.23
@@ -158,7 +158,7 @@ importers:
         specifier: ^6.0.1
         version: 6.0.1
 
-  packages/2-elements:
+  packages/design-system/3-elements:
     dependencies:
       '@phosphor-icons/core':
         specifier: ^2.1.1
@@ -168,7 +168,7 @@ importers:
         version: 2.11.8
       '@we/tokens':
         specifier: workspace:*
-        version: link:../0-tokens
+        version: link:../1-tokens
       jdenticon:
         specifier: 3.3.0
         version: 3.3.0
@@ -237,14 +237,14 @@ importers:
         specifier: ^5.7.2
         version: 5.8.3
 
-  packages/3-components:
+  packages/design-system/4-components:
     devDependencies:
       '@we/elements':
         specifier: workspace:*
-        version: link:../2-elements
+        version: link:../3-elements
       '@we/tokens':
         specifier: workspace:*
-        version: link:../0-tokens
+        version: link:../1-tokens
       esbuild-plugin-solid:
         specifier: ^0.6.0
         version: 0.6.0(esbuild@0.25.5)(solid-js@1.9.7)
@@ -261,17 +261,17 @@ importers:
         specifier: ^5.7.2
         version: 5.8.3
 
-  packages/4-widgets:
+  packages/design-system/5-widgets:
     devDependencies:
       '@we/components':
         specifier: workspace:*
-        version: link:../3-components
+        version: link:../4-components
       '@we/elements':
         specifier: workspace:*
-        version: link:../2-elements
+        version: link:../3-elements
       '@we/tokens':
         specifier: workspace:*
-        version: link:../0-tokens
+        version: link:../1-tokens
       esbuild-plugin-solid:
         specifier: ^0.6.0
         version: 0.6.0(esbuild@0.25.5)(solid-js@1.9.7)
@@ -288,20 +288,20 @@ importers:
         specifier: ^5.7.2
         version: 5.8.3
 
-  packages/5-pages:
+  packages/design-system/6-pages:
     devDependencies:
       '@we/components':
         specifier: workspace:*
-        version: link:../3-components
+        version: link:../4-components
       '@we/elements':
         specifier: workspace:*
-        version: link:../2-elements
+        version: link:../3-elements
       '@we/tokens':
         specifier: workspace:*
-        version: link:../0-tokens
+        version: link:../1-tokens
       '@we/widgets':
         specifier: workspace:*
-        version: link:../4-widgets
+        version: link:../5-widgets
       esbuild-plugin-solid:
         specifier: ^0.6.0
         version: 0.6.0(esbuild@0.25.5)(solid-js@1.9.7)
@@ -318,7 +318,7 @@ importers:
         specifier: ^5.7.2
         version: 5.8.3
 
-  packages/6-templates:
+  packages/design-system/7-templates:
     dependencies:
       zod:
         specifier: ^4.1.11
@@ -326,19 +326,19 @@ importers:
     devDependencies:
       '@we/components':
         specifier: workspace:*
-        version: link:../3-components
+        version: link:../4-components
       '@we/elements':
         specifier: workspace:*
-        version: link:../2-elements
+        version: link:../3-elements
       '@we/pages':
         specifier: workspace:*
-        version: link:../5-pages
+        version: link:../6-pages
       '@we/tokens':
         specifier: workspace:*
-        version: link:../0-tokens
+        version: link:../1-tokens
       '@we/widgets':
         specifier: workspace:*
-        version: link:../4-widgets
+        version: link:../5-widgets
       esbuild-plugin-solid:
         specifier: ^0.6.0
         version: 0.6.0(esbuild@0.25.5)(solid-js@1.9.7)

@@ -1,4 +1,4 @@
-import { Column } from '@we/components/solid';
+import { Column } from '../../../../../../../../packages/design-system/3-components/dist/solid';
 
 // import { useAdamStore } from '@/stores/AdamStore';
 import styles from '../OuterSidebars.module.scss';

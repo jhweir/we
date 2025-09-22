@@ -1,5 +1,5 @@
 import { useNavigate } from '@solidjs/router';
-import { SidebarWidget } from '@we/widgets/solid';
+import { SidebarWidget } from '../../../../../../../../packages/design-system/4-widgets/dist/solid';
 
 import { useAdamStore, useModalStore } from '@/stores';
 

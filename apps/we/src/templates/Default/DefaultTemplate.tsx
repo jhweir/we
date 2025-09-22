@@ -3,7 +3,7 @@ import '@we/themes';
 import '@we/elements/solid';
 import '@we/components/styles';
 
-import { Column, PostCard, Row } from '@we/components/solid';
+import { Column, PostCard, Row } from '../../../../../packages/design-system/3-components/dist/solid';
 import { ParentProps } from 'solid-js';
 
 import Header from './components/Header';

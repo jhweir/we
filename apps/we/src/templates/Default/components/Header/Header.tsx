@@ -1,4 +1,4 @@
-import { Row } from '@we/components/solid';
+import { Row } from '../../../../../../../packages/design-system/3-components/dist/solid';
 
 import { ThemeName, useThemeStore } from '@/stores';
 

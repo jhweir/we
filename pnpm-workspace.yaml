@@ -1,3 +1,5 @@
 packages:
   - 'apps/*'
+  - 'apps/playgrounds/*'
   - 'packages/*'
+  - 'packages/design-system/*'
