@@ -1,4 +1,4 @@
-import type { Stores } from '@we/app/src/stores';
+import type { AppProps } from '@we/app/src/types';
 import { Column, PostCard, Row } from '@we/components/solid';
 import { HeaderWidget, SidebarWidget } from '@we/widgets/solid';
 import { z } from 'zod';
@@ -24,11 +24,6 @@ export const defaultTemplatePropsSchema = z.object({
   style: z.any().optional(),
   children: z.any().optional(),
 });
-
-type AppProps = {
-  stores: Stores;
-  navigate: (to: string, options?: { replace?: boolean }) => void;
-};
 
 export function getPropsFromApp(app: AppProps) {
   return {
