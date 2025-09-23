@@ -13,13 +13,10 @@ const styles = css`
     --we-button-depth: none;
     --we-button-display: inline-flex;
     --we-button-width: initial;
-    /* --we-button-padding: 0 var(--we-space-400); */
     --we-button-bg: var(--we-color-white);
     --we-button-border: 1px solid var(--we-color-primary-600);
     --we-button-color: var(--we-color-primary-600);
-    /* --we-button-height: var(--we-size-md); */
     --we-button-border-radius: var(--we-border-radius);
-    /* --we-button-font-size: var(--we-font-size-500); */
   }
 
   [part='base'] {

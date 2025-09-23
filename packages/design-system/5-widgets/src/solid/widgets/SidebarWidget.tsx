@@ -9,7 +9,6 @@ export type SidebarWidgetButton = {
 };
 
 export interface SidebarWidgetProps {
-  width: number;
   topButtons?: SidebarWidgetButton[];
   bottomButtons?: SidebarWidgetButton[];
   class?: string;
@@ -20,7 +19,7 @@ export function SidebarWidget(props: SidebarWidgetProps) {
   return (
     <Column
       class={`we-sidebar-widget ${props.class || ''}`}
-      style={{ width: `${props.width}px`, ...props.style }}
+      style={props.style}
       ax="center"
       ay="between"
       bg="ui-0"

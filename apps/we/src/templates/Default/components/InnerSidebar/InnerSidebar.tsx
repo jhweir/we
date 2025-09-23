@@ -1,4 +1,4 @@
-import { Column, Row } from '../../../../../../../packages/design-system/3-components/dist/solid';
+import { Column, Row } from '@we/components/solid';
 
 import { useSpaceStore } from '@/stores/SpaceStore';
 

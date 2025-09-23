@@ -1,5 +1,14 @@
 .we-sidebar-widget {
-  // background-color: var(--we-color-ui-500);
-  // border: 1px solid var(--we-color-ui-300);
-  // border-radius: 8px;
+  position: fixed;
+  top: 0;
+  height: 100vh;
+  z-index: 10;
+
+  &.left {
+    left: 0;
+  }
+
+  &.right {
+    right: 0;
+  }
 }

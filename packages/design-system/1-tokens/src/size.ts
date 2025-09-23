@@ -43,12 +43,14 @@ export const radius = {
 /**
  * Avatar size scale.
  */
-export type AvatarSizeToken = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+export type AvatarSizeToken = 'xxs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
 
 export const avatarSize = {
+  xxs: '1rem', // 16px
   xs: '1.5rem', // 24px
   sm: '2rem', // 32px
   md: '2.5rem', // 40px
   lg: '3rem', // 48px
   xl: '4rem', // 64px
+  xxl: '5rem', // 80px
 } satisfies Record<AvatarSizeToken, string>;

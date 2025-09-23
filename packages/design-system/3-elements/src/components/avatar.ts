@@ -33,22 +33,22 @@ const styles = css`
     background: var(--we-color-primary-500);
   }
   :host([size='xxs']) {
-    --we-avatar-size: var(--we-size-xxs);
+    --we-avatar-size: var(--we-avatar-size-xxs);
   }
   :host([size='xs']) {
-    --we-avatar-size: var(--we-size-xs);
+    --we-avatar-size: var(--we-avatar-size-xs);
   }
   :host([size='sm']) {
-    --we-avatar-size: var(--we-size-sm);
+    --we-avatar-size: var(--we-avatar-size-sm);
   }
   :host([size='lg']) {
-    --we-avatar-size: var(--we-size-lg);
+    --we-avatar-size: var(--we-avatar-size-lg);
   }
   :host([size='xl']) {
-    --we-avatar-size: var(--we-size-xl);
+    --we-avatar-size: var(--we-avatar-size-xl);
   }
   :host([size='xxl']) {
-    --we-avatar-size: var(--we-size-xxl);
+    --we-avatar-size: var(--we-avatar-size-xxl);
   }
   [part='base'] {
     position: relative;

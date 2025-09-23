@@ -1,0 +1,30 @@
+{
+  "name": "@we/types",
+  "version": "0.1.0",
+  "description": "Shared types for WE",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc --project tsconfig.json"
+  },
+  "keywords": [
+    "types",
+    "shared",
+    "design-system",
+    "we"
+  ],
+  "author": "James Weir",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}

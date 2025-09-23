@@ -1,13 +1,6 @@
-import {
-  Accessor,
-  createContext,
-  createEffect,
-  createMemo,
-  createSignal,
-  onMount,
-  ParentProps,
-  useContext,
-} from 'solid-js';
+import { Accessor, createContext, createEffect, createSignal, ParentProps, useContext } from 'solid-js';
+
+import { asVoid, clone } from '../utils';
 
 const THEMES = {
   light: { name: 'Light', icon: 'sun' },
@@ -18,49 +11,43 @@ const THEMES = {
 } as const;
 
 export type ThemeName = keyof typeof THEMES;
-type Theme = (typeof THEMES)[ThemeName];
+export type Theme = (typeof THEMES)[ThemeName];
 
 const THEME_KEY = 'we.theme';
 
 export interface ThemeStore {
-  state: {
-    name: Accessor<ThemeName>;
-    current: Accessor<Theme>;
-    all: Theme[]; // static list, not reactive
-  };
-  actions: {
-    setTheme: (name: ThemeName) => void;
-    toggle: (a?: ThemeName, b?: ThemeName) => void;
-  };
+  // State
+  themes: Accessor<Theme[]>;
+  currentTheme: Accessor<Theme>;
+  // Actions
+  setThemes: (themes: Theme[]) => void;
+  setCurrentTheme: (name: ThemeName) => void;
 }
 
 const ThemeContext = createContext<ThemeStore>();
 
 export function ThemeProvider(props: ParentProps) {
-  const [name, setName] = createSignal<ThemeName>('light');
-  const current = createMemo(() => THEMES[name()]);
-  const all = Object.values(THEMES);
+  // Get the initial theme from localStorage if available before creating signals
+  const savedTheme = (typeof window !== 'undefined' && localStorage.getItem(THEME_KEY)) as ThemeName;
 
-  onMount(() => {
-    const saved = localStorage.getItem(THEME_KEY);
-    if (saved && saved in THEMES) setName(saved as ThemeName);
-  });
-
-  createEffect(() => {
-    const n = name();
-    // optional lazy CSS load:
-    // await import(`@we/themes/${n}`);
-    document.documentElement.setAttribute('data-we-theme', n);
-    localStorage.setItem(THEME_KEY, n);
-  });
+  const [themes, setThemes] = createSignal<Theme[]>(clone(Object.values(THEMES)));
+  const [currentTheme, setCurrentTheme] = createSignal<Theme>(clone(THEMES[savedTheme] ?? THEMES.light));
 
   const store: ThemeStore = {
-    state: { name, current, all },
-    actions: {
-      setTheme: (n) => setName(n),
-      toggle: (a = 'light', b = 'dark') => setName((n) => (n === a ? b : a)),
-    },
+    // State
+    themes,
+    currentTheme,
+    // Actions
+    setThemes: asVoid((newThemes: Theme[]) => setThemes(clone(newThemes))),
+    setCurrentTheme: asVoid((name: ThemeName) => setCurrentTheme(clone(THEMES[name]))),
   };
+
+  // Update the document attribute and localStorage whenever the theme changes
+  createEffect(() => {
+    const currentThemeName = currentTheme().name.toLowerCase();
+    document.documentElement.setAttribute('data-we-theme', currentThemeName);
+    localStorage.setItem(THEME_KEY, currentThemeName);
+  });
 
   return <ThemeContext.Provider value={store}>{props.children}</ThemeContext.Provider>;
 }

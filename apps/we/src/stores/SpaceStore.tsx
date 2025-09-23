@@ -1,11 +1,13 @@
+import { PerspectiveProxy } from '@coasys/ad4m';
+import { createContext, createEffect, ParentProps, useContext } from 'solid-js';
+import { createStore } from 'solid-js/store';
+
 import Block from '@/models/Block';
 import CollectionBlock from '@/models/block-types/CollectionBlock';
 import ImageBlock from '@/models/block-types/ImageBlock';
 import TextBlock from '@/models/block-types/TextBlock';
 import Space from '@/models/Space';
-import { PerspectiveProxy } from '@coasys/ad4m';
-import { createContext, createEffect, ParentProps, useContext } from 'solid-js';
-import { createStore } from 'solid-js/store';
+
 import { useAdamStore } from './AdamStore';
 
 // TODO: pass spaceId to getSpace function and dont store spaceId seperately in the store
