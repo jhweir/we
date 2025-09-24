@@ -364,6 +364,16 @@ importers:
         specifier: ^5.7.2
         version: 5.8.3
 
+  packages/models:
+    dependencies:
+      '@coasys/ad4m':
+        specifier: 0.10.1
+        version: 0.10.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+    devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+
   packages/types:
     dependencies:
       '@coasys/ad4m':
