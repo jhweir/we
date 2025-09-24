@@ -8,6 +8,7 @@
   .main-content {
     margin-left: var(--sidebar-width);
     width: calc(100vw - var(--sidebar-width));
+    min-height: 100vh;
 
     .we-header-widget {
       width: calc(100vw - var(--sidebar-width));
