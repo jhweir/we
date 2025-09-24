@@ -1,6 +1,1 @@
-export {
-  DefaultTemplate,
-  getPropsFromApp,
-  defaultTemplatePropsSchema,
-  type DefaultTemplateProps,
-} from './templates/DefaultTemplate';
+export { defaultTemplate } from './templates/DefaultTemplate';

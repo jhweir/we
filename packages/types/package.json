@@ -26,5 +26,9 @@
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "peerDependencies": {
+    "solid-js": "^1.9.0",
+    "@coasys/ad4m": "0.10.1"
   }
 }

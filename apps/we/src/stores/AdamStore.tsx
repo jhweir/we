@@ -1,8 +1,9 @@
-import { Ad4mClient, Agent, AITask } from '@coasys/ad4m';
+import { Ad4mClient, Agent } from '@coasys/ad4m';
 import Ad4mConnect from '@coasys/ad4m-connect';
+// import type { SpaceType } from '@we/types'; // AdamStore,
 import { Accessor, createContext, createEffect, createSignal, ParentProps, useContext } from 'solid-js';
 
-import Space from '@/models/Space';
+import Space from '../models/Space';
 
 // TODO:
 // + move ai to separate stores
@@ -12,13 +13,13 @@ export interface AdamStore {
   ad4mClient: Accessor<Ad4mClient | undefined>;
   me: Accessor<Agent | undefined>;
   mySpaces: Accessor<Space[]>;
-  myAI: Accessor<{ models: any[]; tasks: AITask[] }>;
+  // myAI: Accessor<{ models: any[]; tasks: AITask[] }>;
   addNewSpace: (space: Space) => void;
   setLoading: (v: boolean) => void;
   setAd4mClient: (c: Ad4mClient) => void;
   setMe: (a: Agent) => void;
-  setMySpaces: (s: Space[]) => void;
-  setMyAI: (ai: { models: any[]; tasks: AITask[] }) => void;
+  setMySpaces: (spaces: Space[]) => void;
+  // setMyAI: (ai: { models: any[]; tasks: AITask[] }) => void;
 }
 
 const AdamContext = createContext<AdamStore>();
@@ -28,7 +29,7 @@ export function AdamProvider(props: ParentProps) {
   const [ad4mClient, setAd4mClient] = createSignal<Ad4mClient | undefined>(undefined);
   const [me, setMe] = createSignal<Agent | undefined>(undefined);
   const [mySpaces, setMySpaces] = createSignal<Space[]>([]);
-  const [myAI, setMyAI] = createSignal<{ models: any[]; tasks: AITask[] }>({ models: [], tasks: [] });
+  // const [myAI, setMyAI] = createSignal<{ models: any[]; tasks: AITask[] }>({ models: [], tasks: [] });
 
   async function getAdamClient() {
     try {
@@ -67,15 +68,15 @@ export function AdamProvider(props: ParentProps) {
     }
   }
 
-  async function getMyAI(client: Ad4mClient): Promise<void> {
-    try {
-      const models = await client.ai.getModels();
-      const tasks = await client.ai.tasks();
-      setMyAI({ models, tasks });
-    } catch (error) {
-      console.error('AdamStore: getMyAI error', error);
-    }
-  }
+  // async function getMyAI(client: Ad4mClient): Promise<void> {
+  //   try {
+  //     const models = await client.ai.getModels();
+  //     const tasks = await client.ai.tasks();
+  //     setMyAI({ models, tasks });
+  //   } catch (error) {
+  //     console.error('AdamStore: getMyAI error', error);
+  //   }
+  // }
 
   async function initialiseStore(): Promise<void> {
     const client = await getAdamClient();
@@ -102,13 +103,13 @@ export function AdamProvider(props: ParentProps) {
     ad4mClient,
     me,
     mySpaces,
-    myAI,
+    // myAI,
     addNewSpace,
     setLoading,
     setAd4mClient,
     setMe,
     setMySpaces,
-    setMyAI,
+    // setMyAI,
   };
 
   return <AdamContext.Provider value={store}>{props.children}</AdamContext.Provider>;

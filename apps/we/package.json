@@ -23,6 +23,7 @@
     "@we/widgets": "workspace:*",
     "@we/pages": "workspace:*",
     "@we/templates": "workspace:*",
+    "@we/types": "workspace:*",
     "@coasys/ad4m": "0.10.1",
     "@coasys/ad4m-connect": "0.10.1",
     "@lexical/list": "^0.30.0",

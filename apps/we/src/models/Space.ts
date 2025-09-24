@@ -1,4 +1,4 @@
-import { Ad4mModel, Collection, Flag, ModelOptions, Property } from '@coasys/ad4m';
+import { Ad4mModel, Collection, ModelOptions, Property } from '@coasys/ad4m';
 
 @ModelOptions({ name: 'Space' })
 export default class Space extends Ad4mModel {
@@ -16,4 +16,12 @@ export default class Space extends Ad4mModel {
 
   @Collection({ through: 'we://has_location' })
   locations: string[] = [];
+}
+
+export interface SpaceType {
+  uuid: string;
+  name: string;
+  description: string;
+  visibility: string;
+  locations: string[];
 }

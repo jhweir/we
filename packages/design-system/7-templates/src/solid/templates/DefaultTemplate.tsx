@@ -1,18 +1,19 @@
-import type { AppProps } from '@we/app/src/types';
+import type { AppProps, RouteDefinition } from '@we/app/src/types';
 import { Column, PostCard, Row } from '@we/components/solid';
 import { HeaderWidget, SidebarWidget } from '@we/widgets/solid';
 import { z } from 'zod';
 
 const WECO_LOGO = 'https://avatars.githubusercontent.com/u/34165012?s=200&v=4';
 
-type Space = { name: string; uuid: string }; // Simplified Space type for this example
+// TODO: Get Space & Theme types from types package?
+// type Space = { name: string; uuid: string };
 
-const spaceSchema: z.ZodType<Space> = z.object({ name: z.string(), uuid: z.string() });
+// const spaceSchema: z.ZodType<Space> = z.object({ name: z.string(), uuid: z.string() });
 const themeSchema = z.object({ name: z.string(), icon: z.string() });
 
-export const defaultTemplatePropsSchema = z.object({
+const propSchema = z.object({
   // State
-  spaces: z.function({ input: [], output: z.array(spaceSchema) }),
+  // spaces: z.function({ input: [], output: z.array(spaceSchema) }),
   themes: z.function({ input: [], output: z.array(themeSchema) }),
   currentTheme: z.function({ input: [], output: themeSchema }),
   // Actions
@@ -25,30 +26,35 @@ export const defaultTemplatePropsSchema = z.object({
   children: z.any().optional(),
 });
 
-export function getPropsFromApp(app: AppProps) {
+const routes: RouteDefinition[] = [
+  // { path: '/', component: HomePage },
+  // { path: '/new', component: NewPost },
+  // { path: '/space/:spaceHandle/*', component: SpacePage },
+];
+
+function getPropsFromApp(app: AppProps) {
+  const { modalStore, themeStore } = app.stores;
   return {
     // State
-    spaces: app.stores.adam.mySpaces,
-    themes: app.stores.theme.themes,
-    currentTheme: app.stores.theme.currentTheme,
+    // spaces: adamStore.mySpaces,
+    themes: themeStore.themes,
+    currentTheme: themeStore.currentTheme,
     // Actions
-    setTheme: app.stores.theme.setCurrentTheme,
-    openModal: app.stores.modal.actions.openModal,
+    setTheme: themeStore.setCurrentTheme,
+    openModal: modalStore.actions.openModal,
     navigate: app.navigate,
   };
 }
 
-export type DefaultTemplateProps = z.infer<typeof defaultTemplatePropsSchema>;
-
-export function DefaultTemplate(props: DefaultTemplateProps) {
+export function DefaultTemplate(props: z.infer<typeof propSchema>) {
   const topButtons = [
     { name: 'Home', image: WECO_LOGO, onClick: () => props.navigate('/') },
     { name: 'Search', icon: 'magnifying-glass', onClick: () => props.navigate('/search') },
-    { name: 'Spaces', icon: 'users-three', onClick: () => props.navigate('/all-spaces') },
-    ...props.spaces().map((space) => ({
-      name: space.name,
-      onClick: () => props.navigate(`/space/${space.uuid}`),
-    })),
+    // { name: 'Spaces', icon: 'users-three', onClick: () => props.navigate('/all-spaces') },
+    // ...props.spaces().map((space) => ({
+    //   name: space.name,
+    //   onClick: () => props.navigate(`/space/${space.uuid}`),
+    // })),
     { name: 'New space', icon: 'plus', onClick: () => props.openModal('createSpace') },
   ];
 
@@ -83,3 +89,5 @@ export function DefaultTemplate(props: DefaultTemplateProps) {
     </Row>
   );
 }
+
+export const defaultTemplate = { id: 'default', component: DefaultTemplate, getPropsFromApp, propSchema, routes };

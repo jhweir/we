@@ -1,49 +1,44 @@
-import { useNavigate } from '@solidjs/router';
-import { DefaultTemplate, defaultTemplatePropsSchema, getPropsFromApp } from '@we/templates/solid';
+import { Route, Router, useNavigate } from '@solidjs/router';
+import { defaultTemplate } from '@we/templates/solid';
 import { ParentProps } from 'solid-js';
 
-import { useAdamStore } from '@/stores/AdamStore';
-import { useModalStore } from '@/stores/ModalStore';
-import { useThemeStore } from '@/stores/ThemeStore';
+import { useAdamStore, useModalStore, useSpaceStore, useThemeStore } from '@/stores';
 
-// 1. Template registry for local templates (can be replaced with dynamic import for npm later)
-const templates = [
-  {
-    id: 'default',
-    component: DefaultTemplate,
-    schema: defaultTemplatePropsSchema,
-  },
-  // Add more templates here as needed
-];
-
-// 2. Helper to select template by id
-function getTemplateById(id: string) {
-  return templates.find((t) => t.id === id) || templates[0];
-}
+// Template registry for local templates (can be replaced with dynamic import for npm later)
+const templates = [defaultTemplate];
 
 export default function TemplateProvider(props: ParentProps) {
-  // Gather stores/context
-  const adam = useAdamStore();
-  const theme = useThemeStore();
-  const modal = useModalStore();
-  const navigate = useNavigate();
-
-  // Select template (could be dynamic, e.g., from theme or user settings)
+  // Select template
   const templateId = 'default'; // theme.state.currentTemplate || 'default';
-  const { component: TemplateComponent, schema } = getTemplateById(templateId);
+  const template = templates.find((t) => t.id === templateId) || templates[0];
+  const { component: Template, getPropsFromApp, propSchema, routes } = template;
 
-  // Compose all available sources
-  const appProps = { stores: { adam, theme, modal }, navigate };
+  // Gather all store props and utility functions
+  const adamStore = useAdamStore();
+  const spaceStore = useSpaceStore();
+  const modalStore = useModalStore();
+  const themeStore = useThemeStore();
+  const navigate = useNavigate();
+  const appProps = { stores: { adamStore, spaceStore, modalStore, themeStore }, navigate };
 
-  // Dynamically map props based on schema keys
+  // Get props required for template
   const templateProps = getPropsFromApp(appProps);
 
-  // Validate props (optional, but recommended)
-  const parseResult = schema.safeParse(templateProps);
+  // Validate template props against zod schema
+  const parseResult = propSchema.safeParse(templateProps);
   if (!parseResult.success) {
     return <div>Template props validation failed: {parseResult.error.message}</div>;
   }
 
-  // Render template with validated props
-  return <TemplateComponent {...parseResult.data}>{props.children}</TemplateComponent>;
+  // Render template and routes with validated props
+  return (
+    <Template {...parseResult.data}>
+      <Router>
+        {routes.map((route) => (
+          <Route path={route.path} component={route.component} />
+        ))}
+      </Router>
+      {props.children}
+    </Template>
+  );
 }
