@@ -4,21 +4,11 @@ import { HomePage, PageNotFound, PostPage } from '@we/pages/solid';
 import { HeaderWidget, SidebarWidget } from '@we/widgets/solid';
 import { z } from 'zod';
 
-const WECO_LOGO = 'https://avatars.githubusercontent.com/u/34165012?s=200&v=4';
-
-// TODO: Get Space & Theme types from types package?
-// type Space = { name: string; uuid: string };
-
 // const spaceSchema: z.ZodType<Space> = z.object({ name: z.string(), uuid: z.string() });
 const themeSchema = z.object({ name: z.string(), icon: z.string() });
-const postSchema = z.object({
-  creator: z.object({ name: z.string(), avatarUrl: z.string() }),
-  title: z.string(),
-  content: z.string(),
-});
-// const postSchema = z.any();
-
-const propSchema = z.object({
+const creatorSchema = z.object({ name: z.string(), avatarUrl: z.string() });
+const postSchema = z.object({ creator: creatorSchema, title: z.string(), content: z.string() });
+const fullPropSchema = z.object({
   // State
   // spaces: z.function({ input: [], output: z.array(spaceSchema) }),
   themes: z.function({ input: [], output: z.array(themeSchema) }),
@@ -29,19 +19,12 @@ const propSchema = z.object({
   openModal: z.function({ input: [z.string()], output: z.void() }),
   navigate: z.function({ input: [z.string()], output: z.void() }),
   // Optional props
-
   class: z.string().optional(),
   style: z.any().optional(),
   children: z.any().optional(),
 });
 
-export function getRoutes(props: z.infer<typeof propSchema>): RouteDefinition[] {
-  return [
-    { path: '*', component: () => <PageNotFound /> },
-    { path: '/', component: () => <HomePage /> },
-    { path: '/posts', component: () => <PostPage posts={props.posts()} /> },
-  ];
-}
+export type DefaultTemplateProps = z.infer<typeof fullPropSchema>;
 
 function getPropsFromApp(app: AppProps) {
   const { modalStore, themeStore } = app.stores;
@@ -58,20 +41,34 @@ function getPropsFromApp(app: AppProps) {
   };
 }
 
-export function DefaultTemplate(props: z.infer<typeof propSchema>) {
-  const topButtons = [
-    { name: 'Home', image: WECO_LOGO, onClick: () => props.navigate('/') },
-    { name: 'Search', icon: 'magnifying-glass', onClick: () => props.navigate('/search') },
-    { name: 'Posts', icon: 'note-pencil', onClick: () => props.navigate('/posts') },
-    // { name: 'Spaces', icon: 'users-three', onClick: () => props.navigate('/all-spaces') },
-    // ...props.spaces().map((space) => ({
-    //   name: space.name,
-    //   onClick: () => props.navigate(`/space/${space.uuid}`),
-    // })),
-    { name: 'New space', icon: 'plus', onClick: () => props.openModal('createSpace') },
+export function getRoutes(props: DefaultTemplateProps): RouteDefinition[] {
+  return [
+    { path: '*', component: () => <PageNotFound /> },
+    { path: '/', component: () => <HomePage /> },
+    { path: '/posts', component: () => <PostPage posts={props.posts()} /> },
   ];
+}
 
-  const bottomButtons = [{ name: 'Settings', icon: 'gear', onClick: () => props.navigate('/settings') }];
+function getButtons(props: DefaultTemplateProps) {
+  const WECO_LOGO = 'https://avatars.githubusercontent.com/u/34165012?s=200&v=4';
+  return {
+    topButtons: [
+      { name: 'Home', image: WECO_LOGO, onClick: () => props.navigate('/') },
+      { name: 'Search', icon: 'magnifying-glass', onClick: () => props.navigate('/search') },
+      { name: 'Posts', icon: 'note-pencil', onClick: () => props.navigate('/posts') },
+      // { name: 'Spaces', icon: 'users-three', onClick: () => props.navigate('/all-spaces') },
+      // ...props.spaces().map((space) => ({
+      //   name: space.name,
+      //   onClick: () => props.navigate(`/space/${space.uuid}`),
+      // })),
+      { name: 'New space', icon: 'plus', onClick: () => props.openModal('createSpace') },
+    ],
+    bottomButtons: [{ name: 'Settings', icon: 'gear', onClick: () => props.navigate('/settings') }],
+  };
+}
+
+export function DefaultTemplate(props: DefaultTemplateProps) {
+  const { topButtons, bottomButtons } = getButtons(props);
 
   return (
     <Row class={`we-default-template ${props.class || ''}`} style={props.style} ax="center" bg="ui-0" data-we-template>
@@ -84,4 +81,10 @@ export function DefaultTemplate(props: z.infer<typeof propSchema>) {
   );
 }
 
-export const defaultTemplate = { id: 'default', component: DefaultTemplate, getPropsFromApp, getRoutes, propSchema };
+export const defaultTemplate = {
+  id: 'default',
+  component: DefaultTemplate,
+  getPropsFromApp,
+  getRoutes,
+  propSchema: fullPropSchema,
+};
