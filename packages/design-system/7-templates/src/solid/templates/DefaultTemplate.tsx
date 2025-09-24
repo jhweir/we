@@ -1,5 +1,6 @@
 import type { AppProps, RouteDefinition } from '@we/app/src/types';
 import { Column, PostCard, Row } from '@we/components/solid';
+import { HomePage } from '@we/pages/solid';
 import { HeaderWidget, SidebarWidget } from '@we/widgets/solid';
 import { z } from 'zod';
 
@@ -27,7 +28,7 @@ const propSchema = z.object({
 });
 
 const routes: RouteDefinition[] = [
-  // { path: '/', component: HomePage },
+  { path: '/', component: () => <HomePage /> },
   // { path: '/new', component: NewPost },
   // { path: '/space/:spaceHandle/*', component: SpacePage },
 ];
