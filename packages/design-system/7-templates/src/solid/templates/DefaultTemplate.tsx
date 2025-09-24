@@ -1,6 +1,6 @@
 import type { AppProps, RouteDefinition } from '@we/app/src/types';
 import { Column, Row } from '@we/components/solid';
-import { HomePage, PostPage } from '@we/pages/solid';
+import { HomePage, PageNotFound, PostPage } from '@we/pages/solid';
 import { HeaderWidget, SidebarWidget } from '@we/widgets/solid';
 import { z } from 'zod';
 
@@ -26,26 +26,20 @@ const propSchema = z.object({
   posts: z.function({ input: [], output: z.array(postSchema) }),
   // Actions
   setTheme: z.function({ input: [z.string()], output: z.void() }),
-  navigate: z.function({ input: [z.string()], output: z.void() }),
   openModal: z.function({ input: [z.string()], output: z.void() }),
+  navigate: z.function({ input: [z.string()], output: z.void() }),
   // Optional props
+
   class: z.string().optional(),
   style: z.any().optional(),
   children: z.any().optional(),
 });
 
-// const routes: RouteDefinition[] = [
-//   { path: '/', component: () => <HomePage /> },
-//   { path: '/posts', component: () => <PostPage posts={props.posts()} /> },
-//   // { path: '/new', component: NewPost },
-//   // { path: '/space/:spaceHandle/*', component: SpacePage },
-// ];
-
 export function getRoutes(props: z.infer<typeof propSchema>): RouteDefinition[] {
   return [
+    { path: '*', component: () => <PageNotFound /> },
     { path: '/', component: () => <HomePage /> },
     { path: '/posts', component: () => <PostPage posts={props.posts()} /> },
-    // ...other routes
   ];
 }
 

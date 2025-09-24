@@ -1,11 +1,16 @@
 import { Route, Router, useNavigate } from '@solidjs/router';
+import { PageNotFound } from '@we/pages/solid';
 import { defaultTemplate } from '@we/templates/solid';
+import { createContext, useContext } from 'solid-js';
 import { ParentProps } from 'solid-js';
+import { z } from 'zod';
 
 import { useAdamStore, useModalStore, useSpaceStore, useThemeStore } from '@/stores';
 
-// Template registry for local templates (can be replaced with dynamic import for npm later)
 const templates = [defaultTemplate];
+
+// Context for the validated props
+const TemplatePropsContext = createContext<z.infer<typeof defaultTemplate.propSchema>>();
 
 export default function TemplateProvider() {
   // Select template
@@ -18,109 +23,39 @@ export default function TemplateProvider() {
   const spaceStore = useSpaceStore();
   const modalStore = useModalStore();
   const themeStore = useThemeStore();
-  const navigate = useNavigate();
+  const navigate = () => null; // Dummy fucntion for validation, replaced in Layout when we have acces to the router
   const appProps = { stores: { adamStore, spaceStore, modalStore, themeStore }, navigate };
 
-  // Get and validate template props
+  // Parse and validate props
   const templateProps = getPropsFromApp(appProps);
   const parseResult = propSchema.safeParse(templateProps);
-  if (!parseResult.success) {
-    return <div>Template props validation failed: {parseResult.error.message}</div>;
-  }
+  if (!parseResult.success) return <div>Template props validation failed: {parseResult.error.message}</div>;
+  const validatedProps = parseResult.data;
 
   // Generate routes with validated props
-  const routes = getRoutes(parseResult.data);
+  const routes = getRoutes(validatedProps);
 
-  // Layout function with closure over validated props
   function Layout(props: ParentProps) {
-    // No need to re-validate here!
-    return <Template {...(parseResult.data as z.infer<typeof propSchema>)}>{props.children}</Template>;
+    // Now in router context, get real navigate
+    const navigate = useNavigate();
+    // Get validated props from context
+    const contextProps = useContext(TemplatePropsContext);
+    // Overwrite navigate fucntion with real one
+    const finalProps = { ...contextProps, navigate };
+
+    return <Template {...(finalProps as z.infer<typeof propSchema>)}>{props.children}</Template>;
   }
 
-  // Pass routes as direct children to Router
   return (
-    <Router root={Layout}>
-      {routes.map((route) => (
-        <Route path={route.path} component={route.component} />
-      ))}
-    </Router>
+    <TemplatePropsContext.Provider value={validatedProps}>
+      <Router>
+        <Route path="/*" component={Layout}>
+          {routes.map((route) => (
+            <Route path={route.path} component={route.component} />
+          ))}
+          {!routes.find((route) => route.path === '*') && <Route path="*" component={() => <PageNotFound />} />}
+        </Route>
+      </Router>
+    </TemplatePropsContext.Provider>
   );
 }
-
-// export default function TemplateProvider() {
-//   // Select template
-//   const templateId = 'default'; // theme.state.currentTemplate || 'default';
-//   const template = templates.find((t) => t.id === templateId) || templates[0];
-//   const { component: Template, getPropsFromApp, getRoutes, propSchema } = template;
-
-//   // Gather all store props and utility functions at the top level
-//   const adamStore = useAdamStore();
-//   const spaceStore = useSpaceStore();
-//   const modalStore = useModalStore();
-//   const themeStore = useThemeStore();
-//   const navigate = useNavigate();
-//   const appProps = { stores: { adamStore, spaceStore, modalStore, themeStore }, navigate };
-
-//   // Get props required for template
-//   const templateProps = getPropsFromApp(appProps);
-
-//   // // Validate template props against zod schema
-//   // const parseResult = propSchema.safeParse(templateProps);
-//   // if (!parseResult.success) {
-//   //   return <div>Template props validation failed: {parseResult.error.message}</div>;
-//   // }
-
-//   // Generate routes with validated props
-//   const routes = getRoutes(parseResult.data);
-
-//   // Layout function for the router
-//   function Layout(props: ParentProps) {
-//     // Validate template props against zod schema
-//     const parseResult = propSchema.safeParse(templateProps);
-//     if (!parseResult.success) {
-//       return <div>Template props validation failed: {parseResult.error.message}</div>;
-//     }
-//     return <Template {...parseResult.data}>{props.children}</Template>;
-//   }
-
-//   // Pass routes as direct children to Router
-//   return (
-//     <Router root={Layout}>
-//       {routes.map((route) => (
-//         <Route path={route.path} component={route.component} />
-//       ))}
-//     </Router>
-//   );
-// }
-
-// export default function TemplateProvider() {
-//   // Select template
-//   const templateId = 'default'; // theme.state.currentTemplate || 'default';
-//   const template = templates.find((t) => t.id === templateId) || templates[0];
-//   const { component: Template, getPropsFromApp, getRoutes, propSchema } = template;
-
-//   function Layout(props: ParentProps) {
-//     // Gather all store props and utility functions
-//     const adamStore = useAdamStore();
-//     const spaceStore = useSpaceStore();
-//     const modalStore = useModalStore();
-//     const themeStore = useThemeStore();
-//     const navigate = useNavigate();
-//     const appProps = { stores: { adamStore, spaceStore, modalStore, themeStore }, navigate };
-
-//     // Get props required for template
-//     const templateProps = getPropsFromApp(appProps);
-
-//     // Validate template props against zod schema
-//     const parseResult = propSchema.safeParse(templateProps);
-//     if (!parseResult.success) {
-//       return <div>Template props validation failed: {parseResult.error.message}</div>;
-//     }
-
-//     return <Template {...parseResult.data}>{props.children}</Template>;
-//   }
-
-//   // const routes = getRoutes(parseResult.data);
-
-//   return <Router root={Layout}>{routes}</Router>;
-// }
