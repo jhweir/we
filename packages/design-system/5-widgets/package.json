@@ -23,12 +23,14 @@
   "peerDependencies": {
     "@we/elements": "^1.0.0",
     "@we/components": "^0.1.0",
+    "@coasys/ad4m": "0.10.1",
     "solid-js": "^1.9.0"
   },
   "devDependencies": {
     "@we/tokens": "workspace:*",
     "@we/elements": "workspace:*",
     "@we/components": "workspace:*",
+    "@we/models": "workspace:*",
     "esbuild-plugin-solid": "^0.6.0",
     "sass": "^1.92.1",
     "solid-js": "^1.9.0",

@@ -1,9 +1,7 @@
 import { Ad4mClient, Agent } from '@coasys/ad4m';
 import Ad4mConnect from '@coasys/ad4m-connect';
-// import type { SpaceType } from '@we/types'; // AdamStore,
+import { Space } from '@we/models';
 import { Accessor, createContext, createEffect, createSignal, ParentProps, useContext } from 'solid-js';
-
-import Space from '../models/Space';
 
 // TODO:
 // + move ai to separate stores

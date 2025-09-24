@@ -1,1 +1,1 @@
-export { defaultTemplate, type DefaultTemplateProps } from './templates/DefaultTemplate';
+export { defaultTemplate, type DefaultTemplateProps } from './templates/default/DefaultTemplate';

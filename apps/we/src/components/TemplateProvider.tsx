@@ -18,7 +18,7 @@ export default function TemplateProvider() {
   // Select template
   const templateId = 'default';
   const template = templates.find((t) => t.id === templateId) || templates[0];
-  const { component: Template, getPropsFromApp, getRoutes, propSchema } = template;
+  const { component: Template, getProps, getRoutes, propSchema } = template;
   type TemplateProps = TemplatePropsMap[typeof templateId];
 
   // Gather all store props and utilities
@@ -30,7 +30,7 @@ export default function TemplateProvider() {
   const appProps = { stores: { adamStore, spaceStore, modalStore, themeStore }, navigate };
 
   // Parse and validate props
-  const templateProps = getPropsFromApp(appProps);
+  const templateProps = getProps(appProps);
   const parseResult = propSchema.safeParse(templateProps);
   if (!parseResult.success) return <div>Template props validation failed: {parseResult.error.message}</div>;
   const validatedProps = parseResult.data;

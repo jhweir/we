@@ -1,17 +1,17 @@
 .we-default-template {
-  --sidebar-width: 90px;
+  --narrow-sidebar-width: 90px;
 
-  .we-sidebar-widget {
-    width: var(--sidebar-width);
+  .we-narrow-sidebar-widget {
+    width: var(--narrow-sidebar-width);
   }
 
   .main-content {
-    margin-left: var(--sidebar-width);
-    width: calc(100vw - var(--sidebar-width));
+    margin-left: var(--narrow-sidebar-width);
+    width: calc(100vw - var(--narrow-sidebar-width));
     min-height: 100vh;
 
     .we-header-widget {
-      width: calc(100vw - var(--sidebar-width));
+      width: calc(100vw - var(--narrow-sidebar-width));
     }
   }
 }

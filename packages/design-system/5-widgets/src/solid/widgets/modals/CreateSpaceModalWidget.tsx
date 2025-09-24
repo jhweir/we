@@ -1,30 +1,28 @@
-import Block from '@/models/Block';
-import Space from '@/models/Space';
-import CollectionBlock from '@/models/block-types/CollectionBlock';
-import ImageBlock from '@/models/block-types/ImageBlock';
-import TextBlock from '@/models/block-types/TextBlock';
-import { useAdamStore, useModalStore } from '@/stores';
-import { createSignal } from 'solid-js';
+import { Ad4mClient } from '@coasys/ad4m';
+import { Column } from '@we/components/solid';
+import { Block, CollectionBlock, ImageBlock, Space, TextBlock } from '@we/models';
+import { createSignal, JSX } from 'solid-js';
 
-type SpaceVisibility = 'hidden' | 'private' | 'public';
+export interface CreateSpaceModalWidgetProps {
+  adamClient: Ad4mClient | undefined;
+  close: () => void;
+  addNewSpace: (space: Space) => void;
+  class?: string;
+  style?: JSX.CSSProperties;
+}
 
-export default function CreateSpaceModal() {
-  const adamStore = useAdamStore();
-  const modalStore = useModalStore();
+// type SpaceVisibility = 'hidden' | 'private' | 'public';
 
+export function CreateSpaceModalWidget(props: CreateSpaceModalWidgetProps) {
   const [name, setName] = createSignal('');
   const [description, setDescription] = createSignal('');
-  const [locations, setLocations] = createSignal([]);
-  const [visibility, setVisibility] = createSignal<SpaceVisibility>('private');
+  // const [locations, setLocations] = createSignal([]);
+  // const [visibility, setVisibility] = createSignal<SpaceVisibility>('private');
   const [loading, setLoading] = createSignal(false);
 
-  function close() {
-    modalStore.actions.closeModal('createSpace');
-  }
-
   async function createSpace() {
-    console.log('createspace', name(), description(), locations(), visibility());
-    const client = adamStore.state.ad4mClient;
+    console.log('createspace', name(), description()); // locations(), visibility()
+    const client = props.adamClient;
     if (!client) return;
     setLoading(true);
 
@@ -45,14 +43,14 @@ export default function CreateSpaceModal() {
     console.log('New space', space);
 
     // Add the new space to the Adam store
-    adamStore.actions.addNewSpace(space);
+    props.addNewSpace(space);
 
-    close();
+    props.close();
   }
 
   return (
-    <we-modal close={close}>
-      <we-column p="600" gap="400" ax="center">
+    <we-modal close={props.close}>
+      <Column p="600" gap="400" ax="center">
         <we-text variant="heading">Create a new space</we-text>
 
         <we-input
@@ -72,7 +70,7 @@ export default function CreateSpaceModal() {
         <we-button variant="primary" disabled={!name()} loading={loading()} onClick={createSpace}>
           Create
         </we-button>
-      </we-column>
+      </Column>
     </we-modal>
   );
 }

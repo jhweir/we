@@ -1,7 +1,7 @@
 import { Ad4mModel, Collection, ModelOptions, Property } from '@coasys/ad4m';
 
 @ModelOptions({ name: 'Block' })
-export default class Block extends Ad4mModel {
+export class Block extends Ad4mModel {
   @Property({ through: 'we://block_type', resolveLanguage: 'literal', writable: true })
   type: string = '';
 

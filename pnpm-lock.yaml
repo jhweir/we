@@ -71,6 +71,9 @@ importers:
       '@we/elements':
         specifier: workspace:*
         version: link:../../packages/design-system/3-elements
+      '@we/models':
+        specifier: workspace:*
+        version: link:../../packages/models
       '@we/pages':
         specifier: workspace:*
         version: link:../../packages/design-system/6-pages
@@ -268,6 +271,10 @@ importers:
         version: 5.8.3
 
   packages/design-system/5-widgets:
+    dependencies:
+      '@coasys/ad4m':
+        specifier: 0.10.1
+        version: 0.10.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
     devDependencies:
       '@we/components':
         specifier: workspace:*
@@ -275,6 +282,9 @@ importers:
       '@we/elements':
         specifier: workspace:*
         version: link:../3-elements
+      '@we/models':
+        specifier: workspace:*
+        version: link:../../models
       '@we/tokens':
         specifier: workspace:*
         version: link:../1-tokens

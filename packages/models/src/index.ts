@@ -1,4 +1,5 @@
 export { Space, type SpaceType } from './Space';
+export { Block } from './Block';
 
 // Block Types
 export { CollectionBlock } from './block-types/CollectionBlock';

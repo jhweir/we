@@ -1,7 +1,7 @@
 import type { AppProps, RouteDefinition } from '@we/app/src/types';
 import { Column, Row } from '@we/components/solid';
 import { HomePage, PageNotFound, PostPage } from '@we/pages/solid';
-import { HeaderWidget, SidebarWidget } from '@we/widgets/solid';
+import { CreateSpaceModalWidget, HeaderWidget, NarrowSidebarWidget } from '@we/widgets/solid';
 import { z } from 'zod';
 
 // const spaceSchema: z.ZodType<Space> = z.object({ name: z.string(), uuid: z.string() });
@@ -14,9 +14,11 @@ const fullPropSchema = z.object({
   themes: z.function({ input: [], output: z.array(themeSchema) }),
   currentTheme: z.function({ input: [], output: themeSchema }),
   posts: z.function({ input: [], output: z.array(postSchema) }),
+  createSpaceModalOpen: z.function({ input: [], output: z.boolean() }),
   // Actions
   setTheme: z.function({ input: [z.string()], output: z.void() }),
   openModal: z.function({ input: [z.string()], output: z.void() }),
+  closeModal: z.function({ input: [z.string()], output: z.void() }),
   navigate: z.function({ input: [z.string()], output: z.void() }),
   // Optional props
   class: z.string().optional(),
@@ -26,22 +28,26 @@ const fullPropSchema = z.object({
 
 export type DefaultTemplateProps = z.infer<typeof fullPropSchema>;
 
-function getPropsFromApp(app: AppProps) {
+function getProps(app: AppProps) {
   const { modalStore, themeStore } = app.stores;
   return {
     // State
     // spaces: adamStore.mySpaces,
+    // adamClient: adamStore.adamClient,
     posts: themeStore.posts,
     themes: themeStore.themes,
     currentTheme: themeStore.currentTheme,
+    createSpaceModalOpen: modalStore.createSpaceModalOpen,
     // Actions
     setTheme: themeStore.setCurrentTheme,
-    openModal: modalStore.actions.openModal,
+    openModal: modalStore.openModal,
+    closeModal: modalStore.closeModal,
+    // addNewSpace: adamStore.addNeweSpace,
     navigate: app.navigate,
   };
 }
 
-export function getRoutes(props: DefaultTemplateProps): RouteDefinition[] {
+function getRoutes(props: DefaultTemplateProps): RouteDefinition[] {
   return [
     { path: '*', component: () => <PageNotFound /> },
     { path: '/', component: () => <HomePage /> },
@@ -61,7 +67,7 @@ function getButtons(props: DefaultTemplateProps) {
       //   name: space.name,
       //   onClick: () => props.navigate(`/space/${space.uuid}`),
       // })),
-      { name: 'New space', icon: 'plus', onClick: () => props.openModal('createSpace') },
+      { name: 'New space', icon: 'plus', onClick: () => props.openModal('create-space') },
     ],
     bottomButtons: [{ name: 'Settings', icon: 'gear', onClick: () => props.navigate('/settings') }],
   };
@@ -72,11 +78,19 @@ export function DefaultTemplate(props: DefaultTemplateProps) {
 
   return (
     <Row class={`we-default-template ${props.class || ''}`} style={props.style} ax="center" bg="ui-0" data-we-template>
-      <SidebarWidget class="left" topButtons={topButtons} bottomButtons={bottomButtons} />
+      <NarrowSidebarWidget class="left" topButtons={topButtons} bottomButtons={bottomButtons} />
       <Column class="main-content" bg="ui-25">
         <HeaderWidget themes={props.themes()} currentTheme={props.currentTheme()} setTheme={props.setTheme} />
         {props.children}
       </Column>
+
+      {props.createSpaceModalOpen() && (
+        <CreateSpaceModalWidget
+          adamClient={undefined}
+          close={() => props.closeModal('create-space')}
+          addNewSpace={() => undefined}
+        />
+      )}
     </Row>
   );
 }
@@ -84,7 +98,7 @@ export function DefaultTemplate(props: DefaultTemplateProps) {
 export const defaultTemplate = {
   id: 'default',
   component: DefaultTemplate,
-  getPropsFromApp,
+  getProps,
   getRoutes,
   propSchema: fullPropSchema,
 };

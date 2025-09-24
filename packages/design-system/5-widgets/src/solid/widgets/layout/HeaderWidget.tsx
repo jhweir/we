@@ -9,7 +9,7 @@ export interface HeaderWidgetProps {
   style?: JSX.CSSProperties;
 }
 
-export default function Header(props: HeaderWidgetProps) {
+export function HeaderWidget(props: HeaderWidgetProps) {
   const iconWeight = 'regular';
 
   return (

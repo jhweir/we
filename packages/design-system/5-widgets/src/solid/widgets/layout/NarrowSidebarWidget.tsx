@@ -1,24 +1,24 @@
 import { CircleButton, Column } from '@we/components/solid';
 import { JSX } from 'solid-js';
 
-export type SidebarWidgetButton = {
+type Button = {
   name: string;
   icon?: string;
   image?: string;
   onClick: () => void;
 };
 
-export interface SidebarWidgetProps {
-  topButtons?: SidebarWidgetButton[];
-  bottomButtons?: SidebarWidgetButton[];
+export interface NarrowSidebarWidgetProps {
+  topButtons?: Button[];
+  bottomButtons?: Button[];
   class?: string;
   style?: JSX.CSSProperties;
 }
 
-export function SidebarWidget(props: SidebarWidgetProps) {
+export function NarrowSidebarWidget(props: NarrowSidebarWidgetProps) {
   return (
     <Column
-      class={`we-sidebar-widget ${props.class || ''}`}
+      class={`we-narrow-sidebar-widget ${props.class || ''}`}
       style={props.style}
       ax="center"
       ay="between"

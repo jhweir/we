@@ -14,9 +14,7 @@
       "@assets/*": ["./src/assets/*"],
       "@contexts/*": ["src/stores/*"],
       "@components/*": ["./src/components/*"],
-      "@models/*": ["./src/models/*"],
-      "@pages/*": ["./src/pages/*"],
-      "@templates/*": ["./src/templates/*"]
+      "@pages/*": ["./src/pages/*"]
     }
   }
 }
