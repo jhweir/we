@@ -124,6 +124,55 @@ importers:
         specifier: ^2.11.6
         version: 2.11.6(solid-js@1.9.7)(vite@6.3.5(@types/node@22.15.30)(sass-embedded@1.92.1)(sass@1.92.1)(terser@5.41.0)(tsx@4.19.4)(yaml@2.8.0))
 
+  packages/block-composer/solid:
+    dependencies:
+      '@coasys/ad4m':
+        specifier: 0.10.1
+        version: 0.10.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@lexical/list':
+        specifier: ^0.30.0
+        version: 0.30.0
+      '@lexical/markdown':
+        specifier: ^0.30.0
+        version: 0.30.0
+      '@lexical/rich-text':
+        specifier: ^0.30.0
+        version: 0.30.0
+      '@lexical/utils':
+        specifier: ^0.30.0
+        version: 0.30.0
+      lexical:
+        specifier: ^0.30.0
+        version: 0.30.0
+      lexical-solid:
+        specifier: ^0.21.0
+        version: 0.21.0(solid-js@1.9.9)(utility-types@3.11.0)(yjs@13.6.27)
+      solid-js:
+        specifier: ^1.9.0
+        version: 1.9.9
+    devDependencies:
+      '@we/components':
+        specifier: workspace:*
+        version: link:../../design-system/4-components
+      '@we/elements':
+        specifier: workspace:*
+        version: link:../../design-system/3-elements
+      '@we/models':
+        specifier: workspace:*
+        version: link:../../models
+      esbuild-plugin-solid:
+        specifier: ^0.6.0
+        version: 0.6.0(esbuild@0.25.5)(solid-js@1.9.9)
+      sass:
+        specifier: ^1.92.1
+        version: 1.92.1
+      tsup:
+        specifier: ^8.3.0
+        version: 8.5.0(postcss@8.5.6)(tsx@4.19.4)(typescript@5.8.3)(yaml@2.8.0)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.8.3
+
   packages/design-system/1-tokens:
     devDependencies:
       '@rollup/plugin-node-resolve':
@@ -6146,6 +6195,16 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  esbuild-plugin-solid@0.6.0(esbuild@0.25.5)(solid-js@1.9.9):
+    dependencies:
+      '@babel/core': 7.27.4
+      '@babel/preset-typescript': 7.27.1(@babel/core@7.27.4)
+      babel-preset-solid: 1.9.6(@babel/core@7.27.4)
+      esbuild: 0.25.5
+      solid-js: 1.9.9
+    transitivePeerDependencies:
+      - supports-color
+
   esbuild-register@3.6.0(esbuild@0.24.2):
     dependencies:
       debug: 4.4.1
@@ -6860,6 +6919,32 @@ snapshots:
       '@lexical/yjs': 0.30.0(yjs@13.6.27)
       lexical: 0.30.0
       solid-js: 1.9.7
+      utility-types: 3.11.0
+    transitivePeerDependencies:
+      - yjs
+
+  lexical-solid@0.21.0(solid-js@1.9.9)(utility-types@3.11.0)(yjs@13.6.27):
+    dependencies:
+      '@lexical/clipboard': 0.30.0
+      '@lexical/code': 0.30.0
+      '@lexical/dragon': 0.30.0
+      '@lexical/hashtag': 0.30.0
+      '@lexical/history': 0.30.0
+      '@lexical/html': 0.30.0
+      '@lexical/link': 0.30.0
+      '@lexical/list': 0.30.0
+      '@lexical/mark': 0.30.0
+      '@lexical/markdown': 0.30.0
+      '@lexical/overflow': 0.30.0
+      '@lexical/plain-text': 0.30.0
+      '@lexical/rich-text': 0.30.0
+      '@lexical/selection': 0.30.0
+      '@lexical/table': 0.30.0
+      '@lexical/text': 0.30.0
+      '@lexical/utils': 0.30.0
+      '@lexical/yjs': 0.30.0(yjs@13.6.27)
+      lexical: 0.30.0
+      solid-js: 1.9.9
       utility-types: 3.11.0
     transitivePeerDependencies:
       - yjs

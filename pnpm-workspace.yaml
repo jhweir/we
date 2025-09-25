@@ -3,3 +3,4 @@ packages:
   - 'apps/playgrounds/*'
   - 'packages/*'
   - 'packages/design-system/*'
+  - 'packages/block-composer/*'

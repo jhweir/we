@@ -1,3 +1,4 @@
+import { Ad4mClient, PerspectiveProxy } from '@coasys/ad4m';
 import { ListItemNode, ListNode } from '@lexical/list';
 import { CHECK_LIST, HEADING, ORDERED_LIST, QUOTE, UNORDERED_LIST } from '@lexical/markdown';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
@@ -15,9 +16,8 @@ import {
 } from 'lexical-solid';
 import { createEffect } from 'solid-js';
 
-import { useAdamStore } from '@/stores/AdamStore';
-import { useSpaceStore } from '@/stores/SpaceStore';
-
+// import { useAdamStore } from '@/stores/AdamStore';
+// import { useSpaceStore } from '@/stores/SpaceStore';
 import { ImageNode } from './nodes/ImageNode';
 import BlockHandlesPlugin from './plugins/BlockHandlesPlugin';
 import ImagePlugin from './plugins/ImageBlockPlugin';
@@ -26,16 +26,17 @@ import PlaceholdersPlugin from './plugins/PlaceholdersPlugin';
 import SlashCommandPlugin from './plugins/SlashCommandPlugin';
 import styles from './PostBuilder.module.scss';
 
-function SaveButton() {
-  const adamStore = useAdamStore();
-  const spaceStore = useSpaceStore();
+type PostBuilderProps = {
+  post?: any;
+  // adamClient?: Ad4mClient;
+  perspective: PerspectiveProxy;
+};
+
+function SaveButton({ perspective }: { perspective: PerspectiveProxy }) {
+  // TODO: may need to return early here if ad4mClient or perspective isnt ready
   const [editor] = useLexicalComposerContext();
 
   async function createBlocks(node: any, parent?: any) {
-    const ad4mClient = adamStore.adamClient();
-    const perspective = spaceStore.perspective();
-    if (!ad4mClient || !perspective) return;
-
     let blockType = '';
     if (node.type === 'root') blockType = 'collection';
     if (['text', 'paragraph', 'heading', 'quote', 'list', 'listitem'].includes(node.type)) blockType = 'text';
@@ -137,7 +138,7 @@ function PostEditorWithData({ post }: { post?: any }) {
   return null;
 }
 
-export default function PostBuilder({ post }: { post?: any }) {
+export default function PostBuilder({ post, perspective }: PostBuilderProps) {
   const initialConfig = {
     namespace: 'PostBuilder',
     theme: { root: styles.editor },
@@ -148,7 +149,7 @@ export default function PostBuilder({ post }: { post?: any }) {
   return (
     <Column bg="white" p="1000" r="xs" style={{ width: '100%', 'max-width': '1000px' }}>
       <LexicalComposer initialConfig={initialConfig}>
-        <SaveButton />
+        <SaveButton perspective={perspective} />
         <PostEditorWithData post={post} />
 
         {/* Lexical plugins */}
