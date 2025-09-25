@@ -7,6 +7,7 @@ export { type Ad4mClient } from '@coasys/ad4m';
 
 // TODO:
 // + move ai to separate stores
+// + rename to AppStore
 
 export interface AdamStore {
   loading: Accessor<boolean>;
@@ -35,7 +36,7 @@ export function AdamProvider(props: ParentProps) {
     try {
       const connect = Ad4mConnect({
         appName: 'WE',
-        appDesc: 'Social media for a new internet',
+        appDesc: 'Social media for the new internet',
         appDomain: 'ad4m.weco.io',
         appIconPath: 'https://avatars.githubusercontent.com/u/34165012',
         capabilities: [{ with: { domain: '*', pointers: ['*'] }, can: ['*'] }],

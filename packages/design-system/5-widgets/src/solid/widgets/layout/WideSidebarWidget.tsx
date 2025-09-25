@@ -3,7 +3,7 @@ import { JSX } from 'solid-js';
 
 export interface WideSidebarWidgetProps {
   name: string;
-  description: string;
+  description?: string;
   image?: string;
   class?: string;
   style?: JSX.CSSProperties;

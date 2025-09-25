@@ -312,6 +312,9 @@ importers:
       '@we/elements':
         specifier: workspace:*
         version: link:../3-elements
+      '@we/models':
+        specifier: workspace:*
+        version: link:../../models
       '@we/tokens':
         specifier: workspace:*
         version: link:../1-tokens

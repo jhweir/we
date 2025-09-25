@@ -16,7 +16,6 @@ export interface NarrowSidebarWidgetProps {
 }
 
 export function NarrowSidebarWidget(props: NarrowSidebarWidgetProps) {
-  console.log('NarrowSidebarWidget props:', props);
   return (
     <Column
       class={`we-narrow-sidebar-widget ${props.class || ''}`}

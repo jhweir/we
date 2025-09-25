@@ -33,7 +33,7 @@ export function CreateSpaceModalWidget(props: CreateSpaceModalWidgetProps) {
     await Promise.all(models.map((model) => spacePerspective.ensureSDNASubjectClass(model)));
 
     // HACK: AD4M's ensureSDNASubjectClass resolves before the SDNA is actually ready in the perspective so we need to wait.
-    await new Promise((resolve) => setTimeout(resolve, 100)); // 40ms is not enough, 50 sometimes works, 60 always worked so far
+    await new Promise((resolve) => setTimeout(resolve, 500)); // 40ms is not enough, 50 sometimes works, 60 always worked so far
 
     // Create an instance of the space model and save it in the perspective
     const space = new Space(spacePerspective);

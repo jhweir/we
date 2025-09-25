@@ -1,14 +1,14 @@
-import { Route, Router, useNavigate } from '@solidjs/router';
+import { Route, Router, useLocation, useNavigate } from '@solidjs/router';
 import { PageNotFound } from '@we/pages/solid';
 import type { DefaultTemplateProps } from '@we/templates/solid';
 import { defaultTemplate } from '@we/templates/solid';
-import { createContext, useContext } from 'solid-js';
+import { createContext, createEffect, useContext } from 'solid-js';
 import { ParentProps } from 'solid-js';
 
 import { useAdamStore, useModalStore, useSpaceStore, useThemeStore } from '@/stores';
 
+// TODO: Enable templates from npm packages or other sources
 // List of available templates and their prop types
-// TODO: Enable templates from npm packages or other source
 const templates = [defaultTemplate];
 type TemplatePropsMap = {
   default: DefaultTemplateProps;
@@ -42,12 +42,17 @@ export default function TemplateProvider() {
   const TemplatePropsContext = createContext<TemplateProps>();
 
   function Layout(props: ParentProps) {
-    // Now in router context, get real navigate
-    const navigate = useNavigate();
-    // Get validated props from context
+    // Now in router context, we can react to route changes
+    const location = useLocation();
+    createEffect(() => {
+      // Update spaceId in spaceStore if on a space page
+      const [page, pageId] = location.pathname.split('/').filter(Boolean);
+      if (page === 'space' && pageId) spaceStore.setSpaceId(pageId);
+    });
+
+    // Get validated props from context & add navigate function from router
     const contextProps = useContext(TemplatePropsContext);
-    // Overwrite navigate fucntion with real one
-    const finalProps = { ...contextProps, navigate };
+    const finalProps = { ...contextProps, navigate: useNavigate() };
 
     return <Template {...(finalProps as TemplateProps)}>{props.children}</Template>;
   }
@@ -58,6 +63,7 @@ export default function TemplateProvider() {
         {routes.map((route) => (
           <Route path={route.path} component={route.component} />
         ))}
+        {/* Fallback for unmatched routes if wildcard route not provided by template */}
         {!routes.find((route) => route.path === '*') && <Route path="*" component={() => <PageNotFound />} />}
       </Router>
     </TemplatePropsContext.Provider>

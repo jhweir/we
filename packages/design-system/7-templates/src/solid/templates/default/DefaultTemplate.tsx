@@ -1,6 +1,6 @@
 import type { AppProps, RouteDefinition } from '@we/app/src/types';
 import { Column, Row } from '@we/components/solid';
-import { HomePage, PageNotFound, PostPage } from '@we/pages/solid';
+import { HomePage, PageNotFound, PostPage, SpacePage } from '@we/pages/solid';
 import { CreateSpaceModalWidget, HeaderWidget, NarrowSidebarWidget } from '@we/widgets/solid';
 import { createMemo } from 'solid-js';
 import { z } from 'zod';
@@ -9,7 +9,7 @@ import { z } from 'zod';
 const spaceSchema = z.object({
   name: z.string(),
   uuid: z.string(),
-  description: z.string().or(z.array(z.string())),
+  description: z.string(),
   // visibility: z.string(),
   // locations: z.array(z.string()),
 });
@@ -24,6 +24,7 @@ const fullPropSchema = z.object({
   currentTheme: z.function({ input: [], output: themeSchema }),
   posts: z.function({ input: [], output: z.array(postSchema) }),
   createSpaceModalOpen: z.function({ input: [], output: z.boolean() }),
+  currentSpace: z.function({ input: [], output: spaceSchema }),
   // Actions
   setTheme: z.function({ input: [z.string()], output: z.void() }),
   openModal: z.function({ input: [z.string()], output: z.void() }),
@@ -39,7 +40,7 @@ const fullPropSchema = z.object({
 export type DefaultTemplateProps = z.infer<typeof fullPropSchema>;
 
 function getProps(app: AppProps) {
-  const { adamStore, modalStore, themeStore } = app.stores;
+  const { adamStore, modalStore, spaceStore, themeStore } = app.stores;
   return {
     // State
     spaces: adamStore.mySpaces,
@@ -48,6 +49,7 @@ function getProps(app: AppProps) {
     themes: themeStore.themes,
     currentTheme: themeStore.currentTheme,
     createSpaceModalOpen: modalStore.createSpaceModalOpen,
+    currentSpace: spaceStore.space,
     // Actions
     setTheme: themeStore.setCurrentTheme,
     openModal: modalStore.openModal,
@@ -63,6 +65,7 @@ function getRoutes(props: DefaultTemplateProps): RouteDefinition[] {
     { path: '*', component: () => <PageNotFound /> },
     { path: '/', component: () => <HomePage /> },
     { path: '/posts', component: () => <PostPage posts={props.posts()} /> },
+    { path: '/space/:spaceId', component: () => <SpacePage space={props.currentSpace()} /> },
   ];
 }
 
@@ -71,13 +74,10 @@ function getButtons(props: DefaultTemplateProps) {
   return {
     topButtons: [
       { name: 'Home', image: WECO_LOGO, onClick: () => props.navigate('/') },
-      { name: 'Search', icon: 'magnifying-glass', onClick: () => props.navigate('/search') },
+      { name: 'Search', icon: 'magnifying-glass', onClick: () => props.navigate('/search?test=true') },
       { name: 'Posts', icon: 'note-pencil', onClick: () => props.navigate('/posts') },
       { name: 'Spaces', icon: 'users-three', onClick: () => props.navigate('/all-spaces') },
-      ...props.spaces().map((space) => ({
-        name: space.name,
-        onClick: () => props.navigate(`/space/${space.uuid}`),
-      })),
+      ...props.spaces().map((space) => ({ name: space.name, onClick: () => props.navigate(`/space/${space.uuid}`) })),
       { name: 'New space', icon: 'plus', onClick: () => props.openModal('create-space') },
     ],
     bottomButtons: [{ name: 'Settings', icon: 'gear', onClick: () => props.navigate('/settings') }],
