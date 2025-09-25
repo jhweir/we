@@ -21,7 +21,6 @@ export function CreateSpaceModalWidget(props: CreateSpaceModalWidgetProps) {
   const [loading, setLoading] = createSignal(false);
 
   async function createSpace() {
-    console.log('createspace', name(), description()); // locations(), visibility()
     const client = props.adamClient;
     if (!client) return;
     setLoading(true);
@@ -33,14 +32,17 @@ export function CreateSpaceModalWidget(props: CreateSpaceModalWidgetProps) {
     const models = [Space, Block, ImageBlock, TextBlock, CollectionBlock];
     await Promise.all(models.map((model) => spacePerspective.ensureSDNASubjectClass(model)));
 
+    // HACK: AD4M's ensureSDNASubjectClass resolves before the SDNA is actually ready in the perspective so we need to wait.
+    await new Promise((resolve) => setTimeout(resolve, 100)); // 40ms is not enough, 50 sometimes works, 60 always worked so far
+
     // Create an instance of the space model and save it in the perspective
     const space = new Space(spacePerspective);
     space.uuid = spacePerspective.uuid;
     space.name = name();
     space.description = description();
+    // space.visibility = visibility();
+    // space.locations = locations();
     await space.save();
-
-    console.log('New space', space);
 
     // Add the new space to the Adam store
     props.addNewSpace(space);

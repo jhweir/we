@@ -3,18 +3,20 @@ import Ad4mConnect from '@coasys/ad4m-connect';
 import { Space } from '@we/models';
 import { Accessor, createContext, createEffect, createSignal, ParentProps, useContext } from 'solid-js';
 
+export { type Ad4mClient } from '@coasys/ad4m';
+
 // TODO:
 // + move ai to separate stores
 
 export interface AdamStore {
   loading: Accessor<boolean>;
-  ad4mClient: Accessor<Ad4mClient | undefined>;
+  adamClient: Accessor<Ad4mClient | undefined>;
   me: Accessor<Agent | undefined>;
   mySpaces: Accessor<Space[]>;
   // myAI: Accessor<{ models: any[]; tasks: AITask[] }>;
   addNewSpace: (space: Space) => void;
   setLoading: (v: boolean) => void;
-  setAd4mClient: (c: Ad4mClient) => void;
+  setAdamClient: (c: Ad4mClient) => void;
   setMe: (a: Agent) => void;
   setMySpaces: (spaces: Space[]) => void;
   // setMyAI: (ai: { models: any[]; tasks: AITask[] }) => void;
@@ -24,7 +26,7 @@ const AdamContext = createContext<AdamStore>();
 
 export function AdamProvider(props: ParentProps) {
   const [loading, setLoading] = createSignal(true);
-  const [ad4mClient, setAd4mClient] = createSignal<Ad4mClient | undefined>(undefined);
+  const [adamClient, setAdamClient] = createSignal<Ad4mClient | undefined>(undefined);
   const [me, setMe] = createSignal<Agent | undefined>(undefined);
   const [mySpaces, setMySpaces] = createSignal<Space[]>([]);
   // const [myAI, setMyAI] = createSignal<{ models: any[]; tasks: AITask[] }>({ models: [], tasks: [] });
@@ -60,7 +62,6 @@ export function AdamProvider(props: ParentProps) {
       console.log('AdamStore: getMySpaces spaces', spaces);
       const filteredSpaces = spaces.filter((s) => s).sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
       setMySpaces(filteredSpaces);
-      console.log('Updated mySpaces:', filteredSpaces);
     } catch (error) {
       console.error('AdamStore: getMySpaces error', error);
     }
@@ -79,8 +80,7 @@ export function AdamProvider(props: ParentProps) {
   async function initialiseStore(): Promise<void> {
     const client = await getAdamClient();
     if (!client) return;
-    console.log('client:', client);
-    setAd4mClient(client);
+    setAdamClient(client);
 
     await Promise.all([getMe(client), getMySpaces(client)]);
 
@@ -91,20 +91,17 @@ export function AdamProvider(props: ParentProps) {
     setMySpaces((prev) => [...prev, space]);
   }
 
-  createEffect(() => {
-    console.log('AdamContext mounted');
-    // initialiseStore();
-  });
+  createEffect(initialiseStore);
 
   const store: AdamStore = {
     loading,
-    ad4mClient,
+    adamClient,
     me,
     mySpaces,
     // myAI,
     addNewSpace,
     setLoading,
-    setAd4mClient,
+    setAdamClient,
     setMe,
     setMySpaces,
     // setMyAI,

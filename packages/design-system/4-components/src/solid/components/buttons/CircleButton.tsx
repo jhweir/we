@@ -26,7 +26,7 @@ export function CircleButton(props: CircleButtonProps) {
         ) : props.icon ? (
           <we-icon name={props.icon} color="ui-700" />
         ) : (
-          <we-avatar initials={props.name} />
+          <we-avatar initials={props.name.slice(0, 2)} />
         )}
       </we-tooltip>
     </we-button>

@@ -1,6 +1,5 @@
 # Todos
 
-- Add models to @we/types
 - Pull in spaces on default template and fix adam store
 
 - Finish porting lexical over
