@@ -1,3 +1,5 @@
+import '@we/block-composer-solid/styles';
+
 import { PerspectiveProxy } from '@coasys/ad4m';
 import { PostBuilder } from '@we/block-composer-solid';
 import { Column } from '@we/components/solid';

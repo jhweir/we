@@ -13,7 +13,6 @@ import {
   TRANSFORM_BLOCK_COMMAND,
   transformBlock,
 } from '../../helpers';
-import styles from './BlockHandlesPlugin.module.scss';
 
 // Data attributes for block elements
 const ATTR_BLOCK_ID = 'data-block-id';
@@ -122,7 +121,7 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
     <>
       <div
         ref={handleRef}
-        class={styles.handle}
+        class="we-block-handle"
         {...{ [ATTR_HANDLE_FOR_BLOCK]: nodeKey }}
         style={{
           top: `${position().top + (heightOffset[nodeType] || 0)}px`,
@@ -130,10 +129,10 @@ function BlockHandle({ nodeKey, nodeData }: { nodeKey: string; nodeData: NodeDat
           height: `${position().height}px`,
         }}
       >
-        <button class={styles.settingsButton} onClick={() => setShowMenu(true)}>
+        <button class="we-block-handle-settings-button" onClick={() => setShowMenu(true)}>
           <we-icon name="cube" size="sm" color="ui-600" />
         </button>
-        <div class={styles.dragHandle} draggable onDragStart={onDragStart} onDragEnd={onDragEnd}>
+        <div class="we-block-handle-dragger" draggable onDragStart={onDragStart} onDragEnd={onDragEnd}>
           <we-icon name="dots-six-vertical" weight="bold" size="sm" color="ui-600" />
         </div>
       </div>
@@ -353,7 +352,7 @@ export default function BlockHandlesPlugin(): JSX.Element | null {
       ))}
       <div
         id="drop-indicator"
-        class={`${styles.dropSpot} ${dropSpot().visible ? styles.visible : ''}`}
+        class={`we-block-handle-drop-spot ${dropSpot().visible ? 'we-block-handle-visible' : ''}`}
         style={{ top: `${dropSpot().top}px`, left: `${dropSpot().left}px`, width: `${dropSpot().width}px` }}
       />
     </>

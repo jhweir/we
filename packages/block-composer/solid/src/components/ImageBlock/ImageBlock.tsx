@@ -3,7 +3,6 @@ import { useLexicalComposerContext, useLexicalNodeSelection } from 'lexical-soli
 import { createEffect, createSignal, onCleanup } from 'solid-js';
 
 import { $isImageNode } from '../../nodes/ImageNode';
-import styles from './ImageBlock.module.scss';
 
 interface ImageComponentProps {
   src: string | undefined;
@@ -65,7 +64,7 @@ export default function ImageComponent({ src, altText, width, height, nodeKey }:
   });
 
   return (
-    <div class={styles.wrapper} onClick={handleClick}>
+    <div class="we-image-block" onClick={handleClick}>
       {src ? (
         <img
           src={src}
@@ -80,7 +79,7 @@ export default function ImageComponent({ src, altText, width, height, nodeKey }:
       )}
 
       {showInputModal() && (
-        <div class={styles.inputModal} ref={inputModalRef}>
+        <div class="we-image-block-input-modal" ref={inputModalRef}>
           <form onSubmit={handleUrlSubmit}>
             <h4>Add Image URL</h4>
             <input
@@ -90,7 +89,7 @@ export default function ImageComponent({ src, altText, width, height, nodeKey }:
               onInput={(e) => setImageUrl(e.currentTarget.value)}
               placeholder="https://example.com/image.jpg"
             />
-            <div class={styles.inputButtons}>
+            <div class="we-image-block-input-buttons">
               <button type="button" onClick={closeInputModal}>
                 Cancel
               </button>
@@ -198,7 +197,7 @@ export default function ImageComponent({ src, altText, width, height, nodeKey }:
 //               onChange={(e) => setImageUrl(e.target.value)}
 //               placeholder="https://example.com/image.jpg"
 //             />
-//             <div className={styles.inputButtons}>
+//             <div className='we-image-block-input-buttons'>
 //               <button type="button" onClick={closeInputModal}>
 //                 Cancel
 //               </button>

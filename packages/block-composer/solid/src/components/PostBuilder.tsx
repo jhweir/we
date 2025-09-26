@@ -139,7 +139,7 @@ function PostEditorWithData({ post }: { post?: any }) {
 export function PostBuilder({ post, perspective }: PostBuilderProps) {
   const initialConfig = {
     namespace: 'PostBuilder',
-    theme: { root: styles.editor },
+    theme: { root: 'we-block-composer-editor' },
     nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, ImageNode] as const,
     onError: (error: Error) => console.error('Editor Error:', error),
   };

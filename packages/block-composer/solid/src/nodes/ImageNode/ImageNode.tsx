@@ -1,7 +1,6 @@
 import { DecoratorNode } from 'lexical';
 
 import ImageBlock from '../../components/ImageBlock';
-import editorStyles from '../../components/PostBuilder.module.scss';
 
 export class ImageNode extends DecoratorNode<HTMLElement> {
   __src: string | undefined;
@@ -27,7 +26,7 @@ export class ImageNode extends DecoratorNode<HTMLElement> {
 
   createDOM(): HTMLElement {
     const div = document.createElement('div');
-    div.className = editorStyles.block;
+    div.className = 'we-block-composer-block';
     return div;
   }
 
@@ -37,7 +36,7 @@ export class ImageNode extends DecoratorNode<HTMLElement> {
 
   decorate(): HTMLElement {
     const container = document.createElement('div');
-    container.className = editorStyles.block;
+    container.className = 'we-block-composer-block';
 
     // Render the ImageBlock component into the container
     const imageBlock = (
@@ -125,7 +124,7 @@ export function $isImageNode(node: any): node is ImageNode {
 
 //   createDOM(): HTMLElement {
 //     const div = document.createElement('div');
-//     div.className = editorStyles.block;
+//     div.className = 'we-block-composer-block';
 //     return div;
 //   }
 

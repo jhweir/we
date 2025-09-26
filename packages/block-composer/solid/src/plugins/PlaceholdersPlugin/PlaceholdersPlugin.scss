@@ -1,4 +1,4 @@
-[data-placeholder].empty {
+[data-placeholder].we-block-placeholder-empty {
   &:before {
     content: attr(data-placeholder);
     color: var(--we-color-ui-200);
@@ -12,7 +12,7 @@
     // transition: opacity var(--we-transition-200);
   }
 
-  &.focused:before,
+  &.we-block-placeholder-focused:before,
   &:hover:before {
     opacity: 0.8;
     color: var(--we-color-ui-300);

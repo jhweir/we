@@ -1,52 +1,9 @@
-monorepo/
-├── apps/  
-│ ├── we/
-│ └── wiki/
-├── packages/
-│ ├── elements/ # Basic building blocks
-│ ├── widgets/ # Complex interactive components (including cards)
-│ ├── templates/ # Page layouts
-│ └── blocks/ # Content modules
+### For complete refresh of node modules and system links
 
-@we/tokens/
-├── src/
-│ ├── css/
-│ │ ├── variables.css # Core CSS variables
-│ │ ├── colors.css
-│ │ └── spacing.css
-│ └── js/
-│ ├── colors.ts # JS constants
-│ ├── spacing.ts
-│ └── index.ts
-├── package.json
-└── README.md
+`find . -name "node_modules" -type d -prune -exec rm -rf '{}' +`
 
-// Import CSS variables
-import '@we/tokens/css';
+`pnpm store prune`
 
-// Import JS constants
-import { colors, spacing } from '@we/tokens';
+Delete pnpm.lock file
 
-@we/types/
-├── src/
-│ ├── components/
-│ │ ├── button.ts
-│ │ └── input.ts
-│ ├── tokens/
-│ │ ├── colors.ts
-│ │ └── spacing.ts
-│ └── index.ts
-├── package.json
-└── README.md
-
-@we/themes/
-├── src/
-│ ├── cyberpunk/
-│ │ ├── cyberpunk.css
-│ │ └── index.ts
-│ ├── corporate/
-│ │ ├── corporate.css  
-│ │ └── index.ts
-│ └── index.ts # Exports all themes
-├── package.json
-└── README.md
+Run `pnpm install` from the root dir

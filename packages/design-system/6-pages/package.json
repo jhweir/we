@@ -43,8 +43,7 @@
   },
   "scripts": {
     "build:css": "sass src/styles/index.scss dist/styles/index.css --no-source-map --style=compressed",
-    "build": "tsup --config tsup.config.ts && pnpm build:css",
-    "clean": "rimraf dist"
+    "build": "tsup --config tsup.config.ts && pnpm build:css"
   },
   "publishConfig": {
     "access": "public"

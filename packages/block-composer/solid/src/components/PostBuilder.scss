@@ -1,8 +1,8 @@
-.editor {
+.we-block-composer-editor {
   outline: none;
   position: relative;
 
-  .block {
+  .we-block-composer-block {
     padding: 10px;
     border-radius: 10px;
     margin: 0;
@@ -21,7 +21,7 @@
   h3,
   blockquote,
   li {
-    @extend .block;
+    @extend .we-block-composer-block;
   }
 
   blockquote {

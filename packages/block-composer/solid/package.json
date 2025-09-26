@@ -12,6 +12,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./styles": {
+      "import": "./dist/styles/index.css",
+      "default": "./dist/styles/index.css"
     }
   },
   "dependencies": {
@@ -39,6 +43,7 @@
     "typescript": "^5.7.2"
   },
   "scripts": {
-    "build": "tsup --config tsup.config.ts"
+    "build:css": "sass src/styles/index.scss dist/styles/index.css --no-source-map --style=compressed",
+    "build": "tsup --config tsup.config.ts && pnpm build:css"
   }
 }

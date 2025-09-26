@@ -1,4 +1,4 @@
-.wrapper {
+.we-image-block {
   position: relative;
   display: flex;
 
@@ -19,7 +19,7 @@
     object-fit: contain;
   }
 
-  .inputModal {
+  .we-image-block-input-modal {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -44,7 +44,7 @@
       border-radius: 4px;
     }
 
-    .inputButtons {
+    .we-image-block-input-buttons {
       display: flex;
       justify-content: flex-end;
       gap: 8px;
