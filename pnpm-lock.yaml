@@ -50,18 +50,6 @@ importers:
       '@coasys/ad4m-connect':
         specifier: 0.10.1
         version: 0.10.1(esbuild@0.25.10)
-      '@lexical/list':
-        specifier: ^0.30.0
-        version: 0.30.0
-      '@lexical/markdown':
-        specifier: ^0.30.0
-        version: 0.30.0
-      '@lexical/rich-text':
-        specifier: ^0.30.0
-        version: 0.30.0
-      '@lexical/utils':
-        specifier: ^0.30.0
-        version: 0.30.0
       '@solidjs/router':
         specifier: ^0.15.3
         version: 0.15.3(solid-js@1.9.9)
@@ -95,12 +83,6 @@ importers:
       gsap:
         specifier: ^3.13.0
         version: 3.13.0
-      lexical:
-        specifier: ^0.30.0
-        version: 0.30.0
-      lexical-solid:
-        specifier: ^0.21.0
-        version: 0.21.0(solid-js@1.9.9)(utility-types@3.11.0)(yjs@13.6.27)
       solid-js:
         specifier: ^1.9.5
         version: 1.9.9
