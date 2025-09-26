@@ -5,33 +5,30 @@ import { CreateSpaceModalWidget, HeaderWidget, NarrowSidebarWidget } from '@we/w
 import { createMemo } from 'solid-js';
 import { z } from 'zod';
 
-// const spaceSchema: z.ZodType<Space> =
-const spaceSchema = z.object({
-  name: z.string(),
-  uuid: z.string(),
-  description: z.string(),
-  // visibility: z.string(),
-  // locations: z.array(z.string()),
-});
+import { zodAccessor, zodAction } from '../../../shared/utils';
+
+// Zod schemas for template props
+// TODO: Add types: const spaceSchema: z.ZodType<Space> =
+const spaceSchema = z.object({ name: z.string(), uuid: z.string(), description: z.string() });
 const themeSchema = z.object({ name: z.string(), icon: z.string() });
 const creatorSchema = z.object({ name: z.string(), avatarUrl: z.string() });
 const postSchema = z.object({ creator: creatorSchema, title: z.string(), content: z.string() });
 const fullPropSchema = z.object({
   // State
-  adamClient: z.function({ input: [], output: z.any() }),
-  spaces: z.function({ input: [], output: z.array(spaceSchema) }),
-  themes: z.function({ input: [], output: z.array(themeSchema) }),
-  currentTheme: z.function({ input: [], output: themeSchema }),
-  posts: z.function({ input: [], output: z.array(postSchema) }),
-  createSpaceModalOpen: z.function({ input: [], output: z.boolean() }),
-  currentSpace: z.function({ input: [], output: spaceSchema }),
-  currentSpacePerspective: z.function({ input: [], output: z.any() }),
+  adamClient: zodAccessor(z.any()),
+  spaces: zodAccessor(z.array(spaceSchema)),
+  themes: zodAccessor(z.array(themeSchema)),
+  currentTheme: zodAccessor(themeSchema),
+  posts: zodAccessor(z.array(postSchema)),
+  createSpaceModalOpen: zodAccessor(z.boolean()),
+  currentSpace: zodAccessor(spaceSchema),
+  currentSpacePerspective: zodAccessor(z.any()),
   // Actions
-  setTheme: z.function({ input: [z.string()], output: z.void() }),
-  openModal: z.function({ input: [z.string()], output: z.void() }),
-  closeModal: z.function({ input: [z.string()], output: z.void() }),
-  addNewSpace: z.function({ input: [spaceSchema], output: z.void() }),
-  navigate: z.function({ input: [z.string()], output: z.void() }),
+  setTheme: zodAction(z.string()),
+  openModal: zodAction(z.string()),
+  closeModal: zodAction(z.string()),
+  addNewSpace: zodAction(spaceSchema),
+  navigate: zodAction(z.string()),
   // Optional props
   class: z.string().optional(),
   style: z.any().optional(),
@@ -72,10 +69,10 @@ function getRoutes(props: DefaultTemplateProps): RouteDefinition[] {
   ];
 }
 
-function getButtons(props: DefaultTemplateProps) {
+function getSidebarButtons(props: DefaultTemplateProps) {
   const WECO_LOGO = 'https://avatars.githubusercontent.com/u/34165012?s=200&v=4';
   return {
-    topButtons: [
+    top: [
       { name: 'Home', image: WECO_LOGO, onClick: () => props.navigate('/') },
       { name: 'Search', icon: 'magnifying-glass', onClick: () => props.navigate('/search?test=true') },
       { name: 'Block Composer', icon: 'note-pencil', onClick: () => props.navigate('/block-composer') },
@@ -84,16 +81,16 @@ function getButtons(props: DefaultTemplateProps) {
       ...props.spaces().map((space) => ({ name: space.name, onClick: () => props.navigate(`/space/${space.uuid}`) })),
       { name: 'New space', icon: 'plus', onClick: () => props.openModal('create-space') },
     ],
-    bottomButtons: [{ name: 'Settings', icon: 'gear', onClick: () => props.navigate('/settings') }],
+    bottom: [{ name: 'Settings', icon: 'gear', onClick: () => props.navigate('/settings') }],
   };
 }
 
 export function DefaultTemplate(props: DefaultTemplateProps) {
-  const buttons = createMemo(() => getButtons(props));
+  const sidebarButtons = createMemo(() => getSidebarButtons(props));
 
   return (
     <Row class={`we-default-template ${props.class || ''}`} style={props.style} ax="center" bg="ui-0" data-we-template>
-      <NarrowSidebarWidget class="left" topButtons={buttons().topButtons} bottomButtons={buttons().bottomButtons} />
+      <NarrowSidebarWidget class="left" topButtons={sidebarButtons().top} bottomButtons={sidebarButtons().bottom} />
       <Column class="main-content" bg="ui-25">
         <HeaderWidget themes={props.themes()} currentTheme={props.currentTheme()} setTheme={props.setTheme} />
         {props.children}
@@ -101,8 +98,8 @@ export function DefaultTemplate(props: DefaultTemplateProps) {
 
       {props.createSpaceModalOpen() && (
         <CreateSpaceModalWidget
-          adamClient={props.adamClient()}
           close={() => props.closeModal('create-space')}
+          adamClient={props.adamClient()}
           addNewSpace={props.addNewSpace}
         />
       )}

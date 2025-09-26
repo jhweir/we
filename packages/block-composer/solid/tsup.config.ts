@@ -2,9 +2,7 @@ import { solidPlugin } from 'esbuild-plugin-solid';
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: {
-    index: 'src/index.ts',
-  },
+  entry: { index: 'src/index.ts' },
   format: ['esm'],
   dts: true,
   sourcemap: true,
@@ -13,18 +11,7 @@ export default defineConfig({
   splitting: false,
   treeshake: true,
   external: ['solid-js', '@we/elements'],
-  esbuildPlugins: [
-    solidPlugin(),
-    {
-      name: 'ignore-scss',
-      setup(build) {
-        build.onLoad({ filter: /\.scss$/ }, async () => ({
-          contents: 'export default {};',
-          loader: 'js',
-        }));
-      },
-    },
-  ],
+  esbuildPlugins: [solidPlugin()],
   esbuildOptions(o) {
     o.jsx = 'automatic';
     o.jsxImportSource = 'solid-js';

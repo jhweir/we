@@ -1,5 +1,8 @@
-@use '../components/PostBuilder.scss';
+// Components
+@use '../components/BlockComposer.scss';
 @use '../components/BlockMenu/BlockMenu.scss';
 @use '../components/ImageBlock/ImageBlock.scss';
+
+// Plugins
 @use '../plugins/BlockHandlesPlugin/BlockHandlesPlugin.scss';
 @use '../plugins/PlaceholdersPlugin/PlaceholdersPlugin.scss';

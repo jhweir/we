@@ -22,11 +22,9 @@ import ImagePlugin from '../plugins/ImageBlockPlugin';
 import IndentationPlugin from '../plugins/IndentationPlugin';
 import PlaceholdersPlugin from '../plugins/PlaceholdersPlugin';
 import SlashCommandPlugin from '../plugins/SlashCommandPlugin';
-import styles from './PostBuilder.module.scss';
 
-type PostBuilderProps = {
+type BlockComposerProps = {
   post?: any;
-  // adamClient?: Ad4mClient;
   perspective: PerspectiveProxy;
 };
 
@@ -111,7 +109,7 @@ function SaveButton({ perspective }: { perspective: PerspectiveProxy }) {
   }
 
   return (
-    <Row ax="end" mt="600">
+    <Row ax="end">
       <we-button variant="ghost" onClick={save}>
         <we-icon name="floppy-disk" />
       </we-button>
@@ -119,7 +117,7 @@ function SaveButton({ perspective }: { perspective: PerspectiveProxy }) {
   );
 }
 
-function PostEditorWithData({ post }: { post?: any }) {
+function LoadPostIntoEditor({ post }: { post?: any }) {
   const [editor] = useLexicalComposerContext();
 
   createEffect(() => {
@@ -136,19 +134,19 @@ function PostEditorWithData({ post }: { post?: any }) {
   return null;
 }
 
-export function PostBuilder({ post, perspective }: PostBuilderProps) {
+export function BlockComposer({ post, perspective }: BlockComposerProps) {
   const initialConfig = {
-    namespace: 'PostBuilder',
+    namespace: 'BlockComposer',
     theme: { root: 'we-block-composer-editor' },
     nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, ImageNode] as const,
     onError: (error: Error) => console.error('Editor Error:', error),
   };
 
   return (
-    <Column bg="white" p="1000" r="xs" style={{ width: '100%', 'max-width': '1000px' }}>
+    <Column class="we-block-composer-wrapper" bg="white" p="1000" r="xl">
       <LexicalComposer initialConfig={initialConfig}>
+        <LoadPostIntoEditor post={post} />
         <SaveButton perspective={perspective} />
-        <PostEditorWithData post={post} />
 
         {/* Lexical plugins */}
         <RichTextPlugin contentEditable={<ContentEditable />} errorBoundary={LexicalErrorBoundary} />

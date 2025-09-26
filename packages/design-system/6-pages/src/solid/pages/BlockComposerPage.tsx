@@ -1,7 +1,7 @@
 import '@we/block-composer-solid/styles';
 
 import { PerspectiveProxy } from '@coasys/ad4m';
-import { PostBuilder } from '@we/block-composer-solid';
+import { BlockComposer } from '@we/block-composer-solid';
 import { Column } from '@we/components/solid';
 import { JSX } from 'solid-js';
 
@@ -17,12 +17,12 @@ export function BlockComposerPage(props: BlockComposerPageProps) {
       class={`we-block-composer-page ${props.class || ''}`}
       style={{ ...props.style }}
       ax="center"
-      bg="ui-0"
+      bg="ui-25"
       p="500"
       data-we-page
     >
       <we-text size="600">Block composer!!!</we-text>
-      <PostBuilder perspective={props.perspective} />
+      <BlockComposer perspective={props.perspective} />
     </Column>
   );
 }
