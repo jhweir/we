@@ -1,6 +1,6 @@
 import type { AppProps, RouteDefinition } from '@we/app/src/types';
 import { Column, Row } from '@we/components/solid';
-import { HomePage, PageNotFound, PostPage, SpacePage } from '@we/pages/solid';
+import { BlockComposerPage, HomePage, PageNotFound, PostPage, SpacePage } from '@we/pages/solid';
 import { CreateSpaceModalWidget, HeaderWidget, NarrowSidebarWidget } from '@we/widgets/solid';
 import { createMemo } from 'solid-js';
 import { z } from 'zod';
@@ -25,6 +25,7 @@ const fullPropSchema = z.object({
   posts: z.function({ input: [], output: z.array(postSchema) }),
   createSpaceModalOpen: z.function({ input: [], output: z.boolean() }),
   currentSpace: z.function({ input: [], output: spaceSchema }),
+  currentSpacePerspective: z.function({ input: [], output: z.any() }),
   // Actions
   setTheme: z.function({ input: [z.string()], output: z.void() }),
   openModal: z.function({ input: [z.string()], output: z.void() }),
@@ -50,6 +51,7 @@ function getProps(app: AppProps) {
     currentTheme: themeStore.currentTheme,
     createSpaceModalOpen: modalStore.createSpaceModalOpen,
     currentSpace: spaceStore.space,
+    currentSpacePerspective: spaceStore.perspective,
     // Actions
     setTheme: themeStore.setCurrentTheme,
     openModal: modalStore.openModal,
@@ -66,6 +68,7 @@ function getRoutes(props: DefaultTemplateProps): RouteDefinition[] {
     { path: '/', component: () => <HomePage /> },
     { path: '/posts', component: () => <PostPage posts={props.posts()} /> },
     { path: '/space/:spaceId', component: () => <SpacePage space={props.currentSpace()} /> },
+    { path: '/block-composer', component: () => <BlockComposerPage perspective={props.currentSpacePerspective()} /> },
   ];
 }
 
@@ -75,7 +78,8 @@ function getButtons(props: DefaultTemplateProps) {
     topButtons: [
       { name: 'Home', image: WECO_LOGO, onClick: () => props.navigate('/') },
       { name: 'Search', icon: 'magnifying-glass', onClick: () => props.navigate('/search?test=true') },
-      { name: 'Posts', icon: 'note-pencil', onClick: () => props.navigate('/posts') },
+      { name: 'Block Composer', icon: 'note-pencil', onClick: () => props.navigate('/block-composer') },
+      { name: 'Posts', icon: 'cards', onClick: () => props.navigate('/posts') },
       { name: 'Spaces', icon: 'users-three', onClick: () => props.navigate('/all-spaces') },
       ...props.spaces().map((space) => ({ name: space.name, onClick: () => props.navigate(`/space/${space.uuid}`) })),
       { name: 'New space', icon: 'plus', onClick: () => props.openModal('create-space') },

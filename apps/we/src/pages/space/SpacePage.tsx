@@ -1,8 +1,9 @@
+import { useLocation } from '@solidjs/router';
+import { createEffect, createSignal } from 'solid-js';
+
 import PostBuilder from '@/components/PostBuilder';
 import { useSpaceStore } from '@/stores/SpaceStore';
 import InnerSidebar from '@/templates/Default/components/InnerSidebar/InnerSidebar';
-import { useLocation } from '@solidjs/router';
-import { createEffect, createSignal } from 'solid-js';
 
 export default function SpacePage() {
   const { state, actions } = useSpaceStore();

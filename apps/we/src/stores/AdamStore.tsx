@@ -3,7 +3,7 @@ import Ad4mConnect from '@coasys/ad4m-connect';
 import { Space } from '@we/models';
 import { Accessor, createContext, createEffect, createSignal, ParentProps, useContext } from 'solid-js';
 
-export { type Ad4mClient } from '@coasys/ad4m';
+export { type Ad4mClient, PerspectiveProxy } from '@coasys/ad4m';
 
 // TODO:
 // + move ai to separate stores

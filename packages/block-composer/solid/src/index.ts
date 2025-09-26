@@ -1,3 +1,4 @@
-export { PostBuilder } from './components/PostBuilder';
+// export { PostBuilder } from './components/PostBuilder';
+export * from './components/PostBuilder';
 
 // export { BlockComposer, BlockRenderer } from './components/BlockComposer';

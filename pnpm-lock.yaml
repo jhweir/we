@@ -354,7 +354,14 @@ importers:
         version: 5.9.2
 
   packages/design-system/6-pages:
+    dependencies:
+      '@coasys/ad4m':
+        specifier: 0.10.1
+        version: 0.10.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
     devDependencies:
+      '@we/block-composer-solid':
+        specifier: workspace:*
+        version: link:../../block-composer/solid
       '@we/components':
         specifier: workspace:*
         version: link:../4-components
