@@ -2,17 +2,17 @@
   "name": "@we/block-composer-solid",
   "version": "0.1.0",
   "description": "Composable block-based editor and renderer for posts, comments, pages, and more.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist"
-  ],
   "dependencies": {
     "@lexical/list": "^0.30.0",
     "@lexical/markdown": "^0.30.0",
@@ -23,21 +23,21 @@
   },
   "peerDependencies": {
     "solid-js": "^1.9.0",
-    "@we/elements": "^1.0.0",
     "@we/components": "^0.1.0",
     "@we/models": "^0.1.0",
     "@coasys/ad4m": "0.10.1"
   },
   "devDependencies": {
-    "typescript": "^5.7.2",
-    "tsup": "^8.3.0",
-    "esbuild-plugin-solid": "^0.6.0",
-    "@we/components": "workspace:*",
     "@we/elements": "workspace:*",
+    "@we/components": "workspace:*",
     "@we/models": "workspace:*",
-    "sass": "^1.92.1"
+    "esbuild-plugin-solid": "^0.6.0",
+    "sass": "^1.92.1",
+    "solid-js": "^1.9.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.7.2"
   },
   "scripts": {
-    "build": "tsup"
+    "build": "tsup --config tsup.config.ts"
   }
 }

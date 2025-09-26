@@ -1,6 +1,7 @@
 import { $getNodeByKey } from 'lexical';
 import { useLexicalComposerContext, useLexicalNodeSelection } from 'lexical-solid';
 import { createEffect, createSignal, onCleanup } from 'solid-js';
+
 import { $isImageNode } from '../../nodes/ImageNode';
 import styles from './ImageBlock.module.scss';
 

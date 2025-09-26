@@ -1,4 +1,6 @@
+import { Row } from '@we/components/solid';
 import { createEffect, createSignal, onCleanup } from 'solid-js';
+
 import styles from './BlockMenu.module.scss';
 
 // Text blocks
@@ -9,7 +11,7 @@ const h3 = { type: 'h3', label: 'Heading 3', icon: 'text-h-three', md: '###' };
 const quote = { type: 'quote', label: 'Quote', icon: 'quotes', md: '>' };
 const ul = { type: 'ul', label: 'Bullet List', icon: 'list-bullets', md: '-' };
 const ol = { type: 'ol', label: 'Number List', icon: 'list-numbers', md: '1.' };
-const cl = { type: 'cl', label: 'Check List', icon: 'list-checks', md: '[]' };
+// const cl = { type: 'cl', label: 'Check List', icon: 'list-checks', md: '[]' };
 
 // Collection blocks
 const grid = { type: 'grid', label: 'Grid', icon: 'squares-four', md: '+' };
@@ -119,10 +121,10 @@ export default function BlockTypeMenu(props: {
               onClick={(e) => onOptionClick(e, option.type)}
               onKeyDown={(e) => onOptionKeyDown(e, option.type)}
             >
-              <we-row>
+              <Row>
                 <we-icon name={option.icon} weight="bold" color="ui-300" size="sm" style={{ margin: '0 10px 0 0' }} />
                 {option.label}
-              </we-row>
+              </Row>
               <span class={styles.md}>{option.md}</span>
             </button>
           ))}

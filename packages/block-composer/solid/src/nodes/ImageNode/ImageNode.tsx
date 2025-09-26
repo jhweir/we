@@ -1,7 +1,7 @@
 import { DecoratorNode } from 'lexical';
 
 import ImageBlock from '../../components/ImageBlock';
-import editorStyles from '../../PostBuilder.module.scss';
+import editorStyles from '../../components/PostBuilder.module.scss';
 
 export class ImageNode extends DecoratorNode<HTMLElement> {
   __src: string | undefined;

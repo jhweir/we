@@ -1,4 +1,4 @@
-import { Ad4mClient, PerspectiveProxy } from '@coasys/ad4m';
+import { PerspectiveProxy } from '@coasys/ad4m';
 import { ListItemNode, ListNode } from '@lexical/list';
 import { CHECK_LIST, HEADING, ORDERED_LIST, QUOTE, UNORDERED_LIST } from '@lexical/markdown';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
@@ -16,14 +16,12 @@ import {
 } from 'lexical-solid';
 import { createEffect } from 'solid-js';
 
-// import { useAdamStore } from '@/stores/AdamStore';
-// import { useSpaceStore } from '@/stores/SpaceStore';
-import { ImageNode } from './nodes/ImageNode';
-import BlockHandlesPlugin from './plugins/BlockHandlesPlugin';
-import ImagePlugin from './plugins/ImageBlockPlugin';
-import IndentationPlugin from './plugins/IndentationPlugin';
-import PlaceholdersPlugin from './plugins/PlaceholdersPlugin';
-import SlashCommandPlugin from './plugins/SlashCommandPlugin';
+import { ImageNode } from '../nodes/ImageNode';
+import BlockHandlesPlugin from '../plugins/BlockHandlesPlugin';
+import ImagePlugin from '../plugins/ImageBlockPlugin';
+import IndentationPlugin from '../plugins/IndentationPlugin';
+import PlaceholdersPlugin from '../plugins/PlaceholdersPlugin';
+import SlashCommandPlugin from '../plugins/SlashCommandPlugin';
 import styles from './PostBuilder.module.scss';
 
 type PostBuilderProps = {
@@ -138,7 +136,7 @@ function PostEditorWithData({ post }: { post?: any }) {
   return null;
 }
 
-export default function PostBuilder({ post, perspective }: PostBuilderProps) {
+export function PostBuilder({ post, perspective }: PostBuilderProps) {
   const initialConfig = {
     namespace: 'PostBuilder',
     theme: { root: styles.editor },

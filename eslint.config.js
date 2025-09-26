@@ -22,6 +22,7 @@ export default [
       ...js.configs.recommended.rules,
       'simple-import-sort/imports': 'error',
     },
+    ignores: ['**/dist/**', '**/node_modules/**', '**/build/**'],
   },
   {
     name: 'typescript/recommended',
@@ -32,26 +33,8 @@ export default [
       ...tsPlugin.configs.recommended.rules,
       'simple-import-sort/imports': 'error',
     },
+    ignores: ['**/dist/**', '**/node_modules/**', '**/build/**'],
   },
-  // {
-  //   name: 'javascript/recommended',
-  //   files: ['**/*.js', '**/*.jsx'],
-  //   rules: { ...js.configs.recommended.rules },
-  // },
-  // {
-  //   name: 'typescript/recommended',
-  //   files: ['**/*.ts', '**/*.tsx'],
-  //   plugins: { '@typescript-eslint': tsPlugin },
-  //   languageOptions: { parser: tsParser, parserOptions: { project: './tsconfig.json' } },
-  //   rules: { ...tsPlugin.configs.recommended.rules },
-  // },
-  // {
-  //   name: 'simple-import-sort',
-  //   plugins: { 'simple-import-sort': simpleImportSortPlugin },
-  //   rules: {
-  //     'simple-import-sort/imports': 'error',
-  //   },
-  // },
-  // turn off any rules that conflict with prettier
+  // Turn off any rules that conflict with prettier
   eslintConfigPrettier,
 ];
