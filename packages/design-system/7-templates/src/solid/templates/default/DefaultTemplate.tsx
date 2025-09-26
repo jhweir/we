@@ -85,10 +85,7 @@ function getButtons(props: DefaultTemplateProps) {
 }
 
 export function DefaultTemplate(props: DefaultTemplateProps) {
-  // const { topButtons, bottomButtons } = getButtons(props);
   const buttons = createMemo(() => getButtons(props));
-
-  // console.log('DefaultTemplate topButtons:', topButtons);
 
   return (
     <Row class={`we-default-template ${props.class || ''}`} style={props.style} ax="center" bg="ui-0" data-we-template>

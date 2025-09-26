@@ -1,11 +1,10 @@
 import { Accessor, createContext, createSignal, ParentProps, useContext } from 'solid-js';
 
-export type ModalName = 'create-space'; // | 'editProfile' | 'settings';
+export type ModalName = 'create-space'; // | 'edit-profile' | 'settings';
 
 export interface ModalStore {
   // State
   createSpaceModalOpen: Accessor<boolean>;
-  // Add more modal accessors here as you add more modals
 
   // Actions
   openModal: (modal: ModalName) => void;

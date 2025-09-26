@@ -1,5 +1,4 @@
-export * from './AdamStore';
-export * from './ModalStore';
-export * from './SpaceStore';
-export * from './StoreProvider';
-export * from './ThemeStore';
+export { useAdamStore, AdamProvider } from './AdamStore';
+export { useModalStore, ModalProvider } from './ModalStore';
+export { useSpaceStore, SpaceProvider } from './SpaceStore';
+export { useThemeStore, ThemeProvider } from './ThemeStore';

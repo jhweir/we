@@ -12,9 +12,9 @@
     "paths": {
       "@/*": ["./src/*"],
       "@assets/*": ["./src/assets/*"],
-      "@contexts/*": ["src/stores/*"],
+      "@stores/*": ["src/stores/*"],
       "@components/*": ["./src/components/*"],
-      "@pages/*": ["./src/pages/*"]
+      "@providers/*": ["./src/providers/*"]
     }
   }
 }

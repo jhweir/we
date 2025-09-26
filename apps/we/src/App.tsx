@@ -1,5 +1,5 @@
-import TemplateProvider from '@/components/TemplateProvider';
-import StoreProvider from '@/stores/StoreProvider';
+import StoreProvider from '@/providers/StoreProvider';
+import TemplateProvider from '@/providers/TemplateProvider';
 
 export default function App() {
   return (
