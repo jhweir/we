@@ -6,7 +6,6 @@
 
 ### @we/block-composer
 
-- Fix drag and drop of blocks
 - Fix image block
 - Fix saving & loading
 
