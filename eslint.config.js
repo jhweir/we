@@ -12,7 +12,7 @@ export default [
     name: 'common/recommended',
     plugins: { prettier: prettierPlugin },
     rules: { ...prettierPlugin.configs.recommended.rules, 'prettier/prettier': ['error', prettierConfig] },
-    ignores: ['**/dist/**', '**/node_modules/**', '**/build/**'],
+    ignores: ['**/dist/**', '**/node_modules/**', '**/build/**', '**/old/**'],
   },
   {
     name: 'javascript/recommended',
@@ -22,7 +22,7 @@ export default [
       ...js.configs.recommended.rules,
       'simple-import-sort/imports': 'error',
     },
-    ignores: ['**/dist/**', '**/node_modules/**', '**/build/**'],
+    ignores: ['**/dist/**', '**/node_modules/**', '**/build/**', '**/old/**'],
   },
   {
     name: 'typescript/recommended',
@@ -33,7 +33,7 @@ export default [
       ...tsPlugin.configs.recommended.rules,
       'simple-import-sort/imports': 'error',
     },
-    ignores: ['**/dist/**', '**/node_modules/**', '**/build/**'],
+    ignores: ['**/dist/**', '**/node_modules/**', '**/build/**', '**/old/**'],
   },
   // Turn off any rules that conflict with prettier
   eslintConfigPrettier,
