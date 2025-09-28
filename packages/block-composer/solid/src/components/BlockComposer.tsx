@@ -4,6 +4,7 @@ import { CHECK_LIST, HEADING, ORDERED_LIST, QUOTE, UNORDERED_LIST } from '@lexic
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { Column, Row } from '@we/components/solid';
 import { Block, CollectionBlock, ImageBlock, TextBlock } from '@we/models';
+import { SerializedLexicalNode, SerializedRootNode } from 'lexical';
 import {
   ContentEditable,
   HistoryPlugin,
@@ -23,30 +24,38 @@ import IndentationPlugin from '../plugins/IndentationPlugin';
 import PlaceholdersPlugin from '../plugins/PlaceholdersPlugin';
 import SlashCommandPlugin from '../plugins/SlashCommandPlugin';
 
+type BlockType = ImageBlock | TextBlock | CollectionBlock;
+type Post = any; // Partial<BlockType & { children?: Post[] }> & SerializedRootNode<SerializedLexicalNode>;
+
 type BlockComposerProps = {
-  post?: any;
+  post?: Post;
   perspective: PerspectiveProxy;
 };
 
 function SaveButton({ perspective }: { perspective: PerspectiveProxy }) {
+  // console.log('999 save');
   // TODO: may need to return early here if ad4mClient or perspective isnt ready
   const [editor] = useLexicalComposerContext();
 
-  async function createBlocks(node: any, parent?: any) {
+  async function createBlocks(node: Post, parent?: Post, existingBatchId?: string) {
     let blockType = '';
     if (node.type === 'root') blockType = 'collection';
     if (['text', 'paragraph', 'heading', 'quote', 'list', 'listitem'].includes(node.type)) blockType = 'text';
     if (node.type === 'image') blockType = 'image';
 
+    // Create batch
+    const batchId = existingBatchId || (await perspective.createBatch());
+    console.log('Creating blocks in batch:', batchId);
+
     // Create block
     const blockWrapper = new Block(perspective, undefined, parent?.baseExpression || undefined);
     blockWrapper.type = blockType;
-    await blockWrapper.save();
+    await blockWrapper.save(batchId);
     console.log('blockWrapper', blockWrapper);
 
     // Create collection block
     if (blockType === 'collection') {
-      const elementNode = node as any;
+      const elementNode = node as Post;
       const collectionBlock = new CollectionBlock(perspective, undefined, blockWrapper.baseExpression);
       collectionBlock.type = elementNode.type || '';
       collectionBlock.display = elementNode.display || '';
@@ -55,7 +64,7 @@ function SaveButton({ perspective }: { perspective: PerspectiveProxy }) {
       collectionBlock.indent = elementNode.indent || 0;
       collectionBlock.version = elementNode.version || 0;
       console.log('collectionBlock', collectionBlock);
-      await collectionBlock.save();
+      await collectionBlock.save(batchId);
     }
 
     // Create text block
@@ -74,7 +83,7 @@ function SaveButton({ perspective }: { perspective: PerspectiveProxy }) {
       textBlock.text = elementNode.text || '';
       textBlock.version = elementNode.version || 0;
       console.log('textBlock', textBlock);
-      await textBlock.save();
+      await textBlock.save(batchId);
     }
 
     if (node.type === 'image') {
@@ -86,14 +95,19 @@ function SaveButton({ perspective }: { perspective: PerspectiveProxy }) {
       imageBlock.width = elementNode.width || 0;
       imageBlock.height = elementNode.height || 0;
       imageBlock.version = elementNode.version || 0;
-      await imageBlock.save();
+      await imageBlock.save(batchId);
       console.log('imageBlock', imageBlock);
     }
 
     if (node.children) {
       node.baseExpression = blockWrapper.baseExpression;
-      for (const child of node.children) await createBlocks(child, node);
+      for (const child of node.children) await createBlocks(child, node, batchId);
     }
+
+    if (existingBatchId) return;
+    // Commit batch
+    console.log('Committing batch:', batchId);
+    await perspective.commitBatch(batchId);
   }
 
   function save() {
@@ -102,6 +116,8 @@ function SaveButton({ perspective }: { perspective: PerspectiveProxy }) {
       console.log('Editor State:', editorState);
       console.log('Editor State JSON:', editorState.toJSON().root);
       const { root } = editorState.toJSON();
+      console.log('Root:', root);
+      console.log('Perspective:', perspective);
       await createBlocks(root);
 
       console.log('Saved!');
@@ -117,7 +133,8 @@ function SaveButton({ perspective }: { perspective: PerspectiveProxy }) {
   );
 }
 
-function LoadPostIntoEditor({ post }: { post?: any }) {
+function LoadPostIntoEditor({ post }: { post?: Post }) {
+  console.log('888 LoadPostIntoEditor post:', post);
   const [editor] = useLexicalComposerContext();
 
   createEffect(() => {
@@ -135,6 +152,7 @@ function LoadPostIntoEditor({ post }: { post?: any }) {
 }
 
 export function BlockComposer({ post, perspective }: BlockComposerProps) {
+  console.log('*** BlockComposer post:', post);
   const initialConfig = {
     namespace: 'BlockComposer',
     theme: { root: 'we-block-composer-editor' },

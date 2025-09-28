@@ -23,6 +23,7 @@ const fullPropSchema = z.object({
   createSpaceModalOpen: zodAccessor(z.boolean()),
   currentSpace: zodAccessor(spaceSchema),
   currentSpacePerspective: zodAccessor(z.any()),
+  spacePosts: zodAccessor(z.array(z.any())),
   // Actions
   setTheme: zodAction(z.string()),
   openModal: zodAction(z.string()),
@@ -49,6 +50,7 @@ function getProps(app: AppProps) {
     createSpaceModalOpen: modalStore.createSpaceModalOpen,
     currentSpace: spaceStore.space,
     currentSpacePerspective: spaceStore.perspective,
+    spacePosts: spaceStore.posts,
     // Actions
     setTheme: themeStore.setCurrentTheme,
     openModal: modalStore.openModal,
@@ -64,7 +66,16 @@ function getRoutes(props: DefaultTemplateProps): RouteDefinition[] {
     { path: '*', component: () => <PageNotFound /> },
     { path: '/', component: () => <HomePage /> },
     { path: '/posts', component: () => <PostPage posts={props.posts()} /> },
-    { path: '/space/:spaceId', component: () => <SpacePage space={props.currentSpace()} /> },
+    {
+      path: '/space/:spaceId',
+      component: () => (
+        <SpacePage
+          space={props.currentSpace()}
+          perspective={props.currentSpacePerspective()}
+          spacePosts={props.spacePosts()}
+        />
+      ),
+    },
     { path: '/block-composer', component: () => <BlockComposerPage perspective={props.currentSpacePerspective()} /> },
   ];
 }

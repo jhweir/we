@@ -4,7 +4,7 @@ import { JSX } from 'solid-js';
 export interface HeaderWidgetProps {
   themes: { name: string; icon: string }[];
   currentTheme: { name: string; icon: string };
-  setTheme: (themeName: string) => void;
+  setTheme: (name: string) => void;
   class?: string;
   style?: JSX.CSSProperties;
 }
