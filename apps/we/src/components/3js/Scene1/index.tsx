@@ -1,9 +1,11 @@
-import wecubeModel from '@/assets/wecube-beveled.glb';
 import { gsap } from 'gsap';
 import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+import wecubeModel from '@/assets/wecube-beveled.glb';
+
 import styles from './index.module.scss';
 
 type MaterialType = 'gold' | 'white' | 'glass';
