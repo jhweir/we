@@ -10,13 +10,15 @@ import type { ModalStore } from './stores/ModalStore';
 import type { SpaceStore } from './stores/SpaceStore';
 import type { ThemeStore } from './stores/ThemeStore';
 
+export type Stores = {
+  adamStore: AdamStore;
+  modalStore: ModalStore;
+  spaceStore: SpaceStore;
+  themeStore: ThemeStore;
+};
+
 export type AppProps = {
-  stores: {
-    adamStore: AdamStore;
-    modalStore: ModalStore;
-    spaceStore: SpaceStore;
-    themeStore: ThemeStore;
-  };
+  stores: Stores;
   navigate: (to: string, options?: { replace?: boolean }) => void;
 };
 

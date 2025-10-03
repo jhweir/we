@@ -25,7 +25,7 @@ export interface AdamStore {
 
 const AdamContext = createContext<AdamStore>();
 
-export function AdamProvider(props: ParentProps) {
+export function AdamStoreProvider(props: ParentProps) {
   const [loading, setLoading] = createSignal(true);
   const [adamClient, setAdamClient] = createSignal<Ad4mClient | undefined>(undefined);
   const [me, setMe] = createSignal<Agent | undefined>(undefined);
@@ -117,4 +117,4 @@ export function useAdamStore(): AdamStore {
   return context;
 }
 
-export default AdamProvider;
+export default AdamStoreProvider;

@@ -1,5 +1,5 @@
 import { CircleButton, Column } from '@we/components/solid';
-import { JSX } from 'solid-js';
+import { Accessor, JSX } from 'solid-js';
 
 type Button = {
   name: string;
@@ -9,8 +9,8 @@ type Button = {
 };
 
 export interface NarrowSidebarWidgetProps {
-  topButtons?: Button[];
-  bottomButtons?: Button[];
+  topButtons?: Accessor<Button[]>;
+  bottomButtons?: Accessor<Button[]>;
   class?: string;
   style?: JSX.CSSProperties;
 }
@@ -29,7 +29,7 @@ export function NarrowSidebarWidget(props: NarrowSidebarWidgetProps) {
     >
       {props.topButtons && (
         <Column gap="400">
-          {props.topButtons.map((button) => (
+          {props.topButtons().map((button) => (
             <CircleButton name={button.name} image={button.image} icon={button.icon} onClick={button.onClick} />
           ))}
         </Column>
@@ -37,7 +37,7 @@ export function NarrowSidebarWidget(props: NarrowSidebarWidgetProps) {
 
       {props.bottomButtons && (
         <Column gap="400">
-          {props.bottomButtons.map((button) => (
+          {props.bottomButtons().map((button) => (
             <CircleButton name={button.name} image={button.image} icon={button.icon} onClick={button.onClick} />
           ))}
         </Column>

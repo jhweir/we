@@ -45,7 +45,7 @@ export interface ThemeStore {
 
 const ThemeContext = createContext<ThemeStore>();
 
-export function ThemeProvider(props: ParentProps) {
+export function ThemeStoreProvider(props: ParentProps) {
   // Get the initial theme from localStorage if available before creating signals
   const savedTheme = (typeof window !== 'undefined' && localStorage.getItem(THEME_KEY)) as ThemeName;
 
@@ -79,4 +79,4 @@ export function useThemeStore(): ThemeStore {
   return ctx;
 }
 
-export default ThemeProvider;
+export default ThemeStoreProvider;

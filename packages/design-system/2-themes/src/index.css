@@ -2,13 +2,3 @@
 @import url('./black/index.css');
 @import url('./retro/index.css');
 @import url('./cyberpunk/index.css');
-
-/* Theme switching mechanism (optional) */
-
-/* :root {
-    --we-theme-transition-duration: 200ms;
-  }
-  
-  html {
-    transition: all var(--we-theme-transition-duration) ease-in-out;
-  } */

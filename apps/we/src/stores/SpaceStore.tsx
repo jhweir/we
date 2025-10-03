@@ -32,7 +32,7 @@ const defaultSpace: Partial<Space> = {
 
 const SpaceContext = createContext<SpaceStore>();
 
-export function SpaceProvider(props: ParentProps) {
+export function SpaceStoreProvider(props: ParentProps) {
   const adamStore = useAdamStore();
 
   // State
@@ -157,4 +157,4 @@ export function useSpaceStore(): SpaceStore {
   return context;
 }
 
-export default SpaceProvider;
+export default SpaceStoreProvider;

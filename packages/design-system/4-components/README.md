@@ -4,7 +4,7 @@ Framework-level components and layout primitives for the WE design system.
 
 ## Overview
 
-`@we/components` provides framework-specific components (currently for SolidJS) that sit one level above the atomic web components in [`@we/elements`](../elements). These components are designed to be more ergonomic, composable, and idiomatic for your framework, while still being low-level enough to serve as building blocks for more complex UI (such as widgets or templates).
+`@we/components` provides framework-specific components (currently for SolidJS) that sit one level above the atomic web components in [`@we/elements`](../3-elements). These components are designed to be more ergonomic, composable, and idiomatic for your framework, while still being low-level enough to serve as building blocks for more complex UI (such as widgets or templates).
 
 - **Framework-first:** Components are written for your framework (e.g., SolidJS), not just wrappers for web components.
 - **Composable:** Use as layout primitives, containers, and simple UI elements in your app or in higher-level widgets.

@@ -13,7 +13,7 @@ export interface ModalStore {
 
 const ModalContext = createContext<ModalStore>();
 
-export function ModalProvider(props: ParentProps) {
+export function ModalStoreProvider(props: ParentProps) {
   // Individual signals for each modal
   const [createSpaceModalOpen, setCreateSpaceModalOpen] = createSignal(false);
   // Add more signals as you add more modals
@@ -48,7 +48,7 @@ export function useModalStore(): ModalStore {
   return ctx;
 }
 
-export default ModalProvider;
+export default ModalStoreProvider;
 
 // import { createContext, ParentProps, useContext } from 'solid-js';
 // import { createStore } from 'solid-js/store';
