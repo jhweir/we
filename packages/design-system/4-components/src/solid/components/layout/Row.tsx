@@ -1,5 +1,4 @@
 import { JSX, splitProps } from 'solid-js';
-import { Dynamic } from 'solid-js/web';
 
 import type { AlignPosition, AlignPositionAndSpacing, RadiusToken, SpaceToken } from '../../../shared/types';
 
@@ -44,9 +43,7 @@ type RowPropsBase = {
   bg?: string;
   color?: string;
 
-  // Polymorphic
-  as?: keyof JSX.IntrinsicElements;
-
+  // Standard HTML props
   style?: JSX.CSSProperties;
   children?: JSX.Element;
 };
@@ -65,7 +62,7 @@ export function Row(allProps: RowProps) {
     'm','ml','mr','mt','mb','mx','my', // Margin
     'r','rt','rb','rl','rr','rtl','rtr','rbr','rbl', // Radius
     'bg','color', // Colors
-    'as','style','children', // Other
+    'style','children', // Other
   ] as const);
 
   // Flex basics
@@ -123,8 +120,8 @@ export function Row(allProps: RowProps) {
   if (props.color) style.color = `var(--we-color-${props.color})`;
 
   return (
-    <Dynamic component={props.as || 'div'} style={style} {...rest}>
+    <div style={style} {...rest}>
       {props.children}
-    </Dynamic>
+    </div>
   );
 }
