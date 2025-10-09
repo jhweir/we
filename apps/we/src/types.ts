@@ -17,9 +17,29 @@ export type Stores = {
   themeStore: ThemeStore;
 };
 
-export type AppProps = {
-  stores: Stores;
-  navigate: (to: string, options?: { replace?: boolean }) => void;
-};
+// export type AppProps = {
+//   stores: Stores;
+//   navigate: (to: string, options?: { replace?: boolean }) => void;
+// };
 
 export type { RouteDefinition } from '@solidjs/router';
+
+// Schema types
+export type SchemaPropValue = string | number | boolean | Record<string, unknown> | SchemaPropValue[] | undefined;
+
+export type SchemaNode = {
+  type: string;
+  props?: Record<string, SchemaPropValue>;
+  children?: (SchemaNode | string)[];
+  slots?: Record<string, SchemaNode>;
+};
+
+export type RouteSchema = { path: string } & SchemaNode;
+
+export type TemplateSchema = {
+  id: string;
+  name: string;
+  description: string;
+  root: SchemaNode;
+  routes?: RouteSchema[];
+};

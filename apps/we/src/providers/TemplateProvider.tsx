@@ -1,71 +1,81 @@
 import { Route, Router, useLocation, useNavigate } from '@solidjs/router';
-import { PageNotFound } from '@we/pages/solid';
-import type { DefaultTemplateProps } from '@we/templates/solid';
-import { defaultTemplate } from '@we/templates/solid';
-import { createContext, createEffect, useContext } from 'solid-js';
-import { ParentProps } from 'solid-js';
+import { createEffect, ParentProps } from 'solid-js';
 
-import { useAdamStore, useModalStore, useSpaceStore, useThemeStore } from '@/stores';
-
-// TODO: Enable templates from npm packages or other sources
-// List of available templates and their prop types
-const templates = [defaultTemplate];
-type TemplatePropsMap = {
-  default: DefaultTemplateProps;
-};
+import { componentRegistry } from '@/renderers/componentRegistry';
+import { SchemaRenderer } from '@/renderers/SchemaRenderer';
+import { useAdamStore, useModalStore, useSpaceStore, useTemplateStore, useThemeStore } from '@/stores';
 
 export default function TemplateProvider() {
-  // Select template
-  const templateId = 'default';
-  const template = templates.find((t) => t.id === templateId) || templates[0];
-  const { component: Template, getProps, getRoutes, propSchema } = template;
-  type TemplateProps = TemplatePropsMap[typeof templateId];
-
-  // Gather all store props and utilities
+  // Gather stores
   const adamStore = useAdamStore();
   const spaceStore = useSpaceStore();
   const modalStore = useModalStore();
   const themeStore = useThemeStore();
-  const navigate = () => null; // Dummy function for validation, replaced in Layout when we have access to the router
-  const appProps = { stores: { adamStore, spaceStore, modalStore, themeStore }, navigate };
+  const templateStore = useTemplateStore();
 
-  // Parse and validate props
-  const templateProps = getProps(appProps);
-  const parseResult = propSchema.safeParse(templateProps);
-  if (!parseResult.success) return <div>Template props validation failed: {parseResult.error.message}</div>;
-  const validatedProps = parseResult.data;
+  const stores = { adamStore, spaceStore, modalStore, themeStore };
 
-  // Generate routes with validated props
-  const routes = getRoutes(validatedProps);
+  // Get current schema
+  const schema = templateStore.currentSchema();
 
-  // Create a context for the validated props
-  const TemplatePropsContext = createContext<TemplateProps>();
-
+  // Layout component for router context
   function Layout(props: ParentProps) {
-    // Now in router context, we can react to route changes
+    const navigate = useNavigate();
     const location = useLocation();
+
+    // Expose navigation to stores
+    // createEffect(() => {
+    //   adamStore.setNavigate(navigate);
+    // });
+
+    // createEffect(() => {
+    //   console.log('nav: ', navigate);
+    //   if (navigate) adamStore.setNavigate(navigate);
+    // });
+
+    // Listen to route changes
     createEffect(() => {
-      // Update spaceId in spaceStore if on a space page
       const [page, pageId] = location.pathname.split('/').filter(Boolean);
       if (page === 'space' && pageId) spaceStore.setSpaceId(pageId);
     });
 
-    // Get validated props from context & add navigate function from router
-    const contextProps = useContext(TemplatePropsContext);
-    const finalProps = { ...contextProps, navigate: useNavigate() };
+    // Render slots from schema
+    const slotElements = SchemaRenderer({ node: schema.root, stores });
 
-    return <Template {...(finalProps as TemplateProps)}>{props.children}</Template>;
+    // Select template
+    const Template = componentRegistry[schema.root.type];
+
+    // If slotElements is an object, spread as props; otherwise, pass as children
+    return typeof slotElements === 'object' && !Array.isArray(slotElements) ? (
+      <Template {...slotElements}>{props.children}</Template>
+    ) : (
+      <Template>
+        {slotElements}
+        {props.children}
+      </Template>
+    );
   }
 
+  // Build route list from schema
+  const routes =
+    schema.routes?.map((route) => ({
+      path: route.path,
+      component: () => {
+        const rendered = SchemaRenderer({ node: route, stores });
+        if (rendered && typeof rendered === 'object' && !Array.isArray(rendered)) {
+          // If it's a slot map, render all slot values in a fragment
+          return <>{Object.values(rendered)}</>;
+        }
+        return rendered ?? <></>;
+      },
+    })) || [];
+
   return (
-    <TemplatePropsContext.Provider value={validatedProps}>
-      <Router root={Layout}>
-        {routes.map((route) => (
-          <Route path={route.path} component={route.component} />
-        ))}
-        {/* Fallback for unmatched routes if wildcard route not provided by template */}
-        {!routes.find((route) => route.path === '*') && <Route path="*" component={() => <PageNotFound />} />}
-      </Router>
-    </TemplatePropsContext.Provider>
+    <Router root={Layout}>
+      {routes.map((route) => (
+        <Route path={route.path} component={route.component} />
+      ))}
+      {!routes.find((route) => route.path === '*') && <Route path="*" component={() => <span>Page Not Found</span>} />}
+    </Router>
   );
 }

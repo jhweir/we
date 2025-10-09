@@ -14,7 +14,8 @@
       "@assets/*": ["./src/assets/*"],
       "@stores/*": ["src/stores/*"],
       "@components/*": ["./src/components/*"],
-      "@providers/*": ["./src/providers/*"]
+      "@providers/*": ["./src/providers/*"],
+      "@renderers/*": ["./src/renderers/*"]
     }
   }
 }
