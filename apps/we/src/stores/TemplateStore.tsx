@@ -59,7 +59,17 @@ const defaultSchema = {
           {
             type: 'Column',
             props: { bg: 'ui-50' },
-            children: [{ type: 'we-text', children: ['Header menu goes here...'] }],
+            children: [
+              { type: 'we-text', children: ['Header menu goes here...'] },
+              {
+                type: 'PopoverMenu',
+                props: {
+                  options: { $store: 'themeStore.themes' },
+                  currentOption: { $store: 'themeStore.currentTheme' },
+                  setOption: { $store: 'themeStore.setCurrentTheme' },
+                },
+              },
+            ],
           },
         ],
       },

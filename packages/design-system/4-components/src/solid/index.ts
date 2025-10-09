@@ -7,3 +7,6 @@ export { PostCard, type PostCardProps } from './components/cards/PostCard';
 
 // Buttons
 export { CircleButton, type CircleButtonProps } from './components/buttons/CircleButton';
+
+// Menus
+export { PopoverMenu, type PopoverMenuProps } from './components/menus/PopoverMenu';

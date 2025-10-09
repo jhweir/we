@@ -1,4 +1,4 @@
-import { CircleButton, Column, Row } from '@we/components/solid';
+import { CircleButton, Column, PopoverMenu, Row } from '@we/components/solid';
 import { HomePage, PageNotFound } from '@we/pages/solid';
 import { DefaultTemplate } from '@we/templates/solid';
 import { JSX } from 'solid-js';
@@ -8,11 +8,21 @@ export type ComponentRegistry = {
 };
 
 export const componentRegistry: ComponentRegistry = {
+  // Elements
+  'we-text': (props) => <we-text>{props.children}</we-text>,
+
+  // Components
   Column,
   Row,
-  DefaultTemplate,
   CircleButton,
-  'we-text': (props) => <span>{props.children}</span>,
+  PopoverMenu,
+
+  // Widgets
+
+  // Pages
   PageNotFound,
   HomePage,
+
+  // Templates
+  DefaultTemplate,
 };

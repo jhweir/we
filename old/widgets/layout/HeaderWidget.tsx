@@ -9,6 +9,8 @@ export interface HeaderWidgetProps {
   style?: JSX.CSSProperties;
 }
 
+// TODO: Renove this widget and create a DropDown component in components package for the popover menu
+
 export function HeaderWidget(props: HeaderWidgetProps) {
   const iconWeight = 'regular';
 
