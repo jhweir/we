@@ -7,6 +7,7 @@ type SchemaRendererProps = {
   node: SchemaNode | null;
   context?: Record<string, unknown>;
   stores?: Stores;
+  pages?: JSX.Element | (() => JSX.Element) | null;
 };
 
 function resolveStoreProp(value: unknown, stores: Stores | undefined): unknown {
@@ -82,7 +83,7 @@ function resolveActionProp(value: unknown, context: Record<string, unknown>, sto
   return value;
 }
 
-export function SchemaRenderer({ node, context = {}, stores }: SchemaRendererProps) {
+export function SchemaRenderer({ node, context = {}, stores, pages }: SchemaRendererProps) {
   if (!node) return null;
 
   // Handle template slots
@@ -97,7 +98,7 @@ export function SchemaRenderer({ node, context = {}, stores }: SchemaRendererPro
       slotElements[key] = (
         <SlotComponent {...slotNode.props}>
           {(slotNode.children ?? []).map((child) =>
-            typeof child === 'string' ? child : SchemaRenderer({ node: child, context, stores }),
+            typeof child === 'string' ? child : SchemaRenderer({ node: child, context, stores, pages }),
           )}
         </SlotComponent>
       );
@@ -129,8 +130,8 @@ export function SchemaRenderer({ node, context = {}, stores }: SchemaRendererPro
     );
   }
 
-  // $route: handled by router, just a placeholder
-  if (node.type === '$route') return null;
+  // Return the
+  if (node.type === '$route') return (pages as JSX.Element | (() => JSX.Element) | null) ?? null;
 
   // Get the component from the registry
   const Component = componentRegistry[node.type];
@@ -150,10 +151,10 @@ export function SchemaRenderer({ node, context = {}, stores }: SchemaRendererPro
   }
 
   // Recursively render children
-  const children = node.children?.map((child) =>
-    typeof child === 'string' ? child : SchemaRenderer({ node: child, context, stores }),
+  const renderedChildren = node.children?.map((child) =>
+    typeof child === 'string' ? child : SchemaRenderer({ node: child, context, stores, pages }),
   );
 
   // Render the component with resolved props and children
-  return <Component {...resolvedProps}>{children}</Component>;
+  return <Component {...resolvedProps}>{renderedChildren}</Component>;
 }
