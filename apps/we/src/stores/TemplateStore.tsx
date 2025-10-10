@@ -35,7 +35,7 @@ const defaultSchema = {
                     type: 'CircleButton',
                     props: {
                       name: { $expr: 'space.name' },
-                      icon: 'users',
+                      // icon: 'users',
                       route: { $expr: '`/space/${space.uuid}`' },
                     },
                   },
