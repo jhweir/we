@@ -33,28 +33,27 @@ type SchemaRendererProps = {
 export function SchemaRenderer({ node, context = {}, stores }: SchemaRendererProps) {
   if (!node) return null;
 
-  // Handle slots: return an object mapping slot names to JSX elements
+  // Handle template slots
   if (node.slots) {
     const slotElements: Record<string, JSX.Element> = {};
     for (const [key, slotNode] of Object.entries(node.slots)) {
-      slotElements[key] = SchemaRenderer({ node: slotNode as SchemaNode, context, stores }) as JSX.Element;
+      if (!slotNode.type) throw new Error(`Slot "${key}" is missing a "type" property.`);
+      const SlotComponent = componentRegistry[slotNode.type];
+      if (!SlotComponent) throw new Error(`Slot "${key}" has unknown type "${slotNode.type}".`);
+      slotElements[key] = (
+        <SlotComponent {...slotNode.props}>
+          {(slotNode.children ?? []).map((child) =>
+            typeof child === 'string'
+              ? child
+              : (SchemaRenderer({ node: child as SchemaNode, context, stores }) as JSX.Element),
+          )}
+        </SlotComponent>
+      );
     }
     return slotElements;
   }
 
-  // $forEach
-  if (!node) return null;
-
-  // Handle slots: return an object mapping slot names to JSX elements (for template root)
-  if (node.slots) {
-    const slotElements: Record<string, JSX.Element> = {};
-    for (const [key, slotNode] of Object.entries(node.slots ?? {})) {
-      slotElements[key] = SchemaRenderer({ node: slotNode as SchemaNode, context, stores }) as JSX.Element;
-    }
-    return slotElements;
-  }
-
-  // $forEach
+  // Handle forEach loops
   if (node.type === '$forEach') {
     let items: unknown = [];
     const itemsDef = node.props?.items;
@@ -85,7 +84,7 @@ export function SchemaRenderer({ node, context = {}, stores }: SchemaRendererPro
   const Component = componentRegistry[node.type];
   if (!Component) return null;
 
-  // Resolve props: handle $store references everywhere (DRY)
+  // Resolve $store references in props
   const resolvedProps: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(node.props ?? {})) {
     resolvedProps[key] = resolveStoreProp(value, stores);
@@ -96,10 +95,6 @@ export function SchemaRenderer({ node, context = {}, stores }: SchemaRendererPro
     typeof child === 'string' ? child : (SchemaRenderer({ node: child, context, stores }) as JSX.Element),
   );
 
-  // Pass resolved props, context, stores
-  return (
-    <Component {...resolvedProps} stores={stores}>
-      {children}
-    </Component>
-  );
+  // Render component
+  return <Component {...resolvedProps}>{children}</Component>;
 }

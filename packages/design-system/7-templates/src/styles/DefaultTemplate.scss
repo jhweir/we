@@ -1,17 +1,34 @@
 .we-default-template {
-  --narrow-sidebar-width: 90px;
+  --we-default-template-sidebar-width: 90px;
+  --we-default-template-header-height: 90px;
 
-  .we-narrow-sidebar-widget {
-    width: var(--narrow-sidebar-width);
+  height: 100vh;
+  width: 100vw;
+
+  .we-default-template-sidebar {
+    width: var(--we-default-template-sidebar-width);
+    height: 100%;
+
+    // Force the component passed to the slot to use the full sidebar height
+    > * {
+      height: 100%;
+    }
   }
 
-  .main-content {
-    margin-left: var(--narrow-sidebar-width);
-    width: calc(100vw - var(--narrow-sidebar-width));
-    min-height: 100vh;
+  .we-default-template-content {
+    flex: 1;
 
-    .we-header-widget {
-      width: calc(100vw - var(--narrow-sidebar-width));
+    .we-default-template-header {
+      height: var(--we-default-template-header-height);
+      width: 100%;
+
+      // Force the component passed to the slot to use the full header height
+      > * {
+        height: 100%;
+      }
+    }
+
+    .we-default-template-pages {
     }
   }
 }

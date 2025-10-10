@@ -6,20 +6,27 @@ import { asVoid, clone } from '../utils';
 const defaultSchema = {
   id: 'default',
   name: 'Default Template',
-  description: 'A simple template with a header, left sidebar, and main content area.',
+  description: 'A simple template with a sidebar, header, and page area.',
   root: {
     type: 'DefaultTemplate',
     slots: {
-      sidebarLeft: {
+      sidebar: {
         type: 'Column',
-        props: { bg: 'ui-25', style: { width: 80 } },
+        props: { bg: 'ui-50', p: '500', ay: 'between' },
         children: [
           {
             type: 'Column',
-            props: { bg: 'ui-0' },
+            props: { ax: 'center', gap: '500' },
             children: [
-              { type: 'CircleButton', props: { label: 'Home', icon: 'home', route: '/' } },
-              { type: 'CircleButton', props: { label: 'Search', icon: 'search', route: '/search' } },
+              {
+                type: 'CircleButton',
+                props: {
+                  label: 'Home',
+                  image: 'https://avatars.githubusercontent.com/u/34165012?s=200&v=4',
+                  route: '/',
+                },
+              },
+              { type: 'CircleButton', props: { label: 'Search', icon: 'magnifying-glass', route: '/search' } },
               {
                 type: '$forEach',
                 props: { items: { $store: 'adamStore.mySpaces' }, as: 'space' },
@@ -27,7 +34,7 @@ const defaultSchema = {
                   {
                     type: 'CircleButton',
                     props: {
-                      label: { $expr: 'space.name' },
+                      name: { $expr: 'space.name' },
                       icon: 'users',
                       route: { $expr: '`/space/${space.uuid}`' },
                     },
@@ -38,7 +45,7 @@ const defaultSchema = {
           },
           {
             type: 'Column',
-            props: { bg: 'ui-0' },
+            props: { ax: 'center', gap: '500' },
             children: [
               {
                 type: 'CircleButton',
@@ -54,7 +61,7 @@ const defaultSchema = {
       },
       header: {
         type: 'Row',
-        props: { bg: 'ui-0', px: '500', ax: 'end', style: { height: 60 } },
+        props: { bg: 'ui-50', px: '500', ax: 'end' },
         children: [
           {
             type: 'Column',
@@ -73,7 +80,7 @@ const defaultSchema = {
           },
         ],
       },
-      main: {
+      pages: {
         type: 'Column',
         props: { bg: 'ui-100', p: '600' },
         children: [{ type: '$route' }],
