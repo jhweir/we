@@ -1,5 +1,5 @@
-import { Router, useLocation, useNavigate } from '@solidjs/router';
-import { createEffect, createMemo, type JSX } from 'solid-js';
+import { Route, Router, useLocation, useNavigate } from '@solidjs/router';
+import { createEffect, createMemo, type JSX, ParentProps } from 'solid-js';
 
 import { componentRegistry } from '@/renderers/componentRegistry';
 import { SchemaRenderer } from '@/renderers/SchemaRenderer';
@@ -19,7 +19,7 @@ export default function TemplateProvider() {
   const schema = templateStore.currentSchema();
 
   // Layout component for router context
-  function Layout(): JSX.Element {
+  function Layout(props: ParentProps): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -34,39 +34,28 @@ export default function TemplateProvider() {
       if (page === 'space' && pageId) spaceStore.setSpaceId(pageId);
     });
 
-    // Render template slots
-    const slotElements = SchemaRenderer({ node: schema.root, stores });
-
-    // Build the pages slot by rendering the matched route schema inside the schema-defined wrapper
-    const pagesSlotSchema =
-      schema.root.slots && (schema.root.slots as Record<string, unknown>).pages
-        ? (schema.root.slots.pages as { type: string; props?: Record<string, unknown> })
-        : undefined;
-    const PagesWrapper = pagesSlotSchema ? componentRegistry[pagesSlotSchema.type] : undefined;
-
-    // Basic route matching: exact path match, else '*' fallback (reactive)
-    const currentPath = createMemo(() => location.pathname || '/');
-    const matched = createMemo(() => {
-      const routes = schema.routes ?? [];
-      const m = routes.find((r) => r.path === currentPath());
-      return m ?? routes.find((r) => r.path === '*') ?? null;
-    });
-    const pageContent = createMemo<JSX.Element | null>(() => {
-      const m = matched();
-      return m ? (SchemaRenderer({ node: m, stores }) as JSX.Element) : null;
-    });
-
-    const pagesEl = () => {
-      const content = pageContent();
-      if (PagesWrapper && pagesSlotSchema) return <PagesWrapper {...pagesSlotSchema.props}>{content}</PagesWrapper>;
-      return content ?? <></>;
-    };
-
+    // Return template with slots
     const Template = componentRegistry[schema.root.type];
-    if (typeof slotElements === 'object' && !Array.isArray(slotElements))
-      return <Template {...slotElements} pages={pagesEl()} />;
-    return <Template>{pagesEl()}</Template>;
+    const slots = createMemo(() => SchemaRenderer({ node: schema.root, stores }) as Record<string, JSX.Element>);
+    return <Template {...slots()}>{props.children}</Template>;
   }
 
-  return <Router root={Layout} />;
+  // Build routes from schema
+  const routes =
+    (schema.routes ?? []).map((route) => ({
+      path: route.path,
+      component: () => {
+        const el = SchemaRenderer({ node: route, stores }) as JSX.Element | null;
+        return el ?? <></>;
+      },
+    })) || [];
+
+  return (
+    <Router root={Layout}>
+      {routes.map((route) => (
+        <Route path={route.path} component={route.component} />
+      ))}
+      {!routes.find((route) => route.path === '*') && <Route path="*" component={() => <span>Page Not Found</span>} />}
+    </Router>
+  );
 }

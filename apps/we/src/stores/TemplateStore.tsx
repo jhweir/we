@@ -86,11 +86,6 @@ const defaultSchema = {
           },
         ],
       },
-      pages: {
-        type: 'Column',
-        props: { bg: 'ui-100', p: '600' },
-        children: [{ type: '$route' }],
-      },
     },
   },
   routes: [

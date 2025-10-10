@@ -5,14 +5,16 @@ export type DefaultTemplateProps = {
   // Slots
   sidebar?: JSX.Element;
   header?: JSX.Element;
-  pages: JSX.Element;
-  // Other optional props
+  // Router outlet comes through children
+  children?: JSX.Element;
+  // Styling
   class?: string;
   style?: JSX.CSSProperties;
 };
 
 export function DefaultTemplate(props: DefaultTemplateProps) {
   const baseClass = 'we-default-template';
+
   return (
     <Row class={`${baseClass} ${props.class || ''}`} style={props.style} bg="ui-0" data-we-template>
       {/* Sidebar */}
@@ -24,7 +26,7 @@ export function DefaultTemplate(props: DefaultTemplateProps) {
         {props.header && <header class={`${baseClass}-header`}>{props.header}</header>}
 
         {/* Page routes */}
-        <main class={`${baseClass}-pages`}>{props.pages}</main>
+        <main class={`${baseClass}-pages`}>{props.children}</main>
       </Column>
     </Row>
   );

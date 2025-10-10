@@ -7,7 +7,6 @@ type SchemaRendererProps = {
   node: SchemaNode | null;
   context?: Record<string, unknown>;
   stores?: Stores;
-  pages?: JSX.Element | (() => JSX.Element) | null;
 };
 
 function resolveStoreProp(value: unknown, stores: Stores | undefined): unknown {
@@ -83,7 +82,7 @@ function resolveActionProp(value: unknown, context: Record<string, unknown>, sto
   return value;
 }
 
-export function SchemaRenderer({ node, context = {}, stores, pages }: SchemaRendererProps) {
+export function SchemaRenderer({ node, context = {}, stores }: SchemaRendererProps) {
   if (!node) return null;
 
   // Handle template slots
@@ -98,7 +97,7 @@ export function SchemaRenderer({ node, context = {}, stores, pages }: SchemaRend
       slotElements[key] = (
         <SlotComponent {...slotNode.props}>
           {(slotNode.children ?? []).map((child) =>
-            typeof child === 'string' ? child : SchemaRenderer({ node: child, context, stores, pages }),
+            typeof child === 'string' ? child : SchemaRenderer({ node: child, context, stores }),
           )}
         </SlotComponent>
       );
@@ -130,9 +129,6 @@ export function SchemaRenderer({ node, context = {}, stores, pages }: SchemaRend
     );
   }
 
-  // Return the
-  if (node.type === '$route') return (pages as JSX.Element | (() => JSX.Element) | null) ?? null;
-
   // Get the component from the registry
   const Component = componentRegistry[node.type];
   if (!Component) return null;
@@ -152,7 +148,7 @@ export function SchemaRenderer({ node, context = {}, stores, pages }: SchemaRend
 
   // Recursively render children
   const renderedChildren = node.children?.map((child) =>
-    typeof child === 'string' ? child : SchemaRenderer({ node: child, context, stores, pages }),
+    typeof child === 'string' ? child : SchemaRenderer({ node: child, context, stores }),
   );
 
   // Render the component with resolved props and children
