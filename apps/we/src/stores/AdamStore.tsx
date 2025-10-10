@@ -13,25 +13,21 @@ type NavigateFunction = ReturnType<typeof useNavigate>;
 
 export interface AdamStore {
   // State
-  navigate: Accessor<NavigateFunction | null>;
   loading: Accessor<boolean>;
   adamClient: Accessor<Ad4mClient | undefined>;
   me: Accessor<Agent | undefined>;
   mySpaces: Accessor<Space[]>;
   // Actions
-  setNavigate: (navigate: NavigateFunction) => void;
+  setNavigateFunction: (navigate: NavigateFunction) => void;
+  navigate: (to: string, options?: Record<string, unknown>) => void;
   addNewSpace: (space: Space) => void;
-  setLoading: (v: boolean) => void;
-  setAdamClient: (c: Ad4mClient) => void;
-  setMe: (a: Agent) => void;
-  setMySpaces: (spaces: Space[]) => void;
 }
 
 const AdamContext = createContext<AdamStore>();
 
 export function AdamStoreProvider(props: ParentProps) {
-  const [navigate, setNavigate] = createSignal<NavigateFunction | null>(null);
   const [loading, setLoading] = createSignal(true);
+  const [navigateFunction, setNavigateFunction] = createSignal<NavigateFunction | null>(null);
   const [adamClient, setAdamClient] = createSignal<Ad4mClient | undefined>(undefined);
   const [me, setMe] = createSignal<Agent | undefined>(undefined);
   const [mySpaces, setMySpaces] = createSignal<Space[]>([]);
@@ -83,11 +79,11 @@ export function AdamStoreProvider(props: ParentProps) {
   // }
 
   async function initialiseStore(): Promise<void> {
-    // const client = await getAdamClient();
-    // if (!client) return;
-    // setAdamClient(client);
+    const client = await getAdamClient();
+    if (!client) return;
+    setAdamClient(client);
 
-    // await Promise.all([getMe(client), getMySpaces(client)]);
+    await Promise.all([getMe(client), getMySpaces(client)]);
 
     setLoading(false);
   }
@@ -98,20 +94,23 @@ export function AdamStoreProvider(props: ParentProps) {
 
   createEffect(initialiseStore);
 
+  function navigate(to: string, options?: Record<string, unknown>) {
+    console.log('AdamStore: navigating to', to);
+    const navFn = navigateFunction();
+    if (typeof navFn === 'function') navFn(to, options);
+    else console.warn('Navigate function not available yet');
+  }
+
   const store: AdamStore = {
     // State
-    navigate,
     loading,
     adamClient,
     me,
     mySpaces,
     // Actions
-    setNavigate,
+    setNavigateFunction,
+    navigate,
     addNewSpace,
-    setLoading,
-    setAdamClient,
-    setMe,
-    setMySpaces,
   };
 
   return <AdamContext.Provider value={store}>{props.children}</AdamContext.Provider>;

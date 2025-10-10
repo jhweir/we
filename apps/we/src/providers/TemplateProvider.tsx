@@ -24,14 +24,9 @@ export default function TemplateProvider() {
     const location = useLocation();
 
     // Expose navigation to stores
-    // createEffect(() => {
-    //   adamStore.setNavigate(navigate);
-    // });
-
-    // createEffect(() => {
-    //   console.log('nav: ', navigate);
-    //   if (navigate) adamStore.setNavigate(navigate);
-    // });
+    createEffect(() => {
+      adamStore.setNavigateFunction(() => navigate);
+    });
 
     // Listen to route changes
     createEffect(() => {

@@ -23,10 +23,17 @@ const defaultSchema = {
                 props: {
                   label: 'Home',
                   image: 'https://avatars.githubusercontent.com/u/34165012?s=200&v=4',
-                  route: '/',
+                  onClick: { $action: 'adamStore.navigate', args: ['/'] },
                 },
               },
-              { type: 'CircleButton', props: { label: 'Search', icon: 'magnifying-glass', route: '/search' } },
+              {
+                type: 'CircleButton',
+                props: {
+                  label: 'Search',
+                  icon: 'magnifying-glass',
+                  onClick: { $action: 'adamStore.navigate', args: ['/search'] },
+                },
+              },
               {
                 type: '$forEach',
                 props: { items: { $store: 'adamStore.mySpaces' }, as: 'space' },
@@ -34,9 +41,8 @@ const defaultSchema = {
                   {
                     type: 'CircleButton',
                     props: {
-                      name: { $expr: 'space.name' },
-                      // icon: 'users',
-                      route: { $expr: '`/space/${space.uuid}`' },
+                      label: { $expr: 'space.name' },
+                      onClick: { $action: 'adamStore.navigate', args: [{ $expr: '`/space/${space.uuid}`' }] },
                     },
                   },
                 ],
@@ -52,7 +58,7 @@ const defaultSchema = {
                 props: {
                   label: 'New Space',
                   icon: 'plus',
-                  onClick: { $action: 'openModal', args: ['create-space'] },
+                  onClick: { $action: 'modalStore.openModal', args: ['create-space'] },
                 },
               },
             ],

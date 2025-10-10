@@ -58,6 +58,30 @@ function resolveExpressionProp(value: unknown, context: Record<string, unknown>)
   return value;
 }
 
+function resolveActionProp(value: unknown, context: Record<string, unknown>, stores: Stores | undefined): unknown {
+  // Helper to resolve $action props (e.g. { $action: 'adamStore.navigate', args: ['/home'] })
+  if (
+    value &&
+    typeof value === 'object' &&
+    '$action' in value &&
+    typeof (value as { $action: unknown }).$action === 'string'
+  ) {
+    // Split the $action string into store name and method name
+    const [storeName, methodName] = (value as { $action: string }).$action.split('.');
+    // Retrieve args and resolve any expressions within them
+    const args = (value as { args?: unknown[] }).args ?? [];
+    const resolvedArgs = args.map((arg) => resolveExpressionProp(arg, context));
+    // Get the method from the store and return a callable function
+    const store = (stores as Record<string, unknown>)?.[storeName];
+    const method =
+      typeof store === 'object' && store !== null ? (store as Record<string, unknown>)[methodName] : undefined;
+    if (typeof method === 'function') return () => method(...resolvedArgs);
+  }
+
+  // Return original value if not a $action binding
+  return value;
+}
+
 export function SchemaRenderer({ node, context = {}, stores }: SchemaRendererProps) {
   if (!node) return null;
 
@@ -119,6 +143,8 @@ export function SchemaRenderer({ node, context = {}, stores }: SchemaRendererPro
     let resolved = resolveStoreProp(value, stores);
     // Resolve $expr references
     resolved = resolveExpressionProp(resolved, context);
+    // Resolve $action references
+    resolved = resolveActionProp(resolved, context, stores);
     // Store the final resolved prop
     resolvedProps[key] = resolved;
   }

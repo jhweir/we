@@ -1,7 +1,7 @@
 import { JSX } from 'solid-js';
 
 export interface CircleButtonProps {
-  name: string;
+  label: string;
   icon?: string;
   image?: string;
   onClick?: () => void;
@@ -20,13 +20,13 @@ export function CircleButton(props: CircleButtonProps) {
       circle
       data-we-button
     >
-      <we-tooltip placement="right" title={props.name}>
+      <we-tooltip placement="right" title={props.label}>
         {props.image ? (
           <we-avatar image={props.image} />
         ) : props.icon ? (
           <we-icon name={props.icon} color="ui-700" />
         ) : (
-          <we-avatar initials={props.name.slice(0, 2)} />
+          <we-avatar initials={props.label.slice(0, 2)} />
         )}
       </we-tooltip>
     </we-button>
