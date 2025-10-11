@@ -41,5 +41,5 @@ export type TemplateSchema = {
   name: string;
   description: string;
   root: SchemaNode;
-  routes?: RouteSchema[];
+  routes: RouteSchema[];
 };

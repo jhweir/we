@@ -1,5 +1,5 @@
 import { Route, Router, useLocation, useNavigate } from '@solidjs/router';
-import { createEffect, createMemo, type JSX, ParentProps } from 'solid-js';
+import { createEffect, type JSX, ParentProps } from 'solid-js';
 
 import { componentRegistry } from '@/renderers/componentRegistry';
 import { SchemaRenderer } from '@/renderers/SchemaRenderer';
@@ -12,43 +12,39 @@ export default function TemplateProvider() {
   const modalStore = useModalStore();
   const themeStore = useThemeStore();
   const templateStore = useTemplateStore();
-
   const stores = { adamStore, spaceStore, modalStore, themeStore };
 
   // Get current schema
   const schema = templateStore.currentSchema();
 
-  // Layout component for router context
+  // Build the layout component
   function Layout(props: ParentProps): JSX.Element {
+    // Get navigation and location now we're inside the router context
     const navigate = useNavigate();
     const location = useLocation();
 
-    // Expose navigation to stores
+    // Store the navigate function in the Adam store
     createEffect(() => {
       adamStore.setNavigateFunction(() => navigate);
     });
 
-    // Listen to route changes
+    // React to route changes
     createEffect(() => {
       const [page, pageId] = location.pathname.split('/').filter(Boolean);
       if (page === 'space' && pageId) spaceStore.setSpaceId(pageId);
     });
 
-    // Return template with slots
+    // Return the template with its rendered slots
     const Template = componentRegistry[schema.root.type];
-    const slots = createMemo(() => SchemaRenderer({ node: schema.root, stores }) as Record<string, JSX.Element>);
-    return <Template {...slots()}>{props.children}</Template>;
+    const slots = SchemaRenderer({ node: schema.root, stores }) as Record<string, JSX.Element>;
+    return <Template {...slots}>{props.children}</Template>;
   }
 
-  // Build routes from schema
-  const routes =
-    (schema.routes ?? []).map((route) => ({
-      path: route.path,
-      component: () => {
-        const el = SchemaRenderer({ node: route, stores }) as JSX.Element | null;
-        return el ?? <></>;
-      },
-    })) || [];
+  // Build the routes
+  const routes = schema.routes.map((route) => ({
+    path: route.path,
+    component: () => SchemaRenderer({ node: route, stores }) as JSX.Element,
+  }));
 
   return (
     <Router root={Layout}>

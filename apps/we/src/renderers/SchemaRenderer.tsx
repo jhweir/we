@@ -136,13 +136,9 @@ export function SchemaRenderer({ node, context = {}, stores }: SchemaRendererPro
   // Resolve dynamic bindings in props
   const resolvedProps: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(node.props ?? {})) {
-    // Resolve $store references
-    let resolved = resolveStoreProp(value, stores);
-    // Resolve $expr references
-    resolved = resolveExpressionProp(resolved, context);
-    // Resolve $action references
-    resolved = resolveActionProp(resolved, context, stores);
-    // Store the final resolved prop
+    let resolved = resolveStoreProp(value, stores); // Resolve $store references
+    resolved = resolveExpressionProp(resolved, context); // Resolve $expr references
+    resolved = resolveActionProp(resolved, context, stores); // Resolve $action references
     resolvedProps[key] = resolved;
   }
 
