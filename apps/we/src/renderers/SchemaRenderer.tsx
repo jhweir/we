@@ -26,8 +26,6 @@ function hasToken(value: unknown, token: string): value is Record<string, string
 
 // Resolves $store props (e.g. { $store: 'spaceStore.currentSpace' })
 function resolveStoreProp(value: unknown, stores: Stores): unknown {
-  if (!hasToken(value, '$store')) return value;
-
   // Split the $store string into store name and property path
   const storePath = (value as { $store: string }).$store.split('.');
   const [storeName, ...propertyPath] = storePath;
@@ -42,8 +40,6 @@ function resolveStoreProp(value: unknown, stores: Stores): unknown {
 
 // Resolves $expr props (e.g. { $expr: 'space.name' } or { $expr: '`/space/${space.uuid}`' })
 function resolveExpressionProp(value: unknown, context: Props): unknown {
-  if (!hasToken(value, '$expr')) return value;
-
   try {
     // Create a function with context keys as arguments
     const expression = (value as { $expr: string }).$expr;
@@ -61,8 +57,6 @@ function resolveExpressionProp(value: unknown, context: Props): unknown {
 
 // Resolves $action props (e.g. { $action: 'adamStore.navigate', args: ['/home'] })
 function resolveActionProp(value: unknown, context: Props, stores: Stores): unknown {
-  if (!hasToken(value, '$action')) return value;
-
   // Split the $action string into store name and method name
   const [storeName, methodName] = (value as { $action: string }).$action.split('.');
 
