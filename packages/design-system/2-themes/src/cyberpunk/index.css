@@ -22,8 +22,11 @@ html[data-we-theme='cyberpunk'] we-text[variant^='heading'] {
 }
 
 html[data-we-theme='cyberpunk'] we-button::part(base) {
-  cursor: pointer;
   clip-path: polygon(-15px 0%, calc(100% + 15px) 0%, calc(100% + 15px) 100%, 20px 100%, -15px calc(100% - 35px));
+}
+
+html[data-we-theme='cyberpunk'] we-button::part(base):hover {
+  clip-path: none;
 }
 
 html[data-we-theme='cyberpunk'] we-button:hover {
