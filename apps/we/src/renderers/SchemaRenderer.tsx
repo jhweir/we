@@ -7,7 +7,7 @@ type Props = Record<string, unknown>;
 type SchemaRendererProps = { node: SchemaNode | null; stores: Stores; context?: Props };
 type RendererOutput = JSX.Element | Record<string, JSX.Element> | null;
 
-// Helper function to render children nodes
+// Helper function to render child nodes
 function renderChildren(
   children: unknown[] | undefined,
   context: Props,
@@ -76,14 +76,16 @@ function resolveActionProp(value: unknown, context: Props, stores: Stores): unkn
   if (typeof method === 'function') return () => method(...resolvedArgs);
 }
 
-// Resolve a single prop through the full chain: $store → $expr → $action
+// Resolve any prop based on its token type
 function resolveProp(value: unknown, stores: Stores, context: Props): unknown {
-  let resolved = resolveStoreProp(value, stores);
-  resolved = resolveExpressionProp(resolved, context);
-  return resolveActionProp(resolved, context, stores);
+  if (hasToken(value, '$store')) return resolveStoreProp(value, stores);
+  if (hasToken(value, '$expr')) return resolveExpressionProp(value, context);
+  if (hasToken(value, '$action')) return resolveActionProp(value, context, stores);
+
+  return value; // No processing needed
 }
 
-// Resolve all props in an object through the full chain
+// Resolve all props in an object
 function resolveProps(props: Props | undefined, stores: Stores, context: Props): Props {
   const resolvedProps: Props = {};
   for (const [key, value] of Object.entries(props ?? {})) resolvedProps[key] = resolveProp(value, stores, context);
