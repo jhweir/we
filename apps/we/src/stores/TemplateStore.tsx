@@ -67,22 +67,15 @@ const defaultSchema = {
       },
       header: {
         type: 'Row',
-        props: { bg: 'ui-50', px: '500', ax: 'end' },
+        props: { bg: 'ui-75', p: '400', ax: 'end', ay: 'center' },
         children: [
           {
-            type: 'Column',
-            props: { bg: 'ui-50' },
-            children: [
-              { type: 'we-text', children: ['Header menu goes here...'] },
-              {
-                type: 'PopoverMenu',
-                props: {
-                  options: { $store: 'themeStore.themes' },
-                  currentOption: { $store: 'themeStore.currentTheme' },
-                  setOption: { $store: 'themeStore.setCurrentTheme' },
-                },
-              },
-            ],
+            type: 'PopoverMenu',
+            props: {
+              options: { $store: 'themeStore.themes' },
+              currentOption: { $store: 'themeStore.currentTheme' },
+              setOption: { $store: 'themeStore.setCurrentTheme' },
+            },
           },
         ],
       },

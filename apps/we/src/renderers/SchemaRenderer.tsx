@@ -1,4 +1,4 @@
-import { For, JSX } from 'solid-js';
+import { JSX } from 'solid-js';
 
 import type { SchemaNode, Stores } from '../types';
 import { componentRegistry } from './componentRegistry';
@@ -24,13 +24,13 @@ function hasToken(value: unknown, token: string): value is Record<string, string
   return tokenExists && typeof (value as Props)[token] === 'string';
 }
 
-// Resolves $store props (e.g. { $store: 'spaceStore.currentSpace' })
+// Resolves $store props (e.g. { $store: 'userStore.profile' })
 function resolveStoreProp(value: unknown, stores: Stores): unknown {
-  // Split the $store string into store name and property path
+  // Split the $store string into a dot-separated property path
   const storePath = (value as { $store: string }).$store.split('.');
   const [storeName, ...propertyPath] = storePath;
 
-  // Traverse nested properties starting from the store to get the final value
+  // Walk down property path to get final value (userStore → userStore.profile → userStore.profile.name)
   let ref: unknown = stores[storeName];
   for (const prop of propertyPath) {
     if (ref && typeof ref === 'object' && prop in ref) ref = (ref as Props)[prop];
@@ -94,10 +94,11 @@ export function SchemaRenderer({ node, stores, context = {} }: SchemaRendererPro
     const slotElements: Record<string, JSX.Element> = {};
     for (const [key, slotNode] of Object.entries(node.slots)) {
       if (slotNode.type) {
-        // Validate slot component and render it with resolved props and children
+        // Get the slot component from the component registry
         const SlotComponent = componentRegistry[slotNode.type];
         if (!SlotComponent) throw new Error(`Schema slot "${key}" has unknown type "${slotNode.type}".`);
 
+        // Render the slot component with its resolved props and children
         slotElements[key] = (
           <SlotComponent {...resolveProps(slotNode.props, stores, context)}>
             {renderChildren(slotNode.children, context, stores)}
@@ -119,7 +120,7 @@ export function SchemaRenderer({ node, stores, context = {} }: SchemaRendererPro
     return SchemaRenderer({ node: nodeToRender, stores, context }) ?? null;
   }
 
-  // Handle forEach loops
+  // Handle for-each loops
   if (node.type === '$forEach') {
     // Resolve the items used for iteration
     const resolvedItems = resolveStoreProp(node.props?.items, stores);
@@ -127,12 +128,8 @@ export function SchemaRenderer({ node, stores, context = {} }: SchemaRendererPro
     const itemsArray = Array.isArray(items) ? items : [];
     const itemKey = String(node.props?.as ?? 'item');
 
-    // Return a list rendering each item with the provided children
-    return (
-      <For each={itemsArray}>
-        {(item) => <>{renderChildren(node.children, { ...context, [itemKey]: item }, stores)}</>}
-      </For>
-    );
+    // Return the items with their rendered children
+    return <>{itemsArray.map((item) => renderChildren(node.children, { ...context, [itemKey]: item }, stores))}</>;
   }
 
   // Get the component from the registry

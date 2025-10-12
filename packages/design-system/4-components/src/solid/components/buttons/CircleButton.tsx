@@ -12,7 +12,7 @@ export interface CircleButtonProps {
 export function CircleButton(props: CircleButtonProps) {
   return (
     <we-button
-      class={props.class}
+      class={`we-circle-button ${props.class || ''}`}
       style={props.style}
       onClick={props.onClick}
       slot="trigger"

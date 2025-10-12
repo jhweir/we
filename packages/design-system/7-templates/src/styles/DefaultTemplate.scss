@@ -1,6 +1,6 @@
 .we-default-template {
   --we-default-template-sidebar-width: 90px;
-  --we-default-template-header-height: 90px;
+  --we-default-template-header-height: 60px;
 
   height: 100vh;
   width: 100vw;
@@ -19,7 +19,7 @@
     flex: 1;
 
     .we-default-template-header {
-      height: var(--we-default-template-header-height);
+      // height: var(--we-default-template-header-height);
       width: 100%;
 
       // Force the component passed to the slot to use the full header height
@@ -32,18 +32,18 @@
       width: 100%;
       flex: 1;
     }
+  }
 
-    .we-default-template-modals {
-      position: fixed;
-      top: 0;
-      left: 0;
-      height: 100vh;
-      width: 100vw;
-      pointer-events: none;
+  .we-default-template-modals {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 100vw;
+    pointer-events: none;
 
-      > * {
-        pointer-events: all;
-      }
+    > * {
+      pointer-events: all;
     }
   }
 }

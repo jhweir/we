@@ -34,8 +34,11 @@ export default function TemplateProvider() {
       if (page === 'space' && pageId) spaceStore.setSpaceId(pageId);
     });
 
+    // Get the template from the component registry
+    const Template = componentRegistry[schema.root.type ?? ''];
+    if (!Template) throw new Error(`Schema template has unknown type: "${schema.root.type}"`);
+
     // Return the template with its rendered slots
-    const Template = componentRegistry[schema.root.type];
     const slots = SchemaRenderer({ node: schema.root, stores }) as Record<string, JSX.Element>;
     return <Template {...slots}>{props.children}</Template>;
   }

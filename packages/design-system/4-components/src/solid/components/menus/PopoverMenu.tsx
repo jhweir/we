@@ -15,7 +15,7 @@ export function PopoverMenu(props: PopoverMenuProps) {
   const iconWeight = 'regular';
 
   return (
-    <we-popover placement="bottom-end">
+    <we-popover class={`we-popover-menu ${props.class || ''}`} style={props.style} placement="bottom-end" data-we-menu>
       <we-button slot="trigger" variant="subtle">
         <we-icon name={props.currentOption().icon} weight={iconWeight} />
         {props.currentOption().name}

@@ -6,8 +6,7 @@ export type DefaultTemplateProps = {
   sidebar?: JSX.Element;
   header?: JSX.Element;
   modals?: JSX.Element;
-  // Router outlet comes through children
-  children?: JSX.Element;
+  children?: JSX.Element; // Router outlet for pages comes through children
   // Styling
   class?: string;
   style?: JSX.CSSProperties;
