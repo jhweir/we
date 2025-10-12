@@ -92,17 +92,19 @@ export function SchemaRenderer({ node, stores, context = {} }: SchemaRendererPro
   if (node.slots) {
     const slotElements: Record<string, JSX.Element> = {};
     for (const [key, slotNode] of Object.entries(node.slots)) {
-      // Validate slot node
-      if (!slotNode.type) throw new Error(`Slot "${key}" is missing a "type" property.`);
-      const SlotComponent = componentRegistry[slotNode.type];
-      if (!SlotComponent) throw new Error(`Slot "${key}" has unknown type "${slotNode.type}".`);
+      // If no type is provided for the slot, render children in a JSX fragment
+      if (!slotNode.type) slotElements[key] = <>{renderChildren(slotNode.children, context, stores)}</>;
+      else {
+        // Validate and render with slot component
+        const SlotComponent = componentRegistry[slotNode.type];
+        if (!SlotComponent) throw new Error(`Slot "${key}" has unknown type "${slotNode.type}".`);
 
-      // Store the rendered slot element
-      slotElements[key] = (
-        <SlotComponent {...resolveProps(slotNode.props, stores, context)}>
-          {renderChildren(slotNode.children, context, stores)}
-        </SlotComponent>
-      );
+        slotElements[key] = (
+          <SlotComponent {...resolveProps(slotNode.props, stores, context)}>
+            {renderChildren(slotNode.children, context, stores)}
+          </SlotComponent>
+        );
+      }
     }
     return slotElements;
   }
@@ -113,12 +115,11 @@ export function SchemaRenderer({ node, stores, context = {} }: SchemaRendererPro
     const resolvedItems = resolveStoreProp(node.props?.items, stores);
     const items = typeof resolvedItems === 'function' ? resolvedItems() : resolvedItems;
     const itemsArray = Array.isArray(items) ? items : [];
+    const itemKey = String(node.props?.as ?? 'item');
 
     // Return a list rendering each item with the provided children
     return (
-      <For each={itemsArray}>
-        {(item) => renderChildren(node.children, { ...context, [String(node.props?.as ?? '')]: item }, stores)}
-      </For>
+      <For each={itemsArray}>{(item) => renderChildren(node.children, { ...context, [itemKey]: item }, stores)}</For>
     );
   }
 
