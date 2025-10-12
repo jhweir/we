@@ -28,7 +28,7 @@ export type { RouteDefinition } from '@solidjs/router';
 export type SchemaPropValue = string | number | boolean | Record<string, unknown> | SchemaPropValue[] | undefined;
 
 export type SchemaNode = {
-  type: string;
+  type?: string;
   props?: Record<string, SchemaPropValue>;
   children?: (SchemaNode | string)[];
   slots?: Record<string, SchemaNode>;

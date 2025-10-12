@@ -5,14 +5,15 @@ import { componentRegistry } from './componentRegistry';
 
 type Props = Record<string, unknown>;
 type SchemaRendererProps = { node: SchemaNode | null; stores: Stores; context?: Props };
+type RendererOutput = JSX.Element | Record<string, JSX.Element> | null;
 
 // Helper function to render children nodes
 function renderChildren(
   children: unknown[] | undefined,
   context: Props,
   stores: Stores,
-): (JSX.Element | string)[] | undefined {
-  return children?.map((child): JSX.Element | string =>
+): (RendererOutput | string)[] | undefined {
+  return children?.map((child): RendererOutput | string =>
     typeof child === 'string' ? child : (SchemaRenderer({ node: child as SchemaNode, stores, context }) as JSX.Element),
   );
 }
@@ -30,7 +31,8 @@ function resolveStoreProp(value: unknown, stores: Stores): unknown {
   // Split the $store string into store name and property path
   const storePath = (value as { $store: string }).$store.split('.');
   const [storeName, ...propertyPath] = storePath;
-  // Traverse nested properties starting from the store
+
+  // Traverse nested properties starting from the store to get the final value
   let ref: unknown = stores[storeName];
   for (const prop of propertyPath) {
     if (ref && typeof ref === 'object' && prop in ref) ref = (ref as Props)[prop];
@@ -48,6 +50,7 @@ function resolveExpressionProp(value: unknown, context: Props): unknown {
     const argNames = Object.keys(context);
     const argValues = Object.values(context);
     const fn = new Function(...argNames, `return (${expression});`);
+
     // Call the function with context values to evaluate the expression
     return fn(...argValues);
   } catch (e) {
@@ -62,9 +65,11 @@ function resolveActionProp(value: unknown, context: Props, stores: Stores): unkn
 
   // Split the $action string into store name and method name
   const [storeName, methodName] = (value as { $action: string }).$action.split('.');
+
   // Retrieve args and resolve any expressions within them
   const args = (value as { args?: unknown[] }).args ?? [];
   const resolvedArgs = args.map((arg) => resolveProp(arg, stores, context));
+
   // Get the method from the store and return a callable function
   const store = stores[storeName] as Props | undefined;
   const method = store?.[methodName];
@@ -85,28 +90,37 @@ function resolveProps(props: Props | undefined, stores: Stores, context: Props):
   return resolvedProps;
 }
 
-export function SchemaRenderer({ node, stores, context = {} }: SchemaRendererProps) {
+export function SchemaRenderer({ node, stores, context = {} }: SchemaRendererProps): RendererOutput {
   if (!node) return null;
 
   // Handle slots
   if (node.slots) {
     const slotElements: Record<string, JSX.Element> = {};
     for (const [key, slotNode] of Object.entries(node.slots)) {
-      // If no type is provided for the slot, render children in a JSX fragment
-      if (!slotNode.type) slotElements[key] = <>{renderChildren(slotNode.children, context, stores)}</>;
-      else {
-        // Validate and render with slot component
+      if (slotNode.type) {
+        // Validate slot component and render it with resolved props and children
         const SlotComponent = componentRegistry[slotNode.type];
-        if (!SlotComponent) throw new Error(`Slot "${key}" has unknown type "${slotNode.type}".`);
+        if (!SlotComponent) throw new Error(`Schema slot "${key}" has unknown type "${slotNode.type}".`);
 
         slotElements[key] = (
           <SlotComponent {...resolveProps(slotNode.props, stores, context)}>
             {renderChildren(slotNode.children, context, stores)}
           </SlotComponent>
         );
+      } else {
+        // If no type is provided for the slot, render children in a JSX fragment
+        slotElements[key] = <>{renderChildren(slotNode.children, context, stores)}</>;
       }
     }
     return slotElements;
+  }
+
+  // Handle conditional rendering
+  if (node.type === '$if') {
+    const condition = resolveProp(node.props?.condition, stores, context);
+    const conditionMet = typeof condition === 'function' ? condition() : condition;
+    const nodeToRender = node.props?.[conditionMet ? 'then' : 'else'] as SchemaNode;
+    return SchemaRenderer({ node: nodeToRender, stores, context }) ?? null;
   }
 
   // Handle forEach loops
@@ -119,13 +133,15 @@ export function SchemaRenderer({ node, stores, context = {} }: SchemaRendererPro
 
     // Return a list rendering each item with the provided children
     return (
-      <For each={itemsArray}>{(item) => renderChildren(node.children, { ...context, [itemKey]: item }, stores)}</For>
+      <For each={itemsArray}>
+        {(item) => <>{renderChildren(node.children, { ...context, [itemKey]: item }, stores)}</>}
+      </For>
     );
   }
 
   // Get the component from the registry
-  const Component = componentRegistry[node.type];
-  if (!Component) return null;
+  const Component = componentRegistry[node.type ?? ''];
+  if (!Component) throw new Error(`Schema node has unknown type "${node.type}".`);
 
   // Render the component with resolved props and rendered children
   return (

@@ -32,5 +32,18 @@
       width: 100%;
       flex: 1;
     }
+
+    .we-default-template-modals {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: 100vw;
+      pointer-events: none;
+
+      > * {
+        pointer-events: all;
+      }
+    }
   }
 }

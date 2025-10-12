@@ -86,6 +86,24 @@ const defaultSchema = {
           },
         ],
       },
+      modals: {
+        children: [
+          {
+            type: '$if',
+            props: {
+              condition: { $store: 'modalStore.createSpaceModalOpen' },
+              then: {
+                type: 'CreateSpaceModalWidget',
+                props: {
+                  adamClient: { $store: 'adamStore.adamClient' },
+                  close: { $action: 'modalStore.closeModal', args: ['create-space'] },
+                  save: { $action: 'adamStore.addNewSpace' },
+                },
+              },
+            },
+          },
+        ],
+      },
     },
   },
   routes: [

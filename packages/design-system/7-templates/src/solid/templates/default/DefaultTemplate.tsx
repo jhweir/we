@@ -5,6 +5,7 @@ export type DefaultTemplateProps = {
   // Slots
   sidebar?: JSX.Element;
   header?: JSX.Element;
+  modals?: JSX.Element;
   // Router outlet comes through children
   children?: JSX.Element;
   // Styling
@@ -28,6 +29,9 @@ export function DefaultTemplate(props: DefaultTemplateProps) {
         {/* Page routes */}
         <main class={`${baseClass}-pages`}>{props.children}</main>
       </Column>
+
+      {/* Modals */}
+      {props.modals && <div class={`${baseClass}-modals`}>{props.modals}</div>}
     </Row>
   );
 }
