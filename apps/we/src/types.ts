@@ -15,7 +15,7 @@ export type Stores = {
   modalStore: ModalStore;
   spaceStore: SpaceStore;
   themeStore: ThemeStore;
-};
+} & Record<string, unknown>;
 
 // export type AppProps = {
 //   stores: Stores;

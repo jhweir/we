@@ -19,7 +19,7 @@ export default function TemplateProvider() {
 
   // Build the layout component
   function Layout(props: ParentProps): JSX.Element {
-    // Get navigation and location now we're inside the router context
+    // Get navigate function and location now we're inside the router context
     const navigate = useNavigate();
     const location = useLocation();
 
