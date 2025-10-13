@@ -1,30 +1,33 @@
 import { CircleButton, Column, PopoverMenu, Row } from '@we/components/solid';
-import { HomePage, PageNotFound } from '@we/pages/solid';
+import { HomePage, PageNotFound, SpacePage } from '@we/pages/solid';
 import { DefaultTemplate } from '@we/templates/solid';
-import { CreateSpaceModalWidget } from '@we/widgets/solid';
+import { CreateSpaceModalWidget, SpaceSidebarWidget } from '@we/widgets/solid';
 import { JSX } from 'solid-js';
 
 export type ComponentRegistry = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: (props: any) => JSX.Element;
 };
 
 export const componentRegistry: ComponentRegistry = {
-  // Elements
-  'we-text': (props) => <we-text>{props.children}</we-text>,
+  // @we/elements
+  'we-text': (props) => <we-text {...props}>{props.children}</we-text>,
 
-  // Components
+  // @we/components
   Column,
   Row,
   CircleButton,
   PopoverMenu,
 
-  // Widgets
+  // @we/widgets
   CreateSpaceModalWidget,
+  SpaceSidebarWidget,
 
-  // Pages
+  // @we/pages
   PageNotFound,
   HomePage,
+  SpacePage,
 
-  // Templates
+  // @we/templates
   DefaultTemplate,
 };

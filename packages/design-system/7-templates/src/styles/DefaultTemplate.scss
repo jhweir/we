@@ -17,10 +17,12 @@
 
   .we-default-template-content {
     flex: 1;
+    height: 100%;
 
     .we-default-template-header {
       // height: var(--we-default-template-header-height);
-      width: 100%;
+      position: absolute;
+      width: calc(100% - var(--we-default-template-sidebar-width));
 
       // Force the component passed to the slot to use the full header height
       > * {
@@ -30,7 +32,7 @@
 
     .we-default-template-pages {
       width: 100%;
-      flex: 1;
+      height: 100%;
     }
   }
 

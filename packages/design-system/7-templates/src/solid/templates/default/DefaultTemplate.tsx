@@ -6,7 +6,8 @@ export type DefaultTemplateProps = {
   sidebar?: JSX.Element;
   header?: JSX.Element;
   modals?: JSX.Element;
-  children?: JSX.Element; // Router outlet for pages comes through children
+  // Router outlet for pages
+  children?: JSX.Element;
   // Styling
   class?: string;
   style?: JSX.CSSProperties;
@@ -16,12 +17,12 @@ export function DefaultTemplate(props: DefaultTemplateProps) {
   const baseClass = 'we-default-template';
 
   return (
-    <Row class={`${baseClass} ${props.class || ''}`} style={props.style} bg="ui-0" data-we-template>
+    <Row class={`${baseClass} ${props.class || ''}`} style={props.style} data-we-template>
       {/* Sidebar */}
       {props.sidebar && <aside class={`${baseClass}-sidebar`}>{props.sidebar}</aside>}
 
       {/* Main content */}
-      <Column class={`${baseClass}-content`} ax="center" bg="ui-25">
+      <Column class={`${baseClass}-content`} ax="center" bg="ui-50">
         {/* Header */}
         {props.header && <header class={`${baseClass}-header`}>{props.header}</header>}
 

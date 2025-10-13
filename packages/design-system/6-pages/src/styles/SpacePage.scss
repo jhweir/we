@@ -1,0 +1,15 @@
+.we-space-page {
+  --we-space-page-sidebar-width: 300px;
+
+  height: 100%;
+
+  .we-space-page-sidebar {
+    width: var(--we-space-page-sidebar-width);
+    height: 100%;
+
+    // Force the component passed to the slot to use the full sidebar height
+    > * {
+      height: 100%;
+    }
+  }
+}

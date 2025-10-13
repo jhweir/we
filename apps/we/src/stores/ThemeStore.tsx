@@ -1,6 +1,6 @@
 import { Accessor, createContext, createEffect, createSignal, ParentProps, useContext } from 'solid-js';
 
-import { asVoid, clone } from '../utils';
+import { clone } from '../utils';
 
 const THEMES = {
   light: { name: 'Light', icon: 'sun' },
@@ -38,7 +38,8 @@ export interface ThemeStore {
   themes: Accessor<Theme[]>;
   currentTheme: Accessor<Theme>;
   posts: Accessor<Post[]>; // Placeholder for posts, replace 'any' with actual Post type
-  // Actions
+
+  // Setters
   setThemes: (themes: Theme[]) => void;
   setCurrentTheme: (name: ThemeName) => void;
 }
@@ -49,8 +50,8 @@ export function ThemeStoreProvider(props: ParentProps) {
   // Get the initial theme from localStorage if available before creating signals
   const savedTheme = (typeof window !== 'undefined' && localStorage.getItem(THEME_KEY)) as ThemeName;
 
-  const [themes, setThemes] = createSignal<Theme[]>(clone(Object.values(THEMES)));
-  const [currentTheme, setCurrentTheme] = createSignal<Theme>(clone(THEMES[savedTheme] ?? THEMES.light));
+  const [themes, _setThemes] = createSignal<Theme[]>(clone(Object.values(THEMES)));
+  const [currentTheme, _setCurrentTheme] = createSignal<Theme>(clone(THEMES[savedTheme] ?? THEMES.light));
   const [posts] = createSignal<Post[]>(clone(POSTS));
 
   const store: ThemeStore = {
@@ -58,9 +59,10 @@ export function ThemeStoreProvider(props: ParentProps) {
     themes,
     currentTheme,
     posts,
-    // Actions
-    setThemes: asVoid((newThemes: Theme[]) => setThemes(clone(newThemes))),
-    setCurrentTheme: asVoid((name: ThemeName) => setCurrentTheme(clone(THEMES[name]))),
+
+    // Setters
+    setThemes: (newThemes: Theme[]) => _setThemes(clone(newThemes)),
+    setCurrentTheme: (name: ThemeName) => _setCurrentTheme(clone(THEMES[name])),
   };
 
   // Update the document attribute and localStorage whenever the theme changes

@@ -14,8 +14,11 @@ export interface SpaceStore {
   space: Accessor<Partial<Space>>;
   posts: Accessor<Post[]>;
   loading: Accessor<boolean>;
-  // Actions
+
+  // Setters
   setSpaceId: (id: string) => void;
+
+  // Actions
   getSpace: () => Promise<void>;
   getPosts: (perspective: PerspectiveProxy) => Promise<void>;
 }
@@ -142,8 +145,11 @@ export function SpaceStoreProvider(props: ParentProps) {
     space,
     posts,
     loading,
-    // Actions
+
+    // Setters
     setSpaceId,
+
+    // Actions
     getSpace,
     getPosts,
   };

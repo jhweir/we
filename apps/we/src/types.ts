@@ -43,7 +43,9 @@ export type SchemaNode = {
   slots?: Record<string, SchemaNode>;
 };
 
-export type RouteSchema = { path: string } & SchemaNode;
+export type RouteSchema = { path: string; routes?: RouteSchema[] } & SchemaNode;
+
+export type FlattenedRoute = { path: string; component: () => JSX.Element };
 
 export type TemplateSchema = {
   id: string;

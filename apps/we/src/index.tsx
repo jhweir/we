@@ -5,6 +5,7 @@ import '@we/themes';
 import '@we/elements/solid';
 import '@we/components/styles';
 import '@we/widgets/styles';
+import '@we/pages/styles';
 import '@we/templates/styles';
 
 import { render } from 'solid-js/web';

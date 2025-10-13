@@ -17,8 +17,11 @@ export interface AdamStore {
   adamClient: Accessor<Ad4mClient | undefined>;
   me: Accessor<Agent | undefined>;
   mySpaces: Accessor<Space[]>;
-  // Actions
+
+  // Setters
   setNavigateFunction: (navigate: NavigateFunction) => void;
+
+  // Actions
   navigate: (to: string, options?: Record<string, unknown>) => void;
   addNewSpace: (space: Space) => void;
 }
@@ -107,8 +110,11 @@ export function AdamStoreProvider(props: ParentProps) {
     adamClient,
     me,
     mySpaces,
-    // Actions
+
+    // Setters
     setNavigateFunction,
+
+    // Actions
     navigate,
     addNewSpace,
   };
