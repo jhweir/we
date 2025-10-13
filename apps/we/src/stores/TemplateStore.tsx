@@ -12,7 +12,7 @@ const defaultSchema = {
     slots: {
       sidebar: {
         type: 'Column',
-        props: { bg: 'ui-50', p: '500', ay: 'between' },
+        props: { bg: 'ui-0', p: '500', ay: 'between' },
         children: [
           {
             type: 'Column',
@@ -67,7 +67,7 @@ const defaultSchema = {
       },
       header: {
         type: 'Row',
-        props: { bg: 'ui-75', p: '400', ax: 'end', ay: 'center' },
+        props: { p: '400', ax: 'end', ay: 'center' },
         children: [
           {
             type: 'PopoverMenu',
@@ -103,19 +103,63 @@ const defaultSchema = {
     { path: '*', type: 'PageNotFound' },
     { path: '/', type: 'HomePage' },
     {
-      path: '/posts',
-      type: 'Column',
-      props: { bg: 'ui-300' },
-      children: [
+      path: '/space/:spaceId',
+      type: 'SpacePage',
+      slots: {
+        sidebar: {
+          type: 'SpaceSidebarWidget',
+          props: {
+            name: { $store: 'spaceStore.space.name' },
+            description: { $store: 'spaceStore.space.description' },
+          },
+        },
+      },
+      routes: [
         {
-          type: 'Row',
-          props: { bg: 'ui-50' },
-          children: [{ type: 'we-text', children: ['Post 1...'] }],
+          path: '*',
+          type: 'Column',
+          props: { bg: 'ui-300' },
+          children: [
+            {
+              type: 'Row',
+              props: { bg: 'ui-50' },
+              children: [{ type: 'we-text', props: { size: '800' }, children: ['Space landing page!'] }],
+            },
+          ],
         },
         {
-          type: 'Row',
-          props: { bg: 'ui-50' },
-          children: [{ type: 'we-text', children: ['Post 2...'] }],
+          path: '/posts',
+          type: 'Column',
+          props: { bg: 'ui-300' },
+          children: [
+            {
+              type: 'Row',
+              props: { bg: 'ui-50' },
+              children: [{ type: 'we-text', props: { size: '800' }, children: ['Post 1...'] }],
+            },
+            {
+              type: 'Row',
+              props: { bg: 'ui-50' },
+              children: [{ type: 'we-text', children: ['Post 2...'] }],
+            },
+          ],
+        },
+        {
+          path: '/users',
+          type: 'Column',
+          props: { bg: 'ui-300' },
+          children: [
+            {
+              type: 'Row',
+              props: { bg: 'ui-50' },
+              children: [{ type: 'we-text', props: { size: '800' }, children: ['User 1...'] }],
+            },
+            {
+              type: 'Row',
+              props: { bg: 'ui-50' },
+              children: [{ type: 'we-text', children: ['User 2...'] }],
+            },
+          ],
         },
       ],
     },
@@ -123,7 +167,6 @@ const defaultSchema = {
 };
 
 const TEMPLATES = [defaultSchema];
-
 const TEMPLATE_KEY = 'we.template';
 
 export interface TemplateStore {
@@ -131,7 +174,8 @@ export interface TemplateStore {
   templates: Accessor<TemplateSchema[]>;
   currentTemplate: Accessor<TemplateSchema>;
   currentSchema: Accessor<TemplateSchema>;
-  // Actions
+
+  // Setters
   setTemplates: (templates: TemplateSchema[]) => void;
   setCurrentTemplate: (id: string) => void;
   setCurrentSchema: (schema: TemplateSchema) => void;
@@ -140,13 +184,12 @@ export interface TemplateStore {
 const TemplateContext = createContext<TemplateStore>();
 
 export function TemplateStoreProvider(props: ParentProps) {
-  // Get the initial template from localStorage if available before creating signals
+  // Get the initial template from localStorage if available
   const savedTemplateId = (typeof window !== 'undefined' && localStorage.getItem(TEMPLATE_KEY)) || TEMPLATES[0].id;
+  const savedTemplate = TEMPLATES.find((t) => t.id === savedTemplateId) ?? TEMPLATES[0];
 
   const [templates, setTemplates] = createSignal<TemplateSchema[]>(clone(TEMPLATES));
-  const [currentTemplate, setCurrentTemplateSignal] = createSignal<TemplateSchema>(
-    clone(TEMPLATES.find((t) => t.id === savedTemplateId) ?? TEMPLATES[0]),
-  );
+  const [currentTemplate, setCurrentTemplateSignal] = createSignal<TemplateSchema>(clone(savedTemplate));
   const [currentSchema, setCurrentSchema] = createSignal<TemplateSchema>(defaultSchema);
 
   const setCurrentTemplate = asVoid((id: string) => {
@@ -162,7 +205,8 @@ export function TemplateStoreProvider(props: ParentProps) {
     templates,
     currentTemplate,
     currentSchema,
-    // Actions
+
+    // Setters
     setTemplates,
     setCurrentTemplate,
     setCurrentSchema,
