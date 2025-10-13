@@ -1,4 +1,4 @@
-import { JSX } from 'solid-js';
+import { createMemo, JSX } from 'solid-js';
 
 import type { SchemaNode, Stores } from '../types';
 import { componentRegistry } from './componentRegistry';
@@ -24,18 +24,31 @@ function hasToken(value: unknown, token: string): value is Record<string, string
   return tokenExists && typeof (value as Props)[token] === 'string';
 }
 
-// Resolves $store props (e.g. { $store: 'userStore.profile' })
+// Resolves $store props (e.g. { $store: 'userStore.profile.name' })
 function resolveStoreProp(value: unknown, stores: Stores): unknown {
-  // Split the $store string into a dot-separated property path
   const storePath = (value as { $store: string }).$store.split('.');
   const [storeName, ...propertyPath] = storePath;
 
-  // Walk down property path to get final value (userStore → userStore.profile → userStore.profile.name)
-  let ref: unknown = stores[storeName];
-  for (const prop of propertyPath) {
-    if (ref && typeof ref === 'object' && prop in ref) ref = (ref as Props)[prop];
-  }
-  return ref;
+  // Block entire store access
+  if (propertyPath.length === 0) throw new Error(`Schema error: Cannot pass entire store "${storeName}"`);
+
+  // Return the accessor directly for single-level access
+  if (propertyPath.length === 1) return (stores[storeName] as Props)[propertyPath[0]];
+
+  // Create a derived accessor for nested paths
+  return createMemo(() => {
+    // Walk down property path to get final value (userStore → userStore.profile → userStore.profile.name)
+    let current = stores[storeName];
+    for (const prop of propertyPath) {
+      if (current && typeof current === 'object' && prop in current) {
+        const propValue = (current as Props)[prop];
+        current = typeof propValue === 'function' ? propValue() : propValue;
+      } else {
+        return undefined;
+      }
+    }
+    return current;
+  });
 }
 
 // Resolves $expr props (e.g. { $expr: 'space.name' } or { $expr: '`/space/${space.uuid}`' })
