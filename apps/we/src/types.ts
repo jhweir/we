@@ -5,6 +5,8 @@ export * from './stores/ModalStore';
 export * from './stores/ThemeStore';
 export * from './stores/SpaceStore';
 
+import type { JSX } from 'solid-js';
+
 import type { AdamStore } from './stores/AdamStore';
 import type { ModalStore } from './stores/ModalStore';
 import type { SpaceStore } from './stores/SpaceStore';
@@ -25,7 +27,14 @@ export type Stores = {
 export type { RouteDefinition } from '@solidjs/router';
 
 // Schema types
-export type SchemaPropValue = string | number | boolean | Record<string, unknown> | SchemaPropValue[] | undefined;
+export type SchemaPropValue =
+  | string
+  | number
+  | boolean
+  | JSX.Element
+  | Record<string, unknown>
+  | SchemaPropValue[]
+  | undefined;
 
 export type SchemaNode = {
   type?: string;

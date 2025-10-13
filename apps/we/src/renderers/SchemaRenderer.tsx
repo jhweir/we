@@ -4,7 +4,7 @@ import type { SchemaNode, Stores } from '../types';
 import { componentRegistry } from './componentRegistry';
 
 type Props = Record<string, unknown>;
-type SchemaRendererProps = { node: SchemaNode | null; stores: Stores; context?: Props };
+type SchemaRendererProps = { node: SchemaNode | null; stores: Stores; context?: Props; children?: JSX.Element };
 type RendererOutput = JSX.Element | Record<string, JSX.Element> | null;
 
 // Helper function to render child nodes
@@ -86,12 +86,12 @@ function resolveProps(props: Props | undefined, stores: Stores, context: Props):
   return resolvedProps;
 }
 
-export function SchemaRenderer({ node, stores, context = {} }: SchemaRendererProps): RendererOutput {
+export function SchemaRenderer({ node, stores, context = {}, children }: SchemaRendererProps): RendererOutput {
   if (!node) return null;
 
   // Handle slots
+  const slotElements: Record<string, JSX.Element> = {};
   if (node.slots) {
-    const slotElements: Record<string, JSX.Element> = {};
     for (const [key, slotNode] of Object.entries(node.slots)) {
       if (slotNode.type) {
         // Get the slot component from the component registry
@@ -109,7 +109,6 @@ export function SchemaRenderer({ node, stores, context = {} }: SchemaRendererPro
         slotElements[key] = <>{renderChildren(slotNode.children, context, stores)}</>;
       }
     }
-    return slotElements;
   }
 
   // Handle conditional rendering
@@ -136,10 +135,10 @@ export function SchemaRenderer({ node, stores, context = {} }: SchemaRendererPro
   const Component = componentRegistry[node.type ?? ''];
   if (!Component) throw new Error(`Schema node has unknown type "${node.type}".`);
 
-  // Render the component with resolved props and rendered children
+  // Render the component with resolved props, slot elements, and rendered children
   return (
-    <Component {...resolveProps(node.props, stores, context)}>
-      {renderChildren(node.children, context, stores)}
+    <Component {...resolveProps(node.props, stores, context)} {...slotElements}>
+      {children || renderChildren(node.children, context, stores)}
     </Component>
   );
 }
