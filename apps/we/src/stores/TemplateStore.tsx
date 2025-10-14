@@ -7,96 +7,94 @@ const defaultSchema = {
   id: 'default',
   name: 'Default Template',
   description: 'A simple template with a sidebar, header, and page area.',
-  root: {
-    type: 'DefaultTemplate',
-    slots: {
-      sidebar: {
-        type: 'Column',
-        props: { bg: 'ui-0', p: '500', ay: 'between' },
-        children: [
-          {
-            type: 'Column',
-            props: { ax: 'center', gap: '500' },
-            children: [
-              {
-                type: 'CircleButton',
-                props: {
-                  label: 'Home',
-                  image: 'https://avatars.githubusercontent.com/u/34165012?s=200&v=4',
-                  onClick: { $action: 'adamStore.navigate', args: ['/'] },
-                },
+  type: 'DefaultTemplate',
+  slots: {
+    sidebar: {
+      type: 'Column',
+      props: { bg: 'ui-0', p: '500', ay: 'between' },
+      children: [
+        {
+          type: 'Column',
+          props: { ax: 'center', gap: '500' },
+          children: [
+            {
+              type: 'CircleButton',
+              props: {
+                label: 'Home',
+                image: 'https://avatars.githubusercontent.com/u/34165012?s=200&v=4',
+                onClick: { $action: 'adamStore.navigate', args: ['/'] },
               },
-              {
-                type: 'CircleButton',
-                props: {
-                  label: 'Search',
-                  icon: 'magnifying-glass',
-                  onClick: { $action: 'adamStore.navigate', args: ['/search'] },
-                },
+            },
+            {
+              type: 'CircleButton',
+              props: {
+                label: 'Search',
+                icon: 'magnifying-glass',
+                onClick: { $action: 'adamStore.navigate', args: ['/search'] },
               },
-              {
-                type: '$forEach',
-                props: { items: { $store: 'adamStore.mySpaces' }, as: 'space' },
-                children: [
-                  {
-                    type: 'CircleButton',
-                    props: {
-                      label: { $expr: 'space.name' },
-                      onClick: { $action: 'adamStore.navigate', args: [{ $expr: '`/space/${space.uuid}`' }] },
-                    },
+            },
+            {
+              type: '$forEach',
+              props: { items: { $store: 'adamStore.mySpaces' }, as: 'space' },
+              children: [
+                {
+                  type: 'CircleButton',
+                  props: {
+                    label: { $expr: 'space.name' },
+                    onClick: { $action: 'adamStore.navigate', args: [{ $expr: '`/space/${space.uuid}`' }] },
                   },
-                ],
-              },
-            ],
-          },
-          {
-            type: 'Column',
-            props: { ax: 'center', gap: '500' },
-            children: [
-              {
-                type: 'CircleButton',
-                props: {
-                  label: 'New Space',
-                  icon: 'plus',
-                  onClick: { $action: 'modalStore.openModal', args: ['create-space'] },
                 },
-              },
-            ],
-          },
-        ],
-      },
-      header: {
-        type: 'Row',
-        props: { p: '400', ax: 'end', ay: 'center' },
-        children: [
-          {
-            type: 'PopoverMenu',
-            props: {
-              options: { $store: 'themeStore.themes' },
-              currentOption: { $store: 'themeStore.currentTheme' },
-              setOption: { $store: 'themeStore.setCurrentTheme' },
+              ],
             },
-          },
-        ],
-      },
-      modals: {
-        children: [
-          {
-            type: '$if',
-            props: {
-              condition: { $store: 'modalStore.createSpaceModalOpen' },
-              then: {
-                type: 'CreateSpaceModalWidget',
-                props: {
-                  adamClient: { $store: 'adamStore.adamClient' },
-                  close: { $action: 'modalStore.closeModal', args: ['create-space'] },
-                  save: { $action: 'adamStore.addNewSpace' },
-                },
+          ],
+        },
+        {
+          type: 'Column',
+          props: { ax: 'center', gap: '500' },
+          children: [
+            {
+              type: 'CircleButton',
+              props: {
+                label: 'New Space',
+                icon: 'plus',
+                onClick: { $action: 'modalStore.openModal', args: ['create-space'] },
               },
             },
+          ],
+        },
+      ],
+    },
+    header: {
+      type: 'Row',
+      props: { p: '400', ax: 'end', ay: 'center' },
+      children: [
+        {
+          type: 'PopoverMenu',
+          props: {
+            options: { $store: 'themeStore.themes' },
+            currentOption: { $store: 'themeStore.currentTheme' },
+            setOption: { $store: 'themeStore.setCurrentTheme' },
           },
-        ],
-      },
+        },
+      ],
+    },
+    modals: {
+      children: [
+        {
+          type: '$if',
+          props: {
+            condition: { $store: 'modalStore.createSpaceModalOpen' },
+            then: {
+              type: 'CreateSpaceModalWidget',
+              props: {
+                adamClient: { $store: 'adamStore.adamClient' },
+                close: { $action: 'modalStore.closeModal', args: ['create-space'] },
+                save: { $action: 'adamStore.addNewSpace' },
+              },
+            },
+          },
+        },
+      ],
     },
   },
   routes: [
@@ -116,49 +114,58 @@ const defaultSchema = {
       },
       routes: [
         {
-          path: '*',
+          path: '/*',
+          type: 'we-text',
+          props: { size: '800' },
+          children: ['Space page not found...!'],
+        },
+        {
+          path: '/',
           type: 'Column',
-          props: { bg: 'ui-300' },
+          props: { ax: 'center', gap: '500' },
           children: [
             {
-              type: 'Row',
-              props: { bg: 'ui-50' },
-              children: [{ type: 'we-text', props: { size: '800' }, children: ['Space landing page!'] }],
+              type: 'we-text',
+              props: { size: '800' },
+              children: ['Space landing page!'],
+            },
+            {
+              type: 'CircleButton',
+              props: {
+                label: 'Space posts',
+                icon: 'plus',
+                onClick: { $action: 'adamStore.navigate', args: ['posts'] },
+              },
+            },
+            {
+              type: 'CircleButton',
+              props: {
+                label: 'Space users',
+                icon: 'plus',
+                onClick: { $action: 'adamStore.navigate', args: ['users'] },
+              },
             },
           ],
         },
         {
           path: '/posts',
           type: 'Column',
-          props: { bg: 'ui-300' },
           children: [
+            { type: 'we-text', props: { size: '800' }, children: ['Post 1...'] },
+            { type: 'we-text', children: ['Post 2...'] },
             {
-              type: 'Row',
-              props: { bg: 'ui-50' },
-              children: [{ type: 'we-text', props: { size: '800' }, children: ['Post 1...'] }],
-            },
-            {
-              type: 'Row',
-              props: { bg: 'ui-50' },
-              children: [{ type: 'we-text', children: ['Post 2...'] }],
+              type: 'Column',
+              props: { ax: 'center', gap: '500' },
+              routes: [{ path: '/1', type: 'we-text', children: ['Post 1 page'] }],
             },
           ],
         },
         {
           path: '/users',
           type: 'Column',
-          props: { bg: 'ui-300' },
           children: [
-            {
-              type: 'Row',
-              props: { bg: 'ui-50' },
-              children: [{ type: 'we-text', props: { size: '800' }, children: ['User 1...'] }],
-            },
-            {
-              type: 'Row',
-              props: { bg: 'ui-50' },
-              children: [{ type: 'we-text', children: ['User 2...'] }],
-            },
+            { type: 'we-text', props: { size: '800' }, children: ['User 1...'] },
+            { type: 'we-text', children: ['User 2...'] },
           ],
         },
       ],

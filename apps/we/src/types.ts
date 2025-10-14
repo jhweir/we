@@ -1,10 +1,3 @@
-// Re-export store types so consumers can resolve all referenced types
-// Removing these prevents templates using AppProps from compiling
-export * from './stores/AdamStore';
-export * from './stores/ModalStore';
-export * from './stores/ThemeStore';
-export * from './stores/SpaceStore';
-
 import type { JSX } from 'solid-js';
 
 import type { AdamStore } from './stores/AdamStore';
@@ -19,13 +12,6 @@ export type Stores = {
   themeStore: ThemeStore;
 } & Record<string, unknown>;
 
-// export type AppProps = {
-//   stores: Stores;
-//   navigate: (to: string, options?: { replace?: boolean }) => void;
-// };
-
-export type { RouteDefinition } from '@solidjs/router';
-
 // Schema types
 export type SchemaPropValue =
   | string
@@ -39,18 +25,13 @@ export type SchemaPropValue =
 export type SchemaNode = {
   type?: string;
   props?: Record<string, SchemaPropValue>;
-  children?: (SchemaNode | string)[];
   slots?: Record<string, SchemaNode>;
+  routes?: RouteSchema[];
+  children?: (SchemaNode | string)[];
 };
+
+export type TemplateSchema = { id: string; name: string; description: string } & SchemaNode;
 
 export type RouteSchema = { path: string; routes?: RouteSchema[] } & SchemaNode;
 
 export type FlattenedRoute = { path: string; component: () => JSX.Element };
-
-export type TemplateSchema = {
-  id: string;
-  name: string;
-  description: string;
-  root: SchemaNode;
-  routes: RouteSchema[];
-};

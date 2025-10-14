@@ -24,7 +24,7 @@ function createLayout(stores: Stores, schema: TemplateSchema) {
     });
 
     // Return the rendered schema with the routes as children
-    return SchemaRenderer({ node: schema.root, stores, children: props.children }) as JSX.Element;
+    return SchemaRenderer({ node: schema, stores, children: props.children }) as JSX.Element;
   };
 }
 
@@ -69,7 +69,7 @@ export default function TemplateProvider() {
   const schema = templateStore.currentSchema();
 
   // Build the routes
-  const routes = flattenRoutes(stores, schema.routes);
+  const routes = flattenRoutes(stores, schema.routes ?? []);
 
   // Return the router with the layout and routes
   return (
