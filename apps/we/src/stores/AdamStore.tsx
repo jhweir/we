@@ -98,10 +98,15 @@ export function AdamStoreProvider(props: ParentProps) {
   createEffect(initialiseStore);
 
   function navigate(to: string, options?: Record<string, unknown>) {
-    console.log('AdamStore: navigating to', to);
-    const navFn = navigateFunction();
-    if (typeof navFn === 'function') navFn(to, options);
-    else console.warn('Navigate function not available yet');
+    // Get the navigate function from state
+    const nav = navigateFunction();
+    if (!nav) return;
+
+    // Handle relative navigation if no slash at start and not an http link
+    const isRelativePath = !to.startsWith('/') && !to.startsWith('http');
+    const finalPath = isRelativePath ? `${window.location.pathname}/${to}` : to;
+
+    nav(finalPath, options);
   }
 
   const store: AdamStore = {
