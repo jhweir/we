@@ -160,7 +160,6 @@ const defaultSchema = {
         },
         {
           path: '/posts',
-          type: 'Column',
           children: [
             {
               type: 'Row',
