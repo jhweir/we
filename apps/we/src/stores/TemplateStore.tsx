@@ -97,6 +97,7 @@ const defaultSchema = {
       ],
     },
   },
+  children: [{ type: '$routes' }],
   routes: [
     { path: '*', type: 'PageNotFound' },
     { path: '/', type: 'HomePage' },
@@ -111,7 +112,39 @@ const defaultSchema = {
             description: { $store: 'spaceStore.space.description' },
           },
         },
+        header: {
+          type: 'Row',
+          props: { bg: 'ui-100', p: '400', gap: '400', ay: 'center' },
+          children: [
+            { type: 'we-text', props: { size: '600', nomargin: true }, children: ['Space route'] },
+            {
+              type: 'we-button',
+              props: {
+                variant: 'subtle',
+                onClick: { $action: 'adamStore.navigate', args: ['.'] },
+                children: ['About'],
+              },
+            },
+            {
+              type: 'we-button',
+              props: {
+                variant: 'subtle',
+                onClick: { $action: 'adamStore.navigate', args: ['./posts'] },
+                children: ['Posts'],
+              },
+            },
+            {
+              type: 'we-button',
+              props: {
+                variant: 'subtle',
+                onClick: { $action: 'adamStore.navigate', args: ['./users'] },
+                children: ['Users'],
+              },
+            },
+          ],
+        },
       },
+      children: [{ type: '$routes' }],
       routes: [
         {
           path: '/*',
@@ -121,52 +154,63 @@ const defaultSchema = {
         },
         {
           path: '/',
-          type: 'Column',
-          props: { ax: 'center', gap: '500' },
-          children: [
-            {
-              type: 'we-text',
-              props: { size: '800' },
-              children: ['Space landing page!'],
-            },
-            {
-              type: 'CircleButton',
-              props: {
-                label: 'Space posts',
-                icon: 'plus',
-                onClick: { $action: 'adamStore.navigate', args: ['posts'] },
-              },
-            },
-            {
-              type: 'CircleButton',
-              props: {
-                label: 'Space users',
-                icon: 'plus',
-                onClick: { $action: 'adamStore.navigate', args: ['users'] },
-              },
-            },
-          ],
+          type: 'Row',
+          props: { bg: 'ui-200', ay: 'center', px: '400', style: { height: '60px' } },
+          children: [{ type: 'we-text', props: { size: '600', nomargin: true }, children: ['About sub-route'] }],
         },
         {
           path: '/posts',
           type: 'Column',
           children: [
-            { type: 'we-text', props: { size: '800' }, children: ['Post 1...'] },
-            { type: 'we-text', children: ['Post 2...'] },
+            {
+              type: 'Row',
+              props: { bg: 'ui-200', ay: 'center', gap: '400', px: '400', style: { height: '60px' } },
+              children: [
+                { type: 'we-text', props: { size: '600', nomargin: true }, children: ['Posts sub-route'] },
+                {
+                  type: 'we-button',
+                  props: {
+                    variant: 'subtle',
+                    onClick: { $action: 'adamStore.navigate', args: ['./1'] },
+                    children: ['Post 1'],
+                  },
+                },
+                {
+                  type: 'we-button',
+                  props: {
+                    variant: 'subtle',
+                    onClick: { $action: 'adamStore.navigate', args: ['./2'] },
+                    children: ['Post 2'],
+                  },
+                },
+                {
+                  type: 'we-button',
+                  props: {
+                    variant: 'subtle',
+                    onClick: { $action: 'adamStore.navigate', args: ['../users'] },
+                    children: ['Return back up to users'],
+                  },
+                },
+              ],
+            },
             {
               type: 'Column',
-              props: { ax: 'center', gap: '500' },
-              routes: [{ path: '/1', type: 'we-text', children: ['Post 1 page'] }],
+              props: { bg: 'ui-300', p: '400' },
+              children: [{ type: '$routes' }],
             },
+          ],
+          routes: [
+            { path: '/*', type: 'we-text', props: { size: '600', nomargin: true }, children: ['Post not found...'] },
+            { path: '/', type: 'we-text', props: { size: '600', nomargin: true }, children: ['No posts selected...'] },
+            { path: '/1', type: 'we-text', props: { size: '600', nomargin: true }, children: ['Post 1 sub-sub-route'] },
+            { path: '/2', type: 'we-text', props: { size: '600', nomargin: true }, children: ['Post 2 sub-sub-route'] },
           ],
         },
         {
           path: '/users',
-          type: 'Column',
-          children: [
-            { type: 'we-text', props: { size: '800' }, children: ['User 1...'] },
-            { type: 'we-text', children: ['User 2...'] },
-          ],
+          type: 'Row',
+          props: { bg: 'ui-200', ay: 'center', px: '400', style: { height: '60px' } },
+          children: [{ type: 'we-text', props: { size: '600', nomargin: true }, children: ['User sub-route'] }],
         },
       ],
     },

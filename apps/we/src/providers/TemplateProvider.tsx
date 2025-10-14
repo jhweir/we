@@ -13,9 +13,7 @@ function createLayout(stores: Stores, schema: TemplateSchema) {
     const location = useLocation();
 
     // Store the navigate function in the Adam store so schema actions can use it
-    createEffect(() => {
-      stores.adamStore.setNavigateFunction(() => navigate);
-    });
+    createEffect(() => stores.adamStore.setNavigateFunction(() => navigate));
 
     // React to route changes and update relevant stores
     createEffect(() => {
@@ -28,31 +26,34 @@ function createLayout(stores: Stores, schema: TemplateSchema) {
   };
 }
 
-// Flattens nested route schemas into a list of paths and components
 function flattenRoutes(
   stores: Stores,
   routes: RouteSchema[],
   parentPath = '',
-  parentRoute: RouteSchema | null = null,
+  parentStack: { node: RouteSchema; fullPath: string; baseDepth: number }[] = [],
 ): FlattenedRoute[] {
   return routes.flatMap((route) => {
-    const fullPath = parentPath + route.path;
+    // Get the full route path and base depth (used for relative navigation)
+    const fullPath = route.path === '/' && parentPath ? parentPath : parentPath + route.path;
+    const baseDepth = fullPath.split('/').filter(Boolean).length;
+    const currentMeta = { node: route, fullPath, baseDepth };
 
-    // If the route has children, recurse, otherwise return the route with its component
+    // Build the route component
+    const buildComponent = () => {
+      // Render the leaf with its own context
+      const leaf = SchemaRenderer({ node: route, stores, context: { $nav: { baseDepth } } });
+
+      // Wrap with parents, each rendered with its own baseDepth context
+      return parentStack.reduceRight((child, meta) => {
+        const context = { $nav: { baseDepth: meta.baseDepth } };
+        return SchemaRenderer({ node: meta.node, stores, context, children: child as JSX.Element });
+      }, leaf) as JSX.Element;
+    };
+
+    // If the route has children, recursively flatten them too, otherwise just return the route
     return route.routes?.length
-      ? flattenRoutes(stores, route.routes, fullPath, route)
-      : [
-          {
-            path: fullPath,
-            component: () => {
-              // Render the route, wrapping in parent if present
-              const child = SchemaRenderer({ node: route, stores }) as JSX.Element;
-              return parentRoute
-                ? (SchemaRenderer({ node: parentRoute, stores, children: child }) as JSX.Element)
-                : child;
-            },
-          },
-        ];
+      ? flattenRoutes(stores, route.routes, fullPath, [...parentStack, currentMeta])
+      : [{ path: fullPath, component: buildComponent }];
   });
 }
 

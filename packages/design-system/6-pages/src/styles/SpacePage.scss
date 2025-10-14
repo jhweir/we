@@ -12,4 +12,21 @@
       height: 100%;
     }
   }
+
+  .we-space-page-content {
+    flex: 1;
+    height: 100%;
+
+    .we-space-page-header {
+      // Force the component passed to the slot to use the full header height
+      > * {
+        height: 100%;
+      }
+    }
+
+    .we-space-page-sub-pages {
+      width: 100%;
+      height: calc(100% - 60px);
+    }
+  }
 }

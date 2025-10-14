@@ -22,7 +22,8 @@
     .we-default-template-header {
       // height: var(--we-default-template-header-height);
       position: absolute;
-      width: calc(100% - var(--we-default-template-sidebar-width));
+      right: 0;
+      // width: calc(100% - var(--we-default-template-sidebar-width));
 
       // Force the component passed to the slot to use the full header height
       > * {
