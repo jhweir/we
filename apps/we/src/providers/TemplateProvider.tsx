@@ -4,7 +4,7 @@ import { RenderSchema } from '@we/schema-renderer/solid';
 import type { JSX, ParentProps } from 'solid-js';
 import { createEffect } from 'solid-js';
 
-import { registry } from '@/registry';
+import { componentRegistry as registry } from '@/registries/componentRegistry';
 import { useAdamStore, useModalStore, useSpaceStore, useTemplateStore, useThemeStore } from '@/stores';
 import type { Stores } from '@/types';
 
@@ -71,17 +71,17 @@ export default function TemplateProvider() {
   const modalStore = useModalStore();
   const themeStore = useThemeStore();
   const templateStore = useTemplateStore();
-  const stores = { adamStore, spaceStore, modalStore, themeStore };
+  const stores = { adamStore, spaceStore, modalStore, themeStore, templateStore };
 
-  // Get the current schema
-  const schema = templateStore.currentSchema();
+  // Get the current template schema
+  const templateSchema = templateStore.currentTemplate();
 
   // Build the routes
-  const routes = flattenRoutes(stores, schema.routes ?? []);
+  const routes = flattenRoutes(stores, templateSchema.routes ?? []);
 
   // Return the router with the root layout and routes
   return (
-    <Router root={createLayout(stores, schema)}>
+    <Router root={createLayout(stores, templateSchema)}>
       {routes.map((route) => (
         <Route path={route.path} component={route.component} />
       ))}
