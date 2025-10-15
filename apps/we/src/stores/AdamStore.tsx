@@ -101,8 +101,6 @@ export function AdamStoreProvider(props: ParentProps) {
     // Skip if already on target path
     if (window.location.pathname === to) return;
 
-    console.log('AdamStore: navigating to', to);
-
     const nav = navigateFunction();
     if (nav) nav(to, options);
     else console.warn('Navigate function not available yet');

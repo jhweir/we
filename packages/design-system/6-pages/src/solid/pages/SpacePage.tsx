@@ -30,8 +30,6 @@ export function SpacePage(props: SpacePageProps) {
         {/* Sub-page routes */}
         <main class={`${baseClass}-sub-pages`}>{props.children}</main>
       </Column>
-
-      {/* <BlockComposer perspective={props.perspective} post={props.posts![props.posts!.length - 1]} /> */}
     </Row>
   );
 }

@@ -1,6 +1,6 @@
 {
   "name": "@we/app",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "",
   "type": "module",
   "scripts": {
@@ -29,6 +29,7 @@
     "@we/types": "workspace:*",
     "@we/models": "workspace:*",
     "@we/widgets": "workspace:*",
+    "@we/schema-renderer": "workspace:*",
     "gsap": "^3.13.0",
     "solid-js": "^1.9.5",
     "three": "^0.176.0",

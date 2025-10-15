@@ -1,9 +1,15 @@
 import { Route, Router, useLocation, useNavigate } from '@solidjs/router';
-import { createEffect, type JSX, ParentProps } from 'solid-js';
+import type { RouteSchema, TemplateSchema } from '@we/schema-renderer/solid';
+import { RenderSchema } from '@we/schema-renderer/solid';
+import type { JSX, ParentProps } from 'solid-js';
+import { createEffect } from 'solid-js';
 
-import { SchemaRenderer } from '@/renderers/SchemaRenderer';
+import { registry } from '@/registry';
 import { useAdamStore, useModalStore, useSpaceStore, useTemplateStore, useThemeStore } from '@/stores';
-import type { FlattenedRoute, RouteSchema, Stores, TemplateSchema } from '@/types';
+import type { Stores } from '@/types';
+
+type FlattenedRoute = { path: string; component: () => JSX.Element };
+type ParentStackItem = { node: RouteSchema; fullPath: string; baseDepth: number };
 
 // Creates the root layout component for the router
 function createLayout(stores: Stores, schema: TemplateSchema) {
@@ -22,15 +28,16 @@ function createLayout(stores: Stores, schema: TemplateSchema) {
     });
 
     // Return the rendered schema with the routes as children
-    return SchemaRenderer({ node: schema, stores, children: props.children }) as JSX.Element;
+    return RenderSchema({ node: schema, stores, registry, children: props.children }) as JSX.Element;
   };
 }
 
+// Recursively flattens nested route schemas into a single array of routes with full paths
 function flattenRoutes(
   stores: Stores,
   routes: RouteSchema[],
   parentPath = '',
-  parentStack: { node: RouteSchema; fullPath: string; baseDepth: number }[] = [],
+  parentStack: ParentStackItem[] = [],
 ): FlattenedRoute[] {
   return routes.flatMap((route) => {
     // Get the full route path and base depth (used for relative navigation)
@@ -41,12 +48,12 @@ function flattenRoutes(
     // Build the route component
     const buildComponent = () => {
       // Render the leaf with its own context
-      const leaf = SchemaRenderer({ node: route, stores, context: { $nav: { baseDepth } } });
+      const leaf = RenderSchema({ node: route, stores, registry, context: { $nav: { baseDepth } } });
 
       // Wrap with parents, each rendered with its own baseDepth context
       return parentStack.reduceRight((child, meta) => {
         const context = { $nav: { baseDepth: meta.baseDepth } };
-        return SchemaRenderer({ node: meta.node, stores, context, children: child as JSX.Element });
+        return RenderSchema({ node: meta.node, stores, registry, context, children: child as JSX.Element });
       }, leaf) as JSX.Element;
     };
 
@@ -72,7 +79,7 @@ export default function TemplateProvider() {
   // Build the routes
   const routes = flattenRoutes(stores, schema.routes ?? []);
 
-  // Return the router with the layout and routes
+  // Return the router with the root layout and routes
   return (
     <Router root={createLayout(stores, schema)}>
       {routes.map((route) => (
