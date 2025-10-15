@@ -1,7 +1,9 @@
-// Type guard to check for presence schema tokens
-export function hasToken(value: unknown, token: string): value is Record<string, string> {
+type TokenType = 'string' | 'object';
+
+// Type guard & check for presence of schema tokens
+export function hasToken<T extends string>(value: unknown, token: T, type: TokenType): value is Record<T, unknown> {
   const tokenExists = value != null && typeof value === 'object' && token in value;
-  return tokenExists && typeof (value as Record<string, unknown>)[token] === 'string';
+  return tokenExists && typeof (value as Record<T, unknown>)[token] === type;
 }
 
 // Resolves relative paths used in router navigation (e.g. '.', './', '../')

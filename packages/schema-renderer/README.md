@@ -5,7 +5,7 @@
 ## Features
 
 - **Schema-based UI:** Describe layouts, components, and routing using a flexible schema format.
-- **Dynamic props:** Supports `$store`, `$expr`, and `$action` tokens for state, expressions, and actions.
+- **Dynamic props:** Supports `$store`, `$expr`, `$action`, `$map`, and `$pick` tokens for state, expressions, actions, array mapping, and object property selection.
 - **Routing:** Handles nested route trees and `$routes` outlets for dynamic page content.
 - **Slots:** Named slots for layout composition; renders slot content using a registry or as fragments.
 - **Component registry:** Looks up components by type from a registry, allowing apps to provide their own mapping.

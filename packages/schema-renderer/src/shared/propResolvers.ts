@@ -1,10 +1,12 @@
 import { hasToken, resolveRelativePath } from './helpers';
 
 type Props = Record<string, unknown>;
+type MapProp = { items: unknown; select: Props };
+type PickProp = { from: unknown; props: string[] };
 type Memo = <T>(fn: () => T) => T; // Framework specific memoization function (e.g. Solid's createMemo)
-const noMemo: Memo = (fn) => fn(); // Fallback for if no memoization provided, just returns fn()
+const noMemo: Memo = (fn) => fn(); // Fallback if no memoization provided
 
-// Resolves $store props (e.g. { $store: 'userStore.profile.name' })
+// Resolves $store props: { $store: 'userStore.profile.name' }
 export function resolveStoreProp(value: unknown, stores: Props, memo: Memo = noMemo): unknown {
   const storePath = (value as { $store: string }).$store.split('.');
   const [storeName, ...propertyPath] = storePath;
@@ -31,7 +33,7 @@ export function resolveStoreProp(value: unknown, stores: Props, memo: Memo = noM
   });
 }
 
-// Resolves $expr props (e.g. { $expr: 'space.name' } or { $expr: '`/space/${space.uuid}`' })
+// Resolves $expr props: { $expr: 'space.name' } or { $expr: '`/space/${space.uuid}`' }
 export function resolveExpressionProp(value: unknown, context: Props): unknown {
   try {
     // Create a function with context keys as arguments
@@ -48,7 +50,7 @@ export function resolveExpressionProp(value: unknown, context: Props): unknown {
   }
 }
 
-// Resolves $action props (e.g. { $action: 'adamStore.navigate', args: ['/home'] })
+// Resolves $action props: { $action: 'adamStore.navigate', args: ['/home'] }
 export function resolveActionProp(value: unknown, context: Props, stores: Props, memo: Memo): unknown {
   // Split the $action string into store name and method name
   const [storeName, methodName] = (value as { $action: string }).$action.split('.');
@@ -83,11 +85,51 @@ export function resolveActionProp(value: unknown, context: Props, stores: Props,
   }
 }
 
+// Resolves $map props: { $map: { items: { "$store": "templateStore.templates" }, select: { "name": "$item.meta.name", "icon": "$item.meta.icon" } } }
+function resolveMapProp(map: MapProp, stores: Props, context: Props, memo: Memo): unknown {
+  return memo(() => {
+    const items = resolveProp(map.items, stores, context, memo);
+    const itemsArray = typeof items === 'function' ? items() : items;
+    if (!Array.isArray(itemsArray)) return [];
+    return itemsArray.map((item) => {
+      const result: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(map.select)) {
+        if (typeof value === 'string' && value.startsWith('$item.')) {
+          const path = value.slice(6).split('.');
+          let current = item;
+          for (const p of path) current = current?.[p];
+          result[key] = current;
+        } else {
+          result[key] = value;
+        }
+      }
+      return result;
+    });
+  });
+}
+
+// Resolves $pick props: { $pick: { from: { "$store": "userStore.profile" }, props: ["name", "email"] } }
+function resolvePickProp(pick: PickProp, stores: Props, context: Props, memo: Memo): unknown {
+  return memo(() => {
+    // Resolve the source object
+    const source = resolveProp(pick.from, stores, context, memo);
+    // If source is an accessor, call it
+    const resolvedSource = typeof source === 'function' ? source() : source;
+    if (typeof resolvedSource !== 'object' || resolvedSource === null) return {};
+    // Pick the specified props, wrapping each in a memo accessor
+    const result: Record<string, unknown> = {};
+    for (const key of pick.props) result[key] = (resolvedSource as Record<string, unknown>)[key];
+    return result;
+  });
+}
+
 // Resolve any prop based on its token type
 export function resolveProp(value: unknown, stores: Props, context: Props, memo: Memo = noMemo): unknown {
-  if (hasToken(value, '$store')) return resolveStoreProp(value, stores, memo);
-  if (hasToken(value, '$expr')) return resolveExpressionProp(value, context);
-  if (hasToken(value, '$action')) return resolveActionProp(value, context, stores, memo);
+  if (hasToken(value, '$store', 'string')) return resolveStoreProp(value, stores, memo);
+  if (hasToken(value, '$expr', 'string')) return resolveExpressionProp(value, context);
+  if (hasToken(value, '$action', 'string')) return resolveActionProp(value, context, stores, memo);
+  if (hasToken(value, '$map', 'object')) return resolveMapProp(value['$map'] as MapProp, stores, context, memo);
+  if (hasToken(value, '$pick', 'object')) return resolvePickProp(value['$pick'] as PickProp, stores, context, memo);
   return value;
 }
 

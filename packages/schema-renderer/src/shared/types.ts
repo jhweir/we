@@ -1,41 +1,53 @@
 // Generic schema types for UI rendering
 
-// These types are framework-agnostic and use a generic JSXType parameter.
-// Each framework should extend or specialize these types by passing its own JSX type
+// These types are framework-agnostic and use a generic NodeType parameter.
+// Each framework should specialize the types with its own node type
 // (e.g. JSX.Element for Solid, React.ReactNode for React) to ensure correct typing.
 
-export type ComponentRegistry<JSXType = unknown> = {
+export type ComponentRegistry<NodeType = unknown> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: (props: any) => JSXType;
+  [key: string]: (props: any) => NodeType;
 };
 
-export type SchemaPropValue<JSXType = unknown> =
+export type SchemaPropValue<NodeType = unknown> =
   | string
   | number
   | boolean
-  | JSXType
+  | NodeType
   | Record<string, unknown>
-  | SchemaPropValue<JSXType>[]
+  | SchemaPropValue<NodeType>[]
   | undefined;
 
-export type SchemaNode<JSXType = unknown> = {
-  type?: string;
-  props?: Record<string, SchemaPropValue<JSXType>>;
-  slots?: Record<string, SchemaNode<JSXType>>;
-  routes?: RouteSchema<JSXType>[];
-  children?: (SchemaNode<JSXType> | string)[];
+export type SchemaNode<NodeType = unknown> = {
+  type?: string; // Component type (if not included, children rendered in a fragment)
+  props?: Record<string, SchemaPropValue<NodeType>>; // Component props
+  slots?: Record<string, SchemaNode<NodeType>>; // Named slots for components that support them
+  routes?: RouteSchema<NodeType>[]; // Child routes for route components
+  children?: (SchemaNode<NodeType> | string)[]; // Child nodes (or strings for text nodes)
 };
 
-export type TemplateSchema<JSXType = unknown> = { id: string; name: string; description: string } & SchemaNode<JSXType>;
+export type TemplateMeta = {
+  name: string;
+  description: string;
+  icon: string;
+};
 
-export type RouteSchema<JSXType = unknown> = { path: string; routes?: RouteSchema<JSXType>[] } & SchemaNode<JSXType>;
+export type TemplateSchema<NodeType = unknown> = {
+  id: string;
+  meta: TemplateMeta;
+} & SchemaNode<NodeType>;
 
-export type RenderSchemaProps<JSXType = unknown> = {
-  node: SchemaNode<JSXType> | null;
+export type RouteSchema<NodeType = unknown> = {
+  path: string;
+  routes?: RouteSchema<NodeType>[];
+} & SchemaNode<NodeType>;
+
+export type RenderSchemaProps<NodeType = unknown> = {
+  node: SchemaNode<NodeType> | null;
   stores: Record<string, unknown>;
-  registry: ComponentRegistry<JSXType>;
+  registry: ComponentRegistry<NodeType>;
   context?: Record<string, unknown>;
-  children?: JSXType;
+  children?: NodeType;
 };
 
-export type RendererOutput<JSXType = unknown> = JSXType | Record<string, JSXType> | null;
+export type RendererOutput<NodeType = unknown> = NodeType | Record<string, NodeType> | null;
