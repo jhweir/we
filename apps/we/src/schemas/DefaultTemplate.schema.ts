@@ -124,7 +124,7 @@ const templateModals = {
           props: {
             adamClient: { $store: 'adamStore.adamClient' },
             close: { $action: 'modalStore.closeModal', args: ['create-space'] },
-            save: { $action: 'adamStore.addNewSpace' },
+            addNewSpace: { $action: 'adamStore.addNewSpace' },
           },
         },
       },

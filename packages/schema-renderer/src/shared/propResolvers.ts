@@ -65,7 +65,7 @@ export function resolveActionProp(value: unknown, context: Props, stores: Props,
 
   // Return a callable function if the method exists
   if (typeof method === 'function') {
-    return () => {
+    return (...callArgs: unknown[]) => {
       // Handle special case for relative paths used in router navigation
       if (storeName === 'adamStore' && methodName === 'navigate' && typeof resolvedArgs[0] === 'string') {
         const path = resolvedArgs[0].trim();
@@ -80,7 +80,8 @@ export function resolveActionProp(value: unknown, context: Props, stores: Props,
       }
 
       // Otherwise just call the method with resolved args
-      return method.apply(store, resolvedArgs);
+      const finalArgs = resolvedArgs.length > 0 ? resolvedArgs : callArgs;
+      return method.apply(store, finalArgs);
     };
   }
 }
