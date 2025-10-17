@@ -1,7 +1,8 @@
-import { defaultTemplateSchema } from '../schemas/DefaultTemplate.schema';
+import { defaultTemplateSchema, secondaryTemplateSchema } from '../schemas';
 
 export const templateRegistry = {
   default: defaultTemplateSchema,
+  secondary: secondaryTemplateSchema,
 };
 
 export type TemplateKey = keyof typeof templateRegistry;

@@ -32,10 +32,7 @@ export type TemplateMeta = {
   icon: string;
 };
 
-export type TemplateSchema<NodeType = unknown> = {
-  id: string;
-  meta: TemplateMeta;
-} & SchemaNode<NodeType>;
+export type TemplateSchema<NodeType = unknown> = { meta: TemplateMeta } & SchemaNode<NodeType>;
 
 export type RouteSchema<NodeType = unknown> = {
   path: string;

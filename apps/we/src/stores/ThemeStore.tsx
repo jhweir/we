@@ -5,29 +5,46 @@ import { isValidThemeKey, themeRegistry } from '../registries/themeRegistry';
 
 const THEME_KEY = 'we.theme';
 
+type ThemeWithId = Theme & { id: ThemeKey };
+
 export interface ThemeStore {
   // State
-  themes: Accessor<Theme[]>;
-  currentTheme: Accessor<Theme>;
+  themes: Accessor<ThemeWithId[]>;
+  currentTheme: Accessor<ThemeWithId>;
 
   // Setters
-  setThemes: (themes: Theme[]) => void;
+  setThemes: (themes: ThemeWithId[]) => void;
   setCurrentTheme: (themeKey: ThemeKey) => void;
 }
 
 const ThemeContext = createContext<ThemeStore>();
 
+// Map registry entries to include id
+function mapTheme(key: ThemeKey, theme: Theme): ThemeWithId {
+  return { id: key, ...theme };
+}
+
+// Get all themes from the registry with their ids
+function getMappedThemes(): ThemeWithId[] {
+  return Object.entries(themeRegistry).map(([key, theme]) => mapTheme(key as ThemeKey, theme));
+}
+
+// Get initial theme key from localStorage if available otherwise fall back to the first key in the registry
+function getInitialThemeKey(): ThemeKey {
+  const saved = typeof window !== 'undefined' ? localStorage.getItem(THEME_KEY) : null;
+  const fallback = Object.keys(themeRegistry)[0] as ThemeKey;
+  return isValidThemeKey(saved) ? saved : fallback;
+}
+
 export function ThemeStoreProvider(props: ParentProps) {
-  // Use saved theme key from localStorage if available
-  const savedThemeKey = typeof window !== 'undefined' ? localStorage.getItem(THEME_KEY) : null;
-  const initialThemeKey: ThemeKey = isValidThemeKey(savedThemeKey) ? savedThemeKey : 'light';
-  document.documentElement.setAttribute('data-we-theme', initialThemeKey);
+  const [themes, setThemes] = createSignal<ThemeWithId[]>(getMappedThemes());
+  const [currentThemeKey, setCurrentThemeKey] = createSignal<ThemeKey>(getInitialThemeKey());
 
-  const [themes, setThemes] = createSignal<Theme[]>(Object.values(themeRegistry));
-  const [currentThemeKey, setCurrentThemeKey] = createSignal<ThemeKey>(initialThemeKey);
+  // Derive the current theme based on the currentThemeKey
+  const currentTheme: Accessor<ThemeWithId> = () =>
+    themes().find((t) => t.id === currentThemeKey()) ?? mapTheme('light', themeRegistry.light);
 
-  const currentTheme: Accessor<Theme> = () => themeRegistry[currentThemeKey()];
-
+  // Update the current theme and persist the choice in localStorage
   function setCurrentTheme(themeKey: ThemeKey) {
     if (isValidThemeKey(themeKey)) {
       setCurrentThemeKey(themeKey);

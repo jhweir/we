@@ -5,6 +5,7 @@ import type { RendererOutput, RenderSchemaProps, SchemaNode } from './types';
 import { renderChildren, resolveRenderedChildren } from './utils';
 
 export function RenderSchema({ node, stores, registry, context = {}, children }: RenderSchemaProps): RendererOutput {
+  // const renderedNode = createMemo(() => {
   if (!node) return null;
 
   // Render routed children at $routes token
@@ -37,24 +38,26 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
   }
 
   // Handle slots
-  const slotElements: Record<string, JSX.Element> = {};
-  if (node.slots) {
-    for (const [key, slotNode] of Object.entries(node.slots)) {
-      if (slotNode.type) {
-        // Get the slot component from the registry and render it with its resolved props and children
-        const SlotComponent = registry[slotNode.type];
-        if (!SlotComponent) throw new Error(`Schema slot "${key}" has unknown type "${slotNode.type}".`);
-        slotElements[key] = (
-          <SlotComponent {...resolveProps(slotNode.props, stores, context, createMemo)}>
-            {renderChildren(slotNode.children, context, stores, registry, children)}
+  const slotElements = createMemo<Record<string, JSX.Element>>(() => {
+    const out: Record<string, JSX.Element> = {};
+    const slots = node.slots ?? {};
+    for (const [key, slotNode] of Object.entries(slots)) {
+      console.log('Rendering slot:', key, slotNode);
+      if (!slotNode) continue;
+      if ((slotNode as any).type) {
+        const SlotComponent = registry[(slotNode as any).type];
+        if (!SlotComponent) throw new Error(`Schema slot "${key}" has unknown type "${(slotNode as any).type}".`);
+        out[key] = (
+          <SlotComponent {...resolveProps((slotNode as any).props, stores, context, createMemo)}>
+            {renderChildren((slotNode as any).children, context, stores, registry, children)}
           </SlotComponent>
         );
       } else {
-        // If no type is provided for the slot, render children in a JSX fragment
-        slotElements[key] = <>{renderChildren(slotNode.children, context, stores, registry)}</>;
+        out[key] = <>{renderChildren((slotNode as any).children, context, stores, registry)}</>;
       }
     }
-  }
+    return out;
+  });
 
   // If no type is provided, render children in a JSX fragment
   if (!node.type) return <>{renderChildren(node.children, context, stores, registry, children)}</>;
@@ -63,8 +66,11 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
   const Component = registry[node.type ?? ''];
   if (!Component) throw new Error(`Schema node has unknown type "${node.type}".`);
   return (
-    <Component {...resolveProps(node.props, stores, context, createMemo)} {...slotElements}>
+    <Component {...resolveProps(node.props, stores, context, createMemo)} {...slotElements()}>
       {resolveRenderedChildren(node, stores, registry, context, children)}
     </Component>
   );
+  // });
+
+  // return renderedNode();
 }

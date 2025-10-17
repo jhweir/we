@@ -1,21 +1,5 @@
 import type { TemplateSchema } from '@we/schema-renderer/solid';
 
-const testButtons = {
-  type: 'Row',
-  props: { bg: 'ui-200', ay: 'center', gap: '400', p: '400' },
-  children: [
-    { type: 'we-text', props: { size: '600', nomargin: true }, children: ['Testing buttons'] },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'adamStore.navigate', args: ['./1'] },
-        children: ['Post 1'],
-      },
-    },
-  ],
-};
-
 const templateSidebar = {
   type: 'Column',
   props: { bg: 'ui-0', p: '500', ay: 'between' },
@@ -172,15 +156,15 @@ const spacePageHeader = {
   ],
 };
 
-export const defaultTemplateSchema: TemplateSchema = {
+export const secondaryTemplateSchema: TemplateSchema = {
   meta: {
-    name: 'Default template',
+    name: 'Secondary template',
     description: 'A simple template with a sidebar, header, and page area.',
-    icon: 'layout',
+    icon: 'sidebar',
   },
   type: 'DefaultTemplate',
-  slots: { sidebar: templateSidebar, header: templateHeader, modals: templateModals }, // header: templateHeader
-  children: [testButtons, { type: '$routes' }],
+  slots: { sidebar: templateSidebar, modals: templateModals }, // header: templateHeader,
+  children: [{ type: '$routes' }],
   routes: [
     { path: '*', type: 'PageNotFound' },
     { path: '/', type: 'HomePage' },
