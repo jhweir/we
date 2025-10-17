@@ -5,7 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "build": "pnpm -r run build",
+    "clean": "find . -name 'node_modules' -type d -prune -exec rm -rf '{}' + && find . -name 'dist' -type d -prune -exec rm -rf '{}' + && rm -f pnpm-lock.yaml && pnpm store prune",
+    "build": "pnpm -r --workspace-concurrency=1 run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

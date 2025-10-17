@@ -36,7 +36,7 @@
     "clean": "rimraf dist dist-plugins",
     "build:plugin": "esbuild plugins/css-generator.ts --outfile=dist/plugins/css-generator.js --format=esm --platform=node",
     "build:tokens": "rollup -c",
-    "build": "npm run clean && npm run build:plugin && npm run build:tokens"
+    "build": "pnpm run clean && pnpm run build:plugin && pnpm run build:tokens"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.3.0",
