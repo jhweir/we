@@ -61,9 +61,9 @@ export function AdamStoreProvider(props: ParentProps) {
   async function getMySpaces(client: Ad4mClient): Promise<void> {
     try {
       const perspectives = await client.perspective.all();
-      console.log('AdamStore: getMySpaces perspectives', perspectives);
+      // console.log('AdamStore: getMySpaces perspectives', perspectives);
       const spaces = await Promise.all(perspectives.map(async (perspective) => (await Space.findAll(perspective))[0]));
-      console.log('AdamStore: getMySpaces spaces', spaces);
+      // console.log('AdamStore: getMySpaces spaces', spaces);
       const filteredSpaces = spaces.filter((s) => s).sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
       setMySpaces(filteredSpaces);
     } catch (error) {
@@ -92,6 +92,7 @@ export function AdamStoreProvider(props: ParentProps) {
   }
 
   function addNewSpace(space: Space): void {
+    // console.log('AdamStore: addNewSpace', space);
     setMySpaces((prev) => [...prev, space]);
   }
 

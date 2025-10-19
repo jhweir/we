@@ -1,24 +1,24 @@
 import type { JSX } from 'solid-js';
 
-import { RenderSchema } from './SchemaRenderer';
-import type { ComponentRegistry, RendererOutput, SchemaNode } from './types';
+import { renderChildren } from './SchemaRenderer';
+import type { ComponentRegistry, SchemaNode } from './types';
 
 // Helper function to render child nodes
-export function renderChildren(
-  children: unknown[] | undefined,
-  context: Record<string, unknown>,
-  stores: Record<string, unknown>,
-  registry: ComponentRegistry,
-  routedChild?: JSX.Element,
-): (RendererOutput | string)[] | undefined {
-  return children?.map((child): RendererOutput | string => {
-    // If the child is a string (i.e when passing text to <we-text>), return it directly
-    if (typeof child === 'string') return child;
+// export function renderChildren(
+//   children: unknown[] | undefined,
+//   context: Record<string, unknown>,
+//   stores: Record<string, unknown>,
+//   registry: ComponentRegistry,
+//   routedChild?: JSX.Element,
+// ): (RendererOutput | string)[] | undefined {
+//   return children?.map((child): RendererOutput | string => {
+//     // If the child is a string (i.e when passing text to <we-text>), return it directly
+//     if (typeof child === 'string') return child;
 
-    // Otherwise render the child node
-    return RenderSchema({ node: child as SchemaNode, stores, registry, context, children: routedChild });
-  });
-}
+//     // Otherwise render the child node
+//     return RenderSchema({ node: child as SchemaNode, stores, registry, context, children: routedChild });
+//   });
+// }
 
 // Determines which children to render based on schema and props
 export function resolveRenderedChildren(

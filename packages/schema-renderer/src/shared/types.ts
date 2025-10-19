@@ -24,6 +24,7 @@ export type SchemaNode<NodeType = unknown> = {
   slots?: Record<string, SchemaNode<NodeType>>; // Named slots for components that support them
   routes?: RouteSchema<NodeType>[]; // Child routes for route components
   children?: (SchemaNode<NodeType> | string)[]; // Child nodes (or strings for text nodes)
+  key?: string | number; // Optional key for identifying nodes in lists
 };
 
 export type TemplateMeta = {
@@ -45,6 +46,9 @@ export type RenderSchemaProps<NodeType = unknown> = {
   registry: ComponentRegistry<NodeType>;
   context?: Record<string, unknown>;
   children?: NodeType;
+  key?: string | number;
 };
 
-export type RendererOutput<NodeType = unknown> = NodeType | Record<string, NodeType> | null;
+// export type RendererOutput<NodeType = unknown> = NodeType | Record<string, NodeType> | null;
+
+export type RendererOutput<NodeType = unknown> = NodeType | null;

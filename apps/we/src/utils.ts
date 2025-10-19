@@ -21,6 +21,6 @@ export function clone<T>(value: T): T {
 }
 
 export function deepClone<T>(val: T): T {
-  if (typeof (globalThis as any).structuredClone === 'function') return (globalThis as any).structuredClone(val);
+  // if (typeof (globalThis as any).structuredClone === 'function') return (globalThis as any).structuredClone(val);
   return JSON.parse(JSON.stringify(val));
 }

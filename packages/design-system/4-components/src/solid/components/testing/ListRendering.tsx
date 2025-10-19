@@ -1,4 +1,28 @@
-import type { TemplateSchema } from '@we/schema-renderer/solid';
+// import { For, onMount } from 'solid-js';
+// import { createStore } from 'solid-js/store';
+
+// import { RerenderLog } from './RerenderLog';
+
+// export function ListRendering() {
+//   onMount(() => console.log('Re-mounted ListRendering component'));
+
+//   const [items, setItems] = createStore([{ name: 'Item 1' }, { name: 'Item 2' }, { name: 'Item 3' }]);
+
+//   return (
+//     <div>
+//       <p>List Rendering</p>
+//       <button onClick={() => setItems([...items, { name: `Item ${items.length + 1}` }])}>Add Item</button>
+//       <For each={items} fallback={<p>Loading items...</p>}>
+//         {(item) => <RerenderLog location={`List item: ${item.name}`} />}
+//       </For>
+//     </div>
+//   );
+// }
+
+import { For, onMount } from 'solid-js';
+import { createStore } from 'solid-js/store';
+
+import { RerenderLog } from './RerenderLog';
 
 const testButtons = {
   type: 'Row',
@@ -193,7 +217,7 @@ const spacePageHeader = {
   ],
 };
 
-export const defaultTemplateSchema: TemplateSchema = {
+export const defaultTemplateSchema = {
   meta: {
     name: 'Default template',
     description: 'A simple template with a sidebar, header, and page area.',
@@ -293,3 +317,74 @@ export const defaultTemplateSchema: TemplateSchema = {
     },
   ],
 };
+
+export function ListRendering() {
+  onMount(() => console.log('Re-mounted ListRendering component'));
+
+  const [schema, setSchema] = createStore(defaultTemplateSchema);
+
+  function addItem() {
+    console.log(
+      'before',
+      // @ts-expect-error ts-ignore
+      schema.routes[2].routes[2].children[0].children.map((child) => child),
+    );
+
+    setSchema('routes', 2, 'routes', 2, 'children', 0, 'children', (children: any) => [
+      ...children,
+      {
+        type: 'we-button',
+        key: 'new-btn-' + Date.now(), // or use uuid()
+        props: {
+          variant: 'subtle',
+          children: ['New button'],
+        },
+      },
+    ]);
+
+    console.log(
+      'after',
+      // @ts-expect-error ts-ignore
+      schema.routes[2].routes[2].children[0].children.map((child) => child),
+    );
+  }
+
+  return (
+    <div>
+      <p>List Rendering</p>
+      <button onClick={addItem}>Add Item</button>
+      <For each={(schema as any).routes[2].routes[2].children[0].children} fallback={<p>Loading items...</p>}>
+        {(item) => <RerenderLog location={`List item: ${item.key}`} />}
+      </For>
+    </div>
+  );
+}
+
+// export function ListRendering() {
+//   onMount(() => console.log('Re-mounted ListRendering component'));
+
+//   const initialSchema = {
+//     type: 'Type',
+//     children: [
+//       { type: 'ChildType1' },
+//       { type: 'ChildType2' },
+//       { type: 'ChildType3', items: [{ name: 'Item 1' }, { name: 'Item 2' }, { name: 'Item 3' }] },
+//     ],
+//   };
+
+//   const [schema, setSchema] = createStore(initialSchema);
+
+//   function addItem() {
+//     setSchema('children', 2, 'items', (it: any) => [...it, { name: `Item ${it.length + 1}` }]);
+//   }
+
+//   return (
+//     <div>
+//       <p>List Rendering</p>
+//       <button onClick={addItem}>Add Item</button>
+//       <For each={schema.children[2].items} fallback={<p>Loading items...</p>}>
+//         {(item) => <RerenderLog location={`List item: ${item.name}`} />}
+//       </For>
+//     </div>
+//   );
+// }
