@@ -33,7 +33,10 @@ export function AdamStoreProvider(props: ParentProps) {
   const [navigateFunction, setNavigateFunction] = createSignal<NavigateFunction | null>(null);
   const [adamClient, setAdamClient] = createSignal<Ad4mClient | undefined>(undefined);
   const [me, setMe] = createSignal<Agent | undefined>(undefined);
-  const [mySpaces, setMySpaces] = createSignal<Space[]>([]);
+  const [mySpaces, setMySpaces] = createSignal<Space[]>([
+    { name: 'A', uuid: 'a' },
+    { name: 'B', uuid: 'b' },
+  ]);
 
   async function getAdamClient() {
     try {
@@ -82,11 +85,11 @@ export function AdamStoreProvider(props: ParentProps) {
   // }
 
   async function initialiseStore(): Promise<void> {
-    const client = await getAdamClient();
-    if (!client) return;
-    setAdamClient(client);
+    // const client = await getAdamClient();
+    // if (!client) return;
+    // setAdamClient(client);
 
-    await Promise.all([getMe(client), getMySpaces(client)]);
+    // await Promise.all([getMe(client), getMySpaces(client)]);
 
     setLoading(false);
   }

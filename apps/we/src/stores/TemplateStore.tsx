@@ -1,6 +1,6 @@
 import type { TemplateSchema } from '@we/schema-renderer/solid';
 import { Accessor, batch, createContext, createSignal, ParentProps, useContext } from 'solid-js';
-import { createStore } from 'solid-js/store';
+import { createStore, produce } from 'solid-js/store';
 
 import { isValidTemplateKey, TemplateKey, templateRegistry } from '../registries/templateRegistry';
 import { deepClone } from '../utils';
@@ -197,57 +197,16 @@ export function TemplateStoreProvider(props: ParentProps) {
   function editPostsPageHeaderButton() {
     const newSchema = deepClone(currentSchema);
     // @ts-expect-error ts-ignore
-    newSchema.routes[2].routes[2].children[0].children[1].props.variant = 'primary';
+    newSchema.routes[2].routes[2].children[0].children[2].props.variant = 'primary';
     updateSchema(currentSchema, newSchema);
   }
 
   function addPostsPageHeaderButton() {
-    // const newSchema = deepClone(currentSchema);
-    // console.log('newSchema before addPostsPageHeaderButton:', newSchema);
-    // const newButton = {
-    //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     children: ['New button'],
-    //   },
-    // };
-    // // @ts-expect-error ts-ignore
-    // newSchema.routes[2].routes[2].children[0].children.push(newButton);
-    // updateSchema(currentSchema, newSchema);
-
-    console.log(
-      'before',
-      currentSchema.routes[2].routes[2].children[0].children.map((child) => child),
-    );
-
-    setCurrentSchema('routes', 2, 'routes', 2, 'children', 0, 'children', (children) => [
-      ...children,
-      // {
-      //   type: 'we-button',
-      //   key: 'new-btn-' + Date.now(), // or use uuid()
-      //   props: {
-      //     variant: 'subtle',
-      //     children: ['New button'],
-      //   },
-      // },
-      { type: 'RerenderLog', props: { location: 'New button added' } },
-    ]);
-
-    console.log(
-      'after',
-      currentSchema.routes[2].routes[2].children[0].children.map((child) => child),
-    );
-
-    // setCurrentSchema('routes', 2, 'routes', 2, 'children', 0, 'children', (children) =>
-    //   children.concat({
-    //     type: 'we-button',
-    //     key: 'new-btn-' + Date.now(),
-    //     props: {
-    //       variant: 'subtle',
-    //       children: ['New button'],
-    //     },
-    //   }),
-    // );
+    const newSchema = deepClone(currentSchema);
+    const newButton = { type: 'we-button', props: { variant: 'subtle', children: ['New button'] } };
+    // @ts-expect-error ts-ignore
+    newSchema.routes[2].routes[2].children[0].children.push(newButton);
+    updateSchema(currentSchema, newSchema);
   }
 
   const store: TemplateStore = {

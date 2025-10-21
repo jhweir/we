@@ -20,7 +20,7 @@
 // }
 
 import { For, onMount } from 'solid-js';
-import { createStore } from 'solid-js/store';
+import { createStore, produce } from 'solid-js/store';
 
 import { RerenderLog } from './RerenderLog';
 
@@ -323,29 +323,38 @@ export function ListRendering() {
 
   const [schema, setSchema] = createStore(defaultTemplateSchema);
 
+  // function addItem() {
+
+  //   setSchema('routes', 2, 'routes', 2, 'children', 0, 'children', (children: any) => [
+  //     ...children,
+  //     {
+  //       type: 'we-button',
+  //       key: 'new-btn-' + Date.now(), // or use uuid()
+  //       props: {
+  //         variant: 'subtle',
+  //         children: ['New button'],
+  //       },
+  //     },
+  //   ]);
+  // }
+
   function addItem() {
-    console.log(
-      'before',
-      // @ts-expect-error ts-ignore
-      schema.routes[2].routes[2].children[0].children.map((child) => child),
-    );
-
-    setSchema('routes', 2, 'routes', 2, 'children', 0, 'children', (children: any) => [
-      ...children,
-      {
-        type: 'we-button',
-        key: 'new-btn-' + Date.now(), // or use uuid()
-        props: {
-          variant: 'subtle',
-          children: ['New button'],
-        },
-      },
-    ]);
-
-    console.log(
-      'after',
-      // @ts-expect-error ts-ignore
-      schema.routes[2].routes[2].children[0].children.map((child) => child),
+    setSchema(
+      'routes',
+      2,
+      'routes',
+      2,
+      'children',
+      0,
+      'children',
+      produce((children: any[] = []) => {
+        children.push({
+          type: 'we-button',
+          key: 'new-btn-' + Date.now(),
+          props: { variant: 'subtle', children: ['New button'] },
+        });
+        return children; // produce returns the mutated array
+      }),
     );
   }
 

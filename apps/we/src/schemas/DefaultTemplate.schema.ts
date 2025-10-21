@@ -201,7 +201,7 @@ export const defaultTemplateSchema: TemplateSchema = {
   },
   type: 'DefaultTemplate',
   slots: { sidebar: templateSidebar, header: templateHeader, modals: templateModals },
-  children: [{ type: 'ListRendering' }, testButtons, { type: '$routes' }],
+  children: [testButtons, { type: '$routes' }], // { type: 'ListRendering' }
   routes: [
     { path: '*', type: 'PageNotFound' },
     { path: '/', type: 'HomePage' },
@@ -232,13 +232,12 @@ export const defaultTemplateSchema: TemplateSchema = {
             {
               type: 'Row',
               props: { bg: 'ui-200', ay: 'center', gap: '400', px: '400', style: { height: '60px' } },
-              key: 'posts-header-btns',
+              // key: 'posts-header-btns',
               children: [
-                { type: 'RerenderLog', key: 'a', props: { location: 'PostsPage header buttons' } },
-                { type: 'we-text', key: 'b', props: { size: '600', nomargin: true }, children: ['Posts sub-page'] },
+                { type: 'RerenderLog', props: { location: 'PostsPage header buttons' } },
+                // { type: 'we-text', props: { size: '600', nomargin: true }, children: ['Posts sub-page'] },
                 {
                   type: 'we-button',
-                  key: 'c',
                   props: {
                     variant: 'subtle',
                     onClick: { $action: 'adamStore.navigate', args: ['./1'] },
@@ -247,7 +246,6 @@ export const defaultTemplateSchema: TemplateSchema = {
                 },
                 {
                   type: 'we-button',
-                  key: 'd',
                   props: {
                     variant: 'subtle',
                     onClick: { $action: 'adamStore.navigate', args: ['./2'] },
@@ -256,14 +254,13 @@ export const defaultTemplateSchema: TemplateSchema = {
                 },
                 {
                   type: 'we-button',
-                  key: 'e',
                   props: {
                     variant: 'subtle',
                     onClick: { $action: 'adamStore.navigate', args: ['../users'] },
                     children: ['Return back up to users'],
                   },
                 },
-                // { type: 'RerenderLog', key: 'd', props: { location: 'PostsPage header buttons' } },
+                { type: 'RerenderLog', props: { location: 'PostsPage header buttons 2' } },
               ],
             },
             {

@@ -3,7 +3,7 @@ import type { JSX } from 'solid-js';
 import { renderChildren } from './SchemaRenderer';
 import type { ComponentRegistry, SchemaNode } from './types';
 
-// Helper function to render child nodes
+// // Helper function to render child nodes
 // export function renderChildren(
 //   children: unknown[] | undefined,
 //   context: Record<string, unknown>,
@@ -20,22 +20,22 @@ import type { ComponentRegistry, SchemaNode } from './types';
 //   });
 // }
 
-// Determines which children to render based on schema and props
-export function resolveRenderedChildren(
-  node: SchemaNode,
-  stores: Record<string, unknown>,
-  registry: ComponentRegistry,
-  context: Record<string, unknown>,
-  routedChild: JSX.Element | undefined,
-): JSX.Element | undefined {
-  // If schema children exist, render them
-  const hasSchemaChildren = Array.isArray(node.children) && node.children.length > 0;
-  if (hasSchemaChildren) return renderChildren(node.children, context, stores, registry, routedChild) as JSX.Element;
+// // Determines which children to render based on schema and props
+// export function resolveRenderedChildren(
+//   node: SchemaNode,
+//   stores: Record<string, unknown>,
+//   registry: ComponentRegistry,
+//   context: Record<string, unknown>,
+//   routedChild: JSX.Element | undefined,
+// ): JSX.Element | undefined {
+//   // If schema children exist, render them
+//   const hasSchemaChildren = Array.isArray(node.children) && node.children.length > 0;
+//   if (hasSchemaChildren) return renderChildren(node.children, context, stores, registry, routedChild) as JSX.Element;
 
-  // If no schema children and no explicit props.children, fallback to the routed child
-  const hasExplicitPropsChildren = !!(node.props && Object.prototype.hasOwnProperty.call(node.props, 'children'));
-  if (!hasExplicitPropsChildren) return routedChild;
+//   // If no schema children and no explicit props.children, fallback to the routed child
+//   const hasExplicitPropsChildren = !!(node.props && Object.prototype.hasOwnProperty.call(node.props, 'children'));
+//   if (!hasExplicitPropsChildren) return routedChild;
 
-  // If props.children exists, render nothing here (component handles its own children)
-  return undefined;
-}
+//   // If props.children exists, render nothing here (component handles its own children)
+//   return undefined;
+// }
