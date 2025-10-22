@@ -37,6 +37,14 @@ const testButtons = {
         children: ['addPostsPageHeaderButton'],
       },
     },
+    {
+      type: 'we-button',
+      props: {
+        variant: 'subtle',
+        onClick: { $action: 'templateStore.addSidebarButton' },
+        children: ['addSidebarButton'],
+      },
+    },
   ],
 };
 
@@ -93,7 +101,7 @@ const templateSidebar = {
         },
       ],
     },
-    // { type: 'RerenderLog', props: { location: 'Template Sidebar' } },
+    { type: 'RerenderLog', props: { location: 'Template Sidebar' } },
   ],
 };
 
@@ -132,8 +140,6 @@ const templateHeader = {
 };
 
 const templateModals = {
-  // type: 'Row',
-  // props: { style: { height: '50vh' } },
   children: [
     {
       type: '$if',
@@ -149,7 +155,7 @@ const templateModals = {
         },
       },
     },
-    // { type: 'RerenderLog', props: { location: 'Template Modals' } },
+    { type: 'RerenderLog', props: { location: 'Template Modals' } },
   ],
 };
 

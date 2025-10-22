@@ -25,6 +25,7 @@ export interface TemplateStore {
   editSpacePageHeaderButton: () => void;
   editPostsPageHeaderButton: () => void;
   addPostsPageHeaderButton: () => void;
+  addSidebarButton: () => void;
 }
 
 const TemplateContext = createContext<TemplateStore>();
@@ -209,6 +210,14 @@ export function TemplateStoreProvider(props: ParentProps) {
     updateSchema(currentSchema, newSchema);
   }
 
+  function addSidebarButton() {
+    const newSchema = deepClone(currentSchema);
+    const newButton = { type: 'we-button', props: { variant: 'subtle', children: ['New button'] } };
+    // @ts-expect-error ts-ignore
+    newSchema.slots.sidebar.children[0].children.push(newButton);
+    updateSchema(currentSchema, newSchema);
+  }
+
   const store: TemplateStore = {
     // State
     templates,
@@ -225,6 +234,7 @@ export function TemplateStoreProvider(props: ParentProps) {
     editSpacePageHeaderButton,
     editPostsPageHeaderButton,
     addPostsPageHeaderButton,
+    addSidebarButton,
   };
 
   return <TemplateContext.Provider value={store}>{props.children}</TemplateContext.Provider>;
