@@ -2,7 +2,7 @@ import { Route, Router, useLocation, useNavigate } from '@solidjs/router';
 import type { RouteSchema, TemplateSchema } from '@we/schema-renderer/solid';
 import { RenderSchema } from '@we/schema-renderer/solid';
 import type { JSX, ParentProps } from 'solid-js';
-import { createEffect, createMemo } from 'solid-js';
+import { createEffect } from 'solid-js';
 
 import { componentRegistry as registry } from '@/registries/componentRegistry';
 import { useAdamStore, useModalStore, useSpaceStore, useTemplateStore, useThemeStore } from '@/stores';
@@ -27,12 +27,6 @@ function createLayout(stores: Stores, schema: TemplateSchema) {
       if (page === 'space' && pageId) stores.spaceStore.setSpaceId(pageId);
     });
 
-    // const renderedSchema = createMemo(
-    //   () => RenderSchema({ node: schema, stores, registry, children: props.children }) as JSX.Element,
-    // );
-
-    // return renderedSchema();
-
     // Return the rendered schema with the routes as children
     return RenderSchema({ node: schema, stores, registry, children: props.children }) as JSX.Element;
   };
@@ -50,8 +44,6 @@ function flattenRoutes(
     const fullPath = route.path === '/' && parentPath ? parentPath : parentPath + route.path;
     const baseDepth = fullPath.split('/').filter(Boolean).length;
     const currentMeta = { node: route, fullPath, baseDepth };
-
-    // console.log('flattenRoutes:', fullPath, parentStack, currentMeta);
 
     // Build the route component
     const buildComponent = () => {

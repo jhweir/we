@@ -93,7 +93,7 @@ const templateSidebar = {
         },
       ],
     },
-    { type: 'RerenderLog', props: { location: 'Template Sidebar' } },
+    // { type: 'RerenderLog', props: { location: 'Template Sidebar' } },
   ],
 };
 
@@ -132,6 +132,8 @@ const templateHeader = {
 };
 
 const templateModals = {
+  // type: 'Row',
+  // props: { style: { height: '50vh' } },
   children: [
     {
       type: '$if',
@@ -147,7 +149,7 @@ const templateModals = {
         },
       },
     },
-    { type: 'RerenderLog', props: { location: 'Template Modals' } },
+    // { type: 'RerenderLog', props: { location: 'Template Modals' } },
   ],
 };
 
@@ -232,10 +234,23 @@ export const defaultTemplateSchema: TemplateSchema = {
             {
               type: 'Row',
               props: { bg: 'ui-200', ay: 'center', gap: '400', px: '400', style: { height: '60px' } },
-              // key: 'posts-header-btns',
               children: [
-                { type: 'RerenderLog', props: { location: 'PostsPage header buttons' } },
+                // { type: 'RerenderLog', props: { location: 'PostsPage header buttons' } },
                 // { type: 'we-text', props: { size: '600', nomargin: true }, children: ['Posts sub-page'] },
+                // {
+                //   type: '$if',
+                //   props: {
+                //     condition: { $store: 'modalStore.createSpaceModalOpen' },
+                //     then: {
+                //       type: 'CreateSpaceModalWidget',
+                //       props: {
+                //         adamClient: { $store: 'adamStore.adamClient' },
+                //         close: { $action: 'modalStore.closeModal', args: ['create-space'] },
+                //         addNewSpace: { $action: 'adamStore.addNewSpace' },
+                //       },
+                //     },
+                //   },
+                // },
                 {
                   type: 'we-button',
                   props: {

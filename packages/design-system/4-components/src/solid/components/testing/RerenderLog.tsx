@@ -5,9 +5,7 @@ export interface RerenderLogProps {
 }
 
 export function RerenderLog(props: RerenderLogProps) {
-  onMount(() => {
-    console.log('Re-mounted in: ', props.location);
-  });
+  onMount(() => console.log('Re-mounted in: ', props.location));
 
-  return <div style={{ display: 'none' }} />;
+  return <div style={{ width: '10px', height: '10px', background: 'red' }} />;
 }

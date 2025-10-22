@@ -22,12 +22,14 @@ export function ModalStoreProvider(props: ParentProps) {
   function openModal(modal: ModalName) {
     console.log('open modal: ', modal);
     if (modal === 'create-space') setCreateSpaceModalOpen(true);
+    console.log('createSpaceModalOpen:', createSpaceModalOpen());
     // Add more cases as you add more modals
   }
 
   function closeModal(modal: ModalName) {
     console.log('close modal: ', modal);
     if (modal === 'create-space') setCreateSpaceModalOpen(false);
+    console.log('createSpaceModalOpen:', createSpaceModalOpen());
     // Add more cases as you add more modals
   }
 

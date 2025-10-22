@@ -13,4 +13,3 @@ export { PopoverMenu, type PopoverMenuProps } from './components/menus/PopoverMe
 
 // Testing
 export { RerenderLog, type RerenderLogProps } from './components/testing/RerenderLog';
-export { ListRendering } from './components/testing/ListRendering';

@@ -1,28 +1,39 @@
-import { createMemo, For, JSX, untrack } from 'solid-js';
+import { createMemo, For, JSX, Show, untrack } from 'solid-js';
 
 import { resolveProp, resolveProps, resolveStoreProp } from '../../shared/propResolvers';
 import type { ComponentRegistry, RendererOutput, RenderSchemaProps, SchemaNode } from './types';
 
-export function renderChildren(
-  children: () => unknown[] | undefined,
+// Helper function to render child nodes
+function renderChildren(
+  children: unknown[] | undefined,
   context: Record<string, unknown>,
   stores: Record<string, unknown>,
   registry: ComponentRegistry,
   routedChild?: JSX.Element,
 ): RendererOutput {
-  // Delegate to ChildList so the parent doesn't directly read `children` during its memo.
   if (!children) return undefined;
   return (
-    <For each={children() ?? []} fallback={null}>
+    <For each={children ?? []} fallback={null}>
       {(child) => {
         if (typeof child === 'string') return child;
-        return RenderSchema({ node: child as SchemaNode, stores, registry, context, children: routedChild });
+        // return RenderSchema({ node: child as SchemaNode, stores, registry, context, children: routedChild });
+        return (
+          <RenderSchema
+            node={child as SchemaNode}
+            stores={stores}
+            registry={registry}
+            context={context}
+            children={routedChild}
+          />
+        );
       }}
     </For>
   );
 }
 
+// Main function to render a schema node
 export function RenderSchema({ node, stores, registry, context = {}, children }: RenderSchemaProps): RendererOutput {
+  console.log('*** version: 1');
   // const renderedNode = createMemo(() => {
   if (!node) return null;
 
@@ -32,9 +43,20 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
   // Handle conditional rendering
   if (node.type === '$if') {
     const condition = resolveProp(node.props?.condition, stores, context, createMemo);
-    const conditionMet = typeof condition === 'function' ? condition() : condition;
-    const nodeToRender = node.props?.[conditionMet ? 'then' : 'else'] as SchemaNode;
-    return RenderSchema({ node: nodeToRender, stores, registry, context, children }) ?? null;
+    const conditionMet = createMemo(() => (typeof condition === 'function' ? condition() : condition));
+
+    const thenNode = (node.props?.then || null) as SchemaNode | null;
+    const elseNode = (node.props?.else || null) as SchemaNode | null;
+
+    const renderNode = (node: SchemaNode | null) => (
+      <RenderSchema node={node} stores={stores} registry={registry} context={context} children={children} />
+    );
+
+    return (
+      <Show when={conditionMet()} fallback={renderNode(elseNode)}>
+        {renderNode(thenNode)}
+      </Show>
+    );
   }
 
   // Handle for-each loops
@@ -57,15 +79,22 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
     // Return the items with their rendered children
     return (
       <For each={itemsArray()}>
-        {(item) =>
-          RenderSchema({
-            node: (node as any).children[0] as any,
-            stores,
-            registry,
-            context: { ...context, [as]: item },
-            children,
-          })
-        }
+        {(item) => (
+          // RenderSchema({
+          //   node: (node as any).children[0] as any,
+          //   stores,
+          //   registry,
+          //   context: { ...context, [as]: item },
+          //   children,
+          // })
+          <RenderSchema
+            node={(node as any).children[0] as any}
+            stores={stores}
+            registry={registry}
+            context={{ ...context, [as]: item }}
+            children={children}
+          />
+        )}
       </For>
       // <>
       //   {itemsArray().map((item: any) =>
@@ -80,18 +109,18 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
     const out: Record<string, JSX.Element> = {};
     const slots = node.slots ?? {};
     for (const [slotKey, slotNode] of Object.entries(slots)) {
-      // console.log('Rendering slot:', slotKey, slotNode);
+      console.log('Rendering slot:', slotKey, slotNode);
       if (!slotNode) continue;
       if ((slotNode as any).type) {
         const SlotComponent = registry[(slotNode as any).type];
         if (!SlotComponent) throw new Error(`Schema slot "${slotKey}" has unknown type "${(slotNode as any).type}".`);
         out[slotKey] = (
           <SlotComponent {...resolveProps((slotNode as any).props, stores, context, createMemo)}>
-            {renderChildren(() => (slotNode as any).children, context, stores, registry, children)}
+            {renderChildren((slotNode as any).children, context, stores, registry, children)}
           </SlotComponent>
         );
       } else {
-        out[slotKey] = <div>{renderChildren(() => (slotNode as any).children, context, stores, registry)}</div>;
+        out[slotKey] = <>{renderChildren((slotNode as any).children, context, stores, registry, children)}</>;
       }
     }
     return out;
@@ -99,7 +128,7 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
 
   // If no type is provided, render children in a JSX fragment
   if (!node.type) {
-    return <div>{renderChildren(() => node.children, context, stores, registry, children)}</div>;
+    return <>{renderChildren(node.children, context, stores, registry, children)}</>;
   }
 
   // Otherwise get the component from the registry and render it with its resolved props, slots, and children
@@ -114,7 +143,7 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
   );
 
   if (hasSchemaChildren) {
-    renderedChildren = renderChildren(() => node.children, context, stores, registry, children) as JSX.Element;
+    renderedChildren = renderChildren(node.children, context, stores, registry, children) as JSX.Element;
   } else if (!hasExplicitPropsChildren) {
     // only use routed child when there are NO schema children
     renderedChildren = children;
@@ -128,4 +157,6 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
       {renderedChildren}
     </Component>
   );
+  // });
+  // return renderedNode();
 }

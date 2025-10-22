@@ -1,4 +1,4 @@
-import { CircleButton, Column, ListRendering, PopoverMenu, RerenderLog, Row } from '@we/components/solid';
+import { CircleButton, Column, PopoverMenu, RerenderLog, Row } from '@we/components/solid';
 import { HomePage, PageNotFound, SpacePage } from '@we/pages/solid';
 import type { ComponentRegistry } from '@we/schema-renderer/solid';
 import { DefaultTemplate } from '@we/templates/solid';
@@ -15,7 +15,6 @@ export const componentRegistry: ComponentRegistry = {
   CircleButton,
   PopoverMenu,
   RerenderLog,
-  ListRendering,
 
   // @we/widgets
   CreateSpaceModalWidget,
