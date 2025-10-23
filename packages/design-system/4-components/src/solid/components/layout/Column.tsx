@@ -1,4 +1,4 @@
-import { JSX, splitProps } from 'solid-js';
+import { createMemo, JSX, splitProps } from 'solid-js';
 
 import type { AlignPosition, AlignPositionAndSpacing, RadiusToken, SpaceToken } from '../../../shared/types';
 
@@ -65,68 +65,72 @@ export function Column(allProps: ColumnProps) {
     'style','children', // Other
   ] as const);
 
-  // Flex basics
-  const style: JSX.CSSProperties = {
-    display: 'flex',
-    'flex-direction': props.reverse ? 'column-reverse' : 'column',
-    'flex-wrap': props.wrap ? 'wrap' : 'nowrap',
-    ...props.style,
-  };
+  const reactiveStyles = createMemo(() => {
+    // Flex basics
+    const style: JSX.CSSProperties = {
+      display: 'flex',
+      'flex-direction': props.reverse ? 'column-reverse' : 'column',
+      'flex-wrap': props.wrap ? 'wrap' : 'nowrap',
+      ...props.style,
+    };
 
-  // Align cross-axis (items)
-  if (props.ax === 'center') style['align-items'] = 'center';
-  else if (props.ax === 'end') style['align-items'] = 'flex-end';
-  else if (props.ax === 'start' || props.ax === '') style['align-items'] = 'flex-start';
+    // Align cross-axis (items)
+    if (props.ax === 'center') style['align-items'] = 'center';
+    else if (props.ax === 'end') style['align-items'] = 'flex-end';
+    else if (props.ax === 'start' || props.ax === '') style['align-items'] = 'flex-start';
 
-  // Align main-axis (content)
-  if (props.ay === 'center') style['justify-content'] = 'center';
-  else if (props.ay === 'end') style['justify-content'] = 'flex-end';
-  else if (props.ay === 'between') style['justify-content'] = 'space-between';
-  else if (props.ay === 'around') style['justify-content'] = 'space-around';
-  else if (props.ay === 'start' || props.ay === '') style['justify-content'] = 'flex-start';
+    // Align main-axis (content)
+    if (props.ay === 'center') style['justify-content'] = 'center';
+    else if (props.ay === 'end') style['justify-content'] = 'flex-end';
+    else if (props.ay === 'between') style['justify-content'] = 'space-between';
+    else if (props.ay === 'around') style['justify-content'] = 'space-around';
+    else if (props.ay === 'start' || props.ay === '') style['justify-content'] = 'flex-start';
 
-  // Gap
-  if (props.gap) style.gap = tokenVar('space', props.gap);
+    // Gap
+    if (props.gap) style.gap = tokenVar('space', props.gap);
 
-  // Padding
-  const padding = [
-    tokenVar('space', props.pt || props.py || props.p),
-    tokenVar('space', props.pr || props.px || props.p),
-    tokenVar('space', props.pb || props.py || props.p),
-    tokenVar('space', props.pl || props.px || props.p),
-  ]
-    .join(' ')
-    .trim();
-  if (padding !== '0 0 0 0') style.padding = padding;
+    // Padding
+    const padding = [
+      tokenVar('space', props.pt || props.py || props.p),
+      tokenVar('space', props.pr || props.px || props.p),
+      tokenVar('space', props.pb || props.py || props.p),
+      tokenVar('space', props.pl || props.px || props.p),
+    ]
+      .join(' ')
+      .trim();
+    if (padding !== '0 0 0 0') style.padding = padding;
 
-  // Margin
-  const margin = [
-    tokenVar('space', props.mt || props.my || props.m),
-    tokenVar('space', props.mr || props.mx || props.m),
-    tokenVar('space', props.mb || props.my || props.m),
-    tokenVar('space', props.ml || props.mx || props.m),
-  ]
-    .join(' ')
-    .trim();
-  if (margin !== '0 0 0 0') style.margin = margin;
+    // Margin
+    const margin = [
+      tokenVar('space', props.mt || props.my || props.m),
+      tokenVar('space', props.mr || props.mx || props.m),
+      tokenVar('space', props.mb || props.my || props.m),
+      tokenVar('space', props.ml || props.mx || props.m),
+    ]
+      .join(' ')
+      .trim();
+    if (margin !== '0 0 0 0') style.margin = margin;
 
-  // Border radius (TL TR BR BL)
-  const radius = [
-    tokenVar('radius', props.rtl || props.rt || props.rl || props.r),
-    tokenVar('radius', props.rtr || props.rt || props.rr || props.r),
-    tokenVar('radius', props.rbr || props.rb || props.rr || props.r),
-    tokenVar('radius', props.rbl || props.rb || props.rl || props.r),
-  ]
-    .join(' ')
-    .trim();
-  if (radius !== '0 0 0 0') style['border-radius'] = radius;
+    // Border radius (TL TR BR BL)
+    const radius = [
+      tokenVar('radius', props.rtl || props.rt || props.rl || props.r),
+      tokenVar('radius', props.rtr || props.rt || props.rr || props.r),
+      tokenVar('radius', props.rbr || props.rb || props.rr || props.r),
+      tokenVar('radius', props.rbl || props.rb || props.rl || props.r),
+    ]
+      .join(' ')
+      .trim();
+    if (radius !== '0 0 0 0') style['border-radius'] = radius;
 
-  // Colors
-  if (props.bg) style['background-color'] = `var(--we-color-${props.bg})`;
-  if (props.color) style.color = `var(--we-color-${props.color})`;
+    // Colors
+    if (props.bg) style['background-color'] = `var(--we-color-${props.bg})`;
+    if (props.color) style.color = `var(--we-color-${props.color})`;
+
+    return style;
+  });
 
   return (
-    <div style={style} {...rest}>
+    <div style={reactiveStyles()} {...rest}>
       {props.children}
     </div>
   );
