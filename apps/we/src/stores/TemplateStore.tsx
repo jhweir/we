@@ -1,6 +1,7 @@
 import type { TemplateSchema } from '@we/schema-renderer/solid';
-import { Accessor, batch, createContext, createSignal, ParentProps, useContext } from 'solid-js';
-import { createStore, produce } from 'solid-js/store';
+import { updateSchemaNode } from '@we/schema-renderer/solid';
+import { Accessor, createContext, createSignal, ParentProps, useContext } from 'solid-js';
+import { createStore } from 'solid-js/store';
 
 import { isValidTemplateKey, TemplateKey, templateRegistry } from '../registries/templateRegistry';
 import { deepClone } from '../utils';
@@ -22,10 +23,14 @@ export interface TemplateStore {
 
   // Testing
   removeTemplateHeaderSlot: () => void;
+  addTemplateHeaderSlot: () => void;
+  changeTemplateHeaderProp: () => void;
+  changeTemplateHeaderChildProp: () => void;
   editSpacePageHeaderButton: () => void;
   editPostsPageHeaderButton: () => void;
   addPostsPageHeaderButton: () => void;
   addSidebarButton: () => void;
+  changeSidebarProp: () => void;
 }
 
 const TemplateContext = createContext<TemplateStore>();
@@ -50,7 +55,9 @@ function getInitialTemplateKey(): TemplateKey {
 export function TemplateStoreProvider(props: ParentProps) {
   const [templates, setTemplates] = createSignal<TemplateWithMeta[]>(getMappedTemplates());
   const [currentTemplateKey, setCurrentTemplateKey] = createSignal<TemplateKey>(getInitialTemplateKey());
-  const [currentSchema, setCurrentSchema] = createStore<TemplateSchema>(templateRegistry[getInitialTemplateKey()]);
+  const [currentSchema, setCurrentSchema] = createStore<TemplateSchema>(
+    deepClone(templateRegistry[getInitialTemplateKey()]),
+  );
 
   // Derive the current template based on the currentTemplateKey
   const currentTemplate = () =>
@@ -64,142 +71,89 @@ export function TemplateStoreProvider(props: ParentProps) {
     }
   }
 
-  function updateSchema(oldSchema: TemplateSchema, newSchema: TemplateSchema) {
-    const mutations: Array<{ path: (string | number)[]; value: any }> = [];
-
-    function isObject(v: any) {
-      return v && typeof v === 'object' && !Array.isArray(v);
-    }
-    function isPrimitive(v: any) {
-      return v === null || (typeof v !== 'object' && typeof v !== 'function');
-    }
-
-    function diff(path: (string | number)[], a: any, b: any) {
-      // If both are arrays, recurse with numeric indices
-      if (Array.isArray(a) && Array.isArray(b)) {
-        const maxLen = Math.max(a.length, b.length);
-        for (let i = 0; i < maxLen; i++) {
-          const oldItem = a[i];
-          const newItem = b[i];
-          const itemPath = [...path, i];
-
-          if (oldItem === undefined && newItem !== undefined) {
-            mutations.push({ path: itemPath, value: newItem });
-            continue;
-          }
-          if (newItem === undefined && oldItem !== undefined) {
-            mutations.push({ path: itemPath, value: undefined });
-            continue;
-          }
-          if (isPrimitive(oldItem) || isPrimitive(newItem)) {
-            if (oldItem !== newItem) mutations.push({ path: itemPath, value: newItem });
-            continue;
-          }
-          if (Array.isArray(oldItem) && Array.isArray(newItem)) {
-            diff(itemPath, oldItem, newItem);
-            continue;
-          }
-          if (isObject(oldItem) && isObject(newItem)) {
-            diff(itemPath, oldItem, newItem);
-            continue;
-          }
-          // fallback: replace
-          if (oldItem !== newItem) mutations.push({ path: itemPath, value: newItem });
-        }
-        return;
-      }
-
-      // If both are objects, recurse with string keys
-      if (isObject(a) && isObject(b)) {
-        const keys = new Set([...(a ? Object.keys(a) : []), ...(b ? Object.keys(b) : [])]);
-        for (const k of keys) {
-          const oldVal = a?.[k];
-          const newVal = b?.[k];
-          const keyPath = [...path, k];
-
-          // removed
-          if (newVal === undefined && oldVal !== undefined) {
-            mutations.push({ path: keyPath, value: undefined });
-            continue;
-          }
-
-          // added
-          if (oldVal === undefined && newVal !== undefined) {
-            mutations.push({ path: keyPath, value: newVal });
-            continue;
-          }
-
-          // both primitives -> compare
-          if (isPrimitive(oldVal) || isPrimitive(newVal)) {
-            if (oldVal !== newVal) mutations.push({ path: keyPath, value: newVal });
-            continue;
-          }
-
-          // arrays
-          if (Array.isArray(oldVal) && Array.isArray(newVal)) {
-            diff(keyPath, oldVal, newVal);
-            continue;
-          }
-
-          // objects
-          if (isObject(oldVal) && isObject(newVal)) {
-            diff(keyPath, oldVal, newVal);
-            continue;
-          }
-
-          // fallback: replace
-          if (oldVal !== newVal) mutations.push({ path: keyPath, value: newVal });
-        }
-        return;
-      }
-
-      // arrays replaced with objects or vice versa
-      if ((Array.isArray(a) && isObject(b)) || (isObject(a) && Array.isArray(b))) {
-        mutations.push({ path, value: b });
-        return;
-      }
-
-      // fallback: replace
-      if (a !== b) mutations.push({ path, value: b });
-    }
-
-    // Top-level keys: use string keys
-    const topLevelKeys = new Set([...Object.keys(oldSchema || {}), ...Object.keys(newSchema || {})]);
-    for (const k of topLevelKeys) {
-      const oldVal = oldSchema[k];
-      const newVal = newSchema[k];
-      diff([k], oldVal, newVal);
-    }
-
-    console.log('mutations to apply:', mutations);
-
-    batch(() => {
-      for (const { path, value } of mutations) {
-        (setCurrentSchema as any)(...path, value);
-      }
-    });
-  }
-
   // Schema update tests
   function removeTemplateHeaderSlot() {
     const newSchema = deepClone(currentSchema);
     // @ts-expect-error ts-ignore
     delete newSchema.slots.header;
-    updateSchema(currentSchema, newSchema);
+    // newSchema.slots.header = { children: [] };
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
+  }
+
+  // TODO: currently completely resets via deep clone
+  function addTemplateHeaderSlot() {
+    const newSchema = deepClone(currentSchema);
+    // @ts-expect-error ts-ignore
+    newSchema.slots.header = {
+      type: 'Row',
+      props: { p: '400', gap: '400', ax: 'end', ay: 'center' },
+      children: [
+        { type: 'we-text', props: { size: '600', nomargin: true }, children: ['Header!'] },
+        {
+          type: 'PopoverMenu',
+          props: {
+            options: { $store: 'themeStore.themes' },
+            currentOption: { $store: 'themeStore.currentTheme' },
+            setOption: { $store: 'themeStore.setCurrentTheme' },
+          },
+        },
+        {
+          type: 'PopoverMenu',
+          props: {
+            options: {
+              $map: {
+                items: { $store: 'templateStore.templates' },
+                select: { id: '$item.id', name: '$item.name', icon: '$item.icon' },
+              },
+            },
+            currentOption: {
+              $pick: {
+                from: { $store: 'templateStore.currentTemplate' },
+                props: ['name', 'icon'],
+              },
+            },
+            setOption: { $store: 'templateStore.setCurrentTemplate' },
+          },
+        },
+        { type: 'RerenderLog', props: { location: 'Template Header' } },
+      ],
+    }; // templateRegistry.default.slots?.header; // deepClone(templateRegistry.default.slots?.header);
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
+  }
+
+  function changeTemplateHeaderProp() {
+    const newSchema = deepClone(currentSchema);
+    // @ts-expect-error ts-ignore
+    newSchema.slots.header.props.bg = 'ui-900';
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
+  }
+
+  function changeTemplateHeaderChildProp() {
+    const newSchema = deepClone(currentSchema);
+    // @ts-expect-error ts-ignore
+    newSchema.slots.header.children[0].props.color = 'ui-900';
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
+  }
+
+  function changeSidebarProp() {
+    const newSchema = deepClone(currentSchema);
+    // @ts-expect-error ts-ignore
+    newSchema.slots.sidebar.props.bg = 'ui-900';
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
   }
 
   function editSpacePageHeaderButton() {
     const newSchema = deepClone(currentSchema);
     // @ts-expect-error ts-ignore
     newSchema.routes[2].slots.header.children[1].props.variant = 'primary';
-    updateSchema(currentSchema, newSchema);
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
   }
 
   function editPostsPageHeaderButton() {
     const newSchema = deepClone(currentSchema);
     // @ts-expect-error ts-ignore
     newSchema.routes[2].routes[2].children[0].children[2].props.variant = 'primary';
-    updateSchema(currentSchema, newSchema);
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
   }
 
   function addPostsPageHeaderButton() {
@@ -207,15 +161,15 @@ export function TemplateStoreProvider(props: ParentProps) {
     const newButton = { type: 'we-button', props: { variant: 'subtle', children: ['New button'] } };
     // @ts-expect-error ts-ignore
     newSchema.routes[2].routes[2].children[0].children.push(newButton);
-    updateSchema(currentSchema, newSchema);
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
   }
 
   function addSidebarButton() {
     const newSchema = deepClone(currentSchema);
     const newButton = { type: 'we-button', props: { variant: 'subtle', children: ['New button'] } };
     // @ts-expect-error ts-ignore
-    newSchema.slots.sidebar.children[0].children.push(newButton);
-    updateSchema(currentSchema, newSchema);
+    newSchema.slots.sidebar.children[1].children.push(newButton);
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
   }
 
   const store: TemplateStore = {
@@ -231,10 +185,14 @@ export function TemplateStoreProvider(props: ParentProps) {
 
     // Testing
     removeTemplateHeaderSlot,
+    addTemplateHeaderSlot,
+    changeTemplateHeaderProp,
+    changeTemplateHeaderChildProp,
     editSpacePageHeaderButton,
     editPostsPageHeaderButton,
     addPostsPageHeaderButton,
     addSidebarButton,
+    changeSidebarProp,
   };
 
   return <TemplateContext.Provider value={store}>{props.children}</TemplateContext.Provider>;

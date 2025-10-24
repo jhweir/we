@@ -47,6 +47,6 @@ export type RenderSchemaProps<NodeType = unknown> = {
   children?: NodeType;
 };
 
-// export type RendererOutput<NodeType = unknown> = NodeType | Record<string, NodeType> | null;
-
 export type RendererOutput<NodeType = unknown> = NodeType | null;
+
+export type Mutation = { path: (string | number)[]; value: unknown };

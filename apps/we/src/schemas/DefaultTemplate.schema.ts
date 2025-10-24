@@ -17,26 +17,58 @@ const testButtons = {
       type: 'we-button',
       props: {
         variant: 'subtle',
-        onClick: { $action: 'templateStore.editSpacePageHeaderButton' },
-        children: ['editSpacePageHeaderButton'],
+        onClick: { $action: 'templateStore.addTemplateHeaderSlot' },
+        children: ['addTemplateHeaderSlot'],
       },
     },
     {
       type: 'we-button',
       props: {
         variant: 'subtle',
-        onClick: { $action: 'templateStore.editPostsPageHeaderButton' },
-        children: ['editPostsPageHeaderButton'],
+        onClick: { $action: 'templateStore.changeTemplateHeaderProp' },
+        children: ['changeTemplateHeaderProp'],
       },
     },
     {
       type: 'we-button',
       props: {
         variant: 'subtle',
-        onClick: { $action: 'templateStore.addPostsPageHeaderButton' },
-        children: ['addPostsPageHeaderButton'],
+        onClick: { $action: 'templateStore.changeTemplateHeaderChildProp' },
+        children: ['changeTemplateHeaderChildProp'],
       },
     },
+    {
+      type: 'we-button',
+      props: {
+        variant: 'subtle',
+        onClick: { $action: 'templateStore.changeSidebarProp' },
+        children: ['changeSidebarProp'],
+      },
+    },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.editSpacePageHeaderButton' },
+    //     children: ['editSpacePageHeaderButton'],
+    //   },
+    // },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.editPostsPageHeaderButton' },
+    //     children: ['editPostsPageHeaderButton'],
+    //   },
+    // },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.addPostsPageHeaderButton' },
+    //     children: ['addPostsPageHeaderButton'],
+    //   },
+    // },
     {
       type: 'we-button',
       props: {
@@ -109,6 +141,7 @@ const templateHeader = {
   type: 'Row',
   props: { p: '400', gap: '400', ax: 'end', ay: 'center' },
   children: [
+    { type: 'we-text', props: { size: '600', nomargin: true }, children: ['Header!'] },
     {
       type: 'PopoverMenu',
       props: {
@@ -209,7 +242,7 @@ export const defaultTemplateSchema: TemplateSchema = {
   },
   type: 'DefaultTemplate',
   slots: { sidebar: templateSidebar, header: templateHeader, modals: templateModals },
-  children: [testButtons, { type: '$routes' }], // { type: 'ListRendering' }
+  children: [testButtons, { type: '$routes' }],
   routes: [
     { path: '*', type: 'PageNotFound' },
     { path: '/', type: 'HomePage' },
@@ -241,22 +274,6 @@ export const defaultTemplateSchema: TemplateSchema = {
               type: 'Row',
               props: { bg: 'ui-200', ay: 'center', gap: '400', px: '400', style: { height: '60px' } },
               children: [
-                // { type: 'RerenderLog', props: { location: 'PostsPage header buttons' } },
-                // { type: 'we-text', props: { size: '600', nomargin: true }, children: ['Posts sub-page'] },
-                // {
-                //   type: '$if',
-                //   props: {
-                //     condition: { $store: 'modalStore.createSpaceModalOpen' },
-                //     then: {
-                //       type: 'CreateSpaceModalWidget',
-                //       props: {
-                //         adamClient: { $store: 'adamStore.adamClient' },
-                //         close: { $action: 'modalStore.closeModal', args: ['create-space'] },
-                //         addNewSpace: { $action: 'adamStore.addNewSpace' },
-                //       },
-                //     },
-                //   },
-                // },
                 {
                   type: 'we-button',
                   props: {
@@ -281,7 +298,7 @@ export const defaultTemplateSchema: TemplateSchema = {
                     children: ['Return back up to users'],
                   },
                 },
-                { type: 'RerenderLog', props: { location: 'PostsPage header buttons 2' } },
+                { type: 'RerenderLog', props: { location: 'PostsPage header buttons' } },
               ],
             },
             {

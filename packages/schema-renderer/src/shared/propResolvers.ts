@@ -1,10 +1,33 @@
-import { hasToken, resolveRelativePath } from './helpers';
+import { hasToken } from './predicates';
 
 type Props = Record<string, unknown>;
 type MapProp = { items: unknown; select: Props };
 type PickProp = { from: unknown; props: string[] };
 type Memo = <T>(fn: () => T) => T; // Framework specific memoization function (e.g. Solid's createMemo)
 const noMemo: Memo = (fn) => fn(); // Fallback if no memoization provided
+
+// Resolves relative paths used in router navigation (e.g. '.', './', '../')
+function resolveRelativePath(rawPath: string, baseDepth: number): string {
+  // Get current path segments and start from the base depth
+  const segs = window.location.pathname.split('/').filter(Boolean);
+  let depth = Math.min(baseDepth, segs.length);
+
+  // Navigate to the parent index for '' or '.'
+  if (rawPath === '' || rawPath === '.') return `/${segs.slice(0, depth).join('/')}`;
+
+  // Normalize './' and support parent navigation with '../'
+  let path = rawPath;
+  if (path.startsWith('./')) path = path.slice(2);
+  while (path.startsWith('../') && depth > 0) {
+    path = path.slice(3);
+    depth--;
+  }
+
+  // Rebuild the final path and clean up any double slashes
+  const base = '/' + segs.slice(0, depth).join('/');
+  const finalPath = (base === '/' ? '' : base.replace(/\/+$/, '')) + '/' + path.replace(/^\/+/, '');
+  return finalPath.replace(/\/{2,}/g, '/');
+}
 
 // Resolves $store props: { $store: 'userStore.profile.name' }
 export function resolveStoreProp(value: unknown, stores: Props, memo: Memo = noMemo): unknown {
@@ -34,7 +57,7 @@ export function resolveStoreProp(value: unknown, stores: Props, memo: Memo = noM
 }
 
 // Resolves $expr props: { $expr: 'space.name' } or { $expr: '`/space/${space.uuid}`' }
-export function resolveExpressionProp(value: unknown, context: Props): unknown {
+function resolveExpressionProp(value: unknown, context: Props): unknown {
   try {
     // Create a function with context keys as arguments
     const expression = (value as { $expr: string }).$expr;
@@ -51,7 +74,7 @@ export function resolveExpressionProp(value: unknown, context: Props): unknown {
 }
 
 // Resolves $action props: { $action: 'adamStore.navigate', args: ['/home'] }
-export function resolveActionProp(value: unknown, context: Props, stores: Props, memo: Memo): unknown {
+function resolveActionProp(value: unknown, context: Props, stores: Props, memo: Memo): unknown {
   // Split the $action string into store name and method name
   const [storeName, methodName] = (value as { $action: string }).$action.split('.');
 

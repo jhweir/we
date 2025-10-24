@@ -53,8 +53,8 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
 
   // Handle for-each loops
   if (node.type === '$forEach') {
-    // Get the template node used to render each item
-    const childTemplate = node.children?.[0] as SchemaNode | undefined;
+    // Get the schema used to render each item
+    const itemSchema = node.children?.[0] as SchemaNode | undefined;
 
     // Resolve the items used for iteration
     const resolvedItems = resolveStoreProp(node.props?.items, stores, createMemo);
@@ -66,17 +66,17 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
     // Return a list of the rendered items
     return (
       <For each={itemsArray()}>
-        {(item) => renderNode(childTemplate, { ...context, [String(node.props?.as ?? 'item')]: item })}
+        {(item) => renderNode(itemSchema, { ...context, [String(node.props?.as ?? 'item')]: item })}
       </For>
     );
   }
 
-  // Prepare the slot elements with reactivity
+  // Prepare the slot elements in a reactive store
   const [slotElements, setSlotElements] = createStore<Record<string, JSX.Element>>(
     Object.fromEntries(Object.entries(node.slots ?? {}).map(([key, slot]) => [key, renderNode(slot)])),
   );
 
-  // Watch for added or removed slots and update accordingly
+  // Watch for added or removed slots via their keys and update the store
   let previousSlotKeys = Object.keys(node.slots ?? {});
   createEffect(() => {
     if (node.slots) {
@@ -108,18 +108,10 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
   const Component = registry[node.type ?? ''];
   if (!Component) throw new Error(`Schema node has unknown type "${node.type}".`);
 
-  // Determine which children to render
-  let renderedChildren: JSX.Element | undefined;
-  const hasSchemaChildren = Array.isArray(node.children) && node.children.length > 0;
-  const hasExplicitPropsChildren = !!(node.props && Object.prototype.hasOwnProperty.call(node.props, 'children'));
-  if (hasSchemaChildren) renderedChildren = renderChildren(node.children);
-  else if (hasExplicitPropsChildren) renderedChildren = undefined;
-  else renderedChildren = children;
-
-  // Return the rendered component
+  // Return the rendered component with its resolved props, slots, and children
   return (
     <Component {...resolveProps(node.props, stores, context, createMemo)} {...slotElements}>
-      {renderedChildren}
+      {renderChildren(node.children)}
     </Component>
   );
 }
