@@ -1,4 +1,5 @@
-import { createMemo, For, JSX, Show } from 'solid-js';
+import { batch, createEffect, createMemo, For, JSX, Show } from 'solid-js';
+import { createStore, produce } from 'solid-js/store';
 
 import { resolveProp, resolveProps, resolveStoreProp } from '../../shared/propResolvers';
 import type { RendererOutput, RenderSchemaProps, SchemaNode } from './types';
@@ -21,7 +22,7 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
   function renderChildren(nodes: (SchemaNode | string)[] | undefined): RendererOutput {
     if (!nodes) return undefined;
     return (
-      <For each={nodes ?? []} fallback={null}>
+      <For each={nodes} fallback={null}>
         {(child) => {
           // If the child is a string (i.e when passing text to <we-text>), return it directly
           if (typeof child === 'string') return child;
@@ -70,12 +71,37 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
     );
   }
 
-  // Build slots if present
-  const slotElements = createMemo<Record<string, JSX.Element>>(() => {
-    const elements: Record<string, JSX.Element> = {};
-    const slots = node.slots ?? {};
-    for (const [slotKey, slotNode] of Object.entries(slots)) elements[slotKey] = renderNode(slotNode as SchemaNode);
-    return elements;
+  // Prepare the slot elements with reactivity
+  const [slotElements, setSlotElements] = createStore<Record<string, JSX.Element>>(
+    Object.fromEntries(Object.entries(node.slots ?? {}).map(([key, slot]) => [key, renderNode(slot)])),
+  );
+
+  // Watch for added or removed slots and update accordingly
+  let previousSlotKeys = Object.keys(node.slots ?? {});
+  createEffect(() => {
+    if (node.slots) {
+      // Track changes to slot keys
+      const newSlotKeys = Object.keys(node.slots);
+
+      // Update changed slots in a single batch
+      batch(() => {
+        setSlotElements(
+          produce((draft) => {
+            // Remove slots that no longer exist
+            for (const oldKey of previousSlotKeys) {
+              if (!newSlotKeys.includes(oldKey)) delete draft[oldKey];
+            }
+            // Add new slots
+            for (const newKey of newSlotKeys) {
+              if (!previousSlotKeys.includes(newKey)) draft[newKey] = renderNode((node.slots ?? {})[newKey]);
+            }
+          }),
+        );
+      });
+
+      // Store the new slot keys for the next comparison
+      previousSlotKeys = newSlotKeys;
+    }
   });
 
   // Get the component from the registry
@@ -92,7 +118,7 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
 
   // Return the rendered component
   return (
-    <Component {...resolveProps(node.props, stores, context, createMemo)} {...slotElements()}>
+    <Component {...resolveProps(node.props, stores, context, createMemo)} {...slotElements}>
       {renderedChildren}
     </Component>
   );
