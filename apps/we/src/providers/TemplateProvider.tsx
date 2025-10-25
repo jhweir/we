@@ -1,5 +1,5 @@
 import { Route, Router, useLocation, useNavigate } from '@solidjs/router';
-import type { RouteSchema, TemplateSchema } from '@we/schema-renderer/solid';
+import type { RouteSchema, TemplateSchema } from '@we/schema-renderer/shared';
 import { RenderSchema } from '@we/schema-renderer/solid';
 import type { JSX, ParentProps } from 'solid-js';
 import { createEffect } from 'solid-js';

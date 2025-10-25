@@ -1,5 +1,6 @@
 import { isDeepEqual, isObject, isPrimitive } from './predicates';
-import type { Mutation } from './types';
+
+type Mutation = { path: (string | number)[]; value: unknown };
 
 // Recursive diffing function to find mutations between two values
 function accumulateMutations(mutations: Mutation[] = [], path: (string | number)[], a: unknown, b: unknown) {

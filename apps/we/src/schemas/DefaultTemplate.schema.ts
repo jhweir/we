@@ -1,4 +1,4 @@
-import type { TemplateSchema } from '@we/schema-renderer/solid';
+import type { TemplateSchema } from '@we/schema-renderer/shared';
 
 const testButtons = {
   type: 'Row',
@@ -21,30 +21,30 @@ const testButtons = {
         children: ['addTemplateHeaderSlot'],
       },
     },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.changeTemplateHeaderProp' },
-        children: ['changeTemplateHeaderProp'],
-      },
-    },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.changeTemplateHeaderChildProp' },
-        children: ['changeTemplateHeaderChildProp'],
-      },
-    },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.changeSidebarProp' },
-        children: ['changeSidebarProp'],
-      },
-    },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.changeTemplateHeaderProp' },
+    //     children: ['changeTemplateHeaderProp'],
+    //   },
+    // },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.changeTemplateHeaderChildProp' },
+    //     children: ['changeTemplateHeaderChildProp'],
+    //   },
+    // },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.changeSidebarProp' },
+    //     children: ['changeSidebarProp'],
+    //   },
+    // },
     // {
     //   type: 'we-button',
     //   props: {
@@ -75,6 +75,14 @@ const testButtons = {
         variant: 'subtle',
         onClick: { $action: 'templateStore.addSidebarButton' },
         children: ['addSidebarButton'],
+      },
+    },
+    {
+      type: 'we-button',
+      props: {
+        variant: 'subtle',
+        onClick: { $action: 'templateStore.createInvalidSchema' },
+        children: ['createInvalidSchema'],
       },
     },
   ],

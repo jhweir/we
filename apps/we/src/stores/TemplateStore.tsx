@@ -1,4 +1,4 @@
-import type { TemplateSchema } from '@we/schema-renderer/solid';
+import type { TemplateSchema } from '@we/schema-renderer/shared';
 import { updateSchemaNode } from '@we/schema-renderer/solid';
 import { Accessor, createContext, createSignal, ParentProps, useContext } from 'solid-js';
 import { createStore } from 'solid-js/store';
@@ -31,6 +31,7 @@ export interface TemplateStore {
   addPostsPageHeaderButton: () => void;
   addSidebarButton: () => void;
   changeSidebarProp: () => void;
+  createInvalidSchema: () => void;
 }
 
 const TemplateContext = createContext<TemplateStore>();
@@ -172,6 +173,19 @@ export function TemplateStoreProvider(props: ParentProps) {
     updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
   }
 
+  function createInvalidSchema() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newSchema = deepClone(currentSchema) as any;
+
+    newSchema.extraProp = 'This should not be here';
+    newSchema.meta.extraProp = 'This should not be here';
+    newSchema.meta.name = 3;
+    newSchema.children.push({ extraProp: 'Invalid node' });
+    newSchema.children.push({ type: 5 });
+
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
+  }
+
   const store: TemplateStore = {
     // State
     templates,
@@ -193,6 +207,7 @@ export function TemplateStoreProvider(props: ParentProps) {
     addPostsPageHeaderButton,
     addSidebarButton,
     changeSidebarProp,
+    createInvalidSchema,
   };
 
   return <TemplateContext.Provider value={store}>{props.children}</TemplateContext.Provider>;

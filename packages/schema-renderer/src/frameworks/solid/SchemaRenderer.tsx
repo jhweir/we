@@ -2,9 +2,9 @@ import { batch, createEffect, createMemo, For, JSX, Show } from 'solid-js';
 import { createStore, produce } from 'solid-js/store';
 
 import { resolveProp, resolveProps, resolveStoreProp } from '../../shared/propResolvers';
-import type { RendererOutput, RenderSchemaProps, SchemaNode } from './types';
+import type { SchemaNode, RenderProps, RendererOutput } from './types';
 
-export function RenderSchema({ node, stores, registry, context = {}, children }: RenderSchemaProps): RendererOutput {
+export function RenderSchema({ node, stores, registry, context = {}, children }: RenderProps): RendererOutput {
   if (!node) return null;
 
   function renderNode(node?: SchemaNode, nodeContext?: Record<string, unknown>) {
@@ -76,7 +76,7 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
     Object.fromEntries(Object.entries(node.slots ?? {}).map(([key, slot]) => [key, renderNode(slot)])),
   );
 
-  // Watch for added or removed slots via their keys and update the store
+  // Watch for added or removed slots via their keys and update the store (otherwise Solid won't track them)
   let previousSlotKeys = Object.keys(node.slots ?? {});
   createEffect(() => {
     if (node.slots) {

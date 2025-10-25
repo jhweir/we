@@ -2,8 +2,8 @@ import { batch } from 'solid-js';
 import { produce, SetStoreFunction } from 'solid-js/store';
 
 import { findMutations } from '../../shared/mutations';
+import type { SchemaNode, TemplateSchema } from '../../shared/types';
 import { validateSchema } from '../../shared/validators';
-import type { SchemaNode, TemplateSchema } from './types';
 
 export function updateSchemaNode<T extends TemplateSchema | SchemaNode>(
   oldNode: T,
@@ -16,6 +16,8 @@ export function updateSchemaNode<T extends TemplateSchema | SchemaNode>(
     console.error('Invalid schema node:', errors);
     return;
   }
+
+  console.log('Validation passed: ', newNode);
 
   // Find mutations between the old and new nodes
   const mutations = findMutations(oldNode, newNode);
