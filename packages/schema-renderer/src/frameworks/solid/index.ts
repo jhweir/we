@@ -1,2 +1,5 @@
 export { RenderSchema } from './SchemaRenderer';
-export * from './types';
+
+export { updateSchemaNode } from './utils';
+
+export type { ComponentRegistry, RenderProps, RendererOutput } from './types';

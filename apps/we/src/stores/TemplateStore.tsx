@@ -1,4 +1,5 @@
-import type { TemplateSchema } from '@we/schema-renderer/solid';
+import type { TemplateSchema } from '@we/schema-renderer/shared';
+import { updateSchemaNode } from '@we/schema-renderer/solid';
 import { Accessor, createContext, createSignal, ParentProps, useContext } from 'solid-js';
 import { createStore } from 'solid-js/store';
 
@@ -21,7 +22,16 @@ export interface TemplateStore {
   setCurrentSchema: (schema: TemplateSchema) => void;
 
   // Testing
-  changeNestedSchemaProp: () => void;
+  removeTemplateHeaderSlot: () => void;
+  addTemplateHeaderSlot: () => void;
+  changeTemplateHeaderProp: () => void;
+  changeTemplateHeaderChildProp: () => void;
+  editSpacePageHeaderButton: () => void;
+  editPostsPageHeaderButton: () => void;
+  addPostsPageHeaderButton: () => void;
+  addSidebarButton: () => void;
+  changeSidebarProp: () => void;
+  createInvalidSchema: () => void;
 }
 
 const TemplateContext = createContext<TemplateStore>();
@@ -46,7 +56,9 @@ function getInitialTemplateKey(): TemplateKey {
 export function TemplateStoreProvider(props: ParentProps) {
   const [templates, setTemplates] = createSignal<TemplateWithMeta[]>(getMappedTemplates());
   const [currentTemplateKey, setCurrentTemplateKey] = createSignal<TemplateKey>(getInitialTemplateKey());
-  const [currentSchema, setCurrentSchema] = createStore<TemplateSchema>(templateRegistry[getInitialTemplateKey()]);
+  const [currentSchema, setCurrentSchema] = createStore<TemplateSchema>(
+    deepClone(templateRegistry[getInitialTemplateKey()]),
+  );
 
   // Derive the current template based on the currentTemplateKey
   const currentTemplate = () =>
@@ -60,264 +72,118 @@ export function TemplateStoreProvider(props: ParentProps) {
     }
   }
 
-  const templateSidebar = {
-    type: 'Column',
-    props: { bg: 'ui-0', p: '500', ay: 'between' },
-    children: [
-      {
-        type: 'Column',
-        props: { ax: 'center', gap: '500' },
-        children: [
-          {
-            type: 'CircleButton',
-            props: {
-              label: 'Home',
-              image: 'https://avatars.githubusercontent.com/u/34165012?s=200&v=4',
-              onClick: { $action: 'adamStore.navigate', args: ['/'] },
-            },
-          },
-          {
-            type: 'CircleButton',
-            props: {
-              label: 'Search',
-              icon: 'magnifying-glass',
-              onClick: { $action: 'adamStore.navigate', args: ['/search'] },
-            },
-          },
-          {
-            type: '$forEach',
-            props: { items: { $store: 'adamStore.mySpaces' }, as: 'space' },
-            children: [
-              {
-                type: 'CircleButton',
-                props: {
-                  label: { $expr: 'space.name' },
-                  onClick: { $action: 'adamStore.navigate', args: [{ $expr: '`/space/${space.uuid}`' }] },
-                },
-              },
-            ],
-          },
-          {
-            type: 'CircleButton',
-            props: {
-              label: 'Change label...',
-              icon: 'plus',
-              onClick: { $action: 'templateStore.changeNestedSchemaProp' },
-            },
-          },
-        ],
-      },
-      {
-        type: 'Column',
-        props: { ax: 'center', gap: '500' },
-        children: [
-          {
-            type: 'CircleButton',
-            props: {
-              label: 'New Space',
-              icon: 'plus',
-              onClick: { $action: 'modalStore.openModal', args: ['create-space'] },
-            },
-          },
-        ],
-      },
-    ],
-  };
-
-  const templateHeader = {
-    type: 'Row',
-    props: { p: '400', gap: '400', ax: 'end', ay: 'center' },
-    children: [
-      {
-        type: 'PopoverMenu',
-        props: {
-          options: { $store: 'themeStore.themes' },
-          currentOption: { $store: 'themeStore.currentTheme' },
-          setOption: { $store: 'themeStore.setCurrentTheme' },
-        },
-      },
-      {
-        type: 'PopoverMenu',
-        props: {
-          options: {
-            $map: {
-              items: { $store: 'templateStore.templates' },
-              select: { id: '$item.id', name: '$item.name', icon: '$item.icon' },
-            },
-          },
-          currentOption: {
-            $pick: {
-              from: { $store: 'templateStore.currentTemplate' },
-              props: ['name', 'icon'],
-            },
-          },
-          setOption: { $store: 'templateStore.setCurrentTemplate' },
-        },
-      },
-    ],
-  };
-
-  const templateModals = {
-    children: [
-      {
-        type: '$if',
-        props: {
-          condition: { $store: 'modalStore.createSpaceModalOpen' },
-          then: {
-            type: 'CreateSpaceModalWidget',
-            props: {
-              adamClient: { $store: 'adamStore.adamClient' },
-              close: { $action: 'modalStore.closeModal', args: ['create-space'] },
-              save: { $action: 'adamStore.addNewSpace' },
-            },
-          },
-        },
-      },
-    ],
-  };
-
-  const emptyNode = {
-    type: 'Column',
-    children: [],
-  };
-
-  const newSlots = {
-    sidebar: undefined, // templateSidebar,
-    // header: undefined, // null, //emptyNode,
-    header: templateHeader,
-    modals: templateModals,
-  };
-
-  const newButton = {
-    type: 'CircleButton',
-    props: {
-      label: 'Search',
-      icon: 'magnifying-glass',
-      onClick: { $action: 'adamStore.navigate', args: ['/search'] },
-    },
-  };
-
-  const newSchema = deepClone(templateRegistry.default);
-  delete newSchema.slots.sidebar.children[0].children[1]; // works
-  // newSchema.slots.sidebar.children[0].children.push(newButton); // works
-
-  // newSchema.slots.header = templateHeader;
-  console.log('newSchema after delete:', newSchema);
-
-  const isObject = (v: any) => v && typeof v === 'object' && !Array.isArray(v);
-  const isPrimitive = (v: any) => v === null || (typeof v !== 'object' && typeof v !== 'function');
-
-  // apply a deep but pragmatic diff: issue path updates for primitives/objects, replace arrays/subtrees when needed,
-  // and remove keys by returning a shallow-copied parent without the key (so Solid sees the change).
-  function applySchemaPatch(newSchema: TemplateSchema) {
-    const old = currentSchema as any;
-
-    function diffObject(path: (string | number)[], a: any, b: any) {
-      const keys = new Set([...(a ? Object.keys(a) : []), ...(b ? Object.keys(b) : [])]);
-      for (const k of keys) {
-        const oldVal = a?.[k];
-        const newVal = b?.[k];
-        const keyPath = [...path, k];
-
-        // removed
-        if (newVal === undefined && oldVal !== undefined) {
-          // set the nested path to undefined instead of deleting the key.
-          // renderer treats falsy slotNode values as absent (it skips them),
-          // and this avoids flaky delete-notifications from the store.
-          (setCurrentSchema as any)(...keyPath, undefined);
-          continue;
-        }
-
-        // added
-        if (oldVal === undefined && newVal !== undefined) {
-          (setCurrentSchema as any)(...keyPath, newVal);
-          continue;
-        }
-
-        // both primitives -> compare
-        if (isPrimitive(oldVal) || isPrimitive(newVal)) {
-          if (oldVal !== newVal) (setCurrentSchema as any)(...keyPath, newVal);
-          continue;
-        }
-
-        // arrays -> replace whole array when different (cheap fallback)
-        if (Array.isArray(oldVal) || Array.isArray(newVal)) {
-          if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) (setCurrentSchema as any)(...keyPath, newVal);
-          continue;
-        }
-
-        // both objects -> recurse
-        if (isObject(oldVal) && isObject(newVal)) {
-          diffObject(keyPath, oldVal, newVal);
-          continue;
-        }
-
-        // fallback: replace
-        if (oldVal !== newVal) (setCurrentSchema as any)(...keyPath, newVal);
-      }
-    }
-
-    // top-level keys to consider (extend if your schema has others)
-    const topLevelKeys = new Set([...Object.keys(old || {}), ...Object.keys(newSchema || {})]);
-    for (const k of topLevelKeys) {
-      if (k === 'slots' || k === 'routes' || k === 'children' || k === 'props' || k === 'meta') {
-        const oldVal = (old as any)[k];
-        const newVal = (newSchema as any)[k];
-        if (isObject(oldVal) && isObject(newVal)) {
-          diffObject([k], oldVal, newVal);
-        } else if (Array.isArray(oldVal) && Array.isArray(newVal)) {
-          if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) (setCurrentSchema as any)(k, newVal);
-        } else {
-          if (oldVal !== newVal) (setCurrentSchema as any)(k, newVal);
-        }
-      } else {
-        // for any other top-level keys just replace if different
-        const oldVal = (old as any)[k];
-        const newVal = (newSchema as any)[k];
-        if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) (setCurrentSchema as any)(k, newVal);
-      }
-    }
+  // Schema update tests
+  function removeTemplateHeaderSlot() {
+    const newSchema = deepClone(currentSchema);
+    // @ts-expect-error ts-ignore
+    delete newSchema.slots.header;
+    // newSchema.slots.header = { children: [] };
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
   }
 
-  function changeNestedSchemaProp() {
-    console.log('Changing nested schema prop...');
-    // // works:
-    // setCurrentSchema('slots', 'header', newSlots.header);
-    // // doesn't work:
-    // setCurrentSchema(newSchema);
+  // TODO: currently completely resets via deep clone
+  function addTemplateHeaderSlot() {
+    const newSchema = deepClone(currentSchema);
+    // @ts-expect-error ts-ignore
+    newSchema.slots.header = {
+      type: 'Row',
+      props: { p: '400', gap: '400', ax: 'end', ay: 'center' },
+      children: [
+        { type: 'we-text', props: { size: '600', nomargin: true }, children: ['Header!'] },
+        {
+          type: 'PopoverMenu',
+          props: {
+            options: { $store: 'themeStore.themes' },
+            currentOption: { $store: 'themeStore.currentTheme' },
+            setOption: { $store: 'themeStore.setCurrentTheme' },
+          },
+        },
+        {
+          type: 'PopoverMenu',
+          props: {
+            options: {
+              $map: {
+                items: { $store: 'templateStore.templates' },
+                select: { id: '$item.id', name: '$item.name', icon: '$item.icon' },
+              },
+            },
+            currentOption: {
+              $pick: {
+                from: { $store: 'templateStore.currentTemplate' },
+                props: ['name', 'icon'],
+              },
+            },
+            setOption: { $store: 'templateStore.setCurrentTemplate' },
+          },
+        },
+        { type: 'RerenderLog', props: { location: 'Template Header' } },
+      ],
+    }; // templateRegistry.default.slots?.header; // deepClone(templateRegistry.default.slots?.header);
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
+  }
 
-    applySchemaPatch(newSchema);
+  function changeTemplateHeaderProp() {
+    const newSchema = deepClone(currentSchema);
+    // @ts-expect-error ts-ignore
+    newSchema.slots.header.props.bg = 'ui-900';
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
+  }
 
-    // setCurrentSchema('slots', (slots) => {
-    //   const copy = { ...(slots as Record<string, any>) };
-    //   delete copy.header;
-    //   console.log('after delete slots keys:', Object.keys(copy));
-    //   return copy;
-    // });
+  function changeTemplateHeaderChildProp() {
+    const newSchema = deepClone(currentSchema);
+    // @ts-expect-error ts-ignore
+    newSchema.slots.header.children[0].props.color = 'ui-900';
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
+  }
 
-    // // doesn't work:
-    // setCurrentSchema((schema) => ({
-    //   ...schema,
-    //   slots: { ...schema.slots, header: { type: 'Column', children: [] } },
-    // }));
-    // doesnt't work:
-    // setCurrentSchema('slots', (slots) => ({ ...slots, header: templateRegistry.default.slots.header }));
+  function changeSidebarProp() {
+    const newSchema = deepClone(currentSchema);
+    // @ts-expect-error ts-ignore
+    newSchema.slots.sidebar.props.bg = 'ui-900';
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
+  }
 
-    // setCurrentSchema('slots', 'sidebar', 'children', 0, 'children', 1, 'props', 'icon', 'head-circuit');
-    // setCurrentSchema(
-    //   'routes',
-    //   2, // third route: path '/space/:spaceId'
-    //   'slots',
-    //   'header',
-    //   'children',
-    //   1, // second child: the first we-button
-    //   'props',
-    //   'variant',
-    //   'primary',
-    // );
+  function editSpacePageHeaderButton() {
+    const newSchema = deepClone(currentSchema);
+    // @ts-expect-error ts-ignore
+    newSchema.routes[2].slots.header.children[1].props.variant = 'primary';
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
+  }
 
-    // setCurrentSchema(templateRegistry.secondary);
-    // console.log('new schema: ', currentSchema.meta);
+  function editPostsPageHeaderButton() {
+    const newSchema = deepClone(currentSchema);
+    // @ts-expect-error ts-ignore
+    newSchema.routes[2].routes[2].children[0].children[2].props.variant = 'primary';
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
+  }
+
+  function addPostsPageHeaderButton() {
+    const newSchema = deepClone(currentSchema);
+    const newButton = { type: 'we-button', props: { variant: 'subtle', children: ['New button'] } };
+    // @ts-expect-error ts-ignore
+    newSchema.routes[2].routes[2].children[0].children.push(newButton);
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
+  }
+
+  function addSidebarButton() {
+    const newSchema = deepClone(currentSchema);
+    const newButton = { type: 'we-button', props: { variant: 'subtle', children: ['New button'] } };
+    // @ts-expect-error ts-ignore
+    newSchema.slots.sidebar.children[1].children.push(newButton);
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
+  }
+
+  function createInvalidSchema() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newSchema = deepClone(currentSchema) as any;
+
+    newSchema.extraProp = 'This should not be here';
+    newSchema.meta.extraProp = 'This should not be here';
+    newSchema.meta.name = 3;
+    newSchema.children.push({ extraProp: 'Invalid node' });
+    newSchema.children.push({ type: 5 });
+
+    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
   }
 
   const store: TemplateStore = {
@@ -332,7 +198,16 @@ export function TemplateStoreProvider(props: ParentProps) {
     setCurrentSchema,
 
     // Testing
-    changeNestedSchemaProp,
+    removeTemplateHeaderSlot,
+    addTemplateHeaderSlot,
+    changeTemplateHeaderProp,
+    changeTemplateHeaderChildProp,
+    editSpacePageHeaderButton,
+    editPostsPageHeaderButton,
+    addPostsPageHeaderButton,
+    addSidebarButton,
+    changeSidebarProp,
+    createInvalidSchema,
   };
 
   return <TemplateContext.Provider value={store}>{props.children}</TemplateContext.Provider>;

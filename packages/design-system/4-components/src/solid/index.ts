@@ -10,3 +10,6 @@ export { CircleButton, type CircleButtonProps } from './components/buttons/Circl
 
 // Menus
 export { PopoverMenu, type PopoverMenuProps } from './components/menus/PopoverMenu';
+
+// Testing
+export { RerenderLog, type RerenderLogProps } from './components/testing/RerenderLog';

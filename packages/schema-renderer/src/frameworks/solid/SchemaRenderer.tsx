@@ -1,12 +1,40 @@
-import { createMemo, JSX } from 'solid-js';
+import { batch, createEffect, createMemo, For, JSX, Show } from 'solid-js';
+import { createStore, produce } from 'solid-js/store';
 
 import { resolveProp, resolveProps, resolveStoreProp } from '../../shared/propResolvers';
-import type { RendererOutput, RenderSchemaProps, SchemaNode } from './types';
-import { renderChildren, resolveRenderedChildren } from './utils';
+import type { SchemaNode, RenderProps, RendererOutput } from './types';
 
-export function RenderSchema({ node, stores, registry, context = {}, children }: RenderSchemaProps): RendererOutput {
-  // const renderedNode = createMemo(() => {
+export function RenderSchema({ node, stores, registry, context = {}, children }: RenderProps): RendererOutput {
   if (!node) return null;
+
+  function renderNode(node?: SchemaNode, nodeContext?: Record<string, unknown>) {
+    return (
+      <RenderSchema
+        node={node ?? null}
+        stores={stores}
+        registry={registry}
+        context={nodeContext ?? context}
+        children={children}
+      />
+    );
+  }
+
+  function renderChildren(nodes: (SchemaNode | string)[] | undefined): RendererOutput {
+    if (!nodes) return undefined;
+    return (
+      <For each={nodes} fallback={null}>
+        {(child) => {
+          // If the child is a string (i.e when passing text to <we-text>), return it directly
+          if (typeof child === 'string') return child;
+          // Otherwise render the child node
+          return renderNode(child as SchemaNode);
+        }}
+      </For>
+    );
+  }
+
+  // If no type is provided, render children in a JSX fragment
+  if (!node.type) return <>{renderChildren(node.children)}</>;
 
   // Render routed children at $routes token
   if (node.type === '$routes') return children ?? null;
@@ -14,63 +42,76 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
   // Handle conditional rendering
   if (node.type === '$if') {
     const condition = resolveProp(node.props?.condition, stores, context, createMemo);
-    const conditionMet = typeof condition === 'function' ? condition() : condition;
-    const nodeToRender = node.props?.[conditionMet ? 'then' : 'else'] as SchemaNode;
-    return RenderSchema({ node: nodeToRender, stores, registry, context, children }) ?? null;
+    const conditionMet = createMemo(() => (typeof condition === 'function' ? condition() : condition));
+
+    return (
+      <Show when={conditionMet()} fallback={renderNode(node.props?.else as SchemaNode | undefined)}>
+        {renderNode(node.props?.then as SchemaNode | undefined)}
+      </Show>
+    );
   }
 
   // Handle for-each loops
   if (node.type === '$forEach') {
+    // Get the schema used to render each item
+    const itemSchema = node.children?.[0] as SchemaNode | undefined;
+
     // Resolve the items used for iteration
     const resolvedItems = resolveStoreProp(node.props?.items, stores, createMemo);
-    const items = typeof resolvedItems === 'function' ? resolvedItems() : resolvedItems;
-    const itemsArray = Array.isArray(items) ? items : [];
-    const itemKey = String(node.props?.as ?? 'item');
+    const itemsArray = createMemo(() => {
+      const items = typeof resolvedItems === 'function' ? resolvedItems() : resolvedItems;
+      return Array.isArray(items) ? items : [];
+    });
 
-    // Return the items with their rendered children
+    // Return a list of the rendered items
     return (
-      <>
-        {itemsArray.map((item) =>
-          renderChildren(node.children, { ...context, [itemKey]: item }, stores, registry, children),
-        )}
-      </>
+      <For each={itemsArray()}>
+        {(item) => renderNode(itemSchema, { ...context, [String(node.props?.as ?? 'item')]: item })}
+      </For>
     );
   }
 
-  // Handle slots
-  const slotElements = createMemo<Record<string, JSX.Element>>(() => {
-    const out: Record<string, JSX.Element> = {};
-    const slots = node.slots ?? {};
-    for (const [key, slotNode] of Object.entries(slots)) {
-      console.log('Rendering slot:', key, slotNode);
-      if (!slotNode) continue;
-      if ((slotNode as any).type) {
-        const SlotComponent = registry[(slotNode as any).type];
-        if (!SlotComponent) throw new Error(`Schema slot "${key}" has unknown type "${(slotNode as any).type}".`);
-        out[key] = (
-          <SlotComponent {...resolveProps((slotNode as any).props, stores, context, createMemo)}>
-            {renderChildren((slotNode as any).children, context, stores, registry, children)}
-          </SlotComponent>
+  // Prepare the slot elements in a reactive store
+  const [slotElements, setSlotElements] = createStore<Record<string, JSX.Element>>(
+    Object.fromEntries(Object.entries(node.slots ?? {}).map(([key, slot]) => [key, renderNode(slot)])),
+  );
+
+  // Watch for added or removed slots via their keys and update the store (otherwise Solid won't track them)
+  let previousSlotKeys = Object.keys(node.slots ?? {});
+  createEffect(() => {
+    if (node.slots) {
+      // Track changes to slot keys
+      const newSlotKeys = Object.keys(node.slots);
+
+      // Update changed slots in a single batch
+      batch(() => {
+        setSlotElements(
+          produce((draft) => {
+            // Remove slots that no longer exist
+            for (const oldKey of previousSlotKeys) {
+              if (!newSlotKeys.includes(oldKey)) delete draft[oldKey];
+            }
+            // Add new slots
+            for (const newKey of newSlotKeys) {
+              if (!previousSlotKeys.includes(newKey)) draft[newKey] = renderNode((node.slots ?? {})[newKey]);
+            }
+          }),
         );
-      } else {
-        out[key] = <>{renderChildren((slotNode as any).children, context, stores, registry)}</>;
-      }
+      });
+
+      // Store the new slot keys for the next comparison
+      previousSlotKeys = newSlotKeys;
     }
-    return out;
   });
 
-  // If no type is provided, render children in a JSX fragment
-  if (!node.type) return <>{renderChildren(node.children, context, stores, registry, children)}</>;
-
-  // Otherwise get the component from the registry and render it with its resolved props, slots, and children
+  // Get the component from the registry
   const Component = registry[node.type ?? ''];
   if (!Component) throw new Error(`Schema node has unknown type "${node.type}".`);
+
+  // Return the rendered component with its resolved props, slots, and children
   return (
-    <Component {...resolveProps(node.props, stores, context, createMemo)} {...slotElements()}>
-      {resolveRenderedChildren(node, stores, registry, context, children)}
+    <Component {...resolveProps(node.props, stores, context, createMemo)} {...slotElements}>
+      {renderChildren(node.children)}
     </Component>
   );
-  // });
-
-  // return renderedNode();
 }

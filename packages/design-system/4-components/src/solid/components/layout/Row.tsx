@@ -1,4 +1,4 @@
-import { JSX, splitProps } from 'solid-js';
+import { createMemo, JSX, splitProps } from 'solid-js';
 
 import type { AlignPosition, AlignPositionAndSpacing, RadiusToken, SpaceToken } from '../../../shared/types';
 
@@ -65,62 +65,66 @@ export function Row(allProps: RowProps) {
     'style','children', // Other
   ] as const);
 
-  // Flex basics
-  const style: JSX.CSSProperties = {
-    display: 'flex',
-    'flex-direction': props.reverse ? 'row-reverse' : 'row',
-    'flex-wrap': props.wrap ? 'wrap' : 'nowrap',
-    ...props.style,
-  };
+  const reactiveStyles = createMemo(() => {
+    // Flex basics
+    const style: JSX.CSSProperties = {
+      display: 'flex',
+      'flex-direction': props.reverse ? 'row-reverse' : 'row',
+      'flex-wrap': props.wrap ? 'wrap' : 'nowrap',
+      ...props.style,
+    };
 
-  // Main axis (X) via justify-content
-  if (props.ax === 'center') style['justify-content'] = 'center';
-  else if (props.ax === 'end') style['justify-content'] = 'flex-end';
-  else if (props.ax === 'between') style['justify-content'] = 'space-between';
-  else if (props.ax === 'around') style['justify-content'] = 'space-around';
-  else style['justify-content'] = 'flex-start';
+    // Main axis (X) via justify-content
+    if (props.ax === 'center') style['justify-content'] = 'center';
+    else if (props.ax === 'end') style['justify-content'] = 'flex-end';
+    else if (props.ax === 'between') style['justify-content'] = 'space-between';
+    else if (props.ax === 'around') style['justify-content'] = 'space-around';
+    else style['justify-content'] = 'flex-start';
 
-  // Cross axis (Y) via align-items
-  if (props.ay === 'center') style['align-items'] = 'center';
-  else if (props.ay === 'end') style['align-items'] = 'flex-end';
-  else style['align-items'] = 'flex-start';
+    // Cross axis (Y) via align-items
+    if (props.ay === 'center') style['align-items'] = 'center';
+    else if (props.ay === 'end') style['align-items'] = 'flex-end';
+    else style['align-items'] = 'flex-start';
 
-  // Gap
-  if (props.gap) style.gap = tokenVar('space', props.gap);
+    // Gap
+    if (props.gap) style.gap = tokenVar('space', props.gap);
 
-  // Padding (T R B L)
-  const padding = [
-    tokenVar('space', props.pt || props.py || props.p),
-    tokenVar('space', props.pr || props.px || props.p),
-    tokenVar('space', props.pb || props.py || props.p),
-    tokenVar('space', props.pl || props.px || props.p),
-  ].join(' ');
-  if (padding !== '0 0 0 0') style.padding = padding;
+    // Padding (T R B L)
+    const padding = [
+      tokenVar('space', props.pt || props.py || props.p),
+      tokenVar('space', props.pr || props.px || props.p),
+      tokenVar('space', props.pb || props.py || props.p),
+      tokenVar('space', props.pl || props.px || props.p),
+    ].join(' ');
+    if (padding !== '0 0 0 0') style.padding = padding;
 
-  // Margin (T R B L)
-  const margin = [
-    tokenVar('space', props.mt || props.my || props.m),
-    tokenVar('space', props.mr || props.mx || props.m),
-    tokenVar('space', props.mb || props.my || props.m),
-    tokenVar('space', props.ml || props.mx || props.m),
-  ].join(' ');
-  if (margin !== '0 0 0 0') style.margin = margin;
+    // Margin (T R B L)
+    const margin = [
+      tokenVar('space', props.mt || props.my || props.m),
+      tokenVar('space', props.mr || props.mx || props.m),
+      tokenVar('space', props.mb || props.my || props.m),
+      tokenVar('space', props.ml || props.mx || props.m),
+    ].join(' ');
+    if (margin !== '0 0 0 0') style.margin = margin;
 
-  // Border radius (TL TR BR BL)
-  const radius = [
-    tokenVar('size', props.rtl || props.rt || props.rl || props.r),
-    tokenVar('size', props.rtr || props.rt || props.rr || props.r),
-    tokenVar('size', props.rbr || props.rb || props.rr || props.r),
-    tokenVar('size', props.rbl || props.rb || props.rl || props.r),
-  ].join(' ');
-  if (radius !== '0 0 0 0') style['border-radius'] = radius;
+    // Border radius (TL TR BR BL)
+    const radius = [
+      tokenVar('size', props.rtl || props.rt || props.rl || props.r),
+      tokenVar('size', props.rtr || props.rt || props.rr || props.r),
+      tokenVar('size', props.rbr || props.rb || props.rr || props.r),
+      tokenVar('size', props.rbl || props.rb || props.rl || props.r),
+    ].join(' ');
+    if (radius !== '0 0 0 0') style['border-radius'] = radius;
 
-  // Colors
-  if (props.bg) style['background-color'] = `var(--we-color-${props.bg})`;
-  if (props.color) style.color = `var(--we-color-${props.color})`;
+    // Colors
+    if (props.bg) style['background-color'] = `var(--we-color-${props.bg})`;
+    if (props.color) style.color = `var(--we-color-${props.color})`;
+
+    return style;
+  });
 
   return (
-    <div style={style} {...rest}>
+    <div style={reactiveStyles()} {...rest}>
       {props.children}
     </div>
   );

@@ -1,41 +1,54 @@
-import type { JSX } from 'solid-js';
+import { batch } from 'solid-js';
+import { produce, SetStoreFunction } from 'solid-js/store';
 
-import { RenderSchema } from './SchemaRenderer';
-import type { ComponentRegistry, RendererOutput, SchemaNode } from './types';
+import { findMutations } from '../../shared/mutations';
+import type { SchemaNode, TemplateSchema } from '../../shared/types';
+import { validateSchema } from '../../shared/validators';
 
-// Helper function to render child nodes
-export function renderChildren(
-  children: unknown[] | undefined,
-  context: Record<string, unknown>,
-  stores: Record<string, unknown>,
-  registry: ComponentRegistry,
-  routedChild?: JSX.Element,
-): (RendererOutput | string)[] | undefined {
-  return children?.map((child): RendererOutput | string => {
-    // If the child is a string (i.e when passing text to <we-text>), return it directly
-    if (typeof child === 'string') return child;
+export function updateSchemaNode<T extends TemplateSchema | SchemaNode>(
+  oldNode: T,
+  newNode: T,
+  setSchema: SetStoreFunction<T>,
+) {
+  // Validate the schema node
+  const { valid, errors } = validateSchema(newNode);
+  if (!valid) {
+    console.error('Invalid schema node:', errors);
+    return;
+  }
 
-    // Otherwise render the child node
-    return RenderSchema({ node: child as SchemaNode, stores, registry, context, children: routedChild });
-  });
-}
+  console.log('Validation passed: ', newNode);
 
-// Determines which children to render based on schema and props
-export function resolveRenderedChildren(
-  node: SchemaNode,
-  stores: Record<string, unknown>,
-  registry: ComponentRegistry,
-  context: Record<string, unknown>,
-  routedChild: JSX.Element | undefined,
-): JSX.Element | undefined {
-  // If schema children exist, render them
-  const hasSchemaChildren = Array.isArray(node.children) && node.children.length > 0;
-  if (hasSchemaChildren) return renderChildren(node.children, context, stores, registry, routedChild) as JSX.Element;
+  // Find mutations between the old and new nodes
+  const mutations = findMutations(oldNode, newNode);
+  if (!mutations.length) return;
 
-  // If no schema children and no explicit props.children, fallback to the routed child
-  const hasExplicitPropsChildren = !!(node.props && Object.prototype.hasOwnProperty.call(node.props, 'children'));
-  if (!hasExplicitPropsChildren) return routedChild;
+  // Apply mutations based on their size
+  console.time('applyMutations');
+  if (mutations.length > 10) {
+    // Use produce for large updates
+    setSchema(
+      produce((draft: T) => {
+        for (const { path, value } of mutations) {
+          let target = draft as Record<string, unknown>;
+          for (let i = 0; i < path.length - 1; i++) {
+            const key = path[i];
+            if (!target[key]) target[key] = typeof path[i + 1] === 'number' ? [] : {};
+            target = target[key] as Record<string, unknown>;
+          }
+          const lastKey = path[path.length - 1];
+          if (value === undefined) delete target[lastKey];
+          else target[lastKey] = value;
+        }
+      }),
+    );
+  } else {
+    // Batch direct updates for small changes
+    batch(() => {
+      // @ts-expect-error TypeScript cannot verify the tuple type here
+      for (const { path, value } of mutations) setSchema(...path, value);
+    });
+  }
 
-  // If props.children exists, render nothing here (component handles its own children)
-  return undefined;
+  console.timeEnd('applyMutations');
 }

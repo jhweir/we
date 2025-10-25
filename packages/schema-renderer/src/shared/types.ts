@@ -1,50 +1,28 @@
-// Generic schema types for UI rendering
+// Pure framework-agnostic schema types
+export type SchemaProp = string | number | boolean | Record<string, unknown> | SchemaProp[] | undefined;
+export type TemplateMeta = { name: string; description: string; icon: string };
+export type TemplateSchema = SchemaNode & { meta: TemplateMeta };
+export type RouteSchema = SchemaNode & { path: string; routes?: RouteSchema[] };
+export type SchemaNode = {
+  type?: string; // Used to look up the node's component in the registry (if not included, children rendered in a fragment)
+  props?: Record<string, SchemaProp>; // Props to pass to the component
+  slots?: Record<string, SchemaNode>; // Named slots for components that support them
+  routes?: RouteSchema[]; // Routes for routing components
+  children?: (SchemaNode | string)[]; // Child nodes (or strings for text nodes like <we-text>)
+};
 
-// These types are framework-agnostic and use a generic NodeType parameter.
-// Each framework should specialize the types with its own node type
-// (e.g. JSX.Element for Solid, React.ReactNode for React) to ensure correct typing.
-
+// Types that need to be passed a framework specific NodeType (e.g. JSX.Element for Solid, React.ReactNode for React)
 export type ComponentRegistry<NodeType = unknown> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: (props: any) => NodeType;
 };
 
-export type SchemaPropValue<NodeType = unknown> =
-  | string
-  | number
-  | boolean
-  | NodeType
-  | Record<string, unknown>
-  | SchemaPropValue<NodeType>[]
-  | undefined;
-
-export type SchemaNode<NodeType = unknown> = {
-  type?: string; // Component type (if not included, children rendered in a fragment)
-  props?: Record<string, SchemaPropValue<NodeType>>; // Component props
-  slots?: Record<string, SchemaNode<NodeType>>; // Named slots for components that support them
-  routes?: RouteSchema<NodeType>[]; // Child routes for route components
-  children?: (SchemaNode<NodeType> | string)[]; // Child nodes (or strings for text nodes)
-};
-
-export type TemplateMeta = {
-  name: string;
-  description: string;
-  icon: string;
-};
-
-export type TemplateSchema<NodeType = unknown> = { meta: TemplateMeta } & SchemaNode<NodeType>;
-
-export type RouteSchema<NodeType = unknown> = {
-  path: string;
-  routes?: RouteSchema<NodeType>[];
-} & SchemaNode<NodeType>;
-
-export type RenderSchemaProps<NodeType = unknown> = {
-  node: SchemaNode<NodeType> | null;
+export type RenderProps<NodeType = unknown> = {
+  node: SchemaNode | null;
   stores: Record<string, unknown>;
   registry: ComponentRegistry<NodeType>;
   context?: Record<string, unknown>;
   children?: NodeType;
 };
 
-export type RendererOutput<NodeType = unknown> = NodeType | Record<string, NodeType> | null;
+export type RendererOutput<NodeType = unknown> = NodeType | null;

@@ -71,7 +71,7 @@ export function SpaceStoreProvider(props: ParentProps) {
       const postsWithBlocks = await Promise.all(postsArr.map((post) => getBlockTree(post, perspective)));
       setPosts(postsWithBlocks.filter((post) => !!post));
 
-      console.log('SpaceStore: getPosts posts', posts());
+      // console.log('SpaceStore: getPosts posts', posts());
     } catch (error) {
       console.error('SpaceStore: getPosts error', error);
     } finally {

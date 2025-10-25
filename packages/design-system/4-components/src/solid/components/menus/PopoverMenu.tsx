@@ -12,7 +12,7 @@ export interface PopoverMenuProps {
 export function PopoverMenu(props: PopoverMenuProps) {
   const iconWeight = 'regular';
 
-  console.log('props.currentOption(): ', props.currentOption());
+  // console.log('props.currentOption(): ', props.currentOption());
 
   return (
     <we-popover class={`we-popover-menu ${props.class || ''}`} style={props.style} placement="bottom-end" data-we-menu>
