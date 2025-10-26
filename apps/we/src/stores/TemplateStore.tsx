@@ -1,42 +1,30 @@
 import type { TemplateSchema } from '@we/schema-renderer/shared';
-import { updateSchemaNode } from '@we/schema-renderer/solid';
 import { Accessor, createContext, createSignal, ParentProps, useContext } from 'solid-js';
 import { createStore } from 'solid-js/store';
 
-import { isValidTemplateKey, TemplateKey, templateRegistry } from '../registries/templateRegistry';
-import { deepClone } from '../utils';
+import { isValidTemplateKey, TemplateKey, templateRegistry } from '@/registries/templateRegistry';
+import { testMutations } from '@/schemas/TestTemplate.schema';
+import { deepClone } from '@/utils';
 
 const TEMPLATE_KEY = 'we.template';
 
 type TemplateWithMeta = TemplateSchema & { id: string; name: string; icon: string };
 
-export interface TemplateStore {
-  // State
+export interface TemplateStoreBase {
   templates: Accessor<TemplateSchema[]>;
   currentTemplate: Accessor<TemplateSchema>;
   currentSchema: TemplateSchema;
 
-  // Setters
   setTemplates: (templates: TemplateSchema[]) => void;
   setCurrentTemplate: (templateKey: TemplateKey) => void;
   setCurrentSchema: (schema: TemplateSchema) => void;
-
-  // Testing
-  removeTemplateHeaderSlot: () => void;
-  addTemplateHeaderSlot: () => void;
-  changeTemplateHeaderProp: () => void;
-  changeTemplateHeaderChildProp: () => void;
-  editSpacePageHeaderButton: () => void;
-  editPostsPageHeaderButton: () => void;
-  addPostsPageHeaderButton: () => void;
-  addSidebarButton: () => void;
-  changeSidebarProp: () => void;
-  createInvalidSchema: () => void;
 }
+
+export type TemplateStore = TemplateStoreBase & ReturnType<typeof testMutations>;
 
 const TemplateContext = createContext<TemplateStore>();
 
-// Map registry entries to include id, name, and icon
+// Map template metadata into templates
 function mapTemplate(key: TemplateKey, template: TemplateSchema): TemplateWithMeta {
   return { id: key, name: template.meta.name, icon: template.meta.icon, ...template };
 }
@@ -62,7 +50,7 @@ export function TemplateStoreProvider(props: ParentProps) {
 
   // Derive the current template based on the currentTemplateKey
   const currentTemplate = () =>
-    templates().find((t) => t.id === currentTemplateKey()) ?? mapTemplate('default', templateRegistry.default);
+    templates().find((t) => t.id === currentTemplateKey()) ?? mapTemplate('test', templateRegistry.test);
 
   // Update the current template and persist the choice in localStorage
   function setCurrentTemplate(templateKey: TemplateKey) {
@@ -70,120 +58,6 @@ export function TemplateStoreProvider(props: ParentProps) {
       setCurrentTemplateKey(templateKey);
       localStorage.setItem(TEMPLATE_KEY, templateKey);
     }
-  }
-
-  // Schema update tests
-  function removeTemplateHeaderSlot() {
-    const newSchema = deepClone(currentSchema);
-    // @ts-expect-error ts-ignore
-    delete newSchema.slots.header;
-    // newSchema.slots.header = { children: [] };
-    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
-  }
-
-  // TODO: currently completely resets via deep clone
-  function addTemplateHeaderSlot() {
-    const newSchema = deepClone(currentSchema);
-    // @ts-expect-error ts-ignore
-    newSchema.slots.header = {
-      type: 'Row',
-      props: { p: '400', gap: '400', ax: 'end', ay: 'center' },
-      children: [
-        { type: 'we-text', props: { size: '600', nomargin: true }, children: ['Header!'] },
-        {
-          type: 'PopoverMenu',
-          props: {
-            options: { $store: 'themeStore.themes' },
-            currentOption: { $store: 'themeStore.currentTheme' },
-            setOption: { $store: 'themeStore.setCurrentTheme' },
-          },
-        },
-        {
-          type: 'PopoverMenu',
-          props: {
-            options: {
-              $map: {
-                items: { $store: 'templateStore.templates' },
-                select: { id: '$item.id', name: '$item.name', icon: '$item.icon' },
-              },
-            },
-            currentOption: {
-              $pick: {
-                from: { $store: 'templateStore.currentTemplate' },
-                props: ['name', 'icon'],
-              },
-            },
-            setOption: { $store: 'templateStore.setCurrentTemplate' },
-          },
-        },
-        { type: 'RerenderLog', props: { location: 'Template Header' } },
-      ],
-    }; // templateRegistry.default.slots?.header; // deepClone(templateRegistry.default.slots?.header);
-    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
-  }
-
-  function changeTemplateHeaderProp() {
-    const newSchema = deepClone(currentSchema);
-    // @ts-expect-error ts-ignore
-    newSchema.slots.header.props.bg = 'ui-900';
-    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
-  }
-
-  function changeTemplateHeaderChildProp() {
-    const newSchema = deepClone(currentSchema);
-    // @ts-expect-error ts-ignore
-    newSchema.slots.header.children[0].props.color = 'ui-900';
-    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
-  }
-
-  function changeSidebarProp() {
-    const newSchema = deepClone(currentSchema);
-    // @ts-expect-error ts-ignore
-    newSchema.slots.sidebar.props.bg = 'ui-900';
-    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
-  }
-
-  function editSpacePageHeaderButton() {
-    const newSchema = deepClone(currentSchema);
-    // @ts-expect-error ts-ignore
-    newSchema.routes[2].slots.header.children[1].props.variant = 'primary';
-    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
-  }
-
-  function editPostsPageHeaderButton() {
-    const newSchema = deepClone(currentSchema);
-    // @ts-expect-error ts-ignore
-    newSchema.routes[2].routes[2].children[0].children[2].props.variant = 'primary';
-    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
-  }
-
-  function addPostsPageHeaderButton() {
-    const newSchema = deepClone(currentSchema);
-    const newButton = { type: 'we-button', props: { variant: 'subtle', children: ['New button'] } };
-    // @ts-expect-error ts-ignore
-    newSchema.routes[2].routes[2].children[0].children.push(newButton);
-    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
-  }
-
-  function addSidebarButton() {
-    const newSchema = deepClone(currentSchema);
-    const newButton = { type: 'we-button', props: { variant: 'subtle', children: ['New button'] } };
-    // @ts-expect-error ts-ignore
-    newSchema.slots.sidebar.children[1].children.push(newButton);
-    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
-  }
-
-  function createInvalidSchema() {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const newSchema = deepClone(currentSchema) as any;
-
-    newSchema.extraProp = 'This should not be here';
-    newSchema.meta.extraProp = 'This should not be here';
-    newSchema.meta.name = 3;
-    newSchema.children.push({ extraProp: 'Invalid node' });
-    newSchema.children.push({ type: 5 });
-
-    updateSchemaNode(currentSchema, newSchema, setCurrentSchema);
   }
 
   const store: TemplateStore = {
@@ -198,16 +72,7 @@ export function TemplateStoreProvider(props: ParentProps) {
     setCurrentSchema,
 
     // Testing
-    removeTemplateHeaderSlot,
-    addTemplateHeaderSlot,
-    changeTemplateHeaderProp,
-    changeTemplateHeaderChildProp,
-    editSpacePageHeaderButton,
-    editPostsPageHeaderButton,
-    addPostsPageHeaderButton,
-    addSidebarButton,
-    changeSidebarProp,
-    createInvalidSchema,
+    ...testMutations(currentSchema, setCurrentSchema),
   };
 
   return <TemplateContext.Provider value={store}>{props.children}</TemplateContext.Provider>;
