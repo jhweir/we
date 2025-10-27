@@ -14,7 +14,7 @@ export interface ThemeStore {
 
   // Setters
   setThemes: (themes: ThemeWithId[]) => void;
-  setCurrentTheme: (themeKey: ThemeKey) => void;
+  setCurrentTheme: (theme: ThemeWithId) => void;
 }
 
 const ThemeContext = createContext<ThemeStore>();
@@ -32,6 +32,7 @@ function getMappedThemes(): ThemeWithId[] {
 // Get initial theme key from localStorage if available otherwise fall back to the first key in the registry
 function getInitialThemeKey(): ThemeKey {
   const saved = typeof window !== 'undefined' ? localStorage.getItem(THEME_KEY) : null;
+  console.log('Saved theme key:', saved);
   const fallback = Object.keys(themeRegistry)[0] as ThemeKey;
   return isValidThemeKey(saved) ? saved : fallback;
 }
@@ -45,13 +46,15 @@ export function ThemeStoreProvider(props: ParentProps) {
     themes().find((t) => t.id === currentThemeKey()) ?? mapTheme('light', themeRegistry.light);
 
   // Update the current theme and persist the choice in localStorage
-  function setCurrentTheme(themeKey: ThemeKey) {
-    if (isValidThemeKey(themeKey)) {
-      setCurrentThemeKey(themeKey);
-      document.documentElement.setAttribute('data-we-theme', themeKey);
-      localStorage.setItem(THEME_KEY, themeKey);
+  function setCurrentTheme(theme: ThemeWithId) {
+    if (isValidThemeKey(theme.id)) {
+      setCurrentThemeKey(theme.id);
+      document.documentElement.setAttribute('data-we-theme', theme.id);
+      localStorage.setItem(THEME_KEY, theme.id);
     }
   }
+
+  setCurrentTheme(currentTheme());
 
   const store: ThemeStore = {
     // State

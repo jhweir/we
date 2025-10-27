@@ -26,22 +26,22 @@ const testButtons = {
         children: ['addTemplateHeaderSlot'],
       },
     },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.changeTemplateHeaderProp' },
-        children: ['changeTemplateHeaderProp'],
-      },
-    },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.changeTemplateHeaderChildProp' },
-        children: ['changeTemplateHeaderChildProp'],
-      },
-    },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.changeTemplateHeaderProp' },
+    //     children: ['changeTemplateHeaderProp'],
+    //   },
+    // },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.changeTemplateHeaderChildProp' },
+    //     children: ['changeTemplateHeaderChildProp'],
+    //   },
+    // },
     {
       type: 'we-button',
       props: {
@@ -50,38 +50,38 @@ const testButtons = {
         children: ['changeSidebarProp'],
       },
     },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.editSpacePageHeaderButton' },
-        children: ['editSpacePageHeaderButton'],
-      },
-    },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.editPostsPageHeaderButton' },
-        children: ['editPostsPageHeaderButton'],
-      },
-    },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.addPostsPageHeaderButton' },
-        children: ['addPostsPageHeaderButton'],
-      },
-    },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.addSidebarButton' },
-        children: ['addSidebarButton'],
-      },
-    },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.editSpacePageHeaderButton' },
+    //     children: ['editSpacePageHeaderButton'],
+    //   },
+    // },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.editPostsPageHeaderButton' },
+    //     children: ['editPostsPageHeaderButton'],
+    //   },
+    // },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.addPostsPageHeaderButton' },
+    //     children: ['addPostsPageHeaderButton'],
+    //   },
+    // },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.addSidebarButton' },
+    //     children: ['addSidebarButton'],
+    //   },
+    // },
     {
       type: 'we-button',
       props: {
@@ -159,29 +159,36 @@ const templateHeader = {
       type: 'PopoverMenu',
       props: {
         options: { $store: 'themeStore.themes' },
-        currentOption: { $store: 'themeStore.currentTheme' },
-        setOption: { $store: 'themeStore.setCurrentTheme' },
+        selectedOption: { $store: 'themeStore.currentTheme' },
+        onSelect: { $store: 'themeStore.setCurrentTheme' },
       },
     },
     {
       type: 'PopoverMenu',
       props: {
-        options: {
-          $map: {
-            items: { $store: 'templateStore.templates' },
-            select: { id: '$item.id', name: '$item.name', icon: '$item.icon' },
-          },
-        },
-        currentOption: {
-          $pick: {
-            from: { $store: 'templateStore.currentTemplate' },
-            props: ['name', 'icon'],
-          },
-        },
-        setOption: { $store: 'templateStore.setCurrentTemplate' },
+        options: { $store: 'templateStore.templates' },
+        selectedOption: { $store: 'templateStore.selectedTemplate' },
+        onSelect: { $store: 'templateStore.switchTemplate' },
       },
     },
-    { type: 'RerenderLog', props: { location: 'Template Header' } },
+    // {
+    //   type: 'PopoverMenu',
+    //   props: {
+    //     options: {
+    //       $map: {
+    //         items: { $store: 'templateStore.templates' },
+    //         select: { id: '$item.id', name: '$item.name', icon: '$item.icon' },
+    //       },
+    //     },
+    //     selectedOption: {
+    //       $pick: {
+    //         from: { $store: 'templateStore.currentTemplate' },
+    //         props: ['name', 'icon'],
+    //       },
+    //     },
+    //     onSelect: { $store: 'templateStore.setCurrentTemplate' },
+    //   },
+    // },
   ],
 };
 
@@ -250,7 +257,7 @@ const spacePageHeader = {
 // Full test template schema
 export const testTemplateSchema: TemplateSchema = {
   meta: {
-    name: 'Test template',
+    name: 'Testing template',
     description: 'A simple template used for testing',
     icon: 'layout',
   },
@@ -364,8 +371,8 @@ export function testMutations(currentSchema: TemplateSchema, setCurrentSchema: S
           type: 'PopoverMenu',
           props: {
             options: { $store: 'themeStore.themes' },
-            currentOption: { $store: 'themeStore.currentTheme' },
-            setOption: { $store: 'themeStore.setCurrentTheme' },
+            selectedOption: { $store: 'themeStore.currentTheme' },
+            onSelect: { $store: 'themeStore.setCurrentTheme' },
           },
         },
         {
@@ -377,13 +384,13 @@ export function testMutations(currentSchema: TemplateSchema, setCurrentSchema: S
                 select: { id: '$item.id', name: '$item.name', icon: '$item.icon' },
               },
             },
-            currentOption: {
+            selectedOption: {
               $pick: {
                 from: { $store: 'templateStore.currentTemplate' },
                 props: ['name', 'icon'],
               },
             },
-            setOption: { $store: 'templateStore.setCurrentTemplate' },
+            onSelect: { $store: 'templateStore.setCurrentTemplate' },
           },
         },
         { type: 'RerenderLog', props: { location: 'Template Header' } },

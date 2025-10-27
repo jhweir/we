@@ -74,7 +74,7 @@ export default function TemplateProvider() {
   const stores = { adamStore, spaceStore, modalStore, themeStore, templateStore };
 
   // Get the current template schema
-  const templateSchema = templateStore.currentSchema;
+  const templateSchema = templateStore.currentTemplate;
 
   // Build the routes
   const routes = flattenRoutes(stores, templateSchema.routes ?? []);

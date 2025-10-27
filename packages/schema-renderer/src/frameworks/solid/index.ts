@@ -1,5 +1,5 @@
 export { RenderSchema } from './SchemaRenderer';
 
-export { updateSchemaNode } from './utils';
+export { updateSchema } from './schemaUpdater';
 
 export type { ComponentRegistry, RenderProps, RendererOutput } from './types';

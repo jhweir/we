@@ -1,4 +1,4 @@
-import type { TemplateSchema } from '@we/schema-renderer/solid';
+import type { TemplateSchema } from '@we/schema-renderer/shared';
 
 const templateSidebar = {
   type: 'Column',
@@ -72,26 +72,16 @@ const templateHeader = {
       type: 'PopoverMenu',
       props: {
         options: { $store: 'themeStore.themes' },
-        currentOption: { $store: 'themeStore.currentTheme' },
-        setOption: { $store: 'themeStore.setCurrentTheme' },
+        selectedOption: { $store: 'themeStore.currentTheme' },
+        onSelect: { $store: 'themeStore.setCurrentTheme' },
       },
     },
     {
       type: 'PopoverMenu',
       props: {
-        options: {
-          $map: {
-            items: { $store: 'templateStore.templates' },
-            select: { id: '$item.id', name: '$item.name', icon: '$item.icon' },
-          },
-        },
-        currentOption: {
-          $pick: {
-            from: { $store: 'templateStore.currentTemplate' },
-            props: ['name', 'icon'],
-          },
-        },
-        setOption: { $store: 'templateStore.setCurrentTemplate' },
+        options: { $store: 'templateStore.templates' },
+        selectedOption: { $store: 'templateStore.selectedTemplate' },
+        onSelect: { $store: 'templateStore.switchTemplate' },
       },
     },
   ],
@@ -163,7 +153,7 @@ export const secondaryTemplateSchema: TemplateSchema = {
     icon: 'sidebar',
   },
   type: 'DefaultTemplate',
-  slots: { sidebar: templateSidebar, modals: templateModals }, // header: templateHeader,
+  slots: { header: templateHeader, modals: templateModals }, // sidebar: templateSidebar
   children: [{ type: '$routes' }],
   routes: [
     { path: '*', type: 'PageNotFound' },

@@ -2,8 +2,8 @@ import { z } from 'zod';
 
 import type { RouteSchema, SchemaNode, SchemaProp, TemplateMeta, TemplateSchema } from './types';
 
-const lazySchemaProp = z.lazy(() => zSchemaProp);
 const lazySchemaNode = z.lazy(() => zSchemaNode);
+const lazySchemaProp = z.lazy(() => zSchemaProp);
 const lazyRouteSchema = z.lazy(() => zRouteSchema);
 
 function schemaNodeShape() {
@@ -15,6 +15,8 @@ function schemaNodeShape() {
     children: z.array(z.union([lazySchemaNode, z.string()])).optional(),
   };
 }
+
+export const zSchemaNode: z.ZodType<SchemaNode> = z.object(schemaNodeShape()).strict();
 
 export const zSchemaProp: z.ZodType<SchemaProp> = z.union([
   z.string(),
@@ -32,8 +34,6 @@ export const zTemplateMeta: z.ZodType<TemplateMeta> = z
     icon: z.string(),
   })
   .strict();
-
-export const zSchemaNode: z.ZodType<SchemaNode> = z.object(schemaNodeShape()).strict();
 
 export const zTemplateSchema: z.ZodType<TemplateSchema> = z
   .object({ ...schemaNodeShape(), meta: zTemplateMeta })

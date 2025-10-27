@@ -1,93 +1,5 @@
 import type { TemplateSchema } from '@we/schema-renderer/shared';
 
-const testButtons = {
-  type: 'Row',
-  props: { bg: 'ui-200', ay: 'center', gap: '400', p: '400' },
-  children: [
-    { type: 'we-text', props: { size: '600', nomargin: true }, children: ['Testing buttons'] },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.removeTemplateHeaderSlot' },
-        children: ['removeTemplateHeaderSlot'],
-      },
-    },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.addTemplateHeaderSlot' },
-        children: ['addTemplateHeaderSlot'],
-      },
-    },
-    // {
-    //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.changeTemplateHeaderProp' },
-    //     children: ['changeTemplateHeaderProp'],
-    //   },
-    // },
-    // {
-    //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.changeTemplateHeaderChildProp' },
-    //     children: ['changeTemplateHeaderChildProp'],
-    //   },
-    // },
-    // {
-    //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.changeSidebarProp' },
-    //     children: ['changeSidebarProp'],
-    //   },
-    // },
-    // {
-    //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.editSpacePageHeaderButton' },
-    //     children: ['editSpacePageHeaderButton'],
-    //   },
-    // },
-    // {
-    //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.editPostsPageHeaderButton' },
-    //     children: ['editPostsPageHeaderButton'],
-    //   },
-    // },
-    // {
-    //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.addPostsPageHeaderButton' },
-    //     children: ['addPostsPageHeaderButton'],
-    //   },
-    // },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.addSidebarButton' },
-        children: ['addSidebarButton'],
-      },
-    },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.createInvalidSchema' },
-        children: ['createInvalidSchema'],
-      },
-    },
-  ],
-};
-
 const templateSidebar = {
   type: 'Column',
   props: { bg: 'ui-0', p: '500', ay: 'between' },
@@ -141,7 +53,6 @@ const templateSidebar = {
         },
       ],
     },
-    { type: 'RerenderLog', props: { location: 'Template Sidebar' } },
   ],
 };
 
@@ -149,34 +60,22 @@ const templateHeader = {
   type: 'Row',
   props: { p: '400', gap: '400', ax: 'end', ay: 'center' },
   children: [
-    { type: 'we-text', props: { size: '600', nomargin: true }, children: ['Header!'] },
     {
       type: 'PopoverMenu',
       props: {
         options: { $store: 'themeStore.themes' },
-        currentOption: { $store: 'themeStore.currentTheme' },
-        setOption: { $store: 'themeStore.setCurrentTheme' },
+        selectedOption: { $store: 'themeStore.currentTheme' },
+        onSelect: { $store: 'themeStore.setCurrentTheme' },
       },
     },
     {
       type: 'PopoverMenu',
       props: {
-        options: {
-          $map: {
-            items: { $store: 'templateStore.templates' },
-            select: { id: '$item.id', name: '$item.name', icon: '$item.icon' },
-          },
-        },
-        currentOption: {
-          $pick: {
-            from: { $store: 'templateStore.currentTemplate' },
-            props: ['name', 'icon'],
-          },
-        },
-        setOption: { $store: 'templateStore.setCurrentTemplate' },
+        options: { $store: 'templateStore.templates' },
+        selectedOption: { $store: 'templateStore.selectedTemplate' },
+        onSelect: { $store: 'templateStore.switchTemplate' },
       },
     },
-    { type: 'RerenderLog', props: { location: 'Template Header' } },
   ],
 };
 
@@ -196,7 +95,6 @@ const templateModals = {
         },
       },
     },
-    { type: 'RerenderLog', props: { location: 'Template Modals' } },
   ],
 };
 
@@ -206,7 +104,6 @@ const spacePageSidebar = {
     name: { $store: 'spaceStore.space.name' },
     description: { $store: 'spaceStore.space.description' },
   },
-  children: [{ type: 'RerenderLog', props: { location: 'SpacePage Sidebar' } }],
 };
 
 const spacePageHeader = {
@@ -238,7 +135,6 @@ const spacePageHeader = {
         children: ['Users'],
       },
     },
-    { type: 'RerenderLog', props: { location: 'SpacePage Header' } },
   ],
 };
 
@@ -250,7 +146,7 @@ export const defaultTemplateSchema: TemplateSchema = {
   },
   type: 'DefaultTemplate',
   slots: { sidebar: templateSidebar, header: templateHeader, modals: templateModals },
-  children: [testButtons, { type: '$routes' }],
+  children: [{ type: '$routes' }],
   routes: [
     { path: '*', type: 'PageNotFound' },
     { path: '/', type: 'HomePage' },
@@ -270,10 +166,7 @@ export const defaultTemplateSchema: TemplateSchema = {
           path: '/',
           type: 'Row',
           props: { bg: 'ui-200', ay: 'center', px: '400', style: { height: '60px' } },
-          children: [
-            { type: 'we-text', props: { size: '600', nomargin: true }, children: ['About sub-page'] },
-            { type: 'RerenderLog', props: { location: 'AboutPage' } },
-          ],
+          children: [{ type: 'we-text', props: { size: '600', nomargin: true }, children: ['About sub-page'] }],
         },
         {
           path: '/posts',
@@ -306,7 +199,6 @@ export const defaultTemplateSchema: TemplateSchema = {
                     children: ['Return back up to users'],
                   },
                 },
-                { type: 'RerenderLog', props: { location: 'PostsPage header buttons' } },
               ],
             },
             {
@@ -314,7 +206,6 @@ export const defaultTemplateSchema: TemplateSchema = {
               props: { bg: 'ui-300', p: '400' },
               children: [{ type: '$routes' }],
             },
-            { type: 'RerenderLog', props: { location: 'PostsPage' } },
           ],
           routes: [
             { path: '/*', type: 'we-text', props: { size: '600', nomargin: true }, children: ['Post not found...'] },
@@ -327,10 +218,7 @@ export const defaultTemplateSchema: TemplateSchema = {
           path: '/users',
           type: 'Row',
           props: { bg: 'ui-200', ay: 'center', px: '400', style: { height: '60px' } },
-          children: [
-            { type: 'we-text', props: { size: '600', nomargin: true }, children: ['User sub-page'] },
-            { type: 'RerenderLog', props: { location: 'UserPage' } },
-          ],
+          children: [{ type: 'we-text', props: { size: '600', nomargin: true }, children: ['User sub-page'] }],
         },
       ],
     },

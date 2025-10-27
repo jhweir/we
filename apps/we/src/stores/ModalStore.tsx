@@ -20,17 +20,13 @@ export function ModalStoreProvider(props: ParentProps) {
 
   // Actions
   function openModal(modal: ModalName) {
-    console.log('open modal: ', modal);
+    // console.log('open modal: ', modal);
     if (modal === 'create-space') setCreateSpaceModalOpen(true);
-    console.log('createSpaceModalOpen:', createSpaceModalOpen());
-    // Add more cases as you add more modals
   }
 
   function closeModal(modal: ModalName) {
-    console.log('close modal: ', modal);
+    // console.log('close modal: ', modal);
     if (modal === 'create-space') setCreateSpaceModalOpen(false);
-    console.log('createSpaceModalOpen:', createSpaceModalOpen());
-    // Add more cases as you add more modals
   }
 
   const store: ModalStore = {

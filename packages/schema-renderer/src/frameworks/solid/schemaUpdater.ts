@@ -5,7 +5,7 @@ import { findMutations } from '../../shared/mutations';
 import type { SchemaNode, TemplateSchema } from '../../shared/types';
 import { validateSchema } from '../../shared/validators';
 
-export function updateSchemaNode<T extends TemplateSchema | SchemaNode>(
+export function updateSchema<T extends TemplateSchema | SchemaNode>(
   oldNode: T,
   newNode: T,
   setSchema: SetStoreFunction<T>,
@@ -17,14 +17,15 @@ export function updateSchemaNode<T extends TemplateSchema | SchemaNode>(
     return;
   }
 
-  console.log('Validation passed: ', newNode);
+  // console.log('Validation passed: ', newNode);
 
   // Find mutations between the old and new nodes
   const mutations = findMutations(oldNode, newNode);
   if (!mutations.length) return;
 
+  // console.time('applyMutations');
+
   // Apply mutations based on their size
-  console.time('applyMutations');
   if (mutations.length > 10) {
     // Use produce for large updates
     setSchema(
@@ -50,5 +51,5 @@ export function updateSchemaNode<T extends TemplateSchema | SchemaNode>(
     });
   }
 
-  console.timeEnd('applyMutations');
+  // console.timeEnd('applyMutations');
 }

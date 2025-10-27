@@ -1,78 +1,86 @@
 import type { TemplateSchema } from '@we/schema-renderer/shared';
+import { validateSchema } from '@we/schema-renderer/shared';
+import { updateSchema } from '@we/schema-renderer/solid';
 import { Accessor, createContext, createSignal, ParentProps, useContext } from 'solid-js';
 import { createStore } from 'solid-js/store';
 
-import { isValidTemplateKey, TemplateKey, templateRegistry } from '@/registries/templateRegistry';
+import { isValidTemplateId, TemplateId, templateRegistry } from '@/registries/templateRegistry';
 import { testMutations } from '@/schemas/TestTemplate.schema';
 import { deepClone } from '@/utils';
 
 const TEMPLATE_KEY = 'we.template';
 
-type TemplateWithMeta = TemplateSchema & { id: string; name: string; icon: string };
+type TemplateOption = { id: string; name: string; icon: string };
 
 export interface TemplateStoreBase {
-  templates: Accessor<TemplateSchema[]>;
-  currentTemplate: Accessor<TemplateSchema>;
-  currentSchema: TemplateSchema;
+  // State
+  templates: Accessor<TemplateOption[]>;
+  selectedTemplate: Accessor<TemplateOption>;
+  currentTemplate: TemplateSchema;
 
-  setTemplates: (templates: TemplateSchema[]) => void;
-  setCurrentTemplate: (templateKey: TemplateKey) => void;
-  setCurrentSchema: (schema: TemplateSchema) => void;
+  // Actions
+  updateTemplate: (newTemplate: TemplateSchema) => void;
+  switchTemplate: (newTemplate: TemplateOption) => void;
 }
 
 export type TemplateStore = TemplateStoreBase & ReturnType<typeof testMutations>;
 
 const TemplateContext = createContext<TemplateStore>();
 
-// Map template metadata into templates
-function mapTemplate(key: TemplateKey, template: TemplateSchema): TemplateWithMeta {
-  return { id: key, name: template.meta.name, icon: template.meta.icon, ...template };
+function getTemplateOptions(): TemplateOption[] {
+  return Object.entries(templateRegistry).map(([id, template]) => ({
+    id,
+    name: template.meta.name,
+    icon: template.meta.icon,
+  }));
 }
 
-// Get all templates from the registry with metadata
-function getMappedTemplates(): TemplateWithMeta[] {
-  return Object.entries(templateRegistry).map(([key, template]) => mapTemplate(key as TemplateKey, template));
-}
-
-// Get initial template key from localStorage if available otherwise fall back to the first key in the registry
-function getInitialTemplateKey(): TemplateKey {
+function getInitialTemplateId(): TemplateId {
   const saved = typeof window !== 'undefined' ? localStorage.getItem(TEMPLATE_KEY) : null;
-  const fallback = Object.keys(templateRegistry)[0] as TemplateKey;
-  return isValidTemplateKey(saved) ? saved : fallback;
+  return isValidTemplateId(saved) ? saved : 'default';
 }
 
 export function TemplateStoreProvider(props: ParentProps) {
-  const [templates, setTemplates] = createSignal<TemplateWithMeta[]>(getMappedTemplates());
-  const [currentTemplateKey, setCurrentTemplateKey] = createSignal<TemplateKey>(getInitialTemplateKey());
-  const [currentSchema, setCurrentSchema] = createStore<TemplateSchema>(
-    deepClone(templateRegistry[getInitialTemplateKey()]),
-  );
+  const initialTemplateOptions = getTemplateOptions();
+  const initialTemplateId = getInitialTemplateId();
+  const initialSelectedTemplate = initialTemplateOptions.find((t) => t.id === initialTemplateId)!;
+  const initialTemplate = deepClone(templateRegistry[initialTemplateId]);
 
-  // Derive the current template based on the currentTemplateKey
-  const currentTemplate = () =>
-    templates().find((t) => t.id === currentTemplateKey()) ?? mapTemplate('test', templateRegistry.test);
+  const [templates] = createSignal<TemplateOption[]>(initialTemplateOptions);
+  const [selectedTemplate, setSelectedTemplate] = createSignal<TemplateOption>(initialSelectedTemplate);
+  const [currentTemplate, setCurrentTemplate] = createStore<TemplateSchema>(initialTemplate);
 
-  // Update the current template and persist the choice in localStorage
-  function setCurrentTemplate(templateKey: TemplateKey) {
-    if (isValidTemplateKey(templateKey)) {
-      setCurrentTemplateKey(templateKey);
-      localStorage.setItem(TEMPLATE_KEY, templateKey);
+  function updateTemplate(newTemplate: TemplateSchema) {
+    const { valid, errors } = validateSchema(newTemplate);
+    if (valid) updateSchema(currentTemplate, newTemplate, setCurrentTemplate);
+    else console.error('Invalid template schema:', errors);
+  }
+
+  function switchTemplate(newTemplate: TemplateOption) {
+    if (isValidTemplateId(newTemplate.id)) {
+      console.log('switching to template:', newTemplate);
+      const clonedTemplate = deepClone(templateRegistry[newTemplate.id]);
+      setSelectedTemplate(newTemplate);
+      setCurrentTemplate({ children: [], slots: {} }); // Temp clear to avoid merge issues
+      setCurrentTemplate(clonedTemplate);
+      localStorage.setItem(TEMPLATE_KEY, newTemplate.id);
+    } else {
+      console.error(`TemplateStore: switchTemplate - Invalid templateId "${newTemplate.id}"`);
     }
   }
 
   const store: TemplateStore = {
     // State
     templates,
+    selectedTemplate,
     currentTemplate,
-    currentSchema,
 
     // Setters
-    setTemplates,
-    setCurrentTemplate,
-    setCurrentSchema,
+    updateTemplate,
+    switchTemplate,
 
     // Testing
-    ...testMutations(currentSchema, setCurrentSchema),
+    ...testMutations(currentTemplate, setCurrentTemplate),
   };
 
   return <TemplateContext.Provider value={store}>{props.children}</TemplateContext.Provider>;

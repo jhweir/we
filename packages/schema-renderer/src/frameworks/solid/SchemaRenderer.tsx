@@ -2,7 +2,7 @@ import { batch, createEffect, createMemo, For, JSX, Show } from 'solid-js';
 import { createStore, produce } from 'solid-js/store';
 
 import { resolveProp, resolveProps, resolveStoreProp } from '../../shared/propResolvers';
-import type { SchemaNode, RenderProps, RendererOutput } from './types';
+import type { RendererOutput, RenderProps, SchemaNode } from './types';
 
 export function RenderSchema({ node, stores, registry, context = {}, children }: RenderProps): RendererOutput {
   if (!node) return null;

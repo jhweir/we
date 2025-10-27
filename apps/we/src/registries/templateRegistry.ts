@@ -1,14 +1,13 @@
-import { defaultTemplateSchema, secondaryTemplateSchema, simpleTemplateSchema, testTemplateSchema } from '../schemas';
+import { defaultTemplateSchema, secondaryTemplateSchema, testTemplateSchema } from '../schemas';
 
 export const templateRegistry = {
-  test: testTemplateSchema,
   default: defaultTemplateSchema,
   secondary: secondaryTemplateSchema,
-  simple: simpleTemplateSchema,
+  test: testTemplateSchema,
 };
 
-export type TemplateKey = keyof typeof templateRegistry;
+export type TemplateId = keyof typeof templateRegistry;
 
-export function isValidTemplateKey(key: unknown): key is TemplateKey {
+export function isValidTemplateId(key: unknown): key is TemplateId {
   return typeof key === 'string' && key in templateRegistry;
 }

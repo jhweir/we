@@ -9,13 +9,6 @@
     "isolatedModules": true,
     "experimentalDecorators": true,
     "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"],
-      "@assets/*": ["./src/assets/*"],
-      "@stores/*": ["src/stores/*"],
-      "@components/*": ["./src/components/*"],
-      "@providers/*": ["./src/providers/*"],
-      "@renderers/*": ["./src/renderers/*"]
-    }
+    "paths": { "@/*": ["./src/*"] }
   }
 }

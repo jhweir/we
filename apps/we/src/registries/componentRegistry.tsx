@@ -14,7 +14,7 @@ export const componentRegistry: ComponentRegistry = {
   Row,
   CircleButton,
   PopoverMenu,
-  RerenderLog,
+  RerenderLog, // Log component remounts for testing
 
   // @we/widgets
   CreateSpaceModalWidget,
@@ -28,3 +28,15 @@ export const componentRegistry: ComponentRegistry = {
   // @we/templates
   DefaultTemplate,
 };
+
+// Ideas:
+// Hero — common landing section (title, subtitle, image, cta)
+// Card — repeatable content block (title, image, footer, actions)
+// Image/Media — src, alt, ratio, fit
+// Heading / Text primitives — H1..H4, Paragraph (gives AI typographic control)
+// List / Repeat (data-driven) — itemTemplate + itemsSource ($store/$map)
+// Nav / Menu — items array for site structure
+// Modal / Drawer — overlay patterns
+// Form primitives (Input, Select, Button) or a Form container (fields + onSubmit)
+// Badge / Tag / Avatar — small metadata visuals
+// DataTable (if you have tabular content use-cases)

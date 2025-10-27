@@ -18,19 +18,13 @@ export function DefaultTemplate(props: DefaultTemplateProps) {
 
   return (
     <Row class={`${baseClass} ${props.class || ''}`} style={props.style} data-we-template>
-      {/* Sidebar */}
       {props.sidebar && <aside class={`${baseClass}-sidebar`}>{props.sidebar}</aside>}
 
-      {/* Main content */}
       <Column class={`${baseClass}-content`} ax="center" bg="ui-50">
-        {/* Header */}
         {props.header && <header class={`${baseClass}-header`}>{props.header}</header>}
-
-        {/* Page routes */}
         <main class={`${baseClass}-pages`}>{props.children}</main>
       </Column>
 
-      {/* Modals */}
       {props.modals && <div class={`${baseClass}-modals`}>{props.modals}</div>}
     </Row>
   );
