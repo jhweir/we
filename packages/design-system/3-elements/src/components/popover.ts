@@ -26,6 +26,22 @@ const styles = css`
   }
 `;
 
+// // portal wrapper defaults — when we move slot content to body it will live here
+// const portalStyles = css`
+//   .we-popover-portal {
+//     position: fixed;
+//     top: 0;
+//     left: 0;
+//     width: 0;
+//     height: 0;
+//     z-index: 1000000; /* should be above modals */
+//     pointer-events: none;
+//   }
+//   .we-popover-portal > * {
+//     pointer-events: auto;
+//   }
+// `;
+
 const generateGetBoundingClientRect = (x = 0, y = 0) => {
   return (): DOMRect => ({
     width: 0,
@@ -59,6 +75,9 @@ export default class Popover extends LitElement {
   }
 
   private popperInstance: any | null = null;
+  // portal bookkeeping: container appended to document.body and moved nodes list
+  private _portalContainer: HTMLElement | null = null;
+  private _movedNodes: { node: Node; parent: Node | null; nextSibling: Node | null }[] = [];
 
   get triggerPart(): HTMLElement {
     const trigger = this.renderRoot.querySelector<HTMLElement>("[part='trigger']");
@@ -104,7 +123,8 @@ export default class Popover extends LitElement {
         trigger.addEventListener('mouseleave', () => (this.open = false));
       }
 
-      // Handle click outside
+      // Handle click outside. When content is portalled, the slot will be empty,
+      // so we also check moved nodes recorded in _movedNodes.
       window.addEventListener('mousedown', (e: MouseEvent) => {
         let path: EventTarget[] = [];
         if (typeof e.composedPath === 'function') {
@@ -114,7 +134,28 @@ export default class Popover extends LitElement {
         }
 
         const clickedTrigger = path.includes(this.triggerAssignedNode);
-        const clickedInside = path.includes(this.contentAssignedNode);
+
+        let clickedInside = false;
+        // if we moved nodes to a portal, check those nodes
+        if (this._movedNodes && this._movedNodes.length > 0) {
+          for (const entry of this._movedNodes) {
+            if (path.includes(entry.node)) {
+              clickedInside = true;
+              break;
+            }
+          }
+        }
+
+        // fallback: if no moved nodes, try checking the original slot-assigned node
+        if (!clickedInside) {
+          try {
+            clickedInside = path.includes(this.contentAssignedNode);
+          } catch (err) {
+            // no assigned node — treat as not clicked inside
+            clickedInside = false;
+          }
+        }
+
         if (!clickedInside && !clickedTrigger) this.open = false;
       });
     }
@@ -130,15 +171,53 @@ export default class Popover extends LitElement {
       this.popperInstance.destroy();
       this.popperInstance = null;
     }
+    // restore any portalled nodes to their original positions
+    if (this._portalContainer) {
+      for (const entry of this._movedNodes) {
+        const { node, parent, nextSibling } = entry;
+        if (parent) parent.insertBefore(node, nextSibling);
+        else document.body.appendChild(node);
+      }
+      this._movedNodes = [];
+      if (this._portalContainer.parentNode) this._portalContainer.parentNode.removeChild(this._portalContainer);
+      this._portalContainer = null;
+    }
   }
 
   _createPopover() {
     const trigger = this.triggerPart;
     const content = this.contentPart;
 
+    // find the content slot so we can portal its assigned nodes
+    const contentSlot = this.renderRoot.querySelector<HTMLSlotElement>("[name='content']");
+
     if (!trigger || !content) return;
 
     this.destroyPopper();
+
+    // If there are assigned nodes in the content slot, portal them to body to avoid
+    // transform/overflow/clipping issues (modals create new stacking contexts).
+    let popperTarget: HTMLElement | Element = content;
+    try {
+      if (contentSlot) {
+        const assigned = contentSlot.assignedNodes({ flatten: true });
+        if (assigned && assigned.length > 0) {
+          // create portal container
+          this._portalContainer = document.createElement('div');
+          this._portalContainer.style.zIndex = '1000000';
+          document.body.appendChild(this._portalContainer);
+
+          // move nodes into portal and remember their original parents
+          this._movedNodes = assigned.map((n) => ({ node: n, parent: n.parentNode, nextSibling: n.nextSibling }));
+          for (const { node } of this._movedNodes) this._portalContainer.appendChild(node);
+
+          popperTarget = this._portalContainer;
+        }
+      }
+    } catch (err) {
+      // fallback — ignore portal failures
+      // console.warn('Popover portal failed', err);
+    }
 
     if (this.event === 'contextmenu') {
       const virtualElement: VirtualElement = {
@@ -146,16 +225,12 @@ export default class Popover extends LitElement {
         getBoundingClientRect: generateGetBoundingClientRect(),
       };
 
-      this.popperInstance = createPopper(virtualElement, content, {
+      this.popperInstance = createPopper(virtualElement, popperTarget as HTMLElement, {
         placement: this.placement as Placement,
         strategy: 'fixed',
-        // modifiers: [{ name: 'offset', options: { offset: [10, 10] } }],
       });
-
-      virtualElement.getBoundingClientRect = generateGetBoundingClientRect(this.clientX, this.clientY);
-      this.popperInstance.update();
     } else {
-      this.popperInstance = createPopper(trigger, content, {
+      this.popperInstance = createPopper(trigger, popperTarget as HTMLElement, {
         placement: this.placement as Placement,
         strategy: 'fixed',
         modifiers: [

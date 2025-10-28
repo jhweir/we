@@ -21,6 +21,7 @@ export interface TemplateStoreBase {
   // Actions
   updateTemplate: (newTemplate: TemplateSchema) => void;
   switchTemplate: (newTemplate: TemplateOption) => void;
+  removeTemplate: () => void;
 }
 
 export type TemplateStore = TemplateStoreBase & ReturnType<typeof testMutations>;
@@ -56,17 +57,21 @@ export function TemplateStoreProvider(props: ParentProps) {
     else console.error('Invalid template schema:', errors);
   }
 
-  function switchTemplate(newTemplate: TemplateOption) {
+  async function switchTemplate(newTemplate: TemplateOption) {
     if (isValidTemplateId(newTemplate.id)) {
-      console.log('switching to template:', newTemplate);
       const clonedTemplate = deepClone(templateRegistry[newTemplate.id]);
       setSelectedTemplate(newTemplate);
-      setCurrentTemplate({ children: [], slots: {} }); // Temp clear to avoid merge issues
+      setCurrentTemplate({ type: '', children: [], slots: {}, routes: [] }); // Temp clear to avoid merge issues
       setCurrentTemplate(clonedTemplate);
       localStorage.setItem(TEMPLATE_KEY, newTemplate.id);
     } else {
       console.error(`TemplateStore: switchTemplate - Invalid templateId "${newTemplate.id}"`);
     }
+  }
+
+  function removeTemplate() {
+    setCurrentTemplate({ type: '', children: [], slots: {} });
+    console.log('Template removed', currentTemplate);
   }
 
   const store: TemplateStore = {
@@ -78,6 +83,8 @@ export function TemplateStoreProvider(props: ParentProps) {
     // Setters
     updateTemplate,
     switchTemplate,
+
+    removeTemplate,
 
     // Testing
     ...testMutations(currentTemplate, setCurrentTemplate),

@@ -8,6 +8,7 @@ export { type Ad4mClient, PerspectiveProxy } from '@coasys/ad4m';
 // TODO:
 // + move ai to separate stores
 // + rename to AppStore
+// + set up seperate route store?
 
 type NavigateFunction = ReturnType<typeof useNavigate>;
 

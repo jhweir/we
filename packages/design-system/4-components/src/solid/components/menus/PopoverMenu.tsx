@@ -11,6 +11,8 @@ export interface PopoverMenuProps {
   style?: JSX.CSSProperties;
 }
 
+// TODO: close menu when an option is selected (look at how we did this in flux and maybe update we-popover/we-menu to support this natively)
+
 export function PopoverMenu(props: PopoverMenuProps) {
   return (
     <we-popover class={`we-popover-menu ${props.class || ''}`} style={props.style} placement="bottom-end" data-we-menu>

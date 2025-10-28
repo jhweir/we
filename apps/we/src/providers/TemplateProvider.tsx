@@ -1,8 +1,9 @@
 import { Route, Router, useLocation, useNavigate } from '@solidjs/router';
+import { PageNotFound } from '@we/pages/solid';
 import type { RouteSchema, TemplateSchema } from '@we/schema-renderer/shared';
 import { RenderSchema } from '@we/schema-renderer/solid';
 import type { JSX, ParentProps } from 'solid-js';
-import { createEffect } from 'solid-js';
+import { createEffect, createMemo } from 'solid-js';
 
 import { componentRegistry as registry } from '@/registries/componentRegistry';
 import { useAdamStore, useModalStore, useSpaceStore, useTemplateStore, useThemeStore } from '@/stores';
@@ -27,8 +28,7 @@ function createLayout(stores: Stores, schema: TemplateSchema) {
       if (page === 'space' && pageId) stores.spaceStore.setSpaceId(pageId);
     });
 
-    // Return the rendered schema with the routes as children
-    return RenderSchema({ node: schema, stores, registry, children: props.children }) as JSX.Element;
+    return <RenderSchema node={schema} stores={stores} registry={registry} children={props.children} />;
   };
 }
 
@@ -77,16 +77,16 @@ export default function TemplateProvider() {
   const templateSchema = templateStore.currentTemplate;
 
   // Build the routes
-  const routes = flattenRoutes(stores, templateSchema.routes ?? []);
+  const routes = createMemo(() => flattenRoutes(stores, templateSchema.routes ?? []));
 
   // Return the router with the root layout and routes
   return (
     <Router root={createLayout(stores, templateSchema)}>
-      {routes.map((route) => (
+      {routes().map((route) => (
         <Route path={route.path} component={route.component} />
       ))}
       {/* Fallback incase the schema doesn't define a wildcard route */}
-      {!routes.find((route) => route.path === '*') && <Route path="*" component={() => <span>Page Not Found</span>} />}
+      {!routes().find((route) => route.path === '*') && <Route path="*" component={() => <PageNotFound />} />}
     </Router>
   );
 }

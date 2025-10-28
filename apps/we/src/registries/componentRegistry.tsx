@@ -1,7 +1,7 @@
-import { CircleButton, Column, PopoverMenu, RerenderLog, Row } from '@we/components/solid';
+import { CircleButton, Column, IconLabelButton, PopoverMenu, RerenderLog, Row } from '@we/components/solid';
 import { HomePage, PageNotFound, SpacePage } from '@we/pages/solid';
 import type { ComponentRegistry } from '@we/schema-renderer/solid';
-import { DefaultTemplate } from '@we/templates/solid';
+import { CenteredTemplate, DefaultTemplate } from '@we/templates/solid';
 import { CreateSpaceModalWidget, SpaceSidebarWidget } from '@we/widgets/solid';
 
 export const componentRegistry: ComponentRegistry = {
@@ -13,8 +13,8 @@ export const componentRegistry: ComponentRegistry = {
   Column,
   Row,
   CircleButton,
+  IconLabelButton,
   PopoverMenu,
-  RerenderLog, // Log component remounts for testing
 
   // @we/widgets
   CreateSpaceModalWidget,
@@ -27,6 +27,10 @@ export const componentRegistry: ComponentRegistry = {
 
   // @we/templates
   DefaultTemplate,
+  CenteredTemplate,
+
+  // Testing
+  RerenderLog,
 };
 
 // Ideas:

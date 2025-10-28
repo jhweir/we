@@ -14,6 +14,14 @@ const testButtons = {
       type: 'we-button',
       props: {
         variant: 'subtle',
+        onClick: { $action: 'templateStore.changeNodeType' },
+        children: ['changeNodeType'],
+      },
+    },
+    {
+      type: 'we-button',
+      props: {
+        variant: 'subtle',
         onClick: { $action: 'templateStore.removeTemplateHeaderSlot' },
         children: ['removeTemplateHeaderSlot'],
       },
@@ -461,6 +469,16 @@ export function testMutations(currentSchema: TemplateSchema, setCurrentSchema: S
     updateSchema(currentSchema, newSchema, setCurrentSchema);
   }
 
+  function changeNodeType() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newSchema = deepClone(currentSchema) as any;
+    newSchema.slots.sidebar.type = 'Row';
+    newSchema.slots.sidebar.children[0].type = 'Row';
+    newSchema.slots.sidebar.children[0].props = { gap: '800' };
+    console.log('newSchema', newSchema);
+    updateSchema(currentSchema, newSchema, setCurrentSchema);
+  }
+
   return {
     removeTemplateHeaderSlot,
     addTemplateHeaderSlot,
@@ -472,5 +490,6 @@ export function testMutations(currentSchema: TemplateSchema, setCurrentSchema: S
     addPostsPageHeaderButton,
     addSidebarButton,
     createInvalidSchema,
+    changeNodeType,
   };
 }

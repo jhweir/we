@@ -1,5 +1,6 @@
 import { batch, createEffect, createMemo, For, JSX, Show } from 'solid-js';
 import { createStore, produce } from 'solid-js/store';
+import { Dynamic } from 'solid-js/web';
 
 import { resolveProp, resolveProps, resolveStoreProp } from '../../shared/propResolvers';
 import type { RendererOutput, RenderProps, SchemaNode } from './types';
@@ -105,13 +106,13 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
   });
 
   // Get the component from the registry
-  const Component = registry[node.type ?? ''];
-  if (!Component) throw new Error(`Schema node has unknown type "${node.type}".`);
+  const component = createMemo(() => registry[node.type ?? '']);
+  if (!component()) throw new Error(`Schema node has unknown type "${node.type}".`);
 
   // Return the rendered component with its resolved props, slots, and children
   return (
-    <Component {...resolveProps(node.props, stores, context, createMemo)} {...slotElements}>
+    <Dynamic component={component()} {...resolveProps(node.props, stores, context, createMemo)} {...slotElements}>
       {renderChildren(node.children)}
-    </Component>
+    </Dynamic>
   );
 }

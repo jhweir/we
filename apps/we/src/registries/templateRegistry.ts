@@ -1,8 +1,9 @@
-import { defaultTemplateSchema, secondaryTemplateSchema, testTemplateSchema } from '../schemas';
+import { defaultTemplateSchema, secondaryTemplateSchema, testTemplateSchema, twitterTemplateSchema } from '../schemas';
 
 export const templateRegistry = {
   default: defaultTemplateSchema,
   secondary: secondaryTemplateSchema,
+  twitter: twitterTemplateSchema,
   test: testTemplateSchema,
 };
 

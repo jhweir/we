@@ -1516,6 +1516,24 @@
             },
             {
               "kind": "field",
+              "name": "_portalContainer",
+              "type": {
+                "text": "HTMLElement | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_movedNodes",
+              "type": {
+                "text": "{ node: Node; parent: Node | null; nextSibling: Node | null }[]"
+              },
+              "privacy": "private",
+              "default": "[]"
+            },
+            {
+              "kind": "field",
               "name": "triggerPart",
               "type": {
                 "text": "HTMLElement"
