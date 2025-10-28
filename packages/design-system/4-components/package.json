@@ -25,6 +25,7 @@
     "solid-js": "^1.9.0"
   },
   "devDependencies": {
+    "@we/solid-utils": "workspace:*",
     "@we/elements": "workspace:*",
     "@we/tokens": "workspace:*",
     "esbuild-plugin-solid": "^0.6.0",
