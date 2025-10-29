@@ -25,7 +25,7 @@ export function DefaultTemplate(props: DefaultTemplateProps) {
         <main class={`${baseClass}-pages`}>{props.children}</main>
       </Column>
 
-      {props.modals && <div class={`${baseClass}-modals`}>{props.modals}</div>}
+      {props.modals}
     </Row>
   );
 }

@@ -124,6 +124,17 @@ const styles = css`
     --we-button-opacity: 1;
   }
 
+  :host([variant='contrast']) {
+    --we-button-bg: transparent;
+    --we-button-border: none;
+    --we-button-color: var(--we-color-ui-1000);
+    --we-button-border-radius: 9999px;
+  }
+
+  :host([variant='contrast']:hover) {
+    --we-button-bg: var(--we-color-ui-100);
+  }
+
   :host([size='xs']) {
     --we-button-font-size: var(--we-font-size-400);
     --we-button-padding: 0 var(--we-space-200);
@@ -145,7 +156,7 @@ const styles = css`
   :host([size='lg']) {
     --we-button-font-size: var(--we-font-size-500);
     --we-button-height: var(--we-size-lg);
-    --we-button-padding: 0 var(--we-space-600);
+    --we-button-padding: 0 var(--we-space-400);
   }
 
   :host([size='xl']) {

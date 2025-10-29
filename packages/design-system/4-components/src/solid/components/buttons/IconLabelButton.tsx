@@ -1,9 +1,12 @@
+import type { ButtonSize, ButtonVariant } from '@we/elements/types';
 import { MaybeAccessor, toValue } from '@we/solid-utils';
 import { JSX } from 'solid-js';
 
 export interface IconLabelButtonProps {
   icon: MaybeAccessor<string>;
   label: MaybeAccessor<string>;
+  variant?: MaybeAccessor<ButtonVariant>;
+  size?: MaybeAccessor<ButtonSize>;
   selected?: MaybeAccessor<boolean>;
   onClick?: () => void;
   class?: MaybeAccessor<string>;
@@ -17,13 +20,16 @@ export function IconLabelButton(props: IconLabelButtonProps) {
       style={props.style}
       onClick={props.onClick}
       slot="trigger"
-      variant="ghost"
+      variant={toValue(props.variant)}
+      size={toValue(props.size)}
       data-we-button
     >
-      <we-icon name={toValue(props.icon)} color="ui-700" weight={toValue(props.selected) ? 'fill' : 'regular'} />
-      <we-text size="600" color="ui-700" nomargin>
-        {toValue(props.label)}
-      </we-text>
+      <we-icon name={toValue(props.icon)} weight={toValue(props.selected) ? 'fill' : 'regular'} />
+      {toValue(props.label) && (
+        <we-text size="600" color="ui-black" nomargin>
+          {toValue(props.label)}
+        </we-text>
+      )}
     </we-button>
   );
 }

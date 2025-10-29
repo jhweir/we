@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "exports": {
-    "./variables": "./dist/styles/variables.css",
-    "./themes/*": "./dist/styles/themes/*.css",
+    "./types": {
+      "types": "./dist/types.ts"
+    },
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/types/global/index.d.ts"

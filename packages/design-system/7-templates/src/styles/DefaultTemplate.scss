@@ -2,8 +2,8 @@
   --we-default-template-sidebar-width: 90px;
   --we-default-template-header-height: 60px;
 
-  height: 100vh;
-  width: 100vw;
+  width: 100%;
+  height: 100%;
 
   .we-default-template-sidebar {
     width: var(--we-default-template-sidebar-width);
@@ -34,19 +34,6 @@
     .we-default-template-pages {
       width: 100%;
       height: 100%;
-    }
-  }
-
-  .we-default-template-modals {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
-    width: 100vw;
-    pointer-events: none;
-
-    > * {
-      pointer-events: all;
     }
   }
 }

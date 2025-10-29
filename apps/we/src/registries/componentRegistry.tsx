@@ -8,6 +8,7 @@ export const componentRegistry: ComponentRegistry = {
   // @we/elements
   'we-text': (props) => <we-text {...props}>{props.children}</we-text>,
   'we-button': (props) => <we-button {...props}>{props.children}</we-button>,
+  'we-icon': (props) => <we-icon {...props} />,
 
   // @we/components
   Column,
