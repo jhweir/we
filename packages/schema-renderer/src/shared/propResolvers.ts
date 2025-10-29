@@ -73,7 +73,7 @@ function resolveExpressionProp(value: unknown, context: Props): unknown {
   }
 }
 
-// Resolves $action props: { $action: 'adamStore.navigate', args: ['/home'] }
+// Resolves $action props: { $action: 'routeStore.navigate', args: ['/home'] }
 function resolveActionProp(value: unknown, context: Props, stores: Props, memo: Memo): unknown {
   // Split the $action string into store name and method name
   const [storeName, methodName] = (value as { $action: string }).$action.split('.');
@@ -90,7 +90,7 @@ function resolveActionProp(value: unknown, context: Props, stores: Props, memo: 
   if (typeof method === 'function') {
     return (...callArgs: unknown[]) => {
       // Handle special case for relative paths used in router navigation
-      if (storeName === 'adamStore' && methodName === 'navigate' && typeof resolvedArgs[0] === 'string') {
+      if (storeName === 'routeStore' && methodName === 'navigate' && typeof resolvedArgs[0] === 'string') {
         const path = resolvedArgs[0].trim();
         const isAbsolute = path.startsWith('/') || path.startsWith('http');
         const baseDepth = (context?.$nav as { baseDepth?: number })?.baseDepth;

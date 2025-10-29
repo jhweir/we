@@ -6,7 +6,7 @@ import type { JSX, ParentProps } from 'solid-js';
 import { createEffect, createMemo } from 'solid-js';
 
 import { componentRegistry as registry } from '@/registries/componentRegistry';
-import { useAdamStore, useModalStore, useSpaceStore, useTemplateStore, useThemeStore } from '@/stores';
+import { useAdamStore, useModalStore, useRouteStore, useSpaceStore, useTemplateStore, useThemeStore } from '@/stores';
 import type { Stores } from '@/types';
 
 type FlattenedRoute = { path: string; component: () => JSX.Element };
@@ -19,14 +19,11 @@ function createLayout(stores: Stores, schema: TemplateSchema) {
     const navigate = useNavigate();
     const location = useLocation();
 
-    // Store the navigate function in the Adam store so schema actions can use it
-    createEffect(() => stores.adamStore.setNavigateFunction(() => navigate));
+    // Store the navigate function in the Route store so schema actions can use it
+    createEffect(() => stores.routeStore.setNavigateFunction(() => navigate));
 
     // React to route changes and update relevant stores
-    createEffect(() => {
-      const [page, pageId] = location.pathname.split('/').filter(Boolean);
-      if (page === 'space' && pageId) stores.spaceStore.setSpaceId(pageId);
-    });
+    createEffect(() => stores.routeStore.setCurrentPath(location.pathname));
 
     return <RenderSchema node={schema} stores={stores} registry={registry} children={props.children} />;
   };
@@ -71,7 +68,8 @@ export default function TemplateProvider() {
   const modalStore = useModalStore();
   const themeStore = useThemeStore();
   const templateStore = useTemplateStore();
-  const stores = { adamStore, spaceStore, modalStore, themeStore, templateStore };
+  const routeStore = useRouteStore();
+  const stores = { adamStore, spaceStore, modalStore, themeStore, templateStore, routeStore };
 
   // Get the current template schema
   const templateSchema = templateStore.currentTemplate;

@@ -2,7 +2,7 @@ import { PerspectiveProxy } from '@coasys/ad4m';
 import { Block, CollectionBlock, ImageBlock, Space, TextBlock } from '@we/models';
 import { Accessor, createContext, createEffect, createSignal, ParentProps, useContext } from 'solid-js';
 
-import { useAdamStore } from './AdamStore';
+import { useAdamStore, useRouteStore } from '@/stores';
 
 type BlockType = ImageBlock | TextBlock | CollectionBlock;
 type Post = Partial<BlockType & { children?: Post[] }>;
@@ -36,6 +36,7 @@ const defaultSpace: Partial<Space> = {
 const SpaceContext = createContext<SpaceStore>();
 
 export function SpaceStoreProvider(props: ParentProps) {
+  const routeStore = useRouteStore();
   const adamStore = useAdamStore();
 
   // State
@@ -133,9 +134,13 @@ export function SpaceStoreProvider(props: ParentProps) {
     }
   }
 
-  // Fetch space when spaceId changes
+  // Listen for route changes and get space data when spaceId changes
   createEffect(() => {
-    if (adamStore.adamClient() && spaceId()) getSpace();
+    const [page, pageId] = routeStore.currentPath().split('/').filter(Boolean);
+    if (page === 'space' && pageId && pageId !== spaceId()) {
+      setSpaceId(pageId);
+      getSpace();
+    }
   });
 
   const store: SpaceStore = {

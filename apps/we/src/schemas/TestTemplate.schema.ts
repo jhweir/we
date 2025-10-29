@@ -114,7 +114,7 @@ const templateSidebar = {
           props: {
             label: 'Home',
             image: 'https://avatars.githubusercontent.com/u/34165012?s=200&v=4',
-            onClick: { $action: 'adamStore.navigate', args: ['/'] },
+            onClick: { $action: 'routeStore.navigate', args: ['/'] },
           },
         },
         {
@@ -122,7 +122,7 @@ const templateSidebar = {
           props: {
             label: 'Search',
             icon: 'magnifying-glass',
-            onClick: { $action: 'adamStore.navigate', args: ['/search'] },
+            onClick: { $action: 'routeStore.navigate', args: ['/search'] },
           },
         },
         {
@@ -133,7 +133,7 @@ const templateSidebar = {
               type: 'CircleButton',
               props: {
                 label: { $expr: 'space.name' },
-                onClick: { $action: 'adamStore.navigate', args: [{ $expr: '`/space/${space.uuid}`' }] },
+                onClick: { $action: 'routeStore.navigate', args: [{ $expr: '`/space/${space.uuid}`' }] },
               },
             },
           ],
@@ -238,7 +238,7 @@ const spacePageHeader = {
       type: 'we-button',
       props: {
         variant: 'subtle',
-        onClick: { $action: 'adamStore.navigate', args: ['.'] },
+        onClick: { $action: 'routeStore.navigate', args: ['.'] },
         children: ['About'],
       },
     },
@@ -246,7 +246,7 @@ const spacePageHeader = {
       type: 'we-button',
       props: {
         variant: 'subtle',
-        onClick: { $action: 'adamStore.navigate', args: ['./posts'] },
+        onClick: { $action: 'routeStore.navigate', args: ['./posts'] },
         children: ['Posts'],
       },
     },
@@ -254,7 +254,7 @@ const spacePageHeader = {
       type: 'we-button',
       props: {
         variant: 'subtle',
-        onClick: { $action: 'adamStore.navigate', args: ['./users'] },
+        onClick: { $action: 'routeStore.navigate', args: ['./users'] },
         children: ['Users'],
       },
     },
@@ -307,7 +307,7 @@ export const testTemplateSchema: TemplateSchema = {
                   type: 'we-button',
                   props: {
                     variant: 'subtle',
-                    onClick: { $action: 'adamStore.navigate', args: ['./1'] },
+                    onClick: { $action: 'routeStore.navigate', args: ['./1'] },
                     children: ['Post 1'],
                   },
                 },
@@ -315,7 +315,7 @@ export const testTemplateSchema: TemplateSchema = {
                   type: 'we-button',
                   props: {
                     variant: 'subtle',
-                    onClick: { $action: 'adamStore.navigate', args: ['./2'] },
+                    onClick: { $action: 'routeStore.navigate', args: ['./2'] },
                     children: ['Post 2'],
                   },
                 },
@@ -323,7 +323,7 @@ export const testTemplateSchema: TemplateSchema = {
                   type: 'we-button',
                   props: {
                     variant: 'subtle',
-                    onClick: { $action: 'adamStore.navigate', args: ['../users'] },
+                    onClick: { $action: 'routeStore.navigate', args: ['../users'] },
                     children: ['Return back up to users'],
                   },
                 },
