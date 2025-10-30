@@ -1,4 +1,4 @@
-import type { ButtonSize, ButtonVariant } from '@we/elements/types';
+import type { ButtonSize, ButtonVariant, IconWeight } from '@we/elements/types';
 import { MaybeAccessor, toValue } from '@we/solid-utils';
 import { JSX } from 'solid-js';
 
@@ -8,12 +8,17 @@ export interface IconLabelButtonProps {
   variant?: MaybeAccessor<ButtonVariant>;
   size?: MaybeAccessor<ButtonSize>;
   selected?: MaybeAccessor<boolean>;
+  iconWeight?: MaybeAccessor<IconWeight>;
   onClick?: () => void;
   class?: MaybeAccessor<string>;
   style?: MaybeAccessor<JSX.CSSProperties>;
 }
 
+// weight={toValue(props.selected) ? 'fill' : 'regular'}
+
 export function IconLabelButton(props: IconLabelButtonProps) {
+  const isSelected = toValue(props.selected);
+  console.log('IconLabelButton selected:', isSelected);
   return (
     <we-button
       class={`we-icon-label-button ${props.class || ''}`}
@@ -24,9 +29,9 @@ export function IconLabelButton(props: IconLabelButtonProps) {
       size={toValue(props.size)}
       data-we-button
     >
-      <we-icon name={toValue(props.icon)} weight={toValue(props.selected) ? 'fill' : 'regular'} />
+      <we-icon name={toValue(props.icon)} weight={toValue(props.iconWeight)} />
       {toValue(props.label) && (
-        <we-text size="600" color="ui-black" nomargin>
+        <we-text size="600" color="ui-black">
           {toValue(props.label)}
         </we-text>
       )}

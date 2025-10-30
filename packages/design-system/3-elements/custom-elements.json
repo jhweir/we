@@ -254,7 +254,7 @@
     },
     {
       "kind": "javascript-module",
-      "path": "src/components/button.ts",
+      "path": "src/components/button-old.ts",
       "declarations": [
         {
           "kind": "class",
@@ -431,6 +431,363 @@
               },
               "default": "false",
               "fieldName": "circle"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "we-button",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "Button",
+            "module": "src/components/button-old.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "we-button",
+          "declaration": {
+            "name": "Button",
+            "module": "src/components/button-old.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/button.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "Button",
+          "members": [
+            {
+              "kind": "field",
+              "name": "href",
+              "type": {
+                "text": "string | undefined"
+              },
+              "default": "''",
+              "attribute": "href"
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "disabled",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "loading",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "loading",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "p",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "p"
+            },
+            {
+              "kind": "field",
+              "name": "px",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "px"
+            },
+            {
+              "kind": "field",
+              "name": "py",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "py"
+            },
+            {
+              "kind": "field",
+              "name": "pt",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "pt"
+            },
+            {
+              "kind": "field",
+              "name": "pb",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "pb"
+            },
+            {
+              "kind": "field",
+              "name": "pl",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "pl"
+            },
+            {
+              "kind": "field",
+              "name": "pr",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "pr"
+            },
+            {
+              "kind": "field",
+              "name": "gap",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "gap"
+            },
+            {
+              "kind": "field",
+              "name": "r",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "r"
+            },
+            {
+              "kind": "field",
+              "name": "ax",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "ax"
+            },
+            {
+              "kind": "field",
+              "name": "border",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "border"
+            },
+            {
+              "kind": "field",
+              "name": "outline",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "outline"
+            },
+            {
+              "kind": "field",
+              "name": "hover",
+              "type": {
+                "text": "HoverStyle | undefined"
+              },
+              "attribute": "hover"
+            },
+            {
+              "kind": "field",
+              "name": "width",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "width"
+            },
+            {
+              "kind": "field",
+              "name": "bg",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "bg"
+            },
+            {
+              "kind": "field",
+              "name": "color",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "color"
+            },
+            {
+              "kind": "method",
+              "name": "handleClick",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": {
+                    "text": "MouseEvent"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "renderContent"
+            }
+          ],
+          "events": [
+            {
+              "name": "button-click",
+              "type": {
+                "text": "CustomEvent"
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "href",
+              "type": {
+                "text": "string | undefined"
+              },
+              "default": "''",
+              "fieldName": "href"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "disabled"
+            },
+            {
+              "name": "loading",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "loading"
+            },
+            {
+              "name": "p",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "p"
+            },
+            {
+              "name": "px",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "px"
+            },
+            {
+              "name": "py",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "py"
+            },
+            {
+              "name": "pt",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "pt"
+            },
+            {
+              "name": "pb",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "pb"
+            },
+            {
+              "name": "pl",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "pl"
+            },
+            {
+              "name": "pr",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "pr"
+            },
+            {
+              "name": "gap",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "gap"
+            },
+            {
+              "name": "r",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "r"
+            },
+            {
+              "name": "ax",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "ax"
+            },
+            {
+              "name": "border",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "border"
+            },
+            {
+              "name": "outline",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "outline"
+            },
+            {
+              "name": "hover",
+              "type": {
+                "text": "HoverStyle | undefined"
+              },
+              "fieldName": "hover"
+            },
+            {
+              "name": "width",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "width"
+            },
+            {
+              "name": "bg",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "bg"
+            },
+            {
+              "name": "color",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "color"
             }
           ],
           "superclass": {
@@ -1716,7 +2073,7 @@
               "type": {
                 "text": "TextVariant"
               },
-              "default": "'body'",
+              "default": "''",
               "attribute": "variant",
               "reflects": true
             },
@@ -1726,18 +2083,8 @@
               "type": {
                 "text": "TextTag"
               },
-              "default": "'p'",
+              "default": "'span'",
               "attribute": "tag",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "nomargin",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "attribute": "nomargin",
               "reflects": true
             },
             {
@@ -1794,7 +2141,7 @@
               "type": {
                 "text": "TextVariant"
               },
-              "default": "'body'",
+              "default": "''",
               "fieldName": "variant"
             },
             {
@@ -1802,16 +2149,8 @@
               "type": {
                 "text": "TextTag"
               },
-              "default": "'p'",
+              "default": "'span'",
               "fieldName": "tag"
-            },
-            {
-              "name": "nomargin",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "fieldName": "nomargin"
             },
             {
               "name": "inline",

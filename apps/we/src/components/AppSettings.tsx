@@ -23,7 +23,7 @@ export default function AppSettings() {
             <we-text size="700">App Settings</we-text>
 
             <Row gap="400" ay="center">
-              <we-text nomargin>Template:</we-text>
+              <we-text>Template:</we-text>
               <PopoverMenu
                 options={templateStore.templates}
                 selectedOption={templateStore.selectedTemplate}
@@ -32,7 +32,7 @@ export default function AppSettings() {
             </Row>
 
             <Row gap="400" ay="center">
-              <we-text nomargin>Theme:</we-text>
+              <we-text>Theme:</we-text>
               <PopoverMenu
                 options={themeStore.themes}
                 selectedOption={themeStore.currentTheme}

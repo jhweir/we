@@ -16,7 +16,7 @@ export function SpaceSidebarWidget(props: SpaceSidebarWidgetProps) {
       <Column gap="400">
         <Row gap="300" ay="center">
           {/* <we-avatar size="xxl" image={props.image?.()} /> */}
-          <we-text size="800" weight="500" nomargin>
+          <we-text size="800" weight="500">
             {props.name()}
           </we-text>
         </Row>

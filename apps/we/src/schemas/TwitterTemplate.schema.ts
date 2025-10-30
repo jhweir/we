@@ -2,90 +2,82 @@ import type { TemplateSchema } from '@we/schema-renderer/shared';
 
 const border = '1px solid var(--we-color-ui-50)';
 
+function createSidebarButton(icon: string, label: string, path: string, bold?: boolean) {
+  return {
+    type: 'we-button',
+    props: {
+      py: '300',
+      pl: '300',
+      pr: '600',
+      gap: '400',
+      r: '9999px',
+      hover: { bg: 'ui-100' },
+      onClick: { $action: 'routeStore.navigate', args: [path] },
+    },
+    children: [
+      {
+        type: 'we-icon',
+        props: {
+          name: icon,
+          color: 'ui-1000',
+          weight: {
+            $if: {
+              condition: { $eq: [{ $store: 'routeStore.currentPath' }, path] },
+              then: bold ? 'bold' : 'fill',
+              else: 'regular',
+            },
+          },
+        },
+      },
+      {
+        type: 'we-text',
+        props: {
+          size: '600',
+          color: 'ui-1000',
+          weight: {
+            $if: { condition: { $eq: [{ $store: 'routeStore.currentPath' }, path] }, then: '600', else: '400' },
+          },
+        },
+        children: [label],
+      },
+    ],
+  };
+}
+
 const sidebarLeft = {
   type: 'Column',
   props: { bg: 'ui-0', py: '400', gap: '400', style: { width: '275px', height: '100%' } },
   children: [
-    // { type: 'we-icon', props: { name: 'x-logo', size: 'lg' } },
     {
-      type: 'IconLabelButton',
+      type: 'we-button',
       props: {
-        icon: 'x-logo',
-        variant: 'contrast',
-        size: 'lg',
+        p: '300',
+        r: '999px',
+        color: 'ui-1000',
+        hover: { bg: 'ui-100' },
         onClick: { $action: 'routeStore.navigate', args: ['/'] },
       },
+      children: [
+        {
+          type: 'we-icon',
+          props: {
+            name: 'x-logo',
+            size: 'lg',
+          },
+        },
+      ],
     },
-    {
-      type: 'IconLabelButton',
-      props: {
-        icon: 'house',
-        label: 'Home',
-        variant: 'contrast',
-        size: 'lg',
-        onClick: { $action: 'routeStore.navigate', args: ['/'] },
-      },
-    },
-    {
-      type: 'IconLabelButton',
-      props: {
-        icon: 'magnifying-glass',
-        label: 'Explore',
-        variant: 'contrast',
-        size: 'lg',
-        onClick: { $action: 'routeStore.navigate', args: ['/explore'] },
-      },
-    },
-    {
-      type: 'IconLabelButton',
-      props: {
-        icon: 'bell',
-        label: 'Notifications',
-        variant: 'contrast',
-        size: 'lg',
-        onClick: { $action: 'routeStore.navigate', args: ['/notifications'] },
-      },
-    },
-    {
-      type: 'IconLabelButton',
-      props: {
-        icon: 'envelope-simple',
-        label: 'Messages',
-        variant: 'contrast',
-        size: 'lg',
-        onClick: { $action: 'routeStore.navigate', args: ['/messages'] },
-      },
-    },
-    {
-      type: 'IconLabelButton',
-      props: {
-        icon: 'clipboard-text',
-        label: 'Lists',
-        variant: 'contrast',
-        size: 'lg',
-        onClick: { $action: 'routeStore.navigate', args: ['/lists'] },
-      },
-    },
-    {
-      type: 'IconLabelButton',
-      props: {
-        icon: 'bookmark-simple',
-        label: 'Bookmarks',
-        variant: 'contrast',
-        size: 'lg',
-        onClick: { $action: 'routeStore.navigate', args: ['/bookmarks'] },
-      },
-    },
-    {
-      type: 'IconLabelButton',
-      props: {
-        icon: 'users',
-        label: 'Communities',
-        variant: 'contrast',
-        size: 'lg',
-        onClick: { $action: 'routeStore.navigate', args: ['/communities'] },
-      },
-    },
+    // createSidebarButton('x-logo', '', '/'),
+    createSidebarButton('house', 'Home', '/'),
+    createSidebarButton('magnifying-glass', 'Explore', '/explore', true),
+    createSidebarButton('bell', 'Notifications', '/notifications'),
+    createSidebarButton('envelope-simple', 'Messages', '/messages', true),
+    createSidebarButton('clipboard-text', 'Lists', '/lists'),
+    createSidebarButton('bookmark-simple', 'Bookmarks', '/bookmarks'),
+    createSidebarButton('users', 'Communities', '/communities'),
+    createSidebarButton('x-logo', 'Premium', '/premium', true),
+    createSidebarButton('user', 'Profile', '/profile'),
+    createSidebarButton('dots-three-circle', 'More', '/more'),
   ],
 };
 

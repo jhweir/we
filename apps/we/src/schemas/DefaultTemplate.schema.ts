@@ -110,7 +110,7 @@ const spacePageHeader = {
   type: 'Row',
   props: { bg: 'ui-100', p: '400', gap: '400', ay: 'center' },
   children: [
-    { type: 'we-text', props: { size: '600', nomargin: true }, children: ['Space page'] },
+    { type: 'we-text', props: { size: '600' }, children: ['Space page'] },
     {
       type: 'we-button',
       props: {
@@ -166,7 +166,7 @@ export const defaultTemplateSchema: TemplateSchema = {
           path: '/',
           type: 'Row',
           props: { bg: 'ui-200', ay: 'center', px: '400', style: { height: '60px' } },
-          children: [{ type: 'we-text', props: { size: '600', nomargin: true }, children: ['About sub-page'] }],
+          children: [{ type: 'we-text', props: { size: '600' }, children: ['About sub-page'] }],
         },
         {
           path: '/posts',
@@ -208,17 +208,17 @@ export const defaultTemplateSchema: TemplateSchema = {
             },
           ],
           routes: [
-            { path: '/*', type: 'we-text', props: { size: '600', nomargin: true }, children: ['Post not found...'] },
-            { path: '/', type: 'we-text', props: { size: '600', nomargin: true }, children: ['No posts selected...'] },
-            { path: '/1', type: 'we-text', props: { size: '600', nomargin: true }, children: ['Post 1 sub-sub-page'] },
-            { path: '/2', type: 'we-text', props: { size: '600', nomargin: true }, children: ['Post 2 sub-sub-page'] },
+            { path: '/*', type: 'we-text', props: { size: '600' }, children: ['Post not found...'] },
+            { path: '/', type: 'we-text', props: { size: '600' }, children: ['No posts selected...'] },
+            { path: '/1', type: 'we-text', props: { size: '600' }, children: ['Post 1 sub-sub-page'] },
+            { path: '/2', type: 'we-text', props: { size: '600' }, children: ['Post 2 sub-sub-page'] },
           ],
         },
         {
           path: '/users',
           type: 'Row',
           props: { bg: 'ui-200', ay: 'center', px: '400', style: { height: '60px' } },
-          children: [{ type: 'we-text', props: { size: '600', nomargin: true }, children: ['User sub-page'] }],
+          children: [{ type: 'we-text', props: { size: '600' }, children: ['User sub-page'] }],
         },
       ],
     },

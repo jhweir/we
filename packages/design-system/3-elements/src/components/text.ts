@@ -106,8 +106,8 @@ const styles = css`
     --we-text-margin-bottom: var(--we-space-300);
   }
 
-  :host([nomargin]) {
-    --we-text-margin-bottom: 0;
+  :host([tag='p']) {
+    --we-text-margin-bottom: 1em;
   }
 `;
 
@@ -132,9 +132,8 @@ export default class Text extends LitElement {
   static styles = [sharedStyles, styles];
 
   @property({ type: String, reflect: true }) size?: SpaceToken;
-  @property({ type: String, reflect: true }) variant: TextVariant = 'body';
-  @property({ type: String, reflect: true }) tag: TextTag = 'p';
-  @property({ type: Boolean, reflect: true }) nomargin = false;
+  @property({ type: String, reflect: true }) variant: TextVariant = '';
+  @property({ type: String, reflect: true }) tag: TextTag = 'span';
   @property({ type: Boolean, reflect: true }) inline = false;
   @property({ type: Boolean, reflect: true }) uppercase = false;
   @property({ type: String, reflect: true }) color = '';
@@ -159,7 +158,6 @@ export default class Text extends LitElement {
   }
 
   render() {
-    const tag = this.tag || 'p';
-    return templates[tag];
+    return templates[this.tag];
   }
 }
