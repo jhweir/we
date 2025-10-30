@@ -9,20 +9,21 @@ const styles = css`
     --we-button-radius: 4px;
     --we-button-padding: 0.5rem 1rem;
     --we-button-gap: 0.5rem;
-    --we-button-border: none;
-    --we-button-outline: none;
+    --we-button-width: auto;
+    --we-button-height: auto;
     display: inline-block;
   }
 
   button,
   a {
+    all: unset;
+    width: var(--we-button-width);
+    height: var(--we-button-height);
     background: var(--we-button-bg);
     color: var(--we-button-color);
-    border: var(--we-button-border);
     border-radius: var(--we-button-radius);
     padding: var(--we-button-padding);
     gap: var(--we-button-gap);
-    outline: var(--we-button-outline);
     display: inline-flex;
     align-items: center;
     justify-content: var(--we-button-ax, center);
@@ -31,7 +32,6 @@ const styles = css`
       background 0.2s,
       color 0.2s,
       outline 0.2s;
-    width: var(--we-button-width, auto);
   }
 
   button:disabled,
@@ -44,8 +44,6 @@ const styles = css`
   a:hover:not([aria-disabled='true']) {
     background: var(--we-button-hover-bg, var(--we-button-bg));
     color: var(--we-button-hover-color, var(--we-button-color));
-    outline: var(--we-button-hover-outline, var(--we-button-outline));
-    /* Add more hover custom properties as needed */
   }
 `;
 
@@ -80,10 +78,7 @@ export default class Button extends LitElement {
   @property({ type: String }) gap?: string;
   @property({ type: String }) r?: string;
   @property({ type: String }) ax?: string;
-  @property({ type: String }) border?: string;
-  @property({ type: String }) outline?: string;
   @property({ type: Object }) hover?: HoverStyle;
-  @property({ type: String }) width?: string;
   @property({ type: String }) bg?: string;
   @property({ type: String }) color?: string;
 
@@ -105,12 +100,6 @@ export default class Button extends LitElement {
 
     // Alignment
     if (this.ax) this.style.setProperty('--we-button-ax', this.ax);
-
-    // Border
-    if (this.border) this.style.setProperty('--we-button-border', this.border); // '2px solid var(--we-color-primary-600)'
-
-    // Outline
-    if (this.outline) this.style.setProperty('--we-button-outline', this.outline);
 
     // Background
     if (this.bg) this.style.setProperty('--we-button-bg', colorVar(this.bg));
@@ -134,8 +123,9 @@ export default class Button extends LitElement {
       });
     }
 
-    // Width
-    if (this.width) this.style.setProperty('--we-button-width', this.width);
+    // Sizing
+    this.style.setProperty('--we-button-width', this.style.width || 'auto');
+    this.style.setProperty('--we-button-height', this.style.height || 'auto');
   }
 
   private handleClick(event: MouseEvent) {

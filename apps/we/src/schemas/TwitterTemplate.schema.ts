@@ -6,13 +6,13 @@ function createSidebarButton(icon: string, label: string, path: string, bold?: b
   return {
     type: 'we-button',
     props: {
-      py: '300',
       pl: '300',
       pr: '600',
       gap: '400',
       r: '9999px',
       hover: { bg: 'ui-100' },
       onClick: { $action: 'routeStore.navigate', args: [path] },
+      style: { height: '50px' },
     },
     children: [
       {
@@ -46,7 +46,7 @@ function createSidebarButton(icon: string, label: string, path: string, bold?: b
 
 const sidebarLeft = {
   type: 'Column',
-  props: { bg: 'ui-0', py: '400', gap: '400', style: { width: '275px', height: '100%' } },
+  props: { bg: 'ui-0', py: '400', pr: '600', gap: '300', style: { width: '275px', height: '100%' } },
   children: [
     {
       type: 'we-button',
@@ -57,17 +57,8 @@ const sidebarLeft = {
         hover: { bg: 'ui-100' },
         onClick: { $action: 'routeStore.navigate', args: ['/'] },
       },
-      children: [
-        {
-          type: 'we-icon',
-          props: {
-            name: 'x-logo',
-            size: 'lg',
-          },
-        },
-      ],
+      children: [{ type: 'we-icon', props: { name: 'x-logo', size: 'lg' } }],
     },
-    // createSidebarButton('x-logo', '', '/'),
     createSidebarButton('house', 'Home', '/'),
     createSidebarButton('magnifying-glass', 'Explore', '/explore', true),
     createSidebarButton('bell', 'Notifications', '/notifications'),
@@ -78,6 +69,23 @@ const sidebarLeft = {
     createSidebarButton('x-logo', 'Premium', '/premium', true),
     createSidebarButton('user', 'Profile', '/profile'),
     createSidebarButton('dots-three-circle', 'More', '/more'),
+    {
+      type: 'we-button',
+      props: {
+        r: '999px',
+        bg: 'ui-1000',
+        hover: { bg: 'ui-800' },
+        onClick: { $action: 'routeStore.navigate', args: ['/post'] },
+        style: { width: '100%', height: '50px' },
+      },
+      children: [
+        {
+          type: 'we-text',
+          props: { color: 'ui-0', size: '500', weight: '800' },
+          children: ['Post'],
+        },
+      ],
+    },
   ],
 };
 
