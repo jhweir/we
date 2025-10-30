@@ -39,8 +39,11 @@ export function isDeepEqual(a: unknown, b: unknown): boolean {
 export function hasToken<T extends string>(
   value: unknown,
   token: T,
-  type: 'string' | 'object',
+  type: 'string' | 'object' | 'array',
 ): value is Record<T, unknown> {
   const tokenExists = value != null && typeof value === 'object' && token in value;
-  return tokenExists && typeof (value as Record<T, unknown>)[token] === type;
+  if (!tokenExists) return false;
+  const tokenValue = (value as Record<T, unknown>)[token];
+  if (type === 'array') return Array.isArray(tokenValue);
+  return typeof tokenValue === type;
 }

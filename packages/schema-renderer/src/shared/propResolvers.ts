@@ -3,6 +3,7 @@ import { hasToken } from './predicates';
 type Props = Record<string, unknown>;
 type MapProp = { items: unknown; select: Props };
 type PickProp = { from: unknown; props: string[] };
+type IfProp = { condition: unknown; then: unknown; else?: unknown };
 type Memo = <T>(fn: () => T) => T; // Framework specific memoization function (e.g. Solid's createMemo)
 const noMemo: Memo = (fn) => fn(); // Fallback if no memoization provided
 
@@ -147,6 +148,26 @@ function resolvePickProp(pick: PickProp, stores: Props, context: Props, memo: Me
   });
 }
 
+// Resolves $if props: { $if: { condition, then, else } }
+function resolveIfProp(value: unknown, stores: Props, context: Props, memo: Memo): unknown {
+  const { condition, then: thenValue, else: elseValue } = (value as { $if: IfProp }).$if;
+  const conditionMet = resolveProp(condition, stores, context, memo);
+  return resolveProp(conditionMet ? thenValue : elseValue, stores, context, memo);
+}
+
+// Resolves $eq props: { $eq: [a, b] }
+function resolveEqProp(value: unknown, stores: Props, context: Props, memo: Memo): unknown {
+  const [a, b] = (value as { $eq: [unknown, unknown] }).$eq;
+  let resolvedA = resolveProp(a, stores, context, memo);
+  let resolvedB = resolveProp(b, stores, context, memo);
+
+  // Unwrap Solid accessors (signals)
+  if (typeof resolvedA === 'function') resolvedA = resolvedA();
+  if (typeof resolvedB === 'function') resolvedB = resolvedB();
+
+  return resolvedA === resolvedB;
+}
+
 // Resolve any prop based on its token type
 export function resolveProp(value: unknown, stores: Props, context: Props, memo: Memo = noMemo): unknown {
   if (hasToken(value, '$store', 'string')) return resolveStoreProp(value, stores, memo);
@@ -154,6 +175,8 @@ export function resolveProp(value: unknown, stores: Props, context: Props, memo:
   if (hasToken(value, '$action', 'string')) return resolveActionProp(value, context, stores, memo);
   if (hasToken(value, '$map', 'object')) return resolveMapProp(value['$map'] as MapProp, stores, context, memo);
   if (hasToken(value, '$pick', 'object')) return resolvePickProp(value['$pick'] as PickProp, stores, context, memo);
+  if (hasToken(value, '$if', 'object')) return resolveIfProp(value, stores, context, memo);
+  if (hasToken(value, '$eq', 'array')) return resolveEqProp(value, stores, context, memo);
   return value;
 }
 
