@@ -10,14 +10,14 @@ export type DefaultTemplateProps = {
   children?: JSX.Element;
   // Styling
   class?: string;
-  style?: JSX.CSSProperties;
+  styles?: JSX.CSSProperties;
 };
 
 export function DefaultTemplate(props: DefaultTemplateProps) {
   const baseClass = 'we-default-template';
 
   return (
-    <Row class={`${baseClass} ${props.class || ''}`} style={props.style} data-we-template>
+    <Row class={`${baseClass} ${props.class || ''}`} styles={props.styles} data-we-template>
       {props.sidebar && <aside class={`${baseClass}-sidebar`}>{props.sidebar}</aside>}
 
       <Column class={`${baseClass}-content`} ax="center" bg="ui-50">

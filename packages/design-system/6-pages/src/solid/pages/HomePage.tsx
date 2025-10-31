@@ -3,14 +3,14 @@ import { JSX } from 'solid-js';
 
 export interface HomePageProps {
   class?: string;
-  style?: JSX.CSSProperties;
+  styles?: JSX.CSSProperties;
 }
 
 export function HomePage(props: HomePageProps) {
   return (
     <Column
       class={`we-home-page ${props.class || ''}`}
-      style={{ ...props.style }}
+      styles={props.styles}
       ax="center"
       bg="ui-0"
       p="500"

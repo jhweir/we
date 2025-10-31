@@ -109,9 +109,8 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
   const component = createMemo(() => registry[node.type ?? '']);
   if (!component()) throw new Error(`Schema node has unknown type "${node.type}".`);
 
+  // TODO: clean up
   const slotProp = node.slot ? { slot: node.slot } : {};
-
-  console.log('slotProp:', slotProp);
 
   // Return the rendered component with its resolved props, slots, and children
   return (

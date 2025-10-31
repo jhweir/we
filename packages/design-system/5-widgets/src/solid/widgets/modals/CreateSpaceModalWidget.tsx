@@ -69,7 +69,7 @@ export function CreateSpaceModalWidget(props: CreateSpaceModalWidgetProps) {
           onInput={(e: InputEvent) => setDescription((e.target as HTMLInputElement)?.value)}
         />
 
-        <we-button variant="primary" disabled={!name()} loading={loading()} onClick={createSpace}>
+        <we-button disabled={!name()} loading={loading()} onClick={createSpace}>
           Create
         </we-button>
       </Column>

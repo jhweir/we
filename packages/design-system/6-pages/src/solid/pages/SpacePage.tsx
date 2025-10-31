@@ -11,14 +11,14 @@ export interface SpacePageProps {
   children?: JSX.Element;
   // Styling
   class?: string;
-  style?: JSX.CSSProperties;
+  styles?: JSX.CSSProperties;
 }
 
 export function SpacePage(props: SpacePageProps) {
   const baseClass = 'we-space-page';
 
   return (
-    <Row class={`${baseClass} ${props.class || ''}`} style={{ ...props.style }} data-we-page>
+    <Row class={`${baseClass} ${props.class || ''}`} styles={props.styles} data-we-page>
       {/* Sidebar */}
       {props.sidebar && <aside class={`${baseClass}-sidebar`}>{props.sidebar}</aside>}
 

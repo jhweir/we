@@ -3,14 +3,14 @@ import { JSX } from 'solid-js';
 
 export interface PageNotFoundProps {
   class?: string;
-  style?: JSX.CSSProperties;
+  styles?: JSX.CSSProperties;
 }
 
 export function PageNotFound(props: PageNotFoundProps) {
   return (
     <Column
       class={`we-page-not-found ${props.class || ''}`}
-      style={{ ...props.style }}
+      styles={props.styles}
       ax="center"
       bg="ui-0"
       p="500"

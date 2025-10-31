@@ -10,14 +10,14 @@ export type CenteredTemplateProps = {
   children?: JSX.Element;
   // Styling
   class?: string;
-  style?: JSX.CSSProperties;
+  styles?: JSX.CSSProperties;
 };
 
 export function CenteredTemplate(props: CenteredTemplateProps) {
   const baseClass = 'we-centered-template';
 
   return (
-    <Row class={`${baseClass} ${props.class || ''}`} bg="ui-0" ax="center" style={props.style} data-we-template>
+    <Row class={`${baseClass} ${props.class || ''}`} bg="ui-0" ax="center" styles={props.styles} data-we-template>
       <Row class={`${baseClass}-container`}>
         {props.sidebarLeft && <aside class={`${baseClass}-sidebar`}>{props.sidebarLeft}</aside>}
         <main class={`${baseClass}-content`}>{props.children}</main>

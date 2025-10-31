@@ -10,14 +10,14 @@ type Post = {
 export interface PostPageProps {
   posts: Post[];
   class?: string;
-  style?: JSX.CSSProperties;
+  styles?: JSX.CSSProperties;
 }
 
 export function PostPage(props: PostPageProps) {
   return (
-    <Column class={`we-post-page ${props.class || ''}`} style={{ ...props.style }} p="1000" data-we-page>
+    <Column class={`we-post-page ${props.class || ''}`} styles={props.styles} p="1000" data-we-page>
       {props.posts.map((post) => (
-        <PostCard creator={post.creator} title={post.title} content={post.content} style={{ margin: '20px 0' }} />
+        <PostCard creator={post.creator} title={post.title} content={post.content} styles={{ margin: '20px 0' }} />
       ))}
     </Column>
   );

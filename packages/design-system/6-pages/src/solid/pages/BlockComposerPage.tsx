@@ -8,14 +8,14 @@ import { JSX } from 'solid-js';
 export interface BlockComposerPageProps {
   perspective: PerspectiveProxy;
   class?: string;
-  style?: JSX.CSSProperties;
+  styles?: JSX.CSSProperties;
 }
 
 export function BlockComposerPage(props: BlockComposerPageProps) {
   return (
     <Column
       class={`we-block-composer-page ${props.class || ''}`}
-      style={{ ...props.style }}
+      styles={props.styles}
       ax="center"
       bg="ui-25"
       p="500"

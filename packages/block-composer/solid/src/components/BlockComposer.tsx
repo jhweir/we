@@ -126,7 +126,7 @@ function SaveButton({ perspective }: { perspective: PerspectiveProxy }) {
 
   return (
     <Row ax="end">
-      <we-button variant="ghost" onClick={save}>
+      <we-button onClick={save}>
         <we-icon name="floppy-disk" />
       </we-button>
     </Row>

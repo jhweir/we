@@ -132,7 +132,7 @@ export default class Button extends BaseElement implements DesignSystemProps {
   render() {
     // const inlineStyles = (this as any)['style'] || {};
     const inlineStyles = this.styles || {};
-    console.log('inlineStyles', inlineStyles);
+    // console.log('inlineStyles', inlineStyles);
     if (this.href) {
       return html`
         <a
