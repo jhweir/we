@@ -1,13 +1,15 @@
 export type { SizeToken, SpaceToken } from '@we/tokens';
 
+export type { DesignSystemProps } from '@we/types';
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const allowedTextTags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'small', 'b', 'i', 'span', 'label', 'div'] as const;
 
 export type TextTag = (typeof allowedTextTags)[number];
 export type BadgeVariant = '' | 'primary' | 'success' | 'danger' | 'warning';
 export type BadgeSize = '' | 'sm' | 'lg';
-export type ButtonVariant = 'default' | 'primary' | 'link' | 'subtle' | 'ghost' | 'danger' | 'contrast';
-export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+// export type ButtonVariant = 'default' | 'primary' | 'link' | 'subtle' | 'ghost' | 'danger' | 'contrast';
+// export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 export type IconSize = '' | 'xs' | 'sm' | 'lg' | 'xl';
 export type IconWeight = 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone';
 export type ModalSize = '' | 'xs' | 'sm' | 'lg' | 'xl' | 'fullscreen';

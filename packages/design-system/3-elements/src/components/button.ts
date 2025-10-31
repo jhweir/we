@@ -1,37 +1,35 @@
-import { css, html, LitElement } from 'lit';
+import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import sharedStyles from '../styles/shared';
+import sharedStyles from '../shared/styles';
+import { BaseElement } from '../shared/base-element';
+import type { DesignSystemProps } from '@we/types';
+import { styleMap } from 'lit/directives/style-map.js';
 
-const styles = css`
+// width: var(--we-width, auto);
+// height: var(--we-height, auto);
+
+const cssStyles = css`
   :host {
-    --we-button-bg: var(--we-color-white);
-    --we-button-color: var(--we-color-primary-600);
-    --we-button-radius: 4px;
-    --we-button-padding: 0.5rem 1rem;
-    --we-button-gap: 0.5rem;
-    --we-button-width: auto;
-    --we-button-height: auto;
     display: inline-block;
   }
 
   button,
   a {
     all: unset;
-    width: var(--we-button-width);
-    height: var(--we-button-height);
-    background: var(--we-button-bg);
-    color: var(--we-button-color);
-    border-radius: var(--we-button-radius);
-    padding: var(--we-button-padding);
-    gap: var(--we-button-gap);
+    background: var(--we-bg, var(--we-color-white));
+    color: var(--we-color, var(--we-color-primary-600));
+    border-radius: var(--we-radius, 4px);
+    padding: var(--we-padding, 0.5rem 1rem);
+    gap: var(--we-gap, 0.5rem);
     display: inline-flex;
     align-items: center;
-    justify-content: var(--we-button-ax, center);
+    justify-content: var(--we-ax, center);
     cursor: pointer;
     transition:
       background 0.2s,
       color 0.2s,
-      outline 0.2s;
+      outline 0.2s,
+      padding 0.2s;
   }
 
   button:disabled,
@@ -42,91 +40,73 @@ const styles = css`
 
   button:hover:not(:disabled),
   a:hover:not([aria-disabled='true']) {
-    background: var(--we-button-hover-bg, var(--we-button-bg));
-    color: var(--we-button-hover-color, var(--we-button-color));
+    background: var(--we-hover-bg, var(--we-bg));
+    color: var(--we-hover-color, var(--we-color));
+    gap: var(--we-hover-gap, var(--we-gap));
+    justify-content: var(--we-hover-ax, var(--we-ax, center));
+    align-items: var(--we-hover-ay, var(--we-ay, center));
+    flex-wrap: var(--we-hover-wrap, var(--we-wrap, nowrap));
+    flex-direction: var(--we-hover-direction, var(--we-direction, row));
+    padding: var(--we-hover-padding, var(--we-padding));
+    margin: var(--we-hover-margin, var(--we-margin));
+    border-radius: var(--we-hover-radius, var(--we-radius));
   }
 `;
 
-type HoverStyle = Record<string, string | undefined>;
-
-// Helper to resolve token var or fallback to 0
-function tokenVar(prefix: string, token?: string) {
-  return token ? `var(--we-${prefix}-${token})` : '0';
-}
-
-// Helper to resolve color tokens for bg and color
-function colorVar(token?: string) {
-  return token ? `var(--we-color-${token})` : '';
-}
-
 @customElement('we-button')
-export default class Button extends LitElement {
-  static styles = [sharedStyles, styles];
+export default class Button extends BaseElement implements DesignSystemProps {
+  static styles = [sharedStyles, cssStyles];
 
-  @property({ type: String }) href?: string = '';
+  // Button-specific props
+  @property({ type: String }) href?: string;
   @property({ type: Boolean, reflect: true }) disabled = false;
   @property({ type: Boolean, reflect: true }) loading = false;
+  @property({ type: Object }) styles?: Record<string, any>;
+  @property({ attribute: false }) onClick: (event: MouseEvent) => void = () => {};
 
-  // Prop-driven API
-  @property({ type: String }) p?: string;
-  @property({ type: String }) px?: string;
-  @property({ type: String }) py?: string;
-  @property({ type: String }) pt?: string;
-  @property({ type: String }) pb?: string;
-  @property({ type: String }) pl?: string;
-  @property({ type: String }) pr?: string;
-  @property({ type: String }) gap?: string;
-  @property({ type: String }) r?: string;
-  @property({ type: String }) ax?: string;
-  @property({ type: Object }) hover?: HoverStyle;
-  @property({ type: String }) bg?: string;
-  @property({ type: String }) color?: string;
+  // Design system props (all from DesignSystemProps)
+  @property({ type: String }) ax?: DesignSystemProps['ax'];
+  @property({ type: String }) ay?: DesignSystemProps['ay'];
+  @property({ type: Boolean }) wrap?: DesignSystemProps['wrap'];
+  @property({ type: Boolean }) reverse?: DesignSystemProps['reverse'];
+  @property({ type: String }) gap?: DesignSystemProps['gap'];
 
-  updated() {
-    // Padding logic using the Column pattern
-    const padding = [
-      tokenVar('space', this.pt || this.py || this.p),
-      tokenVar('space', this.pr || this.px || this.p),
-      tokenVar('space', this.pb || this.py || this.p),
-      tokenVar('space', this.pl || this.px || this.p),
-    ].join(' ');
-    this.style.setProperty('--we-button-padding', padding);
+  @property({ type: String }) p?: DesignSystemProps['p'];
+  @property({ type: String }) pl?: DesignSystemProps['pl'];
+  @property({ type: String }) pr?: DesignSystemProps['pr'];
+  @property({ type: String }) pt?: DesignSystemProps['pt'];
+  @property({ type: String }) pb?: DesignSystemProps['pb'];
+  @property({ type: String }) px?: DesignSystemProps['px'];
+  @property({ type: String }) py?: DesignSystemProps['py'];
 
-    // Gap
-    if (this.gap) this.style.setProperty('--we-button-gap', `var(--we-space-${this.gap || '300'})`);
+  @property({ type: String }) m?: DesignSystemProps['m'];
+  @property({ type: String }) ml?: DesignSystemProps['ml'];
+  @property({ type: String }) mr?: DesignSystemProps['mr'];
+  @property({ type: String }) mt?: DesignSystemProps['mt'];
+  @property({ type: String }) mb?: DesignSystemProps['mb'];
+  @property({ type: String }) mx?: DesignSystemProps['mx'];
+  @property({ type: String }) my?: DesignSystemProps['my'];
 
-    // Border radius
-    if (this.r) this.style.setProperty('--we-button-radius', this.r);
+  @property({ type: String }) r?: DesignSystemProps['r'];
+  @property({ type: String }) rt?: DesignSystemProps['rt'];
+  @property({ type: String }) rb?: DesignSystemProps['rb'];
+  @property({ type: String }) rl?: DesignSystemProps['rl'];
+  @property({ type: String }) rr?: DesignSystemProps['rr'];
+  @property({ type: String }) rtl?: DesignSystemProps['rtl'];
+  @property({ type: String }) rtr?: DesignSystemProps['rtr'];
+  @property({ type: String }) rbr?: DesignSystemProps['rbr'];
+  @property({ type: String }) rbl?: DesignSystemProps['rbl'];
 
-    // Alignment
-    if (this.ax) this.style.setProperty('--we-button-ax', this.ax);
+  @property({ type: String }) bg?: DesignSystemProps['bg'];
+  @property({ type: String }) color?: DesignSystemProps['color'];
+  @property({ type: Object }) hover?: DesignSystemProps['hover'];
 
-    // Background
-    if (this.bg) this.style.setProperty('--we-button-bg', colorVar(this.bg));
-
-    // Color
-    if (this.color) this.style.setProperty('--we-button-color', colorVar(this.color));
-
-    // Hover styles (dynamic)
-    if (this.hover && typeof this.hover === 'object') {
-      Object.entries(this.hover).forEach(([key, value]) => {
-        if (value !== undefined) {
-          // Resolve color tokens for bg and color
-          if (key === 'bg' || key === 'color') {
-            this.style.setProperty(`--we-button-hover-${key}`, colorVar(value));
-          } else if (key === 'gap') {
-            this.style.setProperty(`--we-button-hover-gap`, `var(--we-space-${value})`);
-          } else {
-            this.style.setProperty(`--we-button-hover-${key}`, value);
-          }
-        }
-      });
-    }
-
-    // Sizing
-    this.style.setProperty('--we-button-width', this.style.width || 'auto');
-    this.style.setProperty('--we-button-height', this.style.height || 'auto');
-  }
+  // updated() {
+  //   super.updated();
+  //   // // Optionally, set width/height as generic vars if you want to support them
+  //   // this.style.setProperty('--we-width', this.style.width || 'auto');
+  //   // this.style.setProperty('--we-height', this.style.height || 'auto');
+  // }
 
   private handleClick(event: MouseEvent) {
     if (this.disabled || this.loading) {
@@ -144,7 +124,15 @@ export default class Button extends LitElement {
     `;
   }
 
+  // get styleProp(): Record<string, string | number> | undefined {
+  //   // @ts-ignore
+  //   return (this as any).style;
+  // }
+
   render() {
+    // const inlineStyles = (this as any)['style'] || {};
+    const inlineStyles = this.styles || {};
+    console.log('inlineStyles', inlineStyles);
     if (this.href) {
       return html`
         <a
@@ -152,13 +140,19 @@ export default class Button extends LitElement {
           aria-disabled=${this.disabled || this.loading ? 'true' : 'false'}
           @click=${this.handleClick}
           part="base"
+          style=${styleMap(inlineStyles)}
         >
           ${this.renderContent()}
         </a>
       `;
     }
     return html`
-      <button ?disabled=${this.disabled || this.loading} @click=${this.handleClick} part="base">
+      <button
+        ?disabled=${this.disabled || this.loading}
+        @click=${this.handleClick}
+        part="base"
+        style=${styleMap(inlineStyles)}
+      >
         ${this.renderContent()}
       </button>
     `;

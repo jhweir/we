@@ -11,3 +11,5 @@ import './components/popover';
 import './components/spinner';
 import './components/text';
 import './components/tooltip';
+import './components/tab';
+import './components/tabs';

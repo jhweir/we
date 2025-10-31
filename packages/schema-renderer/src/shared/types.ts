@@ -7,6 +7,7 @@ export type SchemaNode = {
   type?: string; // Used to look up the node's component in the registry (if not included, children rendered in a fragment)
   props?: Record<string, SchemaProp>; // Props to pass to the component
   slots?: Record<string, SchemaNode>; // Named slots for components that support them
+  slot?: string; // The name of the slot this node should be rendered into
   routes?: RouteSchema[]; // Routes for routing components
   children?: (SchemaNode | string)[]; // Child nodes (or strings for text nodes like <we-text>)
 };

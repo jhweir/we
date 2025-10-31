@@ -1,7 +1,7 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
-import sharedStyles from '../styles/shared';
+import sharedStyles from '../shared/styles';
 import { ModalSize } from '../types';
 
 const styles = css`

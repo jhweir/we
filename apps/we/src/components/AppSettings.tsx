@@ -14,7 +14,7 @@ export default function AppSettings() {
         label="App Settings"
         icon="gear"
         onClick={() => setModalOpen(!modalOpen())}
-        style={{ position: 'absolute', bottom: '10px', right: '10px' }}
+        styles={{ position: 'absolute', bottom: '10px', right: '10px' }}
       />
 
       {modalOpen() && (

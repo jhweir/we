@@ -10,14 +10,14 @@ export interface PostCardProps {
   title: string;
   content: string;
   class?: string;
-  style?: JSX.CSSProperties;
+  styles?: JSX.CSSProperties;
 }
 
 export function PostCard(props: PostCardProps) {
   return (
     <Column
       class={`we-post-card ${props.class || ''}`}
-      style={props.style}
+      styles={props.styles}
       bg="ui-100"
       gap="300"
       p="400"

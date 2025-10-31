@@ -246,6 +246,9 @@ importers:
       '@types/node':
         specifier: ^22.15.17
         version: 22.18.12
+      '@we/types':
+        specifier: workspace:*
+        version: link:../../types
       eslint-plugin-lit:
         specifier: ^2.1.1
         version: 2.1.1(eslint@9.38.0)
@@ -448,13 +451,10 @@ importers:
         version: 5.9.3
 
   packages/types:
-    dependencies:
-      '@coasys/ad4m':
-        specifier: 0.10.1
-        version: 0.10.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      solid-js:
-        specifier: ^1.9.0
-        version: 1.9.10
+    devDependencies:
+      '@we/tokens':
+        specifier: workspace:*
+        version: link:../design-system/1-tokens
 
   packages/utils/solid:
     devDependencies:

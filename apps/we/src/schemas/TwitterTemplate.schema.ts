@@ -9,10 +9,10 @@ function createSidebarButton(icon: string, label: string, path: string, bold?: b
       pl: '300',
       pr: '600',
       gap: '400',
-      r: '9999px',
-      hover: { bg: 'ui-100' },
+      r: 'pill',
       onClick: { $action: 'routeStore.navigate', args: [path] },
-      style: { height: '50px' },
+      styles: { height: '50px' },
+      hover: { bg: 'ui-100', styles: { height: '100px' } },
     },
     children: [
       {
@@ -46,15 +46,15 @@ function createSidebarButton(icon: string, label: string, path: string, bold?: b
 
 const sidebarLeft = {
   type: 'Column',
-  props: { bg: 'ui-0', py: '400', pr: '600', gap: '300', style: { width: '275px', height: '100%' } },
+  props: { bg: 'ui-0', py: '400', pr: '600', gap: '300', styles: { width: '275px', height: '100%' } },
   children: [
     {
       type: 'we-button',
       props: {
         p: '300',
-        r: '999px',
+        r: 'full',
         color: 'ui-1000',
-        hover: { bg: 'ui-100' },
+        hover: { bg: 'ui-100', p: '500', styles: { width: '500px' } },
         onClick: { $action: 'routeStore.navigate', args: ['/'] },
       },
       children: [{ type: 'we-icon', props: { name: 'x-logo', size: 'lg' } }],
@@ -72,11 +72,11 @@ const sidebarLeft = {
     {
       type: 'we-button',
       props: {
-        r: '999px',
+        r: 'pill',
         bg: 'ui-1000',
         hover: { bg: 'ui-800' },
         onClick: { $action: 'routeStore.navigate', args: ['/post'] },
-        style: { width: '100%', height: '50px' },
+        styles: { width: '100%', height: '50px' },
       },
       children: [
         {
@@ -91,13 +91,13 @@ const sidebarLeft = {
 
 const centerContent = {
   type: 'Column',
-  props: { style: { width: '600px', height: '100%', 'border-left': border, 'border-right': border } },
+  props: { styles: { width: '600px', height: '100%', 'border-left': border, 'border-right': border } },
   children: [{ type: '$routes' }],
 };
 
 const sidebarRight = {
   type: 'Column',
-  props: { bg: 'ui-0', p: '500', style: { width: '350px', height: '100%' } },
+  props: { bg: 'ui-0', p: '500', styles: { width: '350px', height: '100%' } },
   children: [
     {
       type: 'IconLabelButton',
@@ -121,15 +121,61 @@ export const twitterTemplateSchema: TemplateSchema = {
     icon: 'x-logo',
   },
   type: 'Row',
-  props: { bg: 'ui-0', ax: 'center', style: { width: '100%', height: '100%' } },
+  props: { bg: 'ui-0', ax: 'center', styles: { width: '100%', height: '100%' } },
   children: [
     {
       type: 'Row',
-      props: { bg: 'ui-0', style: { height: '100%' } },
+      props: { bg: 'ui-0', styles: { height: '100%' } },
       children: [sidebarLeft, centerContent, sidebarRight],
     },
   ],
-  routes: [{ path: '/', type: 'HomePage' }],
+  routes: [
+    {
+      path: '/',
+      type: 'Column',
+      props: {},
+      children: [
+        {
+          type: 'we-tabs',
+          props: {
+            value: { $store: 'routeStore.currentPath' }, // controls which tab is selected
+            fill: true,
+            gap: '400',
+            styles: { width: '100%' },
+          },
+          children: [
+            {
+              type: 'we-tab',
+              slot: 'tab',
+              props: {
+                label: 'For you',
+                value: '/',
+                fill: true,
+                onClick: { $action: 'routeStore.navigate', args: ['/'] },
+                styles: { height: '50px' },
+              },
+            },
+            {
+              type: 'we-tab',
+              slot: 'tab',
+              props: {
+                label: 'Following',
+                value: '/following',
+                fill: true,
+                onClick: { $action: 'routeStore.navigate', args: ['/following'] },
+              },
+            },
+          ],
+        },
+      ],
+    },
+    {
+      path: '/explore',
+      type: 'Column',
+      props: {},
+      children: [{ type: 'we-text', props: { size: '700', weight: '600' }, children: ['Explore Page'] }],
+    },
+  ],
 };
 
 // export const twitterTemplateSchema: TemplateSchema = {

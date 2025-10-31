@@ -11,6 +11,7 @@ function schemaNodeShape() {
     type: z.string().optional(),
     props: z.record(z.string(), lazySchemaProp).optional(),
     slots: z.record(z.string(), lazySchemaNode).optional(),
+    slot: z.string().optional(),
     routes: z.array(lazyRouteSchema).optional(),
     children: z.array(z.union([lazySchemaNode, z.string()])).optional(),
   };

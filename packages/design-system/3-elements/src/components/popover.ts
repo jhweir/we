@@ -3,7 +3,7 @@ import { createPopper, VirtualElement } from '@popperjs/core';
 import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import sharedStyles from '../styles/shared';
+import sharedStyles from '../shared/styles';
 import { Placement, PopoverEvent } from '../types';
 
 const styles = css`

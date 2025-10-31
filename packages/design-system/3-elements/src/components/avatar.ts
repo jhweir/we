@@ -3,7 +3,7 @@ import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 
-import sharedStyles from '../styles/shared';
+import sharedStyles from '../shared/styles';
 import { SizeToken } from '../types';
 
 const styles = css`

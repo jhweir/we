@@ -44,7 +44,7 @@ type RowPropsBase = {
   color?: string;
 
   // Standard HTML props
-  style?: JSX.CSSProperties;
+  styles?: JSX.CSSProperties;
   children?: JSX.Element;
 };
 
@@ -62,7 +62,7 @@ export function Row(allProps: RowProps) {
     'm','ml','mr','mt','mb','mx','my', // Margin
     'r','rt','rb','rl','rr','rtl','rtr','rbr','rbl', // Radius
     'bg','color', // Colors
-    'style','children', // Other
+    'styles','children', // Other
   ] as const);
 
   const reactiveStyles = createMemo(() => {
@@ -71,7 +71,7 @@ export function Row(allProps: RowProps) {
       display: 'flex',
       'flex-direction': props.reverse ? 'row-reverse' : 'row',
       'flex-wrap': props.wrap ? 'wrap' : 'nowrap',
-      ...props.style,
+      ...props.styles,
     };
 
     // Main axis (X) via justify-content

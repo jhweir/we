@@ -254,214 +254,6 @@
     },
     {
       "kind": "javascript-module",
-      "path": "src/components/button-old.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "Button",
-          "members": [
-            {
-              "kind": "field",
-              "name": "variant",
-              "type": {
-                "text": "ButtonVariant | undefined"
-              },
-              "default": "'default'",
-              "attribute": "variant",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "size",
-              "type": {
-                "text": "ButtonSize | undefined"
-              },
-              "default": "'md'",
-              "attribute": "size",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "href",
-              "type": {
-                "text": "string | undefined"
-              },
-              "default": "''",
-              "attribute": "href",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "disabled",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "attribute": "disabled",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "loading",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "attribute": "loading",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "square",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "attribute": "square",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "full",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "attribute": "full",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "circle",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "attribute": "circle",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "onClick",
-              "type": {
-                "text": "(event: MouseEvent) => void"
-              }
-            },
-            {
-              "kind": "method",
-              "name": "handleClick",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "event",
-                  "type": {
-                    "text": "MouseEvent"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "renderContent",
-              "privacy": "private"
-            }
-          ],
-          "attributes": [
-            {
-              "name": "variant",
-              "type": {
-                "text": "ButtonVariant | undefined"
-              },
-              "default": "'default'",
-              "fieldName": "variant"
-            },
-            {
-              "name": "size",
-              "type": {
-                "text": "ButtonSize | undefined"
-              },
-              "default": "'md'",
-              "fieldName": "size"
-            },
-            {
-              "name": "href",
-              "type": {
-                "text": "string | undefined"
-              },
-              "default": "''",
-              "fieldName": "href"
-            },
-            {
-              "name": "disabled",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "fieldName": "disabled"
-            },
-            {
-              "name": "loading",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "fieldName": "loading"
-            },
-            {
-              "name": "square",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "fieldName": "square"
-            },
-            {
-              "name": "full",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "fieldName": "full"
-            },
-            {
-              "name": "circle",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "fieldName": "circle"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "we-button",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "name": "Button",
-            "module": "src/components/button-old.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "we-button",
-          "declaration": {
-            "name": "Button",
-            "module": "src/components/button-old.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
       "path": "src/components/button.ts",
       "declarations": [
         {
@@ -475,7 +267,6 @@
               "type": {
                 "text": "string | undefined"
               },
-              "default": "''",
               "attribute": "href"
             },
             {
@@ -500,49 +291,64 @@
             },
             {
               "kind": "field",
+              "name": "onClick",
+              "type": {
+                "text": "(event: MouseEvent) => void"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "ax",
+              "type": {
+                "text": "DesignSystemProps['ax'] | undefined"
+              },
+              "attribute": "ax"
+            },
+            {
+              "kind": "field",
+              "name": "ay",
+              "type": {
+                "text": "DesignSystemProps['ay'] | undefined"
+              },
+              "attribute": "ay"
+            },
+            {
+              "kind": "field",
+              "name": "wrap",
+              "type": {
+                "text": "DesignSystemProps['wrap'] | undefined"
+              },
+              "attribute": "wrap"
+            },
+            {
+              "kind": "field",
+              "name": "reverse",
+              "type": {
+                "text": "DesignSystemProps['reverse'] | undefined"
+              },
+              "attribute": "reverse"
+            },
+            {
+              "kind": "field",
+              "name": "gap",
+              "type": {
+                "text": "DesignSystemProps['gap'] | undefined"
+              },
+              "attribute": "gap"
+            },
+            {
+              "kind": "field",
               "name": "p",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['p'] | undefined"
               },
               "attribute": "p"
             },
             {
               "kind": "field",
-              "name": "px",
-              "type": {
-                "text": "string | undefined"
-              },
-              "attribute": "px"
-            },
-            {
-              "kind": "field",
-              "name": "py",
-              "type": {
-                "text": "string | undefined"
-              },
-              "attribute": "py"
-            },
-            {
-              "kind": "field",
-              "name": "pt",
-              "type": {
-                "text": "string | undefined"
-              },
-              "attribute": "pt"
-            },
-            {
-              "kind": "field",
-              "name": "pb",
-              "type": {
-                "text": "string | undefined"
-              },
-              "attribute": "pb"
-            },
-            {
-              "kind": "field",
               "name": "pl",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['pl'] | undefined"
               },
               "attribute": "pl"
             },
@@ -550,71 +356,175 @@
               "kind": "field",
               "name": "pr",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['pr'] | undefined"
               },
               "attribute": "pr"
             },
             {
               "kind": "field",
-              "name": "gap",
+              "name": "pt",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['pt'] | undefined"
               },
-              "attribute": "gap"
+              "attribute": "pt"
+            },
+            {
+              "kind": "field",
+              "name": "pb",
+              "type": {
+                "text": "DesignSystemProps['pb'] | undefined"
+              },
+              "attribute": "pb"
+            },
+            {
+              "kind": "field",
+              "name": "px",
+              "type": {
+                "text": "DesignSystemProps['px'] | undefined"
+              },
+              "attribute": "px"
+            },
+            {
+              "kind": "field",
+              "name": "py",
+              "type": {
+                "text": "DesignSystemProps['py'] | undefined"
+              },
+              "attribute": "py"
+            },
+            {
+              "kind": "field",
+              "name": "m",
+              "type": {
+                "text": "DesignSystemProps['m'] | undefined"
+              },
+              "attribute": "m"
+            },
+            {
+              "kind": "field",
+              "name": "ml",
+              "type": {
+                "text": "DesignSystemProps['ml'] | undefined"
+              },
+              "attribute": "ml"
+            },
+            {
+              "kind": "field",
+              "name": "mr",
+              "type": {
+                "text": "DesignSystemProps['mr'] | undefined"
+              },
+              "attribute": "mr"
+            },
+            {
+              "kind": "field",
+              "name": "mt",
+              "type": {
+                "text": "DesignSystemProps['mt'] | undefined"
+              },
+              "attribute": "mt"
+            },
+            {
+              "kind": "field",
+              "name": "mb",
+              "type": {
+                "text": "DesignSystemProps['mb'] | undefined"
+              },
+              "attribute": "mb"
+            },
+            {
+              "kind": "field",
+              "name": "mx",
+              "type": {
+                "text": "DesignSystemProps['mx'] | undefined"
+              },
+              "attribute": "mx"
+            },
+            {
+              "kind": "field",
+              "name": "my",
+              "type": {
+                "text": "DesignSystemProps['my'] | undefined"
+              },
+              "attribute": "my"
             },
             {
               "kind": "field",
               "name": "r",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['r'] | undefined"
               },
               "attribute": "r"
             },
             {
               "kind": "field",
-              "name": "ax",
+              "name": "rt",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['rt'] | undefined"
               },
-              "attribute": "ax"
+              "attribute": "rt"
             },
             {
               "kind": "field",
-              "name": "border",
+              "name": "rb",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['rb'] | undefined"
               },
-              "attribute": "border"
+              "attribute": "rb"
             },
             {
               "kind": "field",
-              "name": "outline",
+              "name": "rl",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['rl'] | undefined"
               },
-              "attribute": "outline"
+              "attribute": "rl"
             },
             {
               "kind": "field",
-              "name": "hover",
+              "name": "rr",
               "type": {
-                "text": "HoverStyle | undefined"
+                "text": "DesignSystemProps['rr'] | undefined"
               },
-              "attribute": "hover"
+              "attribute": "rr"
             },
             {
               "kind": "field",
-              "name": "width",
+              "name": "rtl",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['rtl'] | undefined"
               },
-              "attribute": "width"
+              "attribute": "rtl"
+            },
+            {
+              "kind": "field",
+              "name": "rtr",
+              "type": {
+                "text": "DesignSystemProps['rtr'] | undefined"
+              },
+              "attribute": "rtr"
+            },
+            {
+              "kind": "field",
+              "name": "rbr",
+              "type": {
+                "text": "DesignSystemProps['rbr'] | undefined"
+              },
+              "attribute": "rbr"
+            },
+            {
+              "kind": "field",
+              "name": "rbl",
+              "type": {
+                "text": "DesignSystemProps['rbl'] | undefined"
+              },
+              "attribute": "rbl"
             },
             {
               "kind": "field",
               "name": "bg",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['bg'] | undefined"
               },
               "attribute": "bg"
             },
@@ -622,9 +532,17 @@
               "kind": "field",
               "name": "color",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['color'] | undefined"
               },
               "attribute": "color"
+            },
+            {
+              "kind": "field",
+              "name": "hover",
+              "type": {
+                "text": "DesignSystemProps['hover'] | undefined"
+              },
+              "attribute": "hover"
             },
             {
               "kind": "method",
@@ -658,7 +576,6 @@
               "type": {
                 "text": "string | undefined"
               },
-              "default": "''",
               "fieldName": "href"
             },
             {
@@ -678,121 +595,234 @@
               "fieldName": "loading"
             },
             {
+              "name": "styles",
+              "type": {
+                "text": "array"
+              },
+              "default": "[sharedStyles, cssStyles]",
+              "fieldName": "styles"
+            },
+            {
+              "name": "ax",
+              "type": {
+                "text": "DesignSystemProps['ax'] | undefined"
+              },
+              "fieldName": "ax"
+            },
+            {
+              "name": "ay",
+              "type": {
+                "text": "DesignSystemProps['ay'] | undefined"
+              },
+              "fieldName": "ay"
+            },
+            {
+              "name": "wrap",
+              "type": {
+                "text": "DesignSystemProps['wrap'] | undefined"
+              },
+              "fieldName": "wrap"
+            },
+            {
+              "name": "reverse",
+              "type": {
+                "text": "DesignSystemProps['reverse'] | undefined"
+              },
+              "fieldName": "reverse"
+            },
+            {
+              "name": "gap",
+              "type": {
+                "text": "DesignSystemProps['gap'] | undefined"
+              },
+              "fieldName": "gap"
+            },
+            {
               "name": "p",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['p'] | undefined"
               },
               "fieldName": "p"
             },
             {
-              "name": "px",
-              "type": {
-                "text": "string | undefined"
-              },
-              "fieldName": "px"
-            },
-            {
-              "name": "py",
-              "type": {
-                "text": "string | undefined"
-              },
-              "fieldName": "py"
-            },
-            {
-              "name": "pt",
-              "type": {
-                "text": "string | undefined"
-              },
-              "fieldName": "pt"
-            },
-            {
-              "name": "pb",
-              "type": {
-                "text": "string | undefined"
-              },
-              "fieldName": "pb"
-            },
-            {
               "name": "pl",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['pl'] | undefined"
               },
               "fieldName": "pl"
             },
             {
               "name": "pr",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['pr'] | undefined"
               },
               "fieldName": "pr"
             },
             {
-              "name": "gap",
+              "name": "pt",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['pt'] | undefined"
               },
-              "fieldName": "gap"
+              "fieldName": "pt"
+            },
+            {
+              "name": "pb",
+              "type": {
+                "text": "DesignSystemProps['pb'] | undefined"
+              },
+              "fieldName": "pb"
+            },
+            {
+              "name": "px",
+              "type": {
+                "text": "DesignSystemProps['px'] | undefined"
+              },
+              "fieldName": "px"
+            },
+            {
+              "name": "py",
+              "type": {
+                "text": "DesignSystemProps['py'] | undefined"
+              },
+              "fieldName": "py"
+            },
+            {
+              "name": "m",
+              "type": {
+                "text": "DesignSystemProps['m'] | undefined"
+              },
+              "fieldName": "m"
+            },
+            {
+              "name": "ml",
+              "type": {
+                "text": "DesignSystemProps['ml'] | undefined"
+              },
+              "fieldName": "ml"
+            },
+            {
+              "name": "mr",
+              "type": {
+                "text": "DesignSystemProps['mr'] | undefined"
+              },
+              "fieldName": "mr"
+            },
+            {
+              "name": "mt",
+              "type": {
+                "text": "DesignSystemProps['mt'] | undefined"
+              },
+              "fieldName": "mt"
+            },
+            {
+              "name": "mb",
+              "type": {
+                "text": "DesignSystemProps['mb'] | undefined"
+              },
+              "fieldName": "mb"
+            },
+            {
+              "name": "mx",
+              "type": {
+                "text": "DesignSystemProps['mx'] | undefined"
+              },
+              "fieldName": "mx"
+            },
+            {
+              "name": "my",
+              "type": {
+                "text": "DesignSystemProps['my'] | undefined"
+              },
+              "fieldName": "my"
             },
             {
               "name": "r",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['r'] | undefined"
               },
               "fieldName": "r"
             },
             {
-              "name": "ax",
+              "name": "rt",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['rt'] | undefined"
               },
-              "fieldName": "ax"
+              "fieldName": "rt"
             },
             {
-              "name": "border",
+              "name": "rb",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['rb'] | undefined"
               },
-              "fieldName": "border"
+              "fieldName": "rb"
             },
             {
-              "name": "outline",
+              "name": "rl",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['rl'] | undefined"
               },
-              "fieldName": "outline"
+              "fieldName": "rl"
             },
             {
-              "name": "hover",
+              "name": "rr",
               "type": {
-                "text": "HoverStyle | undefined"
+                "text": "DesignSystemProps['rr'] | undefined"
               },
-              "fieldName": "hover"
+              "fieldName": "rr"
             },
             {
-              "name": "width",
+              "name": "rtl",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['rtl'] | undefined"
               },
-              "fieldName": "width"
+              "fieldName": "rtl"
+            },
+            {
+              "name": "rtr",
+              "type": {
+                "text": "DesignSystemProps['rtr'] | undefined"
+              },
+              "fieldName": "rtr"
+            },
+            {
+              "name": "rbr",
+              "type": {
+                "text": "DesignSystemProps['rbr'] | undefined"
+              },
+              "fieldName": "rbr"
+            },
+            {
+              "name": "rbl",
+              "type": {
+                "text": "DesignSystemProps['rbl'] | undefined"
+              },
+              "fieldName": "rbl"
             },
             {
               "name": "bg",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['bg'] | undefined"
               },
               "fieldName": "bg"
             },
             {
               "name": "color",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['color'] | undefined"
               },
               "fieldName": "color"
+            },
+            {
+              "name": "hover",
+              "type": {
+                "text": "DesignSystemProps['hover'] | undefined"
+              },
+              "fieldName": "hover"
             }
           ],
           "superclass": {
-            "name": "LitElement",
-            "package": "lit"
+            "name": "BaseElement",
+            "module": "/src/shared/base-element"
           },
           "tagName": "we-button",
           "customElement": true
@@ -2051,6 +2081,339 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/components/tab.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "Tab",
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "value",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "selected",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "selected",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "fill",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "fill",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "selectedProps",
+              "type": {
+                "text": "Record<string, string> | undefined"
+              },
+              "attribute": "selectedProps"
+            },
+            {
+              "kind": "field",
+              "name": "hoverProps",
+              "type": {
+                "text": "Record<string, string> | undefined"
+              },
+              "attribute": "hoverProps"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "label"
+            },
+            {
+              "kind": "field",
+              "name": "onClick",
+              "type": {
+                "text": "any | undefined"
+              },
+              "attribute": "onClick"
+            },
+            {
+              "kind": "field",
+              "name": "_hover",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
+            {
+              "kind": "method",
+              "name": "handleClick",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "e",
+                  "type": {
+                    "text": "MouseEvent"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "handleMouseEnter",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "handleMouseLeave",
+              "privacy": "private"
+            }
+          ],
+          "events": [
+            {
+              "name": "tab-select",
+              "type": {
+                "text": "CustomEvent"
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "value"
+            },
+            {
+              "name": "selected",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "selected"
+            },
+            {
+              "name": "fill",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "fill"
+            },
+            {
+              "name": "selectedProps",
+              "type": {
+                "text": "Record<string, string> | undefined"
+              },
+              "fieldName": "selectedProps"
+            },
+            {
+              "name": "hoverProps",
+              "type": {
+                "text": "Record<string, string> | undefined"
+              },
+              "fieldName": "hoverProps"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "label"
+            },
+            {
+              "name": "onClick",
+              "type": {
+                "text": "any | undefined"
+              },
+              "fieldName": "onClick"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "we-tab",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "Tab",
+          "declaration": {
+            "name": "Tab",
+            "module": "src/components/tab.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "we-tab",
+          "declaration": {
+            "name": "Tab",
+            "module": "src/components/tab.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "Tab",
+            "module": "src/components/tab.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/tabs.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "Tabs",
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "value"
+            },
+            {
+              "kind": "field",
+              "name": "gap",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "gap"
+            },
+            {
+              "kind": "field",
+              "name": "fill",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "fill",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "_tabs",
+              "type": {
+                "text": "HTMLElement[]"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "_panels",
+              "type": {
+                "text": "HTMLElement[]"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "onTabSelect",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "e",
+                  "type": {
+                    "text": "CustomEvent"
+                  }
+                }
+              ]
+            }
+          ],
+          "events": [
+            {
+              "name": "tab-change",
+              "type": {
+                "text": "CustomEvent"
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "value"
+            },
+            {
+              "name": "gap",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "gap"
+            },
+            {
+              "name": "fill",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "fill"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "we-tabs",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "Tabs",
+          "declaration": {
+            "name": "Tabs",
+            "module": "src/components/tabs.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "we-tabs",
+          "declaration": {
+            "name": "Tabs",
+            "module": "src/components/tabs.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "Tabs",
+            "module": "src/components/tabs.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/components/text.ts",
       "declarations": [
         {
@@ -2372,14 +2735,72 @@
     },
     {
       "kind": "javascript-module",
-      "path": "src/styles/shared.ts",
+      "path": "src/shared/base-element.ts",
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "tokenVar",
+          "parameters": [
+            {
+              "name": "prefix",
+              "type": {
+                "text": "string"
+              }
+            },
+            {
+              "name": "token",
+              "optional": true,
+              "type": {
+                "text": "string"
+              }
+            },
+            {
+              "name": "fallback",
+              "default": "'0'"
+            }
+          ]
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "BaseElement",
+          "members": [],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "tokenVar",
+          "declaration": {
+            "name": "tokenVar",
+            "module": "src/shared/base-element.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "BaseElement",
+          "declaration": {
+            "name": "BaseElement",
+            "module": "src/shared/base-element.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/shared/styles.ts",
       "declarations": [],
       "exports": [
         {
           "kind": "js",
           "name": "default",
           "declaration": {
-            "module": "src/styles/shared.ts"
+            "module": "src/shared/styles.ts"
           }
         }
       ]

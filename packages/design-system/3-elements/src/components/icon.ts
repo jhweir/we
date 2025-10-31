@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
 import { generateVariable } from '../helpers';
-import sharedStyles from '../styles/shared';
+import sharedStyles from '../shared/styles';
 import { IconSize, IconWeight } from '../types';
 
 const styles = css`

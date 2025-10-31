@@ -6,18 +6,18 @@ export interface CircleButtonProps {
   image?: string;
   onClick?: () => void;
   class?: string;
-  style?: JSX.CSSProperties;
+  styles?: JSX.CSSProperties;
 }
 
 export function CircleButton(props: CircleButtonProps) {
   return (
     <we-button
       class={`we-circle-button ${props.class || ''}`}
-      style={props.style}
+      styles={props.styles}
       onClick={props.onClick}
       slot="trigger"
-      variant="ghost"
-      circle
+      // variant="ghost"
+      // circle
       data-we-button
     >
       <we-tooltip placement="right" title={props.label}>

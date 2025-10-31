@@ -2,6 +2,7 @@
   "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "experimentalDecorators": true
+    // "useDefineForClassFields": true
   },
   "include": ["src/index.ts", "src/helpers.ts", "src/components/**/*.ts", "scripts/generate-framework-declarations.ts"],
   "exclude": ["scripts"]
