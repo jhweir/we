@@ -1,5 +1,6 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { styleMap } from 'lit/directives/style-map.js';
 
 import sharedStyles from '../shared/styles';
 import { BadgeSize, BadgeVariant } from '../types';
@@ -54,9 +55,11 @@ export default class Badge extends LitElement {
 
   @property({ type: String, reflect: true }) variant: BadgeVariant = '';
   @property({ type: String, reflect: true }) size: BadgeSize = '';
+  @property({ type: Object }) styles?: Record<string, any>;
 
   render() {
-    return html`<span part="base">
+    const inlineStyles = this.styles || {};
+    return html`<span part="base" style=${styleMap(inlineStyles)}>
       <slot></slot>
     </span>`;
   }

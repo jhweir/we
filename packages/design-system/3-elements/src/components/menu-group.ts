@@ -1,5 +1,6 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { styleMap } from 'lit/directives/style-map.js';
 
 import sharedStyles from '../shared/styles';
 
@@ -69,8 +70,10 @@ export default class MenuGroup extends LitElement {
   @property({ type: Boolean, reflect: true }) collapsible = false;
   @property({ type: Boolean, reflect: true }) open = false;
   @property({ type: String, reflect: true }) title = '';
+  @property({ type: Object }) styles?: Record<string, any>;
 
   collapsibleContent() {
+    const inlineStyles = this.styles || {};
     return html`
       <details
         .open=${this.open}
@@ -94,8 +97,9 @@ export default class MenuGroup extends LitElement {
   }
 
   normal() {
+    const inlineStyles = this.styles || {};
     return html`
-      <div part="base" role="menuitem">
+      <div part="base" role="menuitem" style=${styleMap(inlineStyles)}>
         <div part="summary">
           <slot part="start" name="start"></slot>
           <div part="title">${this.title}</div>

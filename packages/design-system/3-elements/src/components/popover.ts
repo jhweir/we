@@ -2,6 +2,7 @@
 import { createPopper, VirtualElement } from '@popperjs/core';
 import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { styleMap } from 'lit/directives/style-map.js';
 
 import sharedStyles from '../shared/styles';
 import { Placement, PopoverEvent } from '../types';
@@ -65,6 +66,7 @@ export default class Popover extends LitElement {
   @property({ type: Boolean, reflect: true }) open = false;
   @property({ type: String, reflect: true }) placement: Placement = 'auto';
   @property({ type: String, reflect: true }) event: PopoverEvent = 'click';
+  @property({ type: Object }) styles?: Record<string, any>;
 
   @state() clientY = 0;
   @state() clientX = 0;
@@ -251,8 +253,9 @@ export default class Popover extends LitElement {
   }
 
   render() {
+    const inlineStyles = this.styles || {};
     return html`
-      <div part="base">
+      <div part="base" style=${styleMap(inlineStyles)}>
         <span part="trigger"><slot name="trigger"></slot></span>
         <span part="content"><slot name="content"></slot></span>
       </div>

@@ -1,5 +1,6 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { styleMap } from 'lit/directives/style-map.js';
 
 import sharedStyles from '../shared/styles';
 
@@ -110,6 +111,7 @@ export default class Input extends LitElement {
   @property({ attribute: false }) onChange: (event: Event) => void = () => {};
   @property({ attribute: false }) onFocus: (event: FocusEvent) => void = () => {};
   @property({ attribute: false }) onBlur: (event: FocusEvent) => void = () => {};
+  @property({ type: Object }) styles?: Record<string, any>;
 
   select() {
     this.renderRoot.querySelector('input')?.select();
@@ -151,8 +153,9 @@ export default class Input extends LitElement {
   }
 
   render() {
+    const inlineStyles = this.styles || {};
     return html`
-      <div part="base">
+      <div part="base" style=${styleMap(inlineStyles)}>
         ${this.label && html` <j-text tag="label" variant="label" part="label">${this.label} </j-text> `}
         <div part="input-wrapper">
           <slot part="start" name="start"></slot>

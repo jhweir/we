@@ -1,9 +1,9 @@
 import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { styleMap } from 'lit/directives/style-map.js';
 import sharedStyles from '../shared/styles';
 import { BaseElement } from '../shared/base-element';
 import type { DesignSystemProps } from '@we/types';
-import { styleMap } from 'lit/directives/style-map.js';
 
 const cssStyles = css`
   :host {
@@ -98,13 +98,6 @@ export default class Button extends BaseElement implements DesignSystemProps {
   @property({ type: String }) color?: DesignSystemProps['color'];
   @property({ type: Object }) hover?: DesignSystemProps['hover'];
 
-  // updated() {
-  //   super.updated();
-  //   // // Optionally, set width/height as generic vars if you want to support them
-  //   // this.style.setProperty('--we-width', this.style.width || 'auto');
-  //   // this.style.setProperty('--we-height', this.style.height || 'auto');
-  // }
-
   private handleClick(event: MouseEvent) {
     if (this.disabled || this.loading) {
       event.preventDefault();
@@ -121,15 +114,8 @@ export default class Button extends BaseElement implements DesignSystemProps {
     `;
   }
 
-  // get styleProp(): Record<string, string | number> | undefined {
-  //   // @ts-ignore
-  //   return (this as any).style;
-  // }
-
   render() {
-    // const inlineStyles = (this as any)['style'] || {};
     const inlineStyles = this.styles || {};
-    // console.log('inlineStyles', inlineStyles);
     if (this.href) {
       return html`
         <a

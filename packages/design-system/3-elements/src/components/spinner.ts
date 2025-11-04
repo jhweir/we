@@ -1,5 +1,6 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { styleMap } from 'lit/directives/style-map.js';
 
 import sharedStyles from '../shared/styles';
 import { SpinnerSize } from '../types';
@@ -84,9 +85,11 @@ export default class Spinner extends LitElement {
   static styles = [sharedStyles, styles];
 
   @property({ type: String, reflect: true }) size: SpinnerSize = '';
+  @property({ type: Object }) styles?: Record<string, any>;
 
   render() {
-    return html`<div class="lds-ring">
+    const inlineStyles = this.styles || {};
+    return html`<div class="lds-ring" style=${styleMap(inlineStyles)}>
       <div></div>
       <div></div>
       <div></div>

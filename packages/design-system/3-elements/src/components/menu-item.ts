@@ -1,5 +1,6 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { styleMap } from 'lit/directives/style-map.js';
 
 import sharedStyles from '../shared/styles';
 
@@ -73,6 +74,7 @@ export default class MenuItem extends LitElement {
   @property({ type: Boolean, reflect: true }) selected = false;
   @property({ type: Boolean, reflect: true }) active = false;
   @property({ attribute: false }) onClick: (event: MouseEvent) => void = () => {};
+  @property({ type: Object }) styles?: Record<string, any>;
 
   @state()
   _value = '';
@@ -99,7 +101,8 @@ export default class MenuItem extends LitElement {
   }
 
   render() {
-    return html`<div part="base" role="menuitem">
+    const inlineStyles = this.styles || {};
+    return html`<div part="base" role="menuitem" style=${styleMap(inlineStyles)}>
       <slot name="start"></slot>
       <div part="content">
         <slot></slot>

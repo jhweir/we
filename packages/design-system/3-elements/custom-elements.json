@@ -148,6 +148,14 @@
                 "text": "SizeToken | undefined"
               },
               "fieldName": "size"
+            },
+            {
+              "name": "styles",
+              "type": {
+                "text": "array"
+              },
+              "default": "[sharedStyles, styles]",
+              "fieldName": "styles"
             }
           ],
           "superclass": {
@@ -223,6 +231,14 @@
               },
               "default": "''",
               "fieldName": "size"
+            },
+            {
+              "name": "styles",
+              "type": {
+                "text": "array"
+              },
+              "default": "[sharedStyles, styles]",
+              "fieldName": "styles"
             }
           ],
           "superclass": {
@@ -1501,6 +1517,14 @@
               },
               "default": "'text'",
               "fieldName": "type"
+            },
+            {
+              "name": "styles",
+              "type": {
+                "text": "array"
+              },
+              "default": "[sharedStyles, styles]",
+              "fieldName": "styles"
             }
           ],
           "superclass": {
@@ -1602,6 +1626,14 @@
               },
               "default": "''",
               "fieldName": "title"
+            },
+            {
+              "name": "styles",
+              "type": {
+                "text": "array"
+              },
+              "default": "[styles, sharedStyles]",
+              "fieldName": "styles"
             }
           ],
           "superclass": {
@@ -1708,6 +1740,14 @@
               },
               "default": "false",
               "fieldName": "active"
+            },
+            {
+              "name": "styles",
+              "type": {
+                "text": "array"
+              },
+              "default": "[sharedStyles, styles]",
+              "fieldName": "styles"
             }
           ],
           "superclass": {
@@ -1808,6 +1848,14 @@
               },
               "default": "''",
               "fieldName": "size"
+            },
+            {
+              "name": "styles",
+              "type": {
+                "text": "array"
+              },
+              "default": "[sharedStyles, styles]",
+              "fieldName": "styles"
             }
           ],
           "superclass": {
@@ -1993,6 +2041,14 @@
               },
               "default": "'click'",
               "fieldName": "event"
+            },
+            {
+              "name": "styles",
+              "type": {
+                "text": "array"
+              },
+              "default": "[sharedStyles, styles]",
+              "fieldName": "styles"
             }
           ],
           "superclass": {
@@ -2050,6 +2106,14 @@
               },
               "default": "''",
               "fieldName": "size"
+            },
+            {
+              "name": "styles",
+              "type": {
+                "text": "array"
+              },
+              "default": "[sharedStyles, styles]",
+              "fieldName": "styles"
             }
           ],
           "superclass": {
@@ -2243,6 +2307,14 @@
                 "text": "any | undefined"
               },
               "fieldName": "onClick"
+            },
+            {
+              "name": "styles",
+              "type": {
+                "text": "array"
+              },
+              "default": "[sharedStyles, styles]",
+              "fieldName": "styles"
             }
           ],
           "superclass": {
@@ -2375,6 +2447,14 @@
               },
               "default": "false",
               "fieldName": "fill"
+            },
+            {
+              "name": "styles",
+              "type": {
+                "text": "array"
+              },
+              "default": "[sharedStyles, styles]",
+              "fieldName": "styles"
             }
           ],
           "superclass": {

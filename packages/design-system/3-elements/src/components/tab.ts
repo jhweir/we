@@ -1,5 +1,6 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { styleMap } from 'lit/directives/style-map.js';
 import sharedStyles from '../shared/styles';
 
 const styles = css`
@@ -66,6 +67,7 @@ export class Tab extends LitElement {
   @property({ type: Object }) hoverProps?: Record<string, string>;
   @property({ type: String }) label?: string;
   @property({ type: Object }) onClick?: any;
+  @property({ type: Object }) styles?: Record<string, any>;
 
   @state() private _hover = false;
 
@@ -106,6 +108,7 @@ export class Tab extends LitElement {
   }
 
   render() {
+    const inlineStyles = this.styles || {};
     return html`
       <button
         role="tab"
@@ -114,6 +117,7 @@ export class Tab extends LitElement {
         @click=${this.handleClick}
         @mouseenter=${this.handleMouseEnter}
         @mouseleave=${this.handleMouseLeave}
+        style=${styleMap(inlineStyles)}
       >
         ${this.label ? this.label : html`<slot></slot>`}
       </button>

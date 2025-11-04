@@ -1,5 +1,6 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property, queryAssignedElements } from 'lit/decorators.js';
+import { styleMap } from 'lit/directives/style-map.js';
 import sharedStyles from '../shared/styles';
 
 const styles = css`
@@ -32,6 +33,7 @@ export class Tabs extends LitElement {
   @property({ type: String }) value: string = '';
   @property({ type: String }) gap?: string;
   @property({ type: Boolean, reflect: true }) fill = false;
+  @property({ type: Object }) styles?: Record<string, any>;
 
   @queryAssignedElements({ slot: 'tab' }) _tabs!: HTMLElement[];
   @queryAssignedElements({ slot: 'panel' }) _panels!: HTMLElement[];
@@ -63,8 +65,9 @@ export class Tabs extends LitElement {
   }
 
   render() {
+    const inlineStyles = this.styles || {};
     return html`
-      <nav class="tabs" role="tablist">
+      <nav class="tabs" role="tablist" style=${styleMap(inlineStyles)}>
         <slot name="tab" @tab-select=${this.onTabSelect}></slot>
       </nav>
       <div class="panels">

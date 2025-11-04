@@ -2,6 +2,7 @@ import { toSvg } from 'jdenticon';
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
+import { styleMap } from 'lit/directives/style-map.js';
 
 import sharedStyles from '../shared/styles';
 import { SizeToken } from '../types';
@@ -100,6 +101,7 @@ export default class Avatar extends LitElement {
   @property({ type: String }) icon = '';
   @property({ type: String, reflect: true }) size?: SizeToken;
   @property({ attribute: false }) onClick: undefined | (() => void) = undefined;
+  @property({ type: Object }) styles?: Record<string, any>;
 
   private renderContent() {
     return this.image
@@ -112,8 +114,11 @@ export default class Avatar extends LitElement {
   }
 
   render() {
+    const inlineStyles = this.styles || {};
     return this.onClick
-      ? html` <button part="base" @click=${this.onClick}>${this.renderContent()}</button> `
-      : html` <div part="base">${this.renderContent()}</div> `;
+      ? html`
+          <button part="base" style=${styleMap(inlineStyles)} @click=${this.onClick}>${this.renderContent()}</button>
+        `
+      : html` <div part="base" style=${styleMap(inlineStyles)}>${this.renderContent()}</div> `;
   }
 }

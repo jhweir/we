@@ -1,5 +1,6 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { styleMap } from 'lit/directives/style-map.js';
 
 import sharedStyles from '../shared/styles';
 import { ModalSize } from '../types';
@@ -131,10 +132,12 @@ export default class Modal extends LitElement {
 
   @property({ type: String, reflect: true }) size: ModalSize = '';
   @property({ attribute: false }) close: () => void = () => {};
+  @property({ type: Object }) styles?: Record<string, any>;
 
   render() {
+    const inlineStyles = this.styles || {};
     return html`
-      <div part="base">
+      <div part="base" style=${styleMap(inlineStyles)}>
         <div part="backdrop" @click=${this.close}></div>
         <div part="modal">
           <button @click=${this.close} part="close-button">
