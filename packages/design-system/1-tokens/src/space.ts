@@ -4,7 +4,7 @@
  */
 
 // Literal union type for numbered space values
-export type SpaceToken = '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900' | '1000';
+export type SpaceToken = '0' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900' | '1000';
 
 /**
  * Spacing scale from 100-1000.
@@ -12,6 +12,7 @@ export type SpaceToken = '100' | '200' | '300' | '400' | '500' | '600' | '700' |
  * The scale follows a consistent progression with appropriate values for various UI contexts.
  */
 export const space = {
+  '0': '0rem', // No spacing
   '100': '0.25rem', // ~4px - Micro spacing
   '200': '0.38rem', // ~6px - Tiny spacing
   '300': '0.5rem', // ~8px - Small spacing

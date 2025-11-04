@@ -24,7 +24,9 @@ function setDesignSystemVars(el: HTMLElement, props: DesignSystemProps, type?: s
     el.style.setProperty(`${prefix}direction`, props.reverse ? 'row-reverse' : 'row');
 
   // Padding
-  if (paddingKeys.some((k) => k in props)) {
+  const hasPadding = paddingKeys.some((k) => typeof props[k] !== 'undefined' && props[k] !== null);
+  if (!hasPadding) el.style.removeProperty(`${prefix}padding`);
+  else {
     const padding = [
       tokenVar('space', props.pt || props.py || props.p),
       tokenVar('space', props.pr || props.px || props.p),

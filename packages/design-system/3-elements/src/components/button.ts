@@ -5,9 +5,6 @@ import { BaseElement } from '../shared/base-element';
 import type { DesignSystemProps } from '@we/types';
 import { styleMap } from 'lit/directives/style-map.js';
 
-// width: var(--we-width, auto);
-// height: var(--we-height, auto);
-
 const cssStyles = css`
   :host {
     display: inline-block;
@@ -42,12 +39,12 @@ const cssStyles = css`
   a:hover:not([aria-disabled='true']) {
     background: var(--we-hover-bg, var(--we-bg));
     color: var(--we-hover-color, var(--we-color));
-    gap: var(--we-hover-gap, var(--we-gap));
+    gap: var(--we-hover-gap, var(--we-gap, 0.5rem));
     justify-content: var(--we-hover-ax, var(--we-ax, center));
     align-items: var(--we-hover-ay, var(--we-ay, center));
     flex-wrap: var(--we-hover-wrap, var(--we-wrap, nowrap));
     flex-direction: var(--we-hover-direction, var(--we-direction, row));
-    padding: var(--we-hover-padding, var(--we-padding));
+    padding: var(--we-hover-padding, var(--we-padding, 0.5rem 1rem));
     margin: var(--we-hover-margin, var(--we-margin));
     border-radius: var(--we-hover-radius, var(--we-radius));
   }

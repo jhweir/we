@@ -120,9 +120,9 @@ Full TypeScript support with exported types:
 import {
   type ColorHueToken, // 'ui' | 'primary' | 'success' | 'warning' | 'danger'
   type ColorLightnessToken, // '0' | '25' | '50' | ... | '1000'
-  type SpaceToken, // '100' | '200' | '300' | ... | '1000'
+  type SpaceToken, // '0' | '100' | '200' | '300' | ... | '1000'
   type FontSizeToken, // 'base' | '100' | '200' | ... | '1000'
-  type AnimationTransitionToken, // '100' | '200' | '300' | '400' | '500'
+  type AnimationTransitionToken, // '0' | '100' | '200' | '300' | '400' | '500'
 } from '@we/tokens';
 
 // Type-checked function
