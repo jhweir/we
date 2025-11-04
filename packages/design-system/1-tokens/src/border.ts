@@ -6,7 +6,7 @@
 import { color } from './color.js';
 
 // Literal union types for border tokens
-export type BorderRadiusToken = 'base' | 'sm' | 'md' | 'lg';
+export type BorderRadiusToken = 'none' | 'base' | 'sm' | 'md' | 'lg';
 export type BorderColorToken = 'base' | 'strong';
 
 /**
@@ -20,6 +20,7 @@ export const borderWidth = '1px';
  * These define the roundness of corners for UI elements.
  */
 export const borderRadius = {
+  none: '0px',
   base: '8px',
   sm: '4px',
   md: '8px',

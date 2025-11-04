@@ -50,7 +50,6 @@ const styles = css`
     position: absolute;
     width: var(--we-spinner-size);
     height: var(--we-spinner-size);
-    margin: var(--we-spinner-stroke);
     border: var(--we-spinner-stroke) solid var(--we-spinner-color);
     border-radius: 50%;
     animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;

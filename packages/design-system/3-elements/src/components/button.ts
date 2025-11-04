@@ -108,6 +108,7 @@ export default class Button extends BaseElement implements DesignSystemProps {
 
   renderContent() {
     return html`
+      ${this.loading ? html`<we-spinner size="sm"></we-spinner>` : null}
       <slot name="start"></slot>
       <slot></slot>
       <slot name="end"></slot>

@@ -111,6 +111,7 @@ export default class Input extends LitElement {
   @property({ attribute: false }) onChange: (event: Event) => void = () => {};
   @property({ attribute: false }) onFocus: (event: FocusEvent) => void = () => {};
   @property({ attribute: false }) onBlur: (event: FocusEvent) => void = () => {};
+  @property({ attribute: false }) onKeyDown: (event: KeyboardEvent) => void = () => {};
   @property({ type: Object }) styles?: Record<string, any>;
 
   select() {
@@ -152,6 +153,12 @@ export default class Input extends LitElement {
     this.dispatchEvent(new CustomEvent('blur', e));
   }
 
+  handleKeyDown(e: KeyboardEvent) {
+    e.stopPropagation();
+    const event = new KeyboardEvent(e.type, e);
+    this.dispatchEvent(event);
+  }
+
   render() {
     const inlineStyles = this.styles || {};
     return html`
@@ -179,6 +186,7 @@ export default class Input extends LitElement {
             @change=${this.handleChange}
             @blur=${this.handleBlur}
             @focus=${this.handleFocus}
+            @keydown=${this.handleKeyDown}
           />
           <slot part="end" name="end"></slot>
         </div>

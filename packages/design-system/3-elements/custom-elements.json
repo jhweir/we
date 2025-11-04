@@ -1252,6 +1252,13 @@
               }
             },
             {
+              "kind": "field",
+              "name": "onKeyDown",
+              "type": {
+                "text": "(event: KeyboardEvent) => void"
+              }
+            },
+            {
               "kind": "method",
               "name": "select"
             },
@@ -1307,6 +1314,18 @@
                   "name": "e",
                   "type": {
                     "text": "FocusEvent"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "handleKeyDown",
+              "parameters": [
+                {
+                  "name": "e",
+                  "type": {
+                    "text": "KeyboardEvent"
                   }
                 }
               ]
