@@ -47,7 +47,7 @@ export function RouteStoreProvider(props: ParentProps) {
 
 export function useRouteStore(): RouteStore {
   const ctx = useContext(RouteContext);
-  if (!ctx) throw new Error('useRouteStore must be used within RouteProvider');
+  if (!ctx) throw new Error('useRouteStore must be used within RouteStoreProvider');
   return ctx;
 }
 

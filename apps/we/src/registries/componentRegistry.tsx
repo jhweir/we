@@ -1,4 +1,4 @@
-import { CircleButton, Column, IconLabelButton, PopoverMenu, RerenderLog, Row } from '@we/components/solid';
+import { CircleButton, Column, IconLabelButton, PopoverMenu, PostCard, RerenderLog, Row } from '@we/components/solid';
 import { HomePage, PageNotFound, SpacePage } from '@we/pages/solid';
 import type { ComponentRegistry } from '@we/schema-renderer/solid';
 import { CenteredTemplate, DefaultTemplate } from '@we/templates/solid';
@@ -18,6 +18,7 @@ export const componentRegistry: ComponentRegistry = {
   CircleButton,
   IconLabelButton,
   PopoverMenu,
+  PostCard,
 
   // @we/widgets
   CreateSpaceModalWidget,

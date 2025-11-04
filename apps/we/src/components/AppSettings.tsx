@@ -9,7 +9,7 @@ export default function AppSettings() {
   const [modalOpen, setModalOpen] = createSignal(false);
 
   return (
-    <div>
+    <>
       <CircleButton
         label="App Settings"
         icon="gear"
@@ -44,6 +44,6 @@ export default function AppSettings() {
           </Column>
         </we-modal>
       )}
-    </div>
+    </>
   );
 }

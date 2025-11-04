@@ -5,8 +5,6 @@ import { JSX } from 'solid-js';
 export interface IconLabelButtonProps {
   icon: MaybeAccessor<string>;
   label: MaybeAccessor<string>;
-  // variant?: MaybeAccessor<ButtonVariant>;
-  // size?: MaybeAccessor<ButtonSize>;
   selected?: MaybeAccessor<boolean>;
   iconWeight?: MaybeAccessor<IconWeight>;
   onClick?: () => void;
@@ -14,11 +12,7 @@ export interface IconLabelButtonProps {
   styles?: MaybeAccessor<JSX.CSSProperties>;
 }
 
-// weight={toValue(props.selected) ? 'fill' : 'regular'}
-
 export function IconLabelButton(props: IconLabelButtonProps) {
-  const isSelected = toValue(props.selected);
-  console.log('IconLabelButton selected:', isSelected);
   return (
     <we-button
       class={`we-icon-label-button ${props.class || ''}`}

@@ -2,6 +2,7 @@ import { ParentProps } from 'solid-js';
 
 import {
   AdamStoreProvider,
+  AiStoreProvider,
   ModalStoreProvider,
   RouteStoreProvider,
   SpaceStoreProvider,
@@ -15,9 +16,11 @@ export default function StoreProvider(props: ParentProps) {
       <AdamStoreProvider>
         <ThemeStoreProvider>
           <TemplateStoreProvider>
-            <ModalStoreProvider>
-              <SpaceStoreProvider>{props.children}</SpaceStoreProvider>
-            </ModalStoreProvider>
+            <AiStoreProvider>
+              <ModalStoreProvider>
+                <SpaceStoreProvider>{props.children}</SpaceStoreProvider>
+              </ModalStoreProvider>
+            </AiStoreProvider>
           </TemplateStoreProvider>
         </ThemeStoreProvider>
       </AdamStoreProvider>
