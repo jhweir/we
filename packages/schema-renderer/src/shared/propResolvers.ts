@@ -155,7 +155,7 @@ function resolveIfProp(value: unknown, stores: Props, context: Props, memo: Memo
   return resolveProp(conditionMet ? thenValue : elseValue, stores, context, memo);
 }
 
-// Resolves $eq props: { $eq: [a, b] }
+// Resolves $eq (equal) props: { $eq: [a, b] }
 function resolveEqProp(value: unknown, stores: Props, context: Props, memo: Memo): unknown {
   const [a, b] = (value as { $eq: [unknown, unknown] }).$eq;
   let resolvedA = resolveProp(a, stores, context, memo);
@@ -168,6 +168,19 @@ function resolveEqProp(value: unknown, stores: Props, context: Props, memo: Memo
   return resolvedA === resolvedB;
 }
 
+// Resolves $ne (not equal) props: { $ne: [a, b] }
+function resolveNeProp(value: unknown, stores: Props, context: Props, memo: Memo): unknown {
+  const [a, b] = (value as { $ne: [unknown, unknown] }).$ne;
+  let resolvedA = resolveProp(a, stores, context, memo);
+  let resolvedB = resolveProp(b, stores, context, memo);
+
+  // Unwrap Solid accessors (signals)
+  if (typeof resolvedA === 'function') resolvedA = resolvedA();
+  if (typeof resolvedB === 'function') resolvedB = resolvedB();
+
+  return resolvedA !== resolvedB;
+}
+
 // Resolve any prop based on its token type
 export function resolveProp(value: unknown, stores: Props, context: Props, memo: Memo = noMemo): unknown {
   if (hasToken(value, '$store', 'string')) return resolveStoreProp(value, stores, memo);
@@ -177,6 +190,7 @@ export function resolveProp(value: unknown, stores: Props, context: Props, memo:
   if (hasToken(value, '$pick', 'object')) return resolvePickProp(value['$pick'] as PickProp, stores, context, memo);
   if (hasToken(value, '$if', 'object')) return resolveIfProp(value, stores, context, memo);
   if (hasToken(value, '$eq', 'array')) return resolveEqProp(value, stores, context, memo);
+  if (hasToken(value, '$ne', 'array')) return resolveNeProp(value, stores, context, memo);
   return value;
 }
 
