@@ -40,10 +40,4 @@ export const zTemplateSchema: z.ZodType<TemplateSchema> = z
   .object({ ...schemaNodeShape(), id: z.string().optional(), meta: zTemplateMeta })
   .strict();
 
-export const zRouteSchema: z.ZodType<RouteSchema> = z
-  .object({
-    ...schemaNodeShape(),
-    path: z.string(),
-    routes: z.array(lazyRouteSchema).optional(),
-  })
-  .strict();
+export const zRouteSchema: z.ZodType<RouteSchema> = z.object({ ...schemaNodeShape(), path: z.string() }).strict();

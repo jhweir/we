@@ -33,11 +33,7 @@ Example node:
 {
   "type": "we-button",
   "props": {
-    "p": "300",
-    "r": "pill",
-    "onClick": { "$action": "routeStore.navigate", "args": ["/"] },
-    "styles": { "height": "50px" },
-    "hover": { "bg": "ui-100" }
+    "onClick": { "$action": "routeStore.navigate", "args": ["/home"] },
   },
   "children": [
     { "type": "we-icon", "props": { "name": "house" } },
@@ -130,65 +126,239 @@ Effects:
 
 ---
 
-5. Dynamic Logic & Expressions
-You can use special tokens in props for dynamic behavior:
-- Store reference: { "$store": "storeName.property.path" }
-- Conditional logic: { "$if": { "condition": ..., "then": ..., "else": ... } }
-- Action/event: { "$action": "storeName.method", "args": [...] }
-- Map/foreach: { "$map": { "items": { "$store": "templateStore.templates" }, "select": { ... } } }
-- Pick: { "$pick": { "from": { "$store": "userStore.profile" }, "props": ["name", "email"] } }
-- Expression: { "$expr": "expression" }
+5. Stores
+
+The following stores are available for dynamic logic, expressions, and actions in schemas. Each store provides state (readable values) and actions (methods you can call). You can access store state using the $store token and call actions using the $action token.
+
+AdamStore:
+- State:
+  - loading: boolean
+  - adamClient: Ad4mClient | undefined
+  - me: Agent | undefined
+  - mySpaces: array of Space objects
+- Actions:
+  - navigate(to: string, options?): navigates to a route
+  - addNewSpace(space: Space): adds a new space
+
+RouteStore:
+- State:
+  - currentPath: string (the current route path)
+- Actions:
+  - navigate(to: string, options?): navigates to a route
+
+ThemeStore:
+- State:
+  - themes: array of ThemeWithId objects
+  - currentTheme: ThemeWithId (the active theme)
+- Actions:
+  - setThemes(themes: ThemeWithId[]): sets available themes
+  - setCurrentTheme(theme: ThemeWithId): sets the active theme
+
+TemplateStore:
+- State:
+  - templates: array of TemplateSchema objects
+  - currentTemplate: TemplateSchema (the active template)
+- Actions:
+  - updateTemplate(newTemplate: TemplateSchema): updates the current template
+  - switchTemplate(newTemplateId: string): switches to another template
+  - removeTemplate(): removes the current template
+  - saveTemplate(name: string): saves the current template
+
+SpaceStore:
+- State:
+  - spaceId: string (current space id)
+  - perspective: PerspectiveProxy | null
+  - space: Partial<Space> (current space object)
+  - posts: array of Post objects
+  - loading: boolean
+- Actions:
+  - setSpaceId(id: string): sets the current space id
+  - getSpace(): loads space data
+  - getPosts(perspective: PerspectiveProxy): loads posts for a space
+
+ModalStore:
+- State:
+  - createSpaceModalOpen: boolean (whether the create space modal is open)
+- Actions:
+  - openModal(modal: ModalName): opens a modal
+  - closeModal(modal: ModalName): closes a modal
+
+AiStore:
+- State:
+  - models: array of Model objects
+  - tasks: array of AITask objects
+- Actions:
+  - handleSchemaPrompt(prompt: string): generates a schema from a prompt
+
+How to use:
+- To read state: use { "$store": "storeName.property" }
+  Example: { "$store": "routeStore.currentPath" }
+- To call an action: use { "$action": "storeName.method", "args": [...] }
+  Example: { "$action": "routeStore.navigate", "args": ["/home"] }
+
+All store state and actions are available in context for dynamic logic, expressions, and actions in schemas.
 
 ---
 
-6. Example Schema
+6. Prop-level Dynamic Logic & Expressions
+
+You can use special tokens in props for dynamic, reactive, or computed behavior.
+Each token ($store, $action, $if, $map, $pick, $expr, and $eq) has a specific structure and context requirements:
+
+Store reference:
+{ "$store": "storeName.property.path" }
+Resolves a value from a named store, supporting nested paths.
+Example: { "$store": "userStore.profile.name" } resolves to userStore.profile.name.
+
+Action/event:
+{ "$action": "storeName.method", "args": [...] }
+Calls a method on a store, optionally with arguments (which can themselves be tokens).
+Example: { "$action": "routeStore.navigate", "args": ["/home"] }
+
+Conditional logic:
+{ "$if": { "condition": ..., "then": ..., "else": ... } }
+Evaluates condition; if truthy, returns then, else returns else.
+Example: { "$if": { "condition": { "$eq": [ { "$store": "routeStore.currentPath" }, "/" ] }, "then": "bold", "else": "regular" } }
+
+Map/iterate:
+{ "$map": { "items": { "$store": "templateStore.templates" }, "select": { ... } } }
+Iterates over an array, mapping each item to a new object using the select mapping.
+Example: { "$map": { "items": { "$store": "templateStore.templates" }, "select": { "name": "$item.meta.name", "icon": "$item.meta.icon" } } }
+
+Pick:
+{ "$pick": { "from": { "$store": "userStore.profile" }, "props": ["name", "email"] } }
+Picks specific properties from an object.
+Example: { "$pick": { "from": { "$store": "userStore.profile" }, "props": ["name", "email"] } } resolves to { name: ..., email: ... }.
+
+Expression:
+{ "$expr": "expression" }
+Computes a value using a JavaScript expression string. Can use template literals.
+Example: { "$expr": "space.name" } or { "$expr": "/space/\${space.uuid}" }
+Context: All variables referenced in the expression must exist as keys in the context object.
+Example context for { "$expr": "user.name" }: { user: { name: "Alice" } }
+
+Equality check:
+{ "$eq": [a, b] }
+Compares two values for strict equality.
+Example: { "$eq": [ { "$store": "routeStore.currentPath" }, "/" ] } returns true if the current path is /.
+Context: Both a and b can be tokens or values.
+
+---
+
+7. Block-level Dynamic Logic & Structures
+
+You can also use special block-level structures for dynamic rendering of schema nodes.
+
+Each structure has a "type" starting with "$" and has specific props and children ($forEach and $if).
+
+ForEach loop:
+{ "type": "$forEach", "props": { items: { "$store": "storeName.arrayProperty" }, as: "itemName" }, "children": [ ... ] }
+Renders its children once for each item in the array resolved from items. The variable name given in "as" (e.g. "space") is available in expressions and props inside children.
+Example:
 {
-  "type": "we-button",
-  "props": {
-    "pl": "300",
-    "pr": "600",
-    "gap": "400",
-    "r": "pill",
-    "onClick": { "$action": "routeStore.navigate", "args": ["/"] },
-    "styles": { "height": "50px" },
-    "hover": { "bg": "ui-100" }
-  },
+  "type": "$forEach",
+  "props": { "items": { "$store": "adamStore.mySpaces" }, "as": "space" },
   "children": [
     {
-      "type": "we-icon",
+      "type": "CircleButton",
       "props": {
-        "name": "house",
-        "color": "ui-1000",
-        "weight": {
-          "$if": {
-            "condition": { "$eq": [ { "$store": "routeStore.currentPath" }, "/" ] },
-            "then": "bold",
-            "else": "regular"
-          }
-        }
+        "label": { "$expr": "space.name" },
+        "onClick": { "$action": "routeStore.navigate", "args": [ { "$expr": "\`/space/\${space.uuid}\`" } ] }
       }
-    },
-    {
-      "type": "we-text",
-      "props": {
-        "size": "600",
-        "color": "ui-1000",
-        "weight": {
-          "$if": {
-            "condition": { "$eq": [ { "$store": "routeStore.currentPath" }, "/" ] },
-            "then": "600",
-            "else": "400"
-          }
-        }
-      },
-      "children": ["Home"]
     }
+  ]
+}
+In this example, for each item in adamStore.mySpaces, a CircleButton is rendered with its label set to the space's name and its onClick navigating to the space's uuid path.
+
+Conditional rendering:
+{ "type": "$if", "props": { "condition": ..., "then": { ... }, "else": { ... } } }
+Renders the "then" node if condition is truthy, else renders the "else" node.
+Example:
+{
+  "type": "$if",
+  "props": {
+    "condition": { "$eq": [ { "$store": "userStore.isLoggedIn" }, true ] },
+    "then": { "type": "we-text", "props": { "children": ["Welcome!"] } },
+    "else": { "type": "we-text", "props": { "children": ["Please log in."] } }
+  }
+}
+In this example, if userStore.isLoggedIn is true, a we-text saying "Welcome!" is rendered; otherwise, a we-text saying "Please log in." is rendered.
+
+---
+
+8. Routing Structure
+
+You can define nested routes in your schema using the "routes" array, starting at the root node of the schema. 
+Each route object describes a path and the UI node to render when that path is active. Routes can be nested to support sub-pages and layouts.
+Route objects follow the same structure as schema nodes, but include an additional "path" property.
+
+Special Node:  
+- { type: '$routes' } can be used as a child node to indicate where nested routes should be rendered within a layout.
+
+Example:
+{
+  "routes": [
+    { "path": "*", "type": "PageNotFound" },
+    { "path": "/", "type": "HomePage" },
+    {
+      "path": "/space/:spaceId",
+      "type": "SpacePage",
+      "children": [{ "type": "$routes" }],
+      "routes": [
+        { "path": "/*", "type": "we-text", "children": ["Space page not found"] },
+        { "path": "/", "type": "we-text", "children": ["About sub-page"] },
+        {
+          "path": "/posts",
+          "children": [
+            {
+              "type": "Row",
+              "children": [
+                { "type": "we-button", "props": { "onClick": { "$action": "routeStore.navigate", "args": ["./1"] } }, "children": ["Post 1"] },
+                { "type": "we-button", "props": { "onClick": { "$action": "routeStore.navigate", "args": ["./2"] } }, "children": ["Post 2"] }
+              ]
+            },
+            { "type": "Column", "children": [{ "type": "$routes" }] }
+          ],
+          "routes": [
+            { "path": "/*", "type": "we-text", "children": ["Post not found"] },
+            { "path": "/", "type": "we-text", "children": ["No posts selected"] },
+            { "path": "/1", "type": "we-text", "children": ["Post 1 page"] },
+            { "path": "/2", "type": "we-text", "children": ["Post 2 page"] }
+          ]
+        },
+        { "path": "/users", "type": "we-text", "children": ["User sub-page"] }
+      ]
+    }
+  ]
+}
+
+Notes:
+- Use "path: '*'" or "path: '/*'" for catch-all/not-found routes.
+- Use ":paramName" for dynamic route parameters.
+- Use nested "routes" arrays for sub-pages and layouts.
+- Use "{ type: '$routes' }" in children to indicate where nested routes should render.
+
+This structure allows you to build complex, nested, and dynamic page layouts for your app.
+
+---
+
+9. Minimal Full Example Schema
+The meta property at the root is required for all schemas.
+Example:
+{
+  "meta": { "name": "My Template", "description": "Demo", "icon": "home" },
+  "type": "Row",
+  "props": { "bg": "ui-0" },
+  "children": [{ "type": "we-text", "props": { "children": ["Welcome"] } }],
+  "routes": [
+    { "path": "/", "type": "HomePage" },
+    { "path": "*", "type": "PageNotFound" }
   ]
 }
 
 ---
 
-7. Rules & Best Practices
+10. Rules & Best Practices
 - Always use the correct prop names and value types for each component.
 - Never use null as a value in any children array. Only use valid schema nodes or strings.
 - Each item in a children array must be either a valid schema node object or a string. Never mix types or use invalid values.
