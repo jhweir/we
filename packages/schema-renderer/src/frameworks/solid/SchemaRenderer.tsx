@@ -42,8 +42,10 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
 
   // Handle conditional rendering
   if (node.type === '$if') {
-    const condition = resolveProp(node.props?.condition, stores, context, createMemo);
-    const conditionMet = createMemo(() => (typeof condition === 'function' ? condition() : condition));
+    const conditionMet = createMemo(() => {
+      const condition = resolveProp(node.props?.condition, stores, context, createMemo);
+      return typeof condition === 'function' ? condition() : condition;
+    });
 
     return (
       <Show when={conditionMet()} fallback={renderNode(node.props?.else as SchemaNode | undefined)}>
