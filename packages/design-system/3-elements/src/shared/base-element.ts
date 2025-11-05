@@ -9,11 +9,20 @@ export function tokenVar(prefix: string, token?: string, fallback = '0') {
   return token ? `var(--we-${prefix}-${token})` : fallback;
 }
 
+function isHexColor(value: string): boolean {
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value);
+}
+
+function tokenVarOrHex(prefix: string, token?: string, fallback = '0') {
+  if (token && isHexColor(token)) return token;
+  return token ? `var(--we-${prefix}-${token})` : fallback;
+}
+
 function setDesignSystemVars(el: HTMLElement, props: DesignSystemProps, type?: string) {
   const prefix = `--we-${type ? `${type}-` : ''}`;
   // Colors
-  if (props.bg) el.style.setProperty(`${prefix}bg`, tokenVar('color', props.bg, ''));
-  if (props.color) el.style.setProperty(`${prefix}color`, tokenVar('color', props.color, ''));
+  if (props.bg) el.style.setProperty(`${prefix}bg`, tokenVarOrHex('color', props.bg, ''));
+  if (props.color) el.style.setProperty(`${prefix}color`, tokenVarOrHex('color', props.color, ''));
 
   // Flex
   if (props.gap) el.style.setProperty(`${prefix}gap`, tokenVar('space', props.gap));
