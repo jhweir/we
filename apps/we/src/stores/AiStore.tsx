@@ -2,7 +2,8 @@ import { Ad4mClient, AITask } from '@coasys/ad4m';
 import { Model } from '@coasys/ad4m/lib/src/ai/AIResolver';
 import { Accessor, createContext, createEffect, createSignal, ParentProps, useContext } from 'solid-js';
 
-import { schemaPrompt, schemaPromptExamples } from '@/prompts/schemaPrompts';
+import { schemaPromptContext } from '@/prompts/schemaContext';
+import { schemaPromptExamples } from '@/prompts/schemaExamples';
 import { useAdamStore, useTemplateStore } from '@/stores';
 
 export interface AiStore {
@@ -20,7 +21,7 @@ const schemaTask: AITask = {
   taskId: 'we-schema-generation',
   name: 'WE Schema Generation',
   modelId: 'gpt-4',
-  systemPrompt: schemaPrompt,
+  systemPrompt: schemaPromptContext,
   promptExamples: schemaPromptExamples,
   metaData: 'Generates UI JSON schema based on user requirements',
   createdAt: new Date().toISOString(),
@@ -35,12 +36,9 @@ export function AiStoreProvider(props: ParentProps) {
   const [tasks, setTasks] = createSignal<AITask[]>([]);
 
   async function initialiseStore(client: Ad4mClient): Promise<void> {
-    console.log('templateStore in AiStoreProvider', templateStore);
-    console.log('initialising AI store with client', client);
     try {
       setModels(await client.ai.getModels());
       setTasks(await client.ai.tasks());
-      console.log('AI store initialised', { models: models(), tasks: tasks() });
 
       // Ensure schema task is set up
       const existingSchemaTask = tasks().find((r) => r.name === schemaTask.name);
