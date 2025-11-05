@@ -56,6 +56,7 @@ export default class Button extends BaseElement implements DesignSystemProps {
   static styles = [sharedStyles, cssStyles];
 
   // Button-specific props
+  @property({ type: String }) label?: string;
   @property({ type: String }) href?: string;
   @property({ type: Boolean, reflect: true }) disabled = false;
   @property({ type: Boolean, reflect: true }) loading = false;
@@ -111,7 +112,7 @@ export default class Button extends BaseElement implements DesignSystemProps {
     return html`
       ${this.loading ? html`<we-spinner size="sm"></we-spinner>` : null}
       <slot name="start"></slot>
-      <slot></slot>
+      ${this.label ? this.label : html`<slot></slot>`}
       <slot name="end"></slot>
     `;
   }

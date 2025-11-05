@@ -111,26 +111,27 @@ const styles = css`
   }
 `;
 
-const templates = {
-  h1: html`<h1 part="base"><slot></slot></h1>`,
-  h2: html`<h2 part="base"><slot></slot></h2>`,
-  h3: html`<h3 part="base"><slot></slot></h3>`,
-  h4: html`<h4 part="base"><slot></slot></h4>`,
-  h5: html`<h5 part="base"><slot></slot></h5>`,
-  h6: html`<h6 part="base"><slot></slot></h6>`,
-  p: html`<p part="base"><slot></slot></p>`,
-  small: html`<small part="base"><slot></slot></small>`,
-  b: html`<b part="base"><slot></slot></b>`,
-  i: html`<i part="base"><slot></slot></i>`,
-  span: html`<span part="base"><slot></slot></span>`,
-  label: html`<label part="base"><slot></slot></label>`,
-  div: html`<div part="base"><slot></slot></div>`,
+const tagTemplates: Record<string, (content: unknown) => unknown> = {
+  h1: (content) => html`<h1 part="base">${content}</h1>`,
+  h2: (content) => html`<h2 part="base">${content}</h2>`,
+  h3: (content) => html`<h3 part="base">${content}</h3>`,
+  h4: (content) => html`<h4 part="base">${content}</h4>`,
+  h5: (content) => html`<h5 part="base">${content}</h5>`,
+  h6: (content) => html`<h6 part="base">${content}</h6>`,
+  p: (content) => html`<p part="base">${content}</p>`,
+  small: (content) => html`<small part="base">${content}</small>`,
+  b: (content) => html`<b part="base">${content}</b>`,
+  i: (content) => html`<i part="base">${content}</i>`,
+  span: (content) => html`<span part="base">${content}</span>`,
+  label: (content) => html`<label part="base">${content}</label>`,
+  div: (content) => html`<div part="base">${content}</div>`,
 };
 
 @customElement('we-text')
 export default class Text extends LitElement {
   static styles = [sharedStyles, styles];
 
+  @property({ type: String }) text?: string;
   @property({ type: String, reflect: true }) size?: SpaceToken;
   @property({ type: String, reflect: true }) variant: TextVariant = '';
   @property({ type: String, reflect: true }) tag: TextTag = 'span';
@@ -158,6 +159,7 @@ export default class Text extends LitElement {
   }
 
   render() {
-    return templates[this.tag];
+    const renderFn = tagTemplates[this.tag] ?? tagTemplates['span'];
+    return renderFn(this.text ?? html`<slot></slot>`);
   }
 }
