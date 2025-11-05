@@ -265,12 +265,12 @@ const spacePageHeader = {
 // Full test template schema
 export const testTemplateSchema: TemplateSchema = {
   meta: {
-    name: 'Testing template',
+    name: 'Testing',
     description: 'A simple template used for testing',
     icon: 'layout',
   },
   type: 'DefaultTemplate',
-  slots: { sidebar: templateSidebar, header: templateHeader, modals: templateModals },
+  slots: { sidebar: templateSidebar, modals: templateModals }, // header: templateHeader,
   children: [testButtons, { type: '$routes' }],
   routes: [
     { path: '*', type: 'PageNotFound' },

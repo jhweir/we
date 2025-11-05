@@ -1,13 +1,12 @@
 import { Column, Row } from '@we/components/solid';
-import { createEffect, createSignal } from 'solid-js';
+import { createSignal } from 'solid-js';
 
-import { useAiStore, useTemplateStore } from '@/stores';
+import { useAiStore } from '@/stores';
 
 // TODO: r="pill" not working yet on Row and Column
 
 export default function AiInterface() {
   const aiStore = useAiStore();
-  const templateStore = useTemplateStore();
 
   const [loading, setLoading] = createSignal(false);
   const [userInput, setUserInput] = createSignal('');
@@ -57,6 +56,7 @@ export default function AiInterface() {
             hover={{ bg: 'ui-50' }}
             onClick={promptAI}
             loading={loading()}
+            disabled={loading() || userInput().trim() === ''}
           >
             Prompt
           </we-button>

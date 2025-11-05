@@ -1,7 +1,7 @@
 // Pure framework-agnostic schema types
 export type SchemaProp = string | number | boolean | Record<string, unknown> | SchemaProp[] | undefined;
 export type TemplateMeta = { name: string; description: string; icon: string };
-export type TemplateSchema = SchemaNode & { meta: TemplateMeta };
+export type TemplateSchema = SchemaNode & { id?: string; meta: TemplateMeta };
 export type RouteSchema = SchemaNode & { path: string; routes?: RouteSchema[] };
 export type SchemaNode = {
   type?: string; // Used to look up the node's component in the registry (if not included, children rendered in a fragment)

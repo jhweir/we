@@ -148,12 +148,12 @@ const spacePageHeader = {
 
 export const secondaryTemplateSchema: TemplateSchema = {
   meta: {
-    name: 'Secondary template',
+    name: 'Secondary',
     description: 'A simple template with a sidebar, header, and page area.',
     icon: 'sidebar',
   },
   type: 'DefaultTemplate',
-  slots: { header: templateHeader, modals: templateModals }, // sidebar: templateSidebar
+  slots: { modals: templateModals }, // sidebar: templateSidebar // header: templateHeader,
   children: [{ type: '$routes' }],
   routes: [
     { path: '*', type: 'PageNotFound' },

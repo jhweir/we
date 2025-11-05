@@ -8,6 +8,7 @@ import type { DesignSystemProps } from '@we/types';
 const cssStyles = css`
   :host {
     display: inline-block;
+    white-space: nowrap;
   }
 
   button,

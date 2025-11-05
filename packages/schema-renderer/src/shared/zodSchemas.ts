@@ -37,7 +37,7 @@ export const zTemplateMeta: z.ZodType<TemplateMeta> = z
   .strict();
 
 export const zTemplateSchema: z.ZodType<TemplateSchema> = z
-  .object({ ...schemaNodeShape(), meta: zTemplateMeta })
+  .object({ ...schemaNodeShape(), id: z.string().optional(), meta: zTemplateMeta })
   .strict();
 
 export const zRouteSchema: z.ZodType<RouteSchema> = z

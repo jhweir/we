@@ -116,7 +116,7 @@ const sidebarRight = {
 
 export const twitterTemplateSchema: TemplateSchema = {
   meta: {
-    name: 'Twitter Template',
+    name: 'Twitter',
     description: 'A template for Twitter-like apps.',
     icon: 'x-logo',
   },
