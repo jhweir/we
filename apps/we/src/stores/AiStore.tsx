@@ -59,7 +59,7 @@ export function AiStoreProvider(props: ParentProps) {
     const client = adamStore.adamClient();
     if (!client) return;
 
-    const fullPrompt = `{ "currentSchema": ${JSON.stringify(templateStore.currentTemplate)}, "request": "${textPrompt}" }`;
+    const fullPrompt = `{ "request": "${textPrompt}", "currentSchema": ${JSON.stringify(templateStore.currentTemplate)} }`;
 
     const existingSchemaTask = tasks().find((t) => t.name === schemaTask.name);
     const taskId = existingSchemaTask ? existingSchemaTask.taskId : null;

@@ -8,10 +8,10 @@ export const schemaPrompt = `
 You are an expert UI schema generator for the We design system.
 Your job is to generate or update JSON schemas that describe UI layouts for the We app.
 You are always passed prompts with the following stringified JSON format: 
-"{ currentSchema: { ... }, request: "User's request here" }".
+"{ request: "User's request here", currentSchema: { ... } }".
 
 And should always respond with the following stringified JSON format: 
-"{ updatedSchema: { ... }, response: "Your response here" }".
+"{ response: "Your response here", updatedSchema: { ... } }".
 
 If you are unable to meet the user's request, explain why in the response field and return null for updatedSchema.
 
@@ -785,8 +785,8 @@ const example1Schemas = {
 };
 
 const example1 = {
-  input: `{ "currentSchema": ${JSON.stringify(example1Schemas.input)}, "request": "Please rename the home button in the left sidebar to 'Dashboard'" }`,
-  output: `{ "updatedSchema": ${JSON.stringify(example1Schemas.output)}, "response": "No problem, I've made that change for you :)" }`,
+  input: `{ "request": "Please rename the home button in the left sidebar to 'Dashboard'", "currentSchema": ${JSON.stringify(example1Schemas.input)} }`,
+  output: `{ "response": "No problem, I've made that change for you :)", "updatedSchema": ${JSON.stringify(example1Schemas.output)} }`,
 };
 
 const example2Schemas = {
@@ -1364,8 +1364,8 @@ const example2Schemas = {
 };
 
 const example2 = {
-  input: `{ "currentSchema": ${JSON.stringify(example2Schemas.input)}, "request": "Please make the Post button square instead of rounded" }`,
-  output: `{ "updatedSchema": ${JSON.stringify(example2Schemas.output)}, "response": "No problem, I've made that change for you :)" }`,
+  input: `{ "request": "Please make the Post button square instead of rounded", "currentSchema": ${JSON.stringify(example2Schemas.input)} }`,
+  output: `{ "response": "No problem, I've made that change for you :)", "updatedSchema": ${JSON.stringify(example2Schemas.output)} }`,
 };
 
 const example3Schemas = {
@@ -1931,8 +1931,8 @@ const example3Schemas = {
 };
 
 const example3 = {
-  input: `{ "currentSchema": ${JSON.stringify(example3Schemas.input)}, "request": "Please delete the Post button" }`,
-  output: `{ "updatedSchema": ${JSON.stringify(example3Schemas.output)}, "response": "No problem, I've made that change for you :)" }`,
+  input: `{ "request": "Please delete the Post button", "currentSchema": ${JSON.stringify(example3Schemas.input)} }`,
+  output: `{ "response": "No problem, I've made that change for you :)", "updatedSchema": ${JSON.stringify(example3Schemas.output)} }`,
 };
 
 const example4Schemas = {
@@ -2226,8 +2226,8 @@ const example4Schemas = {
 };
 
 const example4 = {
-  input: `{ "currentSchema": ${JSON.stringify(example4Schemas.input)}, "request": "asdfjasdf jasdfjhasdf rras" }`,
-  output: `{ "updatedSchema": ${JSON.stringify(example4Schemas.output)}, "response": "Sorry, I couldn't understand your prompt. Please try rephrasing it." }`,
+  input: `{ "request": "asdfjasdf jasdfjhasdf rras", "currentSchema": ${JSON.stringify(example4Schemas.input)} }`,
+  output: `{ "response": "Sorry, I couldn't understand your prompt. Please try rephrasing it.", "updatedSchema": ${JSON.stringify(example4Schemas.output)} }`,
 };
 
 export const schemaPromptExamples: AIPromptExamples[] = [example1, example2, example3, example4];
