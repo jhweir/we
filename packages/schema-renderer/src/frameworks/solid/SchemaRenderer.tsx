@@ -2,7 +2,7 @@ import { batch, createEffect, createMemo, For, JSX, Show } from 'solid-js';
 import { createStore, produce } from 'solid-js/store';
 import { Dynamic } from 'solid-js/web';
 
-import { resolveProp, resolveProps, resolveStoreProp } from '../../shared/propResolvers';
+import { resolveProp, resolveProps } from '../../shared/propResolvers';
 import type { RendererOutput, RenderProps, SchemaNode } from './types';
 
 export function RenderSchema({ node, stores, registry, context = {}, children }: RenderProps): RendererOutput {
@@ -60,7 +60,7 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
     const itemSchema = node.children?.[0] as SchemaNode | undefined;
 
     // Resolve the items used for iteration
-    const resolvedItems = resolveStoreProp(node.props?.items, stores, createMemo);
+    const resolvedItems = resolveProp(node.props?.items, stores, context, createMemo);
     const itemsArray = createMemo(() => {
       const items = typeof resolvedItems === 'function' ? resolvedItems() : resolvedItems;
       return Array.isArray(items) ? items : [];

@@ -279,11 +279,11 @@
           "members": [
             {
               "kind": "field",
-              "name": "label",
+              "name": "text",
               "type": {
                 "text": "string | undefined"
               },
-              "attribute": "label"
+              "attribute": "text"
             },
             {
               "kind": "field",
@@ -596,11 +596,11 @@
           ],
           "attributes": [
             {
-              "name": "label",
+              "name": "text",
               "type": {
                 "text": "string | undefined"
               },
-              "fieldName": "label"
+              "fieldName": "text"
             },
             {
               "name": "href",

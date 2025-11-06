@@ -1,3 +1,5 @@
+// TODO: break up in sections that can be sent separately as needed
+
 export const schemaPromptContext = `
 🧠 AI Context Prompt for We Schema Generation
 
@@ -20,7 +22,7 @@ A schema is a tree of nodes.
 Each node can have:
 - type: The component to render (string, e.g. "we-button", "Column", etc.)
 - props: An object of props for the component (see component registry below)
-- children: An array of child nodes (or strings for text)
+- children: An array of child nodes (or strings for text). Do not use objects like { "$expr": ... } directly in children; use a prop (e.g. "text") for dynamic content.
 - slots: Named slots for advanced composition (optional)
 - slot: The name of the slot this node should be rendered into (optional)
 - routes: For routing components, an array of nestable route objects (optional)
@@ -85,9 +87,9 @@ Common Design System Props (for most components):
 - Events: onClick (object, see dynamic logic below)
 
 Component-specific props:
-- we-button: All design system props, href, disabled, loading, children
+- we-button: All design system props, href, disabled, loading, children (static text only), text (for dynamic or computed text)
+- we-text: size, variant, tag, inline, uppercase, color, weight, children (static text only), text (for dynamic or computed text)
 - we-icon: name, color, size, weight, svg, error (all names from phosphor-icons allowed)
-- we-text: size, variant, tag, inline, uppercase, color, weight
 - Column/Row: All design system props, children
 - CircleButton: label, icon, image, onClick, class, styles
 - IconLabelButton: icon, label, selected, iconWeight, onClick, class, styles

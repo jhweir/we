@@ -183,6 +183,7 @@ function resolveNeProp(value: unknown, stores: Props, context: Props, memo: Memo
 
 // Resolve any prop based on its token type
 export function resolveProp(value: unknown, stores: Props, context: Props, memo: Memo = noMemo): unknown {
+  if (Array.isArray(value)) return value;
   if (hasToken(value, '$store', 'string')) return resolveStoreProp(value, stores, memo);
   if (hasToken(value, '$expr', 'string')) return resolveExpressionProp(value, context);
   if (hasToken(value, '$action', 'string')) return resolveActionProp(value, context, stores, memo);

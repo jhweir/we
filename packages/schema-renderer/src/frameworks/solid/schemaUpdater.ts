@@ -5,11 +5,29 @@ import { findMutations } from '../../shared/mutations';
 import type { SchemaNode, TemplateSchema } from '../../shared/types';
 import { validateSchema } from '../../shared/validators';
 
+// TODO: test
+function cleanSchemaNode(node: any): any {
+  if (Array.isArray(node?.children)) {
+    node.children = node.children.filter((child: any) => child !== null && child !== undefined);
+    node.children.forEach(cleanSchemaNode);
+  }
+  if (node?.slots && typeof node.slots === 'object') {
+    Object.values(node.slots).forEach(cleanSchemaNode);
+  }
+  if (Array.isArray(node?.routes)) {
+    node.routes.forEach(cleanSchemaNode);
+  }
+  return node;
+}
+
 export function updateSchema<T extends TemplateSchema | SchemaNode>(
   oldNode: T,
   newNode: T,
   setSchema: SetStoreFunction<T>,
 ) {
+  // clean up schema before applying mutations
+  newNode = cleanSchemaNode(newNode);
+
   // Validate the schema node
   const { valid, errors } = validateSchema(newNode);
   if (!valid) {
