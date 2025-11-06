@@ -18,54 +18,66 @@ function tokenVarOrHex(prefix: string, token?: string, fallback = '0') {
   return token ? `var(--we-${prefix}-${token})` : fallback;
 }
 
+function updateStyle(el: HTMLElement, prop: string, value?: string) {
+  if (value !== undefined && value !== null && value !== '') el.style.setProperty(prop, value);
+  else el.style.removeProperty(prop);
+}
+
 function setDesignSystemVars(el: HTMLElement, props: DesignSystemProps, type?: string) {
   const prefix = `--we-${type ? `${type}-` : ''}`;
+
   // Colors
-  if (props.bg) el.style.setProperty(`${prefix}bg`, tokenVarOrHex('color', props.bg, ''));
-  if (props.color) el.style.setProperty(`${prefix}color`, tokenVarOrHex('color', props.color, ''));
+  updateStyle(el, `${prefix}bg`, props.bg ? tokenVarOrHex('color', props.bg, '') : undefined);
+  updateStyle(el, `${prefix}color`, props.color ? tokenVarOrHex('color', props.color, '') : undefined);
 
   // Flex
-  if (props.gap) el.style.setProperty(`${prefix}gap`, tokenVar('space', props.gap));
-  if (props.ax) el.style.setProperty(`${prefix}ax`, props.ax);
-  if (props.ay) el.style.setProperty(`${prefix}ay`, props.ay);
-  if (typeof props.wrap !== 'undefined') el.style.setProperty(`${prefix}wrap`, props.wrap ? 'wrap' : 'nowrap');
-  if (typeof props.reverse !== 'undefined')
-    el.style.setProperty(`${prefix}direction`, props.reverse ? 'row-reverse' : 'row');
+  updateStyle(el, `${prefix}gap`, props.gap ? tokenVar('space', props.gap) : undefined);
+  updateStyle(el, `${prefix}ax`, props.ax);
+  updateStyle(el, `${prefix}ay`, props.ay);
+  updateStyle(el, `${prefix}wrap`, 'wrap' in props ? (props.wrap ? 'wrap' : 'nowrap') : undefined);
+  updateStyle(el, `${prefix}direction`, 'reverse' in props ? (props.reverse ? 'row-reverse' : 'row') : undefined);
 
   // Padding
-  const hasPadding = paddingKeys.some((k) => typeof props[k] !== 'undefined' && props[k] !== null);
-  if (!hasPadding) el.style.removeProperty(`${prefix}padding`);
-  else {
-    const padding = [
-      tokenVar('space', props.pt || props.py || props.p),
-      tokenVar('space', props.pr || props.px || props.p),
-      tokenVar('space', props.pb || props.py || props.p),
-      tokenVar('space', props.pl || props.px || props.p),
-    ].join(' ');
-    el.style.setProperty(`${prefix}padding`, padding);
-  }
+  updateStyle(
+    el,
+    `${prefix}padding`,
+    paddingKeys.some((k) => typeof props[k] !== 'undefined' && props[k] !== null)
+      ? [
+          tokenVar('space', props.pt || props.py || props.p),
+          tokenVar('space', props.pr || props.px || props.p),
+          tokenVar('space', props.pb || props.py || props.p),
+          tokenVar('space', props.pl || props.px || props.p),
+        ].join(' ')
+      : undefined,
+  );
 
   // Margin
-  if (marginKeys.some((k) => k in props)) {
-    const margin = [
-      tokenVar('space', props.mt || props.my || props.m),
-      tokenVar('space', props.mr || props.mx || props.m),
-      tokenVar('space', props.mb || props.my || props.m),
-      tokenVar('space', props.ml || props.mx || props.m),
-    ].join(' ');
-    el.style.setProperty(`${prefix}margin`, margin);
-  }
+  updateStyle(
+    el,
+    `${prefix}margin`,
+    marginKeys.some((k) => typeof props[k] !== 'undefined' && props[k] !== null)
+      ? [
+          tokenVar('space', props.mt || props.my || props.m),
+          tokenVar('space', props.mr || props.mx || props.m),
+          tokenVar('space', props.mb || props.my || props.m),
+          tokenVar('space', props.ml || props.mx || props.m),
+        ].join(' ')
+      : undefined,
+  );
 
-  // Radius (TL TR BR BL)
-  if (radiusKeys.some((k) => k in props)) {
-    const radius = [
-      tokenVar('radius', props.rtl || props.rt || props.rl || props.r),
-      tokenVar('radius', props.rtr || props.rt || props.rr || props.r),
-      tokenVar('radius', props.rbr || props.rb || props.rr || props.r),
-      tokenVar('radius', props.rbl || props.rb || props.rl || props.r),
-    ].join(' ');
-    el.style.setProperty(`${prefix}radius`, radius);
-  }
+  // Radius
+  updateStyle(
+    el,
+    `${prefix}radius`,
+    radiusKeys.some((k) => typeof props[k] !== 'undefined' && props[k] !== null)
+      ? [
+          tokenVar('radius', props.rtl || props.rt || props.rl || props.r),
+          tokenVar('radius', props.rtr || props.rt || props.rr || props.r),
+          tokenVar('radius', props.rbr || props.rb || props.rr || props.r),
+          tokenVar('radius', props.rbl || props.rb || props.rl || props.r),
+        ].join(' ')
+      : undefined,
+  );
 }
 
 // Base class with shared logic, no field declarations, no implements

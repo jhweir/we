@@ -10,30 +10,30 @@ const testButtons = {
   props: { bg: 'ui-200', ay: 'center', gap: '400', p: '400' },
   children: [
     { type: 'we-text', props: { size: '600' }, children: ['Testing buttons'] },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.changeNodeType' },
-        children: ['changeNodeType'],
-      },
-    },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.removeTemplateHeaderSlot' },
-        children: ['removeTemplateHeaderSlot'],
-      },
-    },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.addTemplateHeaderSlot' },
-        children: ['addTemplateHeaderSlot'],
-      },
-    },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.changeNodeType' },
+    //     children: ['changeNodeType'],
+    //   },
+    // },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.removeTemplateHeaderSlot' },
+    //     children: ['removeTemplateHeaderSlot'],
+    //   },
+    // },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.addTemplateHeaderSlot' },
+    //     children: ['addTemplateHeaderSlot'],
+    //   },
+    // },
     // {
     //   type: 'we-button',
     //   props: {
@@ -50,14 +50,14 @@ const testButtons = {
     //     children: ['changeTemplateHeaderChildProp'],
     //   },
     // },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.changeSidebarProp' },
-        children: ['changeSidebarProp'],
-      },
-    },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.changeSidebarProp' },
+    //     children: ['changeSidebarProp'],
+    //   },
+    // },
     // {
     //   type: 'we-button',
     //   props: {
@@ -90,14 +90,30 @@ const testButtons = {
     //     children: ['addSidebarButton'],
     //   },
     // },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.createInvalidSchema' },
+    //     children: ['createInvalidSchema'],
+    //   },
+    // },
     {
       type: 'we-button',
       props: {
         variant: 'subtle',
-        onClick: { $action: 'templateStore.createInvalidSchema' },
-        children: ['createInvalidSchema'],
+        onClick: { $action: 'templateStore.addSidebarButton2' },
+        children: ['addSidebarButton2'],
       },
     },
+    // {
+    //   type: 'we-button',
+    //   props: {
+    //     variant: 'subtle',
+    //     onClick: { $action: 'templateStore.addTwitterButton' },
+    //     children: ['addTwitterButton'],
+    //   },
+    // },
   ],
 };
 
@@ -110,34 +126,63 @@ const templateSidebar = {
       props: { ax: 'center', gap: '500' },
       children: [
         {
-          type: 'CircleButton',
-          props: {
-            label: 'Home',
-            image: 'https://avatars.githubusercontent.com/u/34165012?s=200&v=4',
-            onClick: { $action: 'routeStore.navigate', args: ['/'] },
-          },
+          type: 'we-button',
+          // props: {
+          //   bg: 'primary-100',
+          //   color: 'danger-700',
+          // },
+          children: [{ type: 'we-icon', props: { name: 'house' } }, '1'],
         },
         {
-          type: 'CircleButton',
-          props: {
-            label: 'Search',
-            icon: 'magnifying-glass',
-            onClick: { $action: 'routeStore.navigate', args: ['/search'] },
-          },
+          type: 'we-button',
+          // props: {
+          //   bg: 'primary-100',
+          //   color: 'danger-700',
+          // },
+          children: [{ type: 'we-icon', props: { name: 'magnifying-glass' } }, '2'],
         },
         {
-          type: '$forEach',
-          props: { items: { $store: 'adamStore.mySpaces' }, as: 'space' },
-          children: [
-            {
-              type: 'CircleButton',
-              props: {
-                label: { $expr: 'space.name' },
-                onClick: { $action: 'routeStore.navigate', args: [{ $expr: '`/space/${space.uuid}`' }] },
-              },
-            },
-          ],
+          type: 'we-button',
+          // props: {
+          //   bg: 'primary-100',
+          //   color: 'danger-700',
+          // },
+          children: [{ type: 'we-icon', props: { name: 'bell' } }, '3'],
         },
+        {
+          type: 'we-button',
+          props: { bg: 'primary-400' },
+          children: [{ type: 'we-icon', props: { name: 'users' } }, '4'],
+        },
+        // {
+        //   type: 'CircleButton',
+        //   props: {
+        //     label: 'Home',
+        //     image: 'https://avatars.githubusercontent.com/u/34165012?s=200&v=4',
+        //     onClick: { $action: 'routeStore.navigate', args: ['/'] },
+        //   },
+        // },
+        // {
+        //   type: 'CircleButton',
+        //   props: {
+        //     label: 'Search',
+        //     icon: 'magnifying-glass',
+        //     onClick: { $action: 'routeStore.navigate', args: ['/search'] },
+        //   },
+        // },
+        // {
+        //   type: '$forEach',
+        //   props: { items: { $store: 'adamStore.mySpaces' }, as: 'space' },
+        //   children: [
+        //     {
+        //       type: 'CircleButton',
+        //       props: {
+        //         label: { $expr: 'space.name' },
+        //         onClick: { $action: 'routeStore.navigate', args: [{ $expr: '`/space/${space.uuid}`' }] },
+        //       },
+        //     },
+        //   ],
+        // },
       ],
     },
     {
@@ -158,47 +203,47 @@ const templateSidebar = {
   ],
 };
 
-const templateHeader = {
-  type: 'Row',
-  props: { p: '400', gap: '400', ax: 'end', ay: 'center' },
-  children: [
-    { type: 'we-text', props: { size: '600' }, children: ['Header!'] },
-    {
-      type: 'PopoverMenu',
-      props: {
-        options: { $store: 'themeStore.themes' },
-        selectedOption: { $store: 'themeStore.currentTheme' },
-        onSelect: { $store: 'themeStore.setCurrentTheme' },
-      },
-    },
-    {
-      type: 'PopoverMenu',
-      props: {
-        options: { $store: 'templateStore.templates' },
-        selectedOption: { $store: 'templateStore.selectedTemplate' },
-        onSelect: { $store: 'templateStore.switchTemplate' },
-      },
-    },
-    // {
-    //   type: 'PopoverMenu',
-    //   props: {
-    //     options: {
-    //       $map: {
-    //         items: { $store: 'templateStore.templates' },
-    //         select: { id: '$item.id', name: '$item.name', icon: '$item.icon' },
-    //       },
-    //     },
-    //     selectedOption: {
-    //       $pick: {
-    //         from: { $store: 'templateStore.currentTemplate' },
-    //         props: ['name', 'icon'],
-    //       },
-    //     },
-    //     onSelect: { $store: 'templateStore.setCurrentTemplate' },
-    //   },
-    // },
-  ],
-};
+// const templateHeader = {
+//   type: 'Row',
+//   props: { p: '400', gap: '400', ax: 'end', ay: 'center' },
+//   children: [
+//     { type: 'we-text', props: { size: '600' }, children: ['Header!'] },
+//     {
+//       type: 'PopoverMenu',
+//       props: {
+//         options: { $store: 'themeStore.themes' },
+//         selectedOption: { $store: 'themeStore.currentTheme' },
+//         onSelect: { $store: 'themeStore.setCurrentTheme' },
+//       },
+//     },
+//     {
+//       type: 'PopoverMenu',
+//       props: {
+//         options: { $store: 'templateStore.templates' },
+//         selectedOption: { $store: 'templateStore.selectedTemplate' },
+//         onSelect: { $store: 'templateStore.switchTemplate' },
+//       },
+//     },
+//     // {
+//     //   type: 'PopoverMenu',
+//     //   props: {
+//     //     options: {
+//     //       $map: {
+//     //         items: { $store: 'templateStore.templates' },
+//     //         select: { id: '$item.id', name: '$item.name', icon: '$item.icon' },
+//     //       },
+//     //     },
+//     //     selectedOption: {
+//     //       $pick: {
+//     //         from: { $store: 'templateStore.currentTemplate' },
+//     //         props: ['name', 'icon'],
+//     //       },
+//     //     },
+//     //     onSelect: { $store: 'templateStore.setCurrentTemplate' },
+//     //   },
+//     // },
+//   ],
+// };
 
 const templateModals = {
   children: [
@@ -479,6 +524,65 @@ export function testMutations(currentSchema: TemplateSchema, setCurrentSchema: S
     updateSchema(currentSchema, newSchema, setCurrentSchema);
   }
 
+  function addSidebarButton2() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newSchema = deepClone(currentSchema) as any;
+    const newButton = {
+      type: 'we-button',
+      props: { bg: 'primary-500' },
+      children: [{ type: 'we-icon', props: { name: 'magnifying-glass' } }, '5'],
+    };
+    // newSchema.slots.sidebar.children[0].children.splice(2, 0, newButton);
+    newSchema.slots.sidebar.children[0].children.unshift(newButton);
+    updateSchema(currentSchema, newSchema, setCurrentSchema);
+  }
+
+  function addTwitterButton() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newSchema = deepClone(currentSchema) as any;
+    const newButton = {
+      type: 'we-button',
+      props: {
+        pl: '300',
+        pr: '600',
+        gap: '400',
+        r: 'pill',
+        onClick: { $action: 'routeStore.navigate', args: ['/new'] },
+        styles: { height: '50px' },
+        hover: { bg: 'ui-100', styles: { height: '100px' } },
+      },
+      children: [
+        {
+          type: 'we-icon',
+          props: {
+            name: 'x-logo',
+            color: 'ui-1000',
+            weight: {
+              $if: {
+                condition: { $eq: [{ $store: 'routeStore.currentPath' }, '/new'] },
+                then: 'bold',
+                else: 'regular',
+              },
+            },
+          },
+        },
+        {
+          type: 'we-text',
+          props: {
+            size: '600',
+            color: 'ui-1000',
+            weight: {
+              $if: { condition: { $eq: [{ $store: 'routeStore.currentPath' }, '/new'] }, then: '600', else: '400' },
+            },
+          },
+          children: ['New'],
+        },
+      ],
+    };
+    newSchema.children[0].children[0].children.splice(2, 0, newButton);
+    updateSchema(currentSchema, newSchema, setCurrentSchema);
+  }
+
   return {
     removeTemplateHeaderSlot,
     addTemplateHeaderSlot,
@@ -491,5 +595,7 @@ export function testMutations(currentSchema: TemplateSchema, setCurrentSchema: S
     addSidebarButton,
     createInvalidSchema,
     changeNodeType,
+    addSidebarButton2,
+    addTwitterButton,
   };
 }
