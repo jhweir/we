@@ -2,48 +2,6 @@ import type { TemplateSchema } from '@we/schema-renderer/shared';
 
 const border = '1px solid var(--we-color-ui-50)';
 
-function createSidebarButton(icon: string, label: string, path: string, bold?: boolean) {
-  return {
-    type: 'we-button',
-    props: {
-      pl: '300',
-      pr: '600',
-      gap: '400',
-      r: 'pill',
-      onClick: { $action: 'routeStore.navigate', args: [path] },
-      styles: { height: '50px' },
-      hover: { bg: 'ui-100', styles: { height: '100px' } },
-    },
-    children: [
-      {
-        type: 'we-icon',
-        props: {
-          name: icon,
-          color: 'ui-1000',
-          weight: {
-            $if: {
-              condition: { $eq: [{ $store: 'routeStore.currentPath' }, path] },
-              then: bold ? 'bold' : 'fill',
-              else: 'regular',
-            },
-          },
-        },
-      },
-      {
-        type: 'we-text',
-        props: {
-          size: '600',
-          color: 'ui-1000',
-          weight: {
-            $if: { condition: { $eq: [{ $store: 'routeStore.currentPath' }, path] }, then: '600', else: '400' },
-          },
-        },
-        children: [label],
-      },
-    ],
-  };
-}
-
 const sidebarLeft = {
   type: 'Column',
   props: { bg: 'ui-0', py: '400', pr: '600', gap: '300', styles: { width: '275px', height: '100%' } },
@@ -54,21 +12,74 @@ const sidebarLeft = {
         p: '300',
         r: 'full',
         color: 'ui-1000',
-        hover: { bg: 'ui-100', p: '500', styles: { width: '500px' } },
+        hover: { bg: 'ui-100' },
         onClick: { $action: 'routeStore.navigate', args: ['/'] },
       },
       children: [{ type: 'we-icon', props: { name: 'x-logo', size: 'lg' } }],
     },
-    createSidebarButton('house', 'Home', '/'),
-    createSidebarButton('magnifying-glass', 'Explore', '/explore', true),
-    createSidebarButton('bell', 'Notifications', '/notifications'),
-    createSidebarButton('envelope-simple', 'Messages', '/messages', true),
-    createSidebarButton('clipboard-text', 'Lists', '/lists'),
-    createSidebarButton('bookmark-simple', 'Bookmarks', '/bookmarks'),
-    createSidebarButton('users', 'Communities', '/communities'),
-    createSidebarButton('x-logo', 'Premium', '/premium', true),
-    createSidebarButton('user', 'Profile', '/profile'),
-    createSidebarButton('dots-three-circle', 'More', '/more'),
+    {
+      type: '$forEach',
+      props: {
+        items: [
+          { icon: 'house', label: 'Home', path: '/' },
+          { icon: 'magnifying-glass', label: 'Explore', path: '/explore', bold: true },
+          { icon: 'bell', label: 'Notifications', path: '/notifications' },
+          { icon: 'envelope-simple', label: 'Messages', path: '/messages', bold: true },
+          { icon: 'clipboard-text', label: 'Lists', path: '/lists' },
+          { icon: 'bookmark-simple', label: 'Bookmarks', path: '/bookmarks' },
+          { icon: 'users', label: 'Communities', path: '/communities' },
+          { icon: 'x-logo', label: 'Premium', path: '/premium', bold: true },
+          { icon: 'user', label: 'Profile', path: '/profile' },
+          { icon: 'dots-three-circle', label: 'More', path: '/more' },
+        ],
+        as: 'button',
+      },
+      children: [
+        {
+          type: 'we-button',
+          props: {
+            pl: '300',
+            pr: '600',
+            gap: '400',
+            r: 'pill',
+            onClick: { $action: 'routeStore.navigate', args: [{ $expr: 'button.path' }] },
+            styles: { height: '50px' },
+            hover: { bg: 'ui-100', styles: { height: '100px' } },
+          },
+          children: [
+            {
+              type: 'we-icon',
+              props: {
+                name: { $expr: 'button.icon' },
+                color: 'ui-1000',
+                weight: {
+                  $if: {
+                    condition: { $eq: [{ $store: 'routeStore.currentPath' }, { $expr: 'button.path' }] },
+                    then: { $if: { condition: { $expr: 'button.bold' }, then: 'bold', else: 'fill' } },
+                    else: 'regular',
+                  },
+                },
+              },
+            },
+            {
+              type: 'we-text',
+              props: {
+                text: { $expr: 'button.label' },
+                size: '600',
+                color: 'ui-1000',
+                weight: {
+                  $if: {
+                    condition: { $eq: [{ $store: 'routeStore.currentPath' }, { $expr: 'button.path' }] },
+                    then: '600',
+                    else: '400',
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
     {
       type: 'we-button',
       props: {
