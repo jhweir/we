@@ -7,6 +7,17 @@ function updateStyle(el: HTMLElement, prop: string, value?: string) {
   else el.style.removeProperty(prop);
 }
 
+export function getInlineStyles(instance: Record<string, any>): Record<string, any> {
+  const baseStyles = instance.styles || {};
+  const hoverStyles = instance.hover?.styles || {};
+  const activeStyles = instance.active?.styles || {};
+
+  let inlineStyles = baseStyles;
+  if (instance.isActive) inlineStyles = { ...baseStyles, ...activeStyles };
+  else if (instance.isHovered) inlineStyles = { ...baseStyles, ...hoverStyles };
+  return inlineStyles;
+}
+
 // Helper to merge design system props with component specific defaults
 export function mergeDesignSystemProps(
   props: Record<string, any>,

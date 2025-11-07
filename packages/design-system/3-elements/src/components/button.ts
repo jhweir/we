@@ -4,7 +4,7 @@ import { styleMap } from 'lit/directives/style-map.js';
 import sharedStyles from '../shared/styles';
 import { BaseElement } from '../shared/base-element';
 import type { DesignSystemProps } from '@we/types';
-import { baseCssVars, stateCssVars, mergeDesignSystemProps } from '../shared/helpers';
+import { baseCssVars, stateCssVars, mergeDesignSystemProps, getInlineStyles } from '../shared/helpers';
 
 const defaults: Partial<DesignSystemProps> = {
   bg: 'primary-100',
@@ -93,6 +93,8 @@ export default class Button extends BaseElement implements DesignSystemProps {
   @property({ type: Object }) hover?: DesignSystemProps['hover'];
   @property({ type: Object }) active?: DesignSystemProps['active'];
   @property({ type: Object }) styles?: DesignSystemProps['styles'];
+  @property({ type: Boolean }) isHovered = false;
+  @property({ type: Boolean }) isActive = false;
 
   getDesignSystemProps(): DesignSystemProps {
     return mergeDesignSystemProps(this, defaults);
@@ -116,14 +118,19 @@ export default class Button extends BaseElement implements DesignSystemProps {
   }
 
   render() {
-    const inlineStyles = this.styles || {};
+    const inlineStyles = getInlineStyles(this);
+
     if (this.href) {
       return html`
         <a
+          part="base"
           href=${this.href}
           aria-disabled=${this.disabled || this.loading ? 'true' : 'false'}
           @click=${this.handleClick}
-          part="base"
+          @mouseenter=${() => (this.isHovered = true)}
+          @mouseleave=${() => (this.isHovered = false)}
+          @mousedown=${() => (this.isActive = true)}
+          @mouseup=${() => (this.isActive = false)}
           style=${styleMap(inlineStyles)}
         >
           ${this.renderContent()}
@@ -132,9 +139,13 @@ export default class Button extends BaseElement implements DesignSystemProps {
     }
     return html`
       <button
+        part="base"
         ?disabled=${this.disabled || this.loading}
         @click=${this.handleClick}
-        part="base"
+        @mouseenter=${() => (this.isHovered = true)}
+        @mouseleave=${() => (this.isHovered = false)}
+        @mousedown=${() => (this.isActive = true)}
+        @mouseup=${() => (this.isActive = false)}
         style=${styleMap(inlineStyles)}
       >
         ${this.renderContent()}
