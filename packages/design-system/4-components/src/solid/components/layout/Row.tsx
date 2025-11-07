@@ -3,7 +3,9 @@ import { createMemo, JSX, splitProps } from 'solid-js';
 import type { AlignPosition, AlignPositionAndSpacing, RadiusToken, SpaceToken } from '../../../shared/types';
 
 type RowPropsBase = {
-  // Flex basics
+  // Layout
+  width?: string;
+  height?: string;
   ax?: AlignPositionAndSpacing; // Align X axis (←→)
   ay?: AlignPosition; // Align Y axis (↑↓)
   wrap?: boolean;
@@ -57,7 +59,7 @@ function tokenVar(prefix: string, token?: string) {
 export function Row(allProps: RowProps) {
   // prettier-ignore
   const [props, rest] = splitProps(allProps, [
-    'ax','ay','wrap','reverse','gap', // Flex basics
+    'width','height','ax','ay','wrap','reverse','gap', // Layout
     'p','pl','pr','pt','pb','px','py', // Padding
     'm','ml','mr','mt','mb','mx','my', // Margin
     'r','rt','rb','rl','rr','rtl','rtr','rbr','rbl', // Radius
@@ -66,13 +68,17 @@ export function Row(allProps: RowProps) {
   ] as const);
 
   const reactiveStyles = createMemo(() => {
-    // Flex basics
+    // Layout
     const style: JSX.CSSProperties = {
       display: 'flex',
       'flex-direction': props.reverse ? 'row-reverse' : 'row',
       'flex-wrap': props.wrap ? 'wrap' : 'nowrap',
       ...props.styles,
     };
+
+    // Width & Height
+    if (props.width) style.width = props.width;
+    if (props.height) style.height = props.height;
 
     // Main axis (X) via justify-content
     if (props.ax === 'center') style['justify-content'] = 'center';

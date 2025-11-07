@@ -31,6 +31,8 @@ export class Tabs extends BaseElement implements DesignSystemProps {
   // Design system props
   @property({ type: String }) bg?: DesignSystemProps['bg'];
   @property({ type: String }) color?: DesignSystemProps['color'];
+  @property({ type: String }) width?: DesignSystemProps['width'];
+  @property({ type: String }) height?: DesignSystemProps['height'];
   @property({ type: String }) direction?: DesignSystemProps['direction'];
   @property({ type: String }) ax?: DesignSystemProps['ax'];
   @property({ type: String }) ay?: DesignSystemProps['ay'];

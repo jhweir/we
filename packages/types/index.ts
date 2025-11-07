@@ -13,7 +13,9 @@ export interface DesignSystemProps {
   bg?: string;
   color?: string;
 
-  // Flex
+  // Layout
+  width?: string;
+  height?: string;
   direction?: FlexDirection;
   ax?: AlignPositionAndSpacing; // Align X axis (←→)
   ay?: AlignPosition; // Align Y axis (↑↓)

@@ -338,6 +338,22 @@
             },
             {
               "kind": "field",
+              "name": "width",
+              "type": {
+                "text": "DesignSystemProps['width'] | undefined"
+              },
+              "attribute": "width"
+            },
+            {
+              "kind": "field",
+              "name": "height",
+              "type": {
+                "text": "DesignSystemProps['height'] | undefined"
+              },
+              "attribute": "height"
+            },
+            {
+              "kind": "field",
               "name": "direction",
               "type": {
                 "text": "DesignSystemProps['direction'] | undefined"
@@ -659,6 +675,20 @@
                 "text": "DesignSystemProps['color'] | undefined"
               },
               "fieldName": "color"
+            },
+            {
+              "name": "width",
+              "type": {
+                "text": "DesignSystemProps['width'] | undefined"
+              },
+              "fieldName": "width"
+            },
+            {
+              "name": "height",
+              "type": {
+                "text": "DesignSystemProps['height'] | undefined"
+              },
+              "fieldName": "height"
             },
             {
               "name": "direction",
@@ -2258,6 +2288,22 @@
             },
             {
               "kind": "field",
+              "name": "width",
+              "type": {
+                "text": "DesignSystemProps['width'] | undefined"
+              },
+              "attribute": "width"
+            },
+            {
+              "kind": "field",
+              "name": "height",
+              "type": {
+                "text": "DesignSystemProps['height'] | undefined"
+              },
+              "attribute": "height"
+            },
+            {
+              "kind": "field",
               "name": "direction",
               "type": {
                 "text": "DesignSystemProps['direction'] | undefined"
@@ -2569,6 +2615,20 @@
               "fieldName": "color"
             },
             {
+              "name": "width",
+              "type": {
+                "text": "DesignSystemProps['width'] | undefined"
+              },
+              "fieldName": "width"
+            },
+            {
+              "name": "height",
+              "type": {
+                "text": "DesignSystemProps['height'] | undefined"
+              },
+              "fieldName": "height"
+            },
+            {
               "name": "direction",
               "type": {
                 "text": "DesignSystemProps['direction'] | undefined"
@@ -2855,6 +2915,22 @@
                 "text": "DesignSystemProps['color'] | undefined"
               },
               "attribute": "color"
+            },
+            {
+              "kind": "field",
+              "name": "width",
+              "type": {
+                "text": "DesignSystemProps['width'] | undefined"
+              },
+              "attribute": "width"
+            },
+            {
+              "kind": "field",
+              "name": "height",
+              "type": {
+                "text": "DesignSystemProps['height'] | undefined"
+              },
+              "attribute": "height"
             },
             {
               "kind": "field",
@@ -3160,6 +3236,20 @@
                 "text": "DesignSystemProps['color'] | undefined"
               },
               "fieldName": "color"
+            },
+            {
+              "name": "width",
+              "type": {
+                "text": "DesignSystemProps['width'] | undefined"
+              },
+              "fieldName": "width"
+            },
+            {
+              "name": "height",
+              "type": {
+                "text": "DesignSystemProps['height'] | undefined"
+              },
+              "fieldName": "height"
             },
             {
               "name": "direction",
@@ -3910,6 +4000,14 @@
         },
         {
           "kind": "variable",
+          "name": "layoutKeys",
+          "type": {
+            "text": "['height', 'width']"
+          },
+          "default": "['height', 'width']"
+        },
+        {
+          "kind": "variable",
           "name": "paddingKeys",
           "type": {
             "text": "['p', 'px', 'py', 'pt', 'pr', 'pb', 'pl']"
@@ -3946,7 +4044,7 @@
           "type": {
             "text": "array"
           },
-          "default": "[...colorKeys, ...flexKeys, ...paddingKeys, ...marginKeys, ...radiusKeys, ...styleKeys]"
+          "default": "[ ...colorKeys, ...flexKeys, ...layoutKeys, ...paddingKeys, ...marginKeys, ...radiusKeys, ...styleKeys, ]"
         },
         {
           "kind": "function",
@@ -3986,6 +4084,14 @@
           "name": "flexKeys",
           "declaration": {
             "name": "flexKeys",
+            "module": "src/shared/tokens.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "layoutKeys",
+          "declaration": {
+            "name": "layoutKeys",
             "module": "src/shared/tokens.ts"
           }
         },

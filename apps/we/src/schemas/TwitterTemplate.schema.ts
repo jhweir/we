@@ -4,13 +4,14 @@ const border = '1px solid var(--we-color-ui-50)';
 
 const sidebarLeft = {
   type: 'Column',
-  props: { bg: 'ui-0', py: '400', pr: '600', gap: '300', styles: { width: '275px', height: '100%' } },
+  props: { bg: 'ui-0', py: '400', pr: '600', gap: '300', width: '275px', height: '100%' },
   children: [
     {
       type: 'we-button',
       props: {
         p: '300',
         r: 'full',
+        bg: 'ui-0',
         color: 'ui-1000',
         hover: { bg: 'ui-100' },
         onClick: { $action: 'routeStore.navigate', args: ['/'] },
@@ -42,9 +43,10 @@ const sidebarLeft = {
             pr: '600',
             gap: '400',
             r: 'pill',
+            bg: 'ui-0',
+            height: '50px',
+            hover: { bg: 'ui-100' },
             onClick: { $action: 'routeStore.navigate', args: [{ $expr: 'button.path' }] },
-            styles: { height: '50px' },
-            hover: { bg: 'ui-100', styles: { height: '100px' } },
           },
           children: [
             {
@@ -85,9 +87,10 @@ const sidebarLeft = {
       props: {
         r: 'pill',
         bg: 'ui-1000',
+        width: '100%',
+        height: '50px',
         hover: { bg: 'ui-800' },
         onClick: { $action: 'routeStore.navigate', args: ['/post'] },
-        styles: { width: '100%', height: '50px' },
       },
       children: [
         {
@@ -102,25 +105,31 @@ const sidebarLeft = {
 
 const centerContent = {
   type: 'Column',
-  props: { styles: { width: '600px', height: '100%', 'border-left': border, 'border-right': border } },
+  props: { width: '600px', height: '100%', styles: { 'border-left': border, 'border-right': border } },
   children: [{ type: '$routes' }],
 };
 
 const sidebarRight = {
   type: 'Column',
-  props: { bg: 'ui-0', p: '500', styles: { width: '350px', height: '100%' } },
+  props: { gap: '300', p: '500', width: '350px', height: '100%' },
   children: [
     {
-      type: 'IconLabelButton',
-      props: { icon: 'house', label: 'Home', onClick: { $action: 'routeStore.navigate', args: ['/'] } },
+      type: 'we-button',
+      props: { height: '80px' },
+      children: ['Button'],
     },
     {
-      type: 'IconLabelButton',
-      props: {
-        icon: 'magnifying-glass',
-        label: 'Explore',
-        onClick: { $action: 'routeStore.navigate', args: ['/explore'] },
-      },
+      type: 'we-button',
+      props: { height: '60px', hover: { height: '80px' } },
+      children: ['Hover Button'],
+    },
+    {
+      type: 'we-button',
+      props: {},
+      children: [
+        { type: 'we-icon', props: { name: 'magnifying-glass' } },
+        { type: 'we-text', props: { text: 'Button with icon' } },
+      ],
     },
   ],
 };
@@ -132,11 +141,11 @@ export const twitterTemplateSchema: TemplateSchema = {
     icon: 'x-logo',
   },
   type: 'Row',
-  props: { bg: 'ui-0', ax: 'center', styles: { width: '100%', height: '100%' } },
+  props: { bg: 'ui-0', ax: 'center', width: '100%', height: '100%' },
   children: [
     {
       type: 'Row',
-      props: { bg: 'ui-0', styles: { height: '100%' } },
+      props: { bg: 'ui-0', height: '100%' },
       children: [sidebarLeft, centerContent, sidebarRight],
     },
   ],
@@ -149,10 +158,9 @@ export const twitterTemplateSchema: TemplateSchema = {
         {
           type: 'we-tabs',
           props: {
-            value: { $store: 'routeStore.currentPath' }, // controls which tab is selected
-            fill: true,
-            gap: '400',
-            styles: { width: '100%' },
+            activeKey: { $store: 'routeStore.currentPath' },
+            width: '100%',
+            height: '50px',
           },
           children: [
             {
@@ -160,10 +168,12 @@ export const twitterTemplateSchema: TemplateSchema = {
               slot: 'tab',
               props: {
                 label: 'For you',
-                value: '/',
-                fill: true,
+                // r: 'pill',
+                // rt: 'md',
+                key: '/',
                 onClick: { $action: 'routeStore.navigate', args: ['/'] },
-                styles: { height: '50px' },
+                // styles: { height: '50px' },
+                hover: { bg: 'ui-500' },
               },
             },
             {
@@ -171,9 +181,9 @@ export const twitterTemplateSchema: TemplateSchema = {
               slot: 'tab',
               props: {
                 label: 'Following',
-                value: '/following',
-                fill: true,
+                key: '/following',
                 onClick: { $action: 'routeStore.navigate', args: ['/following'] },
+                // styles: { height: '50px' },
               },
             },
           ],
@@ -188,16 +198,3 @@ export const twitterTemplateSchema: TemplateSchema = {
     },
   ],
 };
-
-// export const twitterTemplateSchema: TemplateSchema = {
-//   meta: {
-//     name: 'Twitter Template',
-//     description: 'A simple template with a sidebar, header, and page area.',
-//     icon: 'x-logo',
-//   },
-//   type: 'CenteredTemplate',
-//   props: { bg: 'ui-0' },
-//   slots: { sidebarLeft, sidebarRight, modals },
-//   children: [{ type: '$routes' }],
-//   routes: [{ path: '/', type: 'HomePage' }],
-// };

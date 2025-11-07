@@ -4,7 +4,7 @@ import { styleMap } from 'lit/directives/style-map.js';
 import sharedStyles from '../shared/styles';
 import { BaseElement } from '../shared/base-element';
 import type { DesignSystemProps } from '@we/types';
-import { baseCssVars, stateCssVars, mergeDesignSystemProps, getInlineStyles } from '../shared/helpers';
+import { baseCssVars, stateCssVars, mergeDesignSystemProps } from '../shared/helpers';
 
 const defaults: Partial<DesignSystemProps> = {
   bg: 'primary-100',
@@ -28,11 +28,7 @@ const cssStyles = css`
     all: unset;
     display: flex;
     cursor: pointer;
-    transition:
-      background 0.2s,
-      color 0.2s,
-      outline 0.2s,
-      padding 0.2s;
+    transition: all 0.2s;
     ${unsafeCSS(baseCssVars())}
   }
 
@@ -62,6 +58,8 @@ export default class Button extends BaseElement implements DesignSystemProps {
   // Design system props
   @property({ type: String }) bg?: DesignSystemProps['bg'];
   @property({ type: String }) color?: DesignSystemProps['color'];
+  @property({ type: String }) width?: DesignSystemProps['width'];
+  @property({ type: String }) height?: DesignSystemProps['height'];
   @property({ type: String }) direction?: DesignSystemProps['direction'];
   @property({ type: String }) ax?: DesignSystemProps['ax'];
   @property({ type: String }) ay?: DesignSystemProps['ay'];
@@ -93,8 +91,6 @@ export default class Button extends BaseElement implements DesignSystemProps {
   @property({ type: Object }) hover?: DesignSystemProps['hover'];
   @property({ type: Object }) active?: DesignSystemProps['active'];
   @property({ type: Object }) styles?: DesignSystemProps['styles'];
-  @property({ type: Boolean }) isHovered = false;
-  @property({ type: Boolean }) isActive = false;
 
   getDesignSystemProps(): DesignSystemProps {
     return mergeDesignSystemProps(this, defaults);
@@ -118,7 +114,7 @@ export default class Button extends BaseElement implements DesignSystemProps {
   }
 
   render() {
-    const inlineStyles = getInlineStyles(this);
+    const inlineStyles = this.styles || {};
 
     if (this.href) {
       return html`
@@ -127,10 +123,6 @@ export default class Button extends BaseElement implements DesignSystemProps {
           href=${this.href}
           aria-disabled=${this.disabled || this.loading ? 'true' : 'false'}
           @click=${this.handleClick}
-          @mouseenter=${() => (this.isHovered = true)}
-          @mouseleave=${() => (this.isHovered = false)}
-          @mousedown=${() => (this.isActive = true)}
-          @mouseup=${() => (this.isActive = false)}
           style=${styleMap(inlineStyles)}
         >
           ${this.renderContent()}
@@ -142,10 +134,6 @@ export default class Button extends BaseElement implements DesignSystemProps {
         part="base"
         ?disabled=${this.disabled || this.loading}
         @click=${this.handleClick}
-        @mouseenter=${() => (this.isHovered = true)}
-        @mouseleave=${() => (this.isHovered = false)}
-        @mousedown=${() => (this.isActive = true)}
-        @mouseup=${() => (this.isActive = false)}
         style=${styleMap(inlineStyles)}
       >
         ${this.renderContent()}

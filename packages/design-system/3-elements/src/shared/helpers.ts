@@ -7,17 +7,6 @@ function updateStyle(el: HTMLElement, prop: string, value?: string) {
   else el.style.removeProperty(prop);
 }
 
-export function getInlineStyles(instance: Record<string, any>): Record<string, any> {
-  const baseStyles = instance.styles || {};
-  const hoverStyles = instance.hover?.styles || {};
-  const activeStyles = instance.active?.styles || {};
-
-  let inlineStyles = baseStyles;
-  if (instance.isActive) inlineStyles = { ...baseStyles, ...activeStyles };
-  else if (instance.isHovered) inlineStyles = { ...baseStyles, ...hoverStyles };
-  return inlineStyles;
-}
-
 // Helper to merge design system props with component specific defaults
 export function mergeDesignSystemProps(
   props: Record<string, any>,
@@ -75,7 +64,9 @@ export function setDesignSystemVars(el: HTMLElement, props: DesignSystemProps, t
   updateStyle(el, `${prefix}bg`, props.bg ? tokenVar('color', props.bg, '') : undefined);
   updateStyle(el, `${prefix}color`, props.color ? tokenVar('color', props.color, '') : undefined);
 
-  // Flex
+  // Layout
+  updateStyle(el, `${prefix}height`, props.height);
+  updateStyle(el, `${prefix}width`, props.width);
   updateStyle(el, `${prefix}direction`, props.direction);
   updateStyle(el, `${prefix}ax`, props.ax);
   updateStyle(el, `${prefix}ay`, props.ay);
@@ -130,6 +121,8 @@ export function baseCssVars() {
   return `
     background: var(--we-bg);
     color: var(--we-color);
+    width: var(--we-width);
+    height: var(--we-height);
     flex-direction: var(--we-direction);
     justify-content: var(--we-ax);
     align-items: var(--we-ay);
@@ -147,6 +140,8 @@ export function stateCssVars(state: 'hover' | 'active') {
   return `
     background: var(${prefix}bg, var(--we-bg));
     color: var(${prefix}color, var(--we-color));
+    width: var(${prefix}width, var(--we-width));
+    height: var(${prefix}height, var(--we-height));
     flex-direction: var(${prefix}direction, var(--we-direction));
     justify-content: var(${prefix}ax, var(--we-ax));
     align-items: var(${prefix}ay, var(--we-ay));
