@@ -1,6 +1,7 @@
 import type { RadiusToken, SpaceToken } from '@we/tokens';
 
 // Shared package specific types
+type FlexDirection = 'row' | 'row-reverse' | 'column' | 'column-reverse';
 type AlignPositionTuple = readonly ['start', 'center', 'end'];
 type AlignPositionAndSpacingTuple = [...AlignPositionTuple, 'between', 'around'];
 
@@ -8,21 +9,16 @@ export type AlignPosition = AlignPositionTuple[number];
 export type AlignPositionAndSpacing = AlignPositionAndSpacingTuple[number];
 
 export interface DesignSystemProps {
+  // Colors
+  bg?: string;
+  color?: string;
+
   // Flex
+  direction?: FlexDirection;
   ax?: AlignPositionAndSpacing; // Align X axis (←→)
   ay?: AlignPosition; // Align Y axis (↑↓)
   wrap?: boolean;
-  reverse?: boolean;
   gap?: SpaceToken;
-
-  // Padding
-  p?: SpaceToken;
-  pl?: SpaceToken;
-  pr?: SpaceToken;
-  pt?: SpaceToken;
-  pb?: SpaceToken;
-  px?: SpaceToken;
-  py?: SpaceToken;
 
   // Margin
   m?: SpaceToken;
@@ -32,6 +28,15 @@ export interface DesignSystemProps {
   mb?: SpaceToken;
   mx?: SpaceToken;
   my?: SpaceToken;
+
+  // Padding
+  p?: SpaceToken;
+  pl?: SpaceToken;
+  pr?: SpaceToken;
+  pt?: SpaceToken;
+  pb?: SpaceToken;
+  px?: SpaceToken;
+  py?: SpaceToken;
 
   // Radius
   r?: RadiusToken;
@@ -44,12 +49,9 @@ export interface DesignSystemProps {
   rbr?: RadiusToken;
   rbl?: RadiusToken;
 
-  // Colors
-  bg?: string;
-  color?: string;
-
-  // Hover
+  // Dynamic styles for states
   hover?: Record<string, string | undefined>;
+  active?: Record<string, string | undefined>;
 
   // Standard HTML props
   styles?: Record<string, string | number | undefined>;

@@ -1,33 +1,31 @@
-import { css, html } from 'lit';
+import { css, html, unsafeCSS } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import sharedStyles from '../shared/styles';
 import { BaseElement } from '../shared/base-element';
 import type { DesignSystemProps } from '@we/types';
+import { designSystemBaseCssVars, designSystemStateCssVars } from '../shared/helpers';
+
+const defaultOverrides: Partial<DesignSystemProps> = { ax: 'center', ay: 'center', bg: 'ui-0' };
 
 const cssStyles = css`
   :host {
-    display: inline-block;
+    display: flex;
     white-space: nowrap;
   }
 
   button,
   a {
     all: unset;
-    background: var(--we-bg, var(--we-color-white));
-    color: var(--we-color, var(--we-color-primary-600));
-    border-radius: var(--we-radius, 4px);
-    padding: var(--we-padding, 0.5rem 1rem);
-    gap: var(--we-gap, 0.5rem);
-    display: inline-flex;
-    align-items: center;
-    justify-content: var(--we-ax, center);
+    display: flex;
     cursor: pointer;
     transition:
       background 0.2s,
       color 0.2s,
       outline 0.2s,
       padding 0.2s;
+
+    ${unsafeCSS(designSystemBaseCssVars(defaultOverrides))}
   }
 
   button:disabled,
@@ -38,16 +36,7 @@ const cssStyles = css`
 
   button:hover:not(:disabled),
   a:hover:not([aria-disabled='true']) {
-    background: var(--we-hover-bg, var(--we-bg));
-    color: var(--we-hover-color, var(--we-color));
-    gap: var(--we-hover-gap, var(--we-gap, 0.5rem));
-    justify-content: var(--we-hover-ax, var(--we-ax, center));
-    align-items: var(--we-hover-ay, var(--we-ay, center));
-    flex-wrap: var(--we-hover-wrap, var(--we-wrap, nowrap));
-    flex-direction: var(--we-hover-direction, var(--we-direction, row));
-    padding: var(--we-hover-padding, var(--we-padding, 0.5rem 1rem));
-    margin: var(--we-hover-margin, var(--we-margin));
-    border-radius: var(--we-hover-radius, var(--we-radius));
+    ${unsafeCSS(designSystemStateCssVars('hover', defaultOverrides))}
   }
 `;
 
@@ -60,16 +49,14 @@ export default class Button extends BaseElement implements DesignSystemProps {
   @property({ type: String }) href?: string;
   @property({ type: Boolean, reflect: true }) disabled = false;
   @property({ type: Boolean, reflect: true }) loading = false;
-  @property({ type: Object }) styles?: Record<string, any>;
   @property({ attribute: false }) onClick: (event: MouseEvent) => void = () => {};
 
-  // Design system props (all from DesignSystemProps)
+  // Design system props
+  @property({ type: String }) direction?: DesignSystemProps['direction'];
   @property({ type: String }) ax?: DesignSystemProps['ax'];
   @property({ type: String }) ay?: DesignSystemProps['ay'];
   @property({ type: Boolean }) wrap?: DesignSystemProps['wrap'];
-  @property({ type: Boolean }) reverse?: DesignSystemProps['reverse'];
   @property({ type: String }) gap?: DesignSystemProps['gap'];
-
   @property({ type: String }) p?: DesignSystemProps['p'];
   @property({ type: String }) pl?: DesignSystemProps['pl'];
   @property({ type: String }) pr?: DesignSystemProps['pr'];
@@ -77,7 +64,6 @@ export default class Button extends BaseElement implements DesignSystemProps {
   @property({ type: String }) pb?: DesignSystemProps['pb'];
   @property({ type: String }) px?: DesignSystemProps['px'];
   @property({ type: String }) py?: DesignSystemProps['py'];
-
   @property({ type: String }) m?: DesignSystemProps['m'];
   @property({ type: String }) ml?: DesignSystemProps['ml'];
   @property({ type: String }) mr?: DesignSystemProps['mr'];
@@ -85,7 +71,6 @@ export default class Button extends BaseElement implements DesignSystemProps {
   @property({ type: String }) mb?: DesignSystemProps['mb'];
   @property({ type: String }) mx?: DesignSystemProps['mx'];
   @property({ type: String }) my?: DesignSystemProps['my'];
-
   @property({ type: String }) r?: DesignSystemProps['r'];
   @property({ type: String }) rt?: DesignSystemProps['rt'];
   @property({ type: String }) rb?: DesignSystemProps['rb'];
@@ -95,10 +80,11 @@ export default class Button extends BaseElement implements DesignSystemProps {
   @property({ type: String }) rtr?: DesignSystemProps['rtr'];
   @property({ type: String }) rbr?: DesignSystemProps['rbr'];
   @property({ type: String }) rbl?: DesignSystemProps['rbl'];
-
   @property({ type: String }) bg?: DesignSystemProps['bg'];
   @property({ type: String }) color?: DesignSystemProps['color'];
   @property({ type: Object }) hover?: DesignSystemProps['hover'];
+  @property({ type: Object }) active?: DesignSystemProps['active'];
+  @property({ type: Object }) styles?: DesignSystemProps['styles'];
 
   private handleClick(event: MouseEvent) {
     if (this.disabled || this.loading) {
