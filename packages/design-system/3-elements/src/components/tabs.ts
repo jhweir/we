@@ -1,67 +1,84 @@
-import { css, html, LitElement } from 'lit';
+import { css, html, unsafeCSS } from 'lit';
 import { customElement, property, queryAssignedElements } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import sharedStyles from '../shared/styles';
+import { BaseElement } from '../shared/base-element';
+import type { DesignSystemProps } from '@we/types';
+import { baseCssVars, mergeDesignSystemProps, stateCssVars } from '../shared/helpers';
+
+const defaults: Partial<DesignSystemProps> = {};
 
 const styles = css`
   :host {
-    display: block;
-    --we-tabs-gap: var(--we-space-400);
-    --we-tabs-bg: transparent;
-    --we-tabs-border: none;
+    display: flex;
   }
   .tabs {
     display: flex;
-    gap: var(--we-tabs-gap);
-    background: var(--we-tabs-bg);
-    border-bottom: var(--we-tabs-border);
-    align-items: flex-end;
+    ${unsafeCSS(baseCssVars())}
   }
-  .panels {
-    margin-top: var(--we-space-400);
-  }
-  :host([fill]) .tabs ::slotted(we-tab) {
-    flex: 1 1 0;
-    min-width: 0;
+  .tabs:hover {
+    ${unsafeCSS(stateCssVars('hover'))}
   }
 `;
 
 @customElement('we-tabs')
-export class Tabs extends LitElement {
+export class Tabs extends BaseElement implements DesignSystemProps {
   static styles = [sharedStyles, styles];
 
-  @property({ type: String }) value: string = '';
-  @property({ type: String }) gap?: string;
-  @property({ type: Boolean, reflect: true }) fill = false;
-  @property({ type: Object }) styles?: Record<string, any>;
+  // Tabs specific props
+  @property({ type: String }) activeKey: string = '';
+
+  // Design system props
+  @property({ type: String }) bg?: DesignSystemProps['bg'];
+  @property({ type: String }) color?: DesignSystemProps['color'];
+  @property({ type: String }) direction?: DesignSystemProps['direction'];
+  @property({ type: String }) ax?: DesignSystemProps['ax'];
+  @property({ type: String }) ay?: DesignSystemProps['ay'];
+  @property({ type: Boolean }) wrap?: DesignSystemProps['wrap'];
+  @property({ type: String }) gap?: DesignSystemProps['gap'];
+  @property({ type: String }) m?: DesignSystemProps['m'];
+  @property({ type: String }) ml?: DesignSystemProps['ml'];
+  @property({ type: String }) mr?: DesignSystemProps['mr'];
+  @property({ type: String }) mt?: DesignSystemProps['mt'];
+  @property({ type: String }) mb?: DesignSystemProps['mb'];
+  @property({ type: String }) mx?: DesignSystemProps['mx'];
+  @property({ type: String }) my?: DesignSystemProps['my'];
+  @property({ type: String }) p?: DesignSystemProps['p'];
+  @property({ type: String }) pl?: DesignSystemProps['pl'];
+  @property({ type: String }) pr?: DesignSystemProps['pr'];
+  @property({ type: String }) pt?: DesignSystemProps['pt'];
+  @property({ type: String }) pb?: DesignSystemProps['pb'];
+  @property({ type: String }) px?: DesignSystemProps['px'];
+  @property({ type: String }) py?: DesignSystemProps['py'];
+  @property({ type: String }) r?: DesignSystemProps['r'];
+  @property({ type: String }) rt?: DesignSystemProps['rt'];
+  @property({ type: String }) rb?: DesignSystemProps['rb'];
+  @property({ type: String }) rl?: DesignSystemProps['rl'];
+  @property({ type: String }) rr?: DesignSystemProps['rr'];
+  @property({ type: String }) rtl?: DesignSystemProps['rtl'];
+  @property({ type: String }) rtr?: DesignSystemProps['rtr'];
+  @property({ type: String }) rbr?: DesignSystemProps['rbr'];
+  @property({ type: String }) rbl?: DesignSystemProps['rbl'];
+  @property({ type: Object }) hover?: DesignSystemProps['hover'];
+  @property({ type: Object }) active?: DesignSystemProps['active'];
+  @property({ type: Object }) styles?: DesignSystemProps['styles'];
 
   @queryAssignedElements({ slot: 'tab' }) _tabs!: HTMLElement[];
-  @queryAssignedElements({ slot: 'panel' }) _panels!: HTMLElement[];
+
+  getDesignSystemProps(): DesignSystemProps {
+    return mergeDesignSystemProps(this, defaults);
+  }
 
   updated() {
-    if (this.gap) {
-      this.style.setProperty('--we-tabs-gap', `var(--we-space-${this.gap})`);
-    }
     // Set selected state on tabs
     this._tabs?.forEach((tab) => {
-      (tab as any).selected = (tab as any).value === this.value;
+      (tab as any).selected = (tab as any).active === this.activeKey;
     });
-    // Show only the selected panel
-    if (this._panels && this._tabs) {
-      this._panels.forEach((panel, idx) => {
-        const tab = this._tabs[idx];
-        if (tab && (tab as any).value === this.value) {
-          panel.style.display = '';
-        } else {
-          panel.style.display = 'none';
-        }
-      });
-    }
   }
 
   private onTabSelect(e: CustomEvent) {
-    this.value = e.detail.value;
-    this.dispatchEvent(new CustomEvent('tab-change', { detail: { value: this.value } }));
+    this.activeKey = e.detail.value;
+    this.dispatchEvent(new CustomEvent('tab-change', { detail: { value: this.activeKey } }));
   }
 
   render() {
@@ -70,9 +87,6 @@ export class Tabs extends LitElement {
       <nav class="tabs" role="tablist" style=${styleMap(inlineStyles)}>
         <slot name="tab" @tab-select=${this.onTabSelect}></slot>
       </nav>
-      <div class="panels">
-        <slot name="panel"></slot>
-      </div>
     `;
   }
 }

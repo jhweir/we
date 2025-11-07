@@ -4,9 +4,18 @@ import { styleMap } from 'lit/directives/style-map.js';
 import sharedStyles from '../shared/styles';
 import { BaseElement } from '../shared/base-element';
 import type { DesignSystemProps } from '@we/types';
-import { designSystemBaseCssVars, designSystemStateCssVars } from '../shared/helpers';
+import { baseCssVars, stateCssVars, mergeDesignSystemProps } from '../shared/helpers';
 
-const defaultOverrides: Partial<DesignSystemProps> = { ax: 'center', ay: 'center', bg: 'ui-0' };
+const defaults: Partial<DesignSystemProps> = {
+  bg: 'primary-100',
+  color: 'primary-800',
+  r: 'md',
+  px: '400',
+  py: '200',
+  ax: 'center',
+  ay: 'center',
+  gap: '300',
+};
 
 const cssStyles = css`
   :host {
@@ -24,8 +33,7 @@ const cssStyles = css`
       color 0.2s,
       outline 0.2s,
       padding 0.2s;
-
-    ${unsafeCSS(designSystemBaseCssVars(defaultOverrides))}
+    ${unsafeCSS(baseCssVars())}
   }
 
   button:disabled,
@@ -36,7 +44,7 @@ const cssStyles = css`
 
   button:hover:not(:disabled),
   a:hover:not([aria-disabled='true']) {
-    ${unsafeCSS(designSystemStateCssVars('hover', defaultOverrides))}
+    ${unsafeCSS(stateCssVars('hover'))}
   }
 `;
 
@@ -52,18 +60,13 @@ export default class Button extends BaseElement implements DesignSystemProps {
   @property({ attribute: false }) onClick: (event: MouseEvent) => void = () => {};
 
   // Design system props
+  @property({ type: String }) bg?: DesignSystemProps['bg'];
+  @property({ type: String }) color?: DesignSystemProps['color'];
   @property({ type: String }) direction?: DesignSystemProps['direction'];
   @property({ type: String }) ax?: DesignSystemProps['ax'];
   @property({ type: String }) ay?: DesignSystemProps['ay'];
   @property({ type: Boolean }) wrap?: DesignSystemProps['wrap'];
   @property({ type: String }) gap?: DesignSystemProps['gap'];
-  @property({ type: String }) p?: DesignSystemProps['p'];
-  @property({ type: String }) pl?: DesignSystemProps['pl'];
-  @property({ type: String }) pr?: DesignSystemProps['pr'];
-  @property({ type: String }) pt?: DesignSystemProps['pt'];
-  @property({ type: String }) pb?: DesignSystemProps['pb'];
-  @property({ type: String }) px?: DesignSystemProps['px'];
-  @property({ type: String }) py?: DesignSystemProps['py'];
   @property({ type: String }) m?: DesignSystemProps['m'];
   @property({ type: String }) ml?: DesignSystemProps['ml'];
   @property({ type: String }) mr?: DesignSystemProps['mr'];
@@ -71,6 +74,13 @@ export default class Button extends BaseElement implements DesignSystemProps {
   @property({ type: String }) mb?: DesignSystemProps['mb'];
   @property({ type: String }) mx?: DesignSystemProps['mx'];
   @property({ type: String }) my?: DesignSystemProps['my'];
+  @property({ type: String }) p?: DesignSystemProps['p'];
+  @property({ type: String }) pl?: DesignSystemProps['pl'];
+  @property({ type: String }) pr?: DesignSystemProps['pr'];
+  @property({ type: String }) pt?: DesignSystemProps['pt'];
+  @property({ type: String }) pb?: DesignSystemProps['pb'];
+  @property({ type: String }) px?: DesignSystemProps['px'];
+  @property({ type: String }) py?: DesignSystemProps['py'];
   @property({ type: String }) r?: DesignSystemProps['r'];
   @property({ type: String }) rt?: DesignSystemProps['rt'];
   @property({ type: String }) rb?: DesignSystemProps['rb'];
@@ -80,11 +90,13 @@ export default class Button extends BaseElement implements DesignSystemProps {
   @property({ type: String }) rtr?: DesignSystemProps['rtr'];
   @property({ type: String }) rbr?: DesignSystemProps['rbr'];
   @property({ type: String }) rbl?: DesignSystemProps['rbl'];
-  @property({ type: String }) bg?: DesignSystemProps['bg'];
-  @property({ type: String }) color?: DesignSystemProps['color'];
   @property({ type: Object }) hover?: DesignSystemProps['hover'];
   @property({ type: Object }) active?: DesignSystemProps['active'];
   @property({ type: Object }) styles?: DesignSystemProps['styles'];
+
+  getDesignSystemProps(): DesignSystemProps {
+    return mergeDesignSystemProps(this, defaults);
+  }
 
   private handleClick(event: MouseEvent) {
     if (this.disabled || this.loading) {

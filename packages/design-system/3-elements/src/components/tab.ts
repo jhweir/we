@@ -1,110 +1,93 @@
-import { css, html, LitElement } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { css, html, unsafeCSS } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import sharedStyles from '../shared/styles';
+import { BaseElement } from '../shared/base-element';
+import type { DesignSystemProps } from '@we/types';
+import { baseCssVars, mergeDesignSystemProps, stateCssVars } from '../shared/helpers';
+
+const defaults: Partial<DesignSystemProps> = { rt: 'md', py: '200', px: '300' };
 
 const styles = css`
   :host {
-    --we-tab-bg: transparent;
-    --we-tab-color: var(--we-color-ui-700);
-    --we-tab-radius: var(--we-space-200) var(--we-space-200) 0 0;
-    --we-tab-padding: var(--we-space-300) var(--we-space-500);
-    --we-tab-font-weight: 400;
-    --we-tab-hover-bg: var(--we-color-ui-100);
-    --we-tab-hover-color: var(--we-color-primary-700);
-    --we-tab-selected-bg: var(--we-color-primary-50);
-    --we-tab-selected-color: var(--we-color-primary-600);
-    --we-tab-selected-font-weight: 600;
-    display: block;
-    height: auto;
+    display: flex;
+    white-space: nowrap;
+    height: 100%;
   }
   button {
-    width: auto;
-    height: auto;
-    background: var(--we-tab-bg);
-    color: var(--we-tab-color);
-    border: none;
-    outline: none;
-    cursor: pointer;
-    padding: var(--we-tab-padding);
-    border-radius: var(--we-tab-radius);
-    font: inherit;
-    font-weight: var(--we-tab-font-weight);
-    transition:
-      background 0.2s,
-      color 0.2s;
-    position: relative;
-  }
-  button[selected] {
-    background: var(--we-tab-selected-bg);
-    color: var(--we-tab-selected-color);
-    font-weight: var(--we-tab-selected-font-weight);
-  }
-  button:hover:not([selected]) {
-    background: var(--we-tab-hover-bg);
-    color: var(--we-tab-hover-color);
-  }
-  :host([fill]) {
+    all: unset;
     display: flex;
-    flex: 1 1 0;
-    min-width: 0;
-    height: 100%;
+    cursor: pointer;
+
+    ${unsafeCSS(baseCssVars())}
   }
-  :host([fill]) button {
-    width: 100%;
-    height: 100%;
+  button[active] {
+    background: var(--we-bg-active, var(--we-color-primary-50));
+    color: var(--we-color-active, var(--we-color-primary-600));
+    font-weight: var(--we-font-weight-active, 600);
+  }
+  button:hover:not([active]) {
+    ${unsafeCSS(stateCssVars('hover'))}
   }
 `;
 
+// background: var(--we-bg-hover, var(--we-color-ui-100));
+// color: var(--we-color-hover, var(--we-color-primary-700));
+
 @customElement('we-tab')
-export class Tab extends LitElement {
+export class Tab extends BaseElement implements DesignSystemProps {
   static styles = [sharedStyles, styles];
 
-  @property({ type: String, reflect: true }) value = '';
-  @property({ type: Boolean, reflect: true }) selected = false;
-  @property({ type: Boolean, reflect: true }) fill = false;
-  @property({ type: Object }) selectedProps?: Record<string, string>;
-  @property({ type: Object }) hoverProps?: Record<string, string>;
+  // Tab specific props
+  @property({ type: String, reflect: true }) key = '';
   @property({ type: String }) label?: string;
   @property({ type: Object }) onClick?: any;
-  @property({ type: Object }) styles?: Record<string, any>;
 
-  @state() private _hover = false;
+  // Design system props
+  @property({ type: String }) bg?: DesignSystemProps['bg'];
+  @property({ type: String }) color?: DesignSystemProps['color'];
+  @property({ type: String }) direction?: DesignSystemProps['direction'];
+  @property({ type: String }) ax?: DesignSystemProps['ax'];
+  @property({ type: String }) ay?: DesignSystemProps['ay'];
+  @property({ type: Boolean }) wrap?: DesignSystemProps['wrap'];
+  @property({ type: String }) gap?: DesignSystemProps['gap'];
+  @property({ type: String }) m?: DesignSystemProps['m'];
+  @property({ type: String }) ml?: DesignSystemProps['ml'];
+  @property({ type: String }) mr?: DesignSystemProps['mr'];
+  @property({ type: String }) mt?: DesignSystemProps['mt'];
+  @property({ type: String }) mb?: DesignSystemProps['mb'];
+  @property({ type: String }) mx?: DesignSystemProps['mx'];
+  @property({ type: String }) my?: DesignSystemProps['my'];
+  @property({ type: String }) p?: DesignSystemProps['p'];
+  @property({ type: String }) pl?: DesignSystemProps['pl'];
+  @property({ type: String }) pr?: DesignSystemProps['pr'];
+  @property({ type: String }) pt?: DesignSystemProps['pt'];
+  @property({ type: String }) pb?: DesignSystemProps['pb'];
+  @property({ type: String }) px?: DesignSystemProps['px'];
+  @property({ type: String }) py?: DesignSystemProps['py'];
+  @property({ type: String }) r?: DesignSystemProps['r'];
+  @property({ type: String }) rt?: DesignSystemProps['rt'];
+  @property({ type: String }) rb?: DesignSystemProps['rb'];
+  @property({ type: String }) rl?: DesignSystemProps['rl'];
+  @property({ type: String }) rr?: DesignSystemProps['rr'];
+  @property({ type: String }) rtl?: DesignSystemProps['rtl'];
+  @property({ type: String }) rtr?: DesignSystemProps['rtr'];
+  @property({ type: String }) rbr?: DesignSystemProps['rbr'];
+  @property({ type: String }) rbl?: DesignSystemProps['rbl'];
+  @property({ type: Object }) hover?: DesignSystemProps['hover'];
+  @property({ type: Object }) active?: DesignSystemProps['active'];
+  @property({ type: Object }) styles?: DesignSystemProps['styles'];
 
-  updated() {
-    // Apply selected state props
-    if (this.selected && this.selectedProps) {
-      Object.entries(this.selectedProps).forEach(([key, value]) => {
-        this.style.setProperty(`--we-tab-selected-${key}`, value);
-      });
-    }
-    // Apply hover state props
-    if (this._hover && this.hoverProps) {
-      Object.entries(this.hoverProps).forEach(([key, value]) => {
-        this.style.setProperty(`--we-tab-hover-${key}`, value);
-      });
-    }
+  getDesignSystemProps(): DesignSystemProps {
+    return mergeDesignSystemProps(this, defaults);
   }
 
   private handleClick(e: MouseEvent) {
-    this.dispatchEvent(new CustomEvent('tab-select', { detail: { value: this.value }, bubbles: true, composed: true }));
+    this.dispatchEvent(new CustomEvent('tab-select', { detail: { value: this.key }, bubbles: true, composed: true }));
     if (this.onClick) {
-      // If onClick is a function, call it; if it's an action object, dispatch it as needed
-      if (typeof this.onClick === 'function') {
-        this.onClick(e);
-      }
-      // Optionally: handle schema action objects here if needed
+      if (typeof this.onClick === 'function') this.onClick(e);
+      // Handle schema action objects here if needed { $action: 'routeStore.navigate', args: ['/'] }
     }
-  }
-
-  private handleMouseEnter() {
-    this._hover = true;
-    this.requestUpdate();
-  }
-
-  private handleMouseLeave() {
-    this._hover = false;
-    this.requestUpdate();
   }
 
   render() {
@@ -112,11 +95,9 @@ export class Tab extends LitElement {
     return html`
       <button
         role="tab"
-        ?selected=${this.selected}
-        aria-selected=${this.selected}
+        ?active=${this.active}
+        aria-selected=${this.active}
         @click=${this.handleClick}
-        @mouseenter=${this.handleMouseEnter}
-        @mouseleave=${this.handleMouseLeave}
         style=${styleMap(inlineStyles)}
       >
         ${this.label ? this.label : html`<slot></slot>`}

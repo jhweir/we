@@ -1,10 +1,59 @@
 import type { DesignSystemProps } from '@we/types';
-import { paddingKeys, marginKeys, radiusKeys, tokenVar } from './tokens';
+import { paddingKeys, marginKeys, radiusKeys, tokenVar, designSystemKeys } from './tokens';
 
 // Helper to update or remove a style property
 function updateStyle(el: HTMLElement, prop: string, value?: string) {
   if (value !== undefined && value !== null && value !== '') el.style.setProperty(prop, value);
   else el.style.removeProperty(prop);
+}
+
+// Helper to merge design system props with component specific defaults
+export function mergeDesignSystemProps(
+  props: Record<string, any>,
+  defaults: Partial<DesignSystemProps>,
+): DesignSystemProps {
+  // Select used design system props from the instance
+  const picked: Partial<DesignSystemProps> = Object.fromEntries(
+    designSystemKeys.filter((key) => props[key] !== undefined).map((key) => [key, props[key]]),
+  );
+
+  // Merge defaults with picked props
+  const merged = { ...defaults, ...picked };
+
+  // Handle precedence so generic props override specific defaults
+  // Margin shorthand precedence
+  if (props.m !== undefined) {
+    if (props.mx === undefined) merged.mx = props.m;
+    if (props.my === undefined) merged.my = props.m;
+    if (props.mt === undefined) merged.mt = props.m;
+    if (props.mr === undefined) merged.mr = props.m;
+    if (props.mb === undefined) merged.mb = props.m;
+    if (props.ml === undefined) merged.ml = props.m;
+  }
+
+  // Padding shorthand precedence
+  if (props.p !== undefined) {
+    if (props.px === undefined) merged.px = props.p;
+    if (props.py === undefined) merged.py = props.p;
+    if (props.pt === undefined) merged.pt = props.p;
+    if (props.pr === undefined) merged.pr = props.p;
+    if (props.pb === undefined) merged.pb = props.p;
+    if (props.pl === undefined) merged.pl = props.p;
+  }
+
+  // Radius shorthand precedence
+  if (props.r !== undefined) {
+    if (props.rtl === undefined) merged.rtl = props.r;
+    if (props.rtr === undefined) merged.rtr = props.r;
+    if (props.rbr === undefined) merged.rbr = props.r;
+    if (props.rbl === undefined) merged.rbl = props.r;
+    if (props.rt === undefined) merged.rt = props.r;
+    if (props.rb === undefined) merged.rb = props.r;
+    if (props.rl === undefined) merged.rl = props.r;
+    if (props.rr === undefined) merged.rr = props.r;
+  }
+
+  return merged;
 }
 
 // Set design system CSS variables on an element
@@ -66,38 +115,34 @@ export function setDesignSystemVars(el: HTMLElement, props: DesignSystemProps, t
 }
 
 // Generate base CSS variables for design system props
-export function designSystemBaseCssVars(overrides?: Partial<DesignSystemProps>) {
+export function baseCssVars() {
   return `
-    background: var(--we-bg, ${tokenVar('color', overrides?.bg, 'var(--we-color-primary-200)')});
-    color: var(--we-color, ${tokenVar('color', overrides?.color, 'var(--we-color-primary-600)')});
-
-    flex-direction: var(--we-direction, ${overrides?.direction ?? 'row'});
-    justify-content: var(--we-ax, ${overrides?.ax ?? 'start'});
-    align-items: var(--we-ay, ${overrides?.ay ?? 'start'});
-    flex-wrap: var(--we-wrap, ${overrides?.wrap ?? 'nowrap'});
-    gap: var(--we-gap, ${tokenVar('space', overrides?.gap, '0')});
-
-    margin: var(--we-margin, ${tokenVar('space', overrides?.m, '0')});
-    padding: var(--we-padding, ${tokenVar('space', overrides?.p, '0')});
-    border-radius: var(--we-radius, ${tokenVar('radius', overrides?.r, '0')});
+    background: var(--we-bg);
+    color: var(--we-color);
+    flex-direction: var(--we-direction);
+    justify-content: var(--we-ax);
+    align-items: var(--we-ay);
+    flex-wrap: var(--we-wrap);
+    gap: var(--we-gap);
+    margin: var(--we-margin);
+    padding: var(--we-padding);
+    border-radius: var(--we-radius);
   `;
 }
 
 // Generate CSS variables for a specific state (hover, active etc.)
-export function designSystemStateCssVars(state: 'hover' | 'active', overrides?: Partial<DesignSystemProps>) {
+export function stateCssVars(state: 'hover' | 'active') {
   const prefix = `--we-${state}-`;
   return `
-    background: var(${prefix}bg, var(--we-bg, ${tokenVar('color', overrides?.bg, 'var(--we-color-primary-200)')}));
-    color: var(${prefix}color, var(--we-color, ${tokenVar('color', overrides?.color, 'var(--we-color-primary-600)')}));
-
-    flex-direction: var(${prefix}direction, var(--we-direction, ${overrides?.direction ?? 'row'}));
-    justify-content: var(${prefix}ax, var(--we-ax, ${overrides?.ax ?? 'start'}));
-    align-items: var(${prefix}ay, var(--we-ay, ${overrides?.ay ?? 'start'}));
-    flex-wrap: var(${prefix}wrap, var(--we-wrap, ${overrides?.wrap ?? 'nowrap'}));
-    gap: var(${prefix}gap, var(--we-gap, ${tokenVar('space', overrides?.gap, '0')}));
-
-    margin: var(${prefix}margin, var(--we-margin, ${tokenVar('space', overrides?.m, '0')}));
-    padding: var(${prefix}padding, var(--we-padding, ${tokenVar('space', overrides?.p, '0')}));
-    border-radius: var(${prefix}radius, var(--we-radius, ${tokenVar('radius', overrides?.r, '0')}));
+    background: var(${prefix}bg, var(--we-bg));
+    color: var(${prefix}color, var(--we-color));
+    flex-direction: var(${prefix}direction, var(--we-direction));
+    justify-content: var(${prefix}ax, var(--we-ax));
+    align-items: var(${prefix}ay, var(--we-ay));
+    flex-wrap: var(${prefix}wrap, var(--we-wrap));
+    gap: var(${prefix}gap, var(--we-gap));
+    margin: var(${prefix}margin, var(--we-margin));
+    padding: var(${prefix}padding, var(--we-padding));
+    border-radius: var(${prefix}radius, var(--we-radius));
   `;
 }

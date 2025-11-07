@@ -322,6 +322,30 @@
             },
             {
               "kind": "field",
+              "name": "bg",
+              "type": {
+                "text": "DesignSystemProps['bg'] | undefined"
+              },
+              "attribute": "bg"
+            },
+            {
+              "kind": "field",
+              "name": "color",
+              "type": {
+                "text": "DesignSystemProps['color'] | undefined"
+              },
+              "attribute": "color"
+            },
+            {
+              "kind": "field",
+              "name": "direction",
+              "type": {
+                "text": "DesignSystemProps['direction'] | undefined"
+              },
+              "attribute": "direction"
+            },
+            {
+              "kind": "field",
               "name": "ax",
               "type": {
                 "text": "DesignSystemProps['ax'] | undefined"
@@ -346,75 +370,11 @@
             },
             {
               "kind": "field",
-              "name": "reverse",
-              "type": {
-                "text": "DesignSystemProps['reverse'] | undefined"
-              },
-              "attribute": "reverse"
-            },
-            {
-              "kind": "field",
               "name": "gap",
               "type": {
                 "text": "DesignSystemProps['gap'] | undefined"
               },
               "attribute": "gap"
-            },
-            {
-              "kind": "field",
-              "name": "p",
-              "type": {
-                "text": "DesignSystemProps['p'] | undefined"
-              },
-              "attribute": "p"
-            },
-            {
-              "kind": "field",
-              "name": "pl",
-              "type": {
-                "text": "DesignSystemProps['pl'] | undefined"
-              },
-              "attribute": "pl"
-            },
-            {
-              "kind": "field",
-              "name": "pr",
-              "type": {
-                "text": "DesignSystemProps['pr'] | undefined"
-              },
-              "attribute": "pr"
-            },
-            {
-              "kind": "field",
-              "name": "pt",
-              "type": {
-                "text": "DesignSystemProps['pt'] | undefined"
-              },
-              "attribute": "pt"
-            },
-            {
-              "kind": "field",
-              "name": "pb",
-              "type": {
-                "text": "DesignSystemProps['pb'] | undefined"
-              },
-              "attribute": "pb"
-            },
-            {
-              "kind": "field",
-              "name": "px",
-              "type": {
-                "text": "DesignSystemProps['px'] | undefined"
-              },
-              "attribute": "px"
-            },
-            {
-              "kind": "field",
-              "name": "py",
-              "type": {
-                "text": "DesignSystemProps['py'] | undefined"
-              },
-              "attribute": "py"
             },
             {
               "kind": "field",
@@ -471,6 +431,62 @@
                 "text": "DesignSystemProps['my'] | undefined"
               },
               "attribute": "my"
+            },
+            {
+              "kind": "field",
+              "name": "p",
+              "type": {
+                "text": "DesignSystemProps['p'] | undefined"
+              },
+              "attribute": "p"
+            },
+            {
+              "kind": "field",
+              "name": "pl",
+              "type": {
+                "text": "DesignSystemProps['pl'] | undefined"
+              },
+              "attribute": "pl"
+            },
+            {
+              "kind": "field",
+              "name": "pr",
+              "type": {
+                "text": "DesignSystemProps['pr'] | undefined"
+              },
+              "attribute": "pr"
+            },
+            {
+              "kind": "field",
+              "name": "pt",
+              "type": {
+                "text": "DesignSystemProps['pt'] | undefined"
+              },
+              "attribute": "pt"
+            },
+            {
+              "kind": "field",
+              "name": "pb",
+              "type": {
+                "text": "DesignSystemProps['pb'] | undefined"
+              },
+              "attribute": "pb"
+            },
+            {
+              "kind": "field",
+              "name": "px",
+              "type": {
+                "text": "DesignSystemProps['px'] | undefined"
+              },
+              "attribute": "px"
+            },
+            {
+              "kind": "field",
+              "name": "py",
+              "type": {
+                "text": "DesignSystemProps['py'] | undefined"
+              },
+              "attribute": "py"
             },
             {
               "kind": "field",
@@ -546,27 +562,32 @@
             },
             {
               "kind": "field",
-              "name": "bg",
-              "type": {
-                "text": "DesignSystemProps['bg'] | undefined"
-              },
-              "attribute": "bg"
-            },
-            {
-              "kind": "field",
-              "name": "color",
-              "type": {
-                "text": "DesignSystemProps['color'] | undefined"
-              },
-              "attribute": "color"
-            },
-            {
-              "kind": "field",
               "name": "hover",
               "type": {
                 "text": "DesignSystemProps['hover'] | undefined"
               },
               "attribute": "hover"
+            },
+            {
+              "kind": "field",
+              "name": "active",
+              "type": {
+                "text": "DesignSystemProps['active'] | undefined"
+              },
+              "attribute": "active"
+            },
+            {
+              "kind": "method",
+              "name": "getDesignSystemProps",
+              "return": {
+                "type": {
+                  "text": "DesignSystemProps"
+                }
+              },
+              "inheritedFrom": {
+                "name": "BaseElement",
+                "module": "src/shared/base-element.ts"
+              }
             },
             {
               "kind": "method",
@@ -626,12 +647,25 @@
               "fieldName": "loading"
             },
             {
-              "name": "styles",
+              "name": "bg",
               "type": {
-                "text": "array"
+                "text": "DesignSystemProps['bg'] | undefined"
               },
-              "default": "[sharedStyles, cssStyles]",
-              "fieldName": "styles"
+              "fieldName": "bg"
+            },
+            {
+              "name": "color",
+              "type": {
+                "text": "DesignSystemProps['color'] | undefined"
+              },
+              "fieldName": "color"
+            },
+            {
+              "name": "direction",
+              "type": {
+                "text": "DesignSystemProps['direction'] | undefined"
+              },
+              "fieldName": "direction"
             },
             {
               "name": "ax",
@@ -655,67 +689,11 @@
               "fieldName": "wrap"
             },
             {
-              "name": "reverse",
-              "type": {
-                "text": "DesignSystemProps['reverse'] | undefined"
-              },
-              "fieldName": "reverse"
-            },
-            {
               "name": "gap",
               "type": {
                 "text": "DesignSystemProps['gap'] | undefined"
               },
               "fieldName": "gap"
-            },
-            {
-              "name": "p",
-              "type": {
-                "text": "DesignSystemProps['p'] | undefined"
-              },
-              "fieldName": "p"
-            },
-            {
-              "name": "pl",
-              "type": {
-                "text": "DesignSystemProps['pl'] | undefined"
-              },
-              "fieldName": "pl"
-            },
-            {
-              "name": "pr",
-              "type": {
-                "text": "DesignSystemProps['pr'] | undefined"
-              },
-              "fieldName": "pr"
-            },
-            {
-              "name": "pt",
-              "type": {
-                "text": "DesignSystemProps['pt'] | undefined"
-              },
-              "fieldName": "pt"
-            },
-            {
-              "name": "pb",
-              "type": {
-                "text": "DesignSystemProps['pb'] | undefined"
-              },
-              "fieldName": "pb"
-            },
-            {
-              "name": "px",
-              "type": {
-                "text": "DesignSystemProps['px'] | undefined"
-              },
-              "fieldName": "px"
-            },
-            {
-              "name": "py",
-              "type": {
-                "text": "DesignSystemProps['py'] | undefined"
-              },
-              "fieldName": "py"
             },
             {
               "name": "m",
@@ -765,6 +743,55 @@
                 "text": "DesignSystemProps['my'] | undefined"
               },
               "fieldName": "my"
+            },
+            {
+              "name": "p",
+              "type": {
+                "text": "DesignSystemProps['p'] | undefined"
+              },
+              "fieldName": "p"
+            },
+            {
+              "name": "pl",
+              "type": {
+                "text": "DesignSystemProps['pl'] | undefined"
+              },
+              "fieldName": "pl"
+            },
+            {
+              "name": "pr",
+              "type": {
+                "text": "DesignSystemProps['pr'] | undefined"
+              },
+              "fieldName": "pr"
+            },
+            {
+              "name": "pt",
+              "type": {
+                "text": "DesignSystemProps['pt'] | undefined"
+              },
+              "fieldName": "pt"
+            },
+            {
+              "name": "pb",
+              "type": {
+                "text": "DesignSystemProps['pb'] | undefined"
+              },
+              "fieldName": "pb"
+            },
+            {
+              "name": "px",
+              "type": {
+                "text": "DesignSystemProps['px'] | undefined"
+              },
+              "fieldName": "px"
+            },
+            {
+              "name": "py",
+              "type": {
+                "text": "DesignSystemProps['py'] | undefined"
+              },
+              "fieldName": "py"
             },
             {
               "name": "r",
@@ -830,25 +857,26 @@
               "fieldName": "rbl"
             },
             {
-              "name": "bg",
-              "type": {
-                "text": "DesignSystemProps['bg'] | undefined"
-              },
-              "fieldName": "bg"
-            },
-            {
-              "name": "color",
-              "type": {
-                "text": "DesignSystemProps['color'] | undefined"
-              },
-              "fieldName": "color"
-            },
-            {
               "name": "hover",
               "type": {
                 "text": "DesignSystemProps['hover'] | undefined"
               },
               "fieldName": "hover"
+            },
+            {
+              "name": "active",
+              "type": {
+                "text": "DesignSystemProps['active'] | undefined"
+              },
+              "fieldName": "active"
+            },
+            {
+              "name": "styles",
+              "type": {
+                "text": "array"
+              },
+              "default": "[sharedStyles, cssStyles]",
+              "fieldName": "styles"
             }
           ],
           "superclass": {
@@ -2188,49 +2216,13 @@
           "members": [
             {
               "kind": "field",
-              "name": "value",
+              "name": "key",
               "type": {
                 "text": "string"
               },
               "default": "''",
-              "attribute": "value",
+              "attribute": "key",
               "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "selected",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "attribute": "selected",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "fill",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "attribute": "fill",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "selectedProps",
-              "type": {
-                "text": "Record<string, string> | undefined"
-              },
-              "attribute": "selectedProps"
-            },
-            {
-              "kind": "field",
-              "name": "hoverProps",
-              "type": {
-                "text": "Record<string, string> | undefined"
-              },
-              "attribute": "hoverProps"
             },
             {
               "kind": "field",
@@ -2250,12 +2242,272 @@
             },
             {
               "kind": "field",
-              "name": "_hover",
+              "name": "bg",
               "type": {
-                "text": "boolean"
+                "text": "DesignSystemProps['bg'] | undefined"
               },
-              "privacy": "private",
-              "default": "false"
+              "attribute": "bg"
+            },
+            {
+              "kind": "field",
+              "name": "color",
+              "type": {
+                "text": "DesignSystemProps['color'] | undefined"
+              },
+              "attribute": "color"
+            },
+            {
+              "kind": "field",
+              "name": "direction",
+              "type": {
+                "text": "DesignSystemProps['direction'] | undefined"
+              },
+              "attribute": "direction"
+            },
+            {
+              "kind": "field",
+              "name": "ax",
+              "type": {
+                "text": "DesignSystemProps['ax'] | undefined"
+              },
+              "attribute": "ax"
+            },
+            {
+              "kind": "field",
+              "name": "ay",
+              "type": {
+                "text": "DesignSystemProps['ay'] | undefined"
+              },
+              "attribute": "ay"
+            },
+            {
+              "kind": "field",
+              "name": "wrap",
+              "type": {
+                "text": "DesignSystemProps['wrap'] | undefined"
+              },
+              "attribute": "wrap"
+            },
+            {
+              "kind": "field",
+              "name": "gap",
+              "type": {
+                "text": "DesignSystemProps['gap'] | undefined"
+              },
+              "attribute": "gap"
+            },
+            {
+              "kind": "field",
+              "name": "m",
+              "type": {
+                "text": "DesignSystemProps['m'] | undefined"
+              },
+              "attribute": "m"
+            },
+            {
+              "kind": "field",
+              "name": "ml",
+              "type": {
+                "text": "DesignSystemProps['ml'] | undefined"
+              },
+              "attribute": "ml"
+            },
+            {
+              "kind": "field",
+              "name": "mr",
+              "type": {
+                "text": "DesignSystemProps['mr'] | undefined"
+              },
+              "attribute": "mr"
+            },
+            {
+              "kind": "field",
+              "name": "mt",
+              "type": {
+                "text": "DesignSystemProps['mt'] | undefined"
+              },
+              "attribute": "mt"
+            },
+            {
+              "kind": "field",
+              "name": "mb",
+              "type": {
+                "text": "DesignSystemProps['mb'] | undefined"
+              },
+              "attribute": "mb"
+            },
+            {
+              "kind": "field",
+              "name": "mx",
+              "type": {
+                "text": "DesignSystemProps['mx'] | undefined"
+              },
+              "attribute": "mx"
+            },
+            {
+              "kind": "field",
+              "name": "my",
+              "type": {
+                "text": "DesignSystemProps['my'] | undefined"
+              },
+              "attribute": "my"
+            },
+            {
+              "kind": "field",
+              "name": "p",
+              "type": {
+                "text": "DesignSystemProps['p'] | undefined"
+              },
+              "attribute": "p"
+            },
+            {
+              "kind": "field",
+              "name": "pl",
+              "type": {
+                "text": "DesignSystemProps['pl'] | undefined"
+              },
+              "attribute": "pl"
+            },
+            {
+              "kind": "field",
+              "name": "pr",
+              "type": {
+                "text": "DesignSystemProps['pr'] | undefined"
+              },
+              "attribute": "pr"
+            },
+            {
+              "kind": "field",
+              "name": "pt",
+              "type": {
+                "text": "DesignSystemProps['pt'] | undefined"
+              },
+              "attribute": "pt"
+            },
+            {
+              "kind": "field",
+              "name": "pb",
+              "type": {
+                "text": "DesignSystemProps['pb'] | undefined"
+              },
+              "attribute": "pb"
+            },
+            {
+              "kind": "field",
+              "name": "px",
+              "type": {
+                "text": "DesignSystemProps['px'] | undefined"
+              },
+              "attribute": "px"
+            },
+            {
+              "kind": "field",
+              "name": "py",
+              "type": {
+                "text": "DesignSystemProps['py'] | undefined"
+              },
+              "attribute": "py"
+            },
+            {
+              "kind": "field",
+              "name": "r",
+              "type": {
+                "text": "DesignSystemProps['r'] | undefined"
+              },
+              "attribute": "r"
+            },
+            {
+              "kind": "field",
+              "name": "rt",
+              "type": {
+                "text": "DesignSystemProps['rt'] | undefined"
+              },
+              "attribute": "rt"
+            },
+            {
+              "kind": "field",
+              "name": "rb",
+              "type": {
+                "text": "DesignSystemProps['rb'] | undefined"
+              },
+              "attribute": "rb"
+            },
+            {
+              "kind": "field",
+              "name": "rl",
+              "type": {
+                "text": "DesignSystemProps['rl'] | undefined"
+              },
+              "attribute": "rl"
+            },
+            {
+              "kind": "field",
+              "name": "rr",
+              "type": {
+                "text": "DesignSystemProps['rr'] | undefined"
+              },
+              "attribute": "rr"
+            },
+            {
+              "kind": "field",
+              "name": "rtl",
+              "type": {
+                "text": "DesignSystemProps['rtl'] | undefined"
+              },
+              "attribute": "rtl"
+            },
+            {
+              "kind": "field",
+              "name": "rtr",
+              "type": {
+                "text": "DesignSystemProps['rtr'] | undefined"
+              },
+              "attribute": "rtr"
+            },
+            {
+              "kind": "field",
+              "name": "rbr",
+              "type": {
+                "text": "DesignSystemProps['rbr'] | undefined"
+              },
+              "attribute": "rbr"
+            },
+            {
+              "kind": "field",
+              "name": "rbl",
+              "type": {
+                "text": "DesignSystemProps['rbl'] | undefined"
+              },
+              "attribute": "rbl"
+            },
+            {
+              "kind": "field",
+              "name": "hover",
+              "type": {
+                "text": "DesignSystemProps['hover'] | undefined"
+              },
+              "attribute": "hover"
+            },
+            {
+              "kind": "field",
+              "name": "active",
+              "type": {
+                "text": "DesignSystemProps['active'] | undefined"
+              },
+              "attribute": "active"
+            },
+            {
+              "kind": "method",
+              "name": "getDesignSystemProps",
+              "return": {
+                "type": {
+                  "text": "DesignSystemProps"
+                }
+              },
+              "inheritedFrom": {
+                "name": "BaseElement",
+                "module": "src/shared/base-element.ts"
+              }
             },
             {
               "kind": "method",
@@ -2269,16 +2521,6 @@
                   }
                 }
               ]
-            },
-            {
-              "kind": "method",
-              "name": "handleMouseEnter",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "handleMouseLeave",
-              "privacy": "private"
             }
           ],
           "events": [
@@ -2291,42 +2533,12 @@
           ],
           "attributes": [
             {
-              "name": "value",
+              "name": "key",
               "type": {
                 "text": "string"
               },
               "default": "''",
-              "fieldName": "value"
-            },
-            {
-              "name": "selected",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "fieldName": "selected"
-            },
-            {
-              "name": "fill",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "fieldName": "fill"
-            },
-            {
-              "name": "selectedProps",
-              "type": {
-                "text": "Record<string, string> | undefined"
-              },
-              "fieldName": "selectedProps"
-            },
-            {
-              "name": "hoverProps",
-              "type": {
-                "text": "Record<string, string> | undefined"
-              },
-              "fieldName": "hoverProps"
+              "fieldName": "key"
             },
             {
               "name": "label",
@@ -2343,6 +2555,230 @@
               "fieldName": "onClick"
             },
             {
+              "name": "bg",
+              "type": {
+                "text": "DesignSystemProps['bg'] | undefined"
+              },
+              "fieldName": "bg"
+            },
+            {
+              "name": "color",
+              "type": {
+                "text": "DesignSystemProps['color'] | undefined"
+              },
+              "fieldName": "color"
+            },
+            {
+              "name": "direction",
+              "type": {
+                "text": "DesignSystemProps['direction'] | undefined"
+              },
+              "fieldName": "direction"
+            },
+            {
+              "name": "ax",
+              "type": {
+                "text": "DesignSystemProps['ax'] | undefined"
+              },
+              "fieldName": "ax"
+            },
+            {
+              "name": "ay",
+              "type": {
+                "text": "DesignSystemProps['ay'] | undefined"
+              },
+              "fieldName": "ay"
+            },
+            {
+              "name": "wrap",
+              "type": {
+                "text": "DesignSystemProps['wrap'] | undefined"
+              },
+              "fieldName": "wrap"
+            },
+            {
+              "name": "gap",
+              "type": {
+                "text": "DesignSystemProps['gap'] | undefined"
+              },
+              "fieldName": "gap"
+            },
+            {
+              "name": "m",
+              "type": {
+                "text": "DesignSystemProps['m'] | undefined"
+              },
+              "fieldName": "m"
+            },
+            {
+              "name": "ml",
+              "type": {
+                "text": "DesignSystemProps['ml'] | undefined"
+              },
+              "fieldName": "ml"
+            },
+            {
+              "name": "mr",
+              "type": {
+                "text": "DesignSystemProps['mr'] | undefined"
+              },
+              "fieldName": "mr"
+            },
+            {
+              "name": "mt",
+              "type": {
+                "text": "DesignSystemProps['mt'] | undefined"
+              },
+              "fieldName": "mt"
+            },
+            {
+              "name": "mb",
+              "type": {
+                "text": "DesignSystemProps['mb'] | undefined"
+              },
+              "fieldName": "mb"
+            },
+            {
+              "name": "mx",
+              "type": {
+                "text": "DesignSystemProps['mx'] | undefined"
+              },
+              "fieldName": "mx"
+            },
+            {
+              "name": "my",
+              "type": {
+                "text": "DesignSystemProps['my'] | undefined"
+              },
+              "fieldName": "my"
+            },
+            {
+              "name": "p",
+              "type": {
+                "text": "DesignSystemProps['p'] | undefined"
+              },
+              "fieldName": "p"
+            },
+            {
+              "name": "pl",
+              "type": {
+                "text": "DesignSystemProps['pl'] | undefined"
+              },
+              "fieldName": "pl"
+            },
+            {
+              "name": "pr",
+              "type": {
+                "text": "DesignSystemProps['pr'] | undefined"
+              },
+              "fieldName": "pr"
+            },
+            {
+              "name": "pt",
+              "type": {
+                "text": "DesignSystemProps['pt'] | undefined"
+              },
+              "fieldName": "pt"
+            },
+            {
+              "name": "pb",
+              "type": {
+                "text": "DesignSystemProps['pb'] | undefined"
+              },
+              "fieldName": "pb"
+            },
+            {
+              "name": "px",
+              "type": {
+                "text": "DesignSystemProps['px'] | undefined"
+              },
+              "fieldName": "px"
+            },
+            {
+              "name": "py",
+              "type": {
+                "text": "DesignSystemProps['py'] | undefined"
+              },
+              "fieldName": "py"
+            },
+            {
+              "name": "r",
+              "type": {
+                "text": "DesignSystemProps['r'] | undefined"
+              },
+              "fieldName": "r"
+            },
+            {
+              "name": "rt",
+              "type": {
+                "text": "DesignSystemProps['rt'] | undefined"
+              },
+              "fieldName": "rt"
+            },
+            {
+              "name": "rb",
+              "type": {
+                "text": "DesignSystemProps['rb'] | undefined"
+              },
+              "fieldName": "rb"
+            },
+            {
+              "name": "rl",
+              "type": {
+                "text": "DesignSystemProps['rl'] | undefined"
+              },
+              "fieldName": "rl"
+            },
+            {
+              "name": "rr",
+              "type": {
+                "text": "DesignSystemProps['rr'] | undefined"
+              },
+              "fieldName": "rr"
+            },
+            {
+              "name": "rtl",
+              "type": {
+                "text": "DesignSystemProps['rtl'] | undefined"
+              },
+              "fieldName": "rtl"
+            },
+            {
+              "name": "rtr",
+              "type": {
+                "text": "DesignSystemProps['rtr'] | undefined"
+              },
+              "fieldName": "rtr"
+            },
+            {
+              "name": "rbr",
+              "type": {
+                "text": "DesignSystemProps['rbr'] | undefined"
+              },
+              "fieldName": "rbr"
+            },
+            {
+              "name": "rbl",
+              "type": {
+                "text": "DesignSystemProps['rbl'] | undefined"
+              },
+              "fieldName": "rbl"
+            },
+            {
+              "name": "hover",
+              "type": {
+                "text": "DesignSystemProps['hover'] | undefined"
+              },
+              "fieldName": "hover"
+            },
+            {
+              "name": "active",
+              "type": {
+                "text": "DesignSystemProps['active'] | undefined"
+              },
+              "fieldName": "active"
+            },
+            {
               "name": "styles",
               "type": {
                 "text": "array"
@@ -2352,8 +2788,8 @@
             }
           ],
           "superclass": {
-            "name": "LitElement",
-            "package": "lit"
+            "name": "BaseElement",
+            "module": "/src/shared/base-element"
           },
           "tagName": "we-tab",
           "customElement": true
@@ -2397,30 +2833,268 @@
           "members": [
             {
               "kind": "field",
-              "name": "value",
+              "name": "activeKey",
               "type": {
                 "text": "string"
               },
               "default": "''",
-              "attribute": "value"
+              "attribute": "activeKey"
+            },
+            {
+              "kind": "field",
+              "name": "bg",
+              "type": {
+                "text": "DesignSystemProps['bg'] | undefined"
+              },
+              "attribute": "bg"
+            },
+            {
+              "kind": "field",
+              "name": "color",
+              "type": {
+                "text": "DesignSystemProps['color'] | undefined"
+              },
+              "attribute": "color"
+            },
+            {
+              "kind": "field",
+              "name": "direction",
+              "type": {
+                "text": "DesignSystemProps['direction'] | undefined"
+              },
+              "attribute": "direction"
+            },
+            {
+              "kind": "field",
+              "name": "ax",
+              "type": {
+                "text": "DesignSystemProps['ax'] | undefined"
+              },
+              "attribute": "ax"
+            },
+            {
+              "kind": "field",
+              "name": "ay",
+              "type": {
+                "text": "DesignSystemProps['ay'] | undefined"
+              },
+              "attribute": "ay"
+            },
+            {
+              "kind": "field",
+              "name": "wrap",
+              "type": {
+                "text": "DesignSystemProps['wrap'] | undefined"
+              },
+              "attribute": "wrap"
             },
             {
               "kind": "field",
               "name": "gap",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['gap'] | undefined"
               },
               "attribute": "gap"
             },
             {
               "kind": "field",
-              "name": "fill",
+              "name": "m",
               "type": {
-                "text": "boolean"
+                "text": "DesignSystemProps['m'] | undefined"
               },
-              "default": "false",
-              "attribute": "fill",
-              "reflects": true
+              "attribute": "m"
+            },
+            {
+              "kind": "field",
+              "name": "ml",
+              "type": {
+                "text": "DesignSystemProps['ml'] | undefined"
+              },
+              "attribute": "ml"
+            },
+            {
+              "kind": "field",
+              "name": "mr",
+              "type": {
+                "text": "DesignSystemProps['mr'] | undefined"
+              },
+              "attribute": "mr"
+            },
+            {
+              "kind": "field",
+              "name": "mt",
+              "type": {
+                "text": "DesignSystemProps['mt'] | undefined"
+              },
+              "attribute": "mt"
+            },
+            {
+              "kind": "field",
+              "name": "mb",
+              "type": {
+                "text": "DesignSystemProps['mb'] | undefined"
+              },
+              "attribute": "mb"
+            },
+            {
+              "kind": "field",
+              "name": "mx",
+              "type": {
+                "text": "DesignSystemProps['mx'] | undefined"
+              },
+              "attribute": "mx"
+            },
+            {
+              "kind": "field",
+              "name": "my",
+              "type": {
+                "text": "DesignSystemProps['my'] | undefined"
+              },
+              "attribute": "my"
+            },
+            {
+              "kind": "field",
+              "name": "p",
+              "type": {
+                "text": "DesignSystemProps['p'] | undefined"
+              },
+              "attribute": "p"
+            },
+            {
+              "kind": "field",
+              "name": "pl",
+              "type": {
+                "text": "DesignSystemProps['pl'] | undefined"
+              },
+              "attribute": "pl"
+            },
+            {
+              "kind": "field",
+              "name": "pr",
+              "type": {
+                "text": "DesignSystemProps['pr'] | undefined"
+              },
+              "attribute": "pr"
+            },
+            {
+              "kind": "field",
+              "name": "pt",
+              "type": {
+                "text": "DesignSystemProps['pt'] | undefined"
+              },
+              "attribute": "pt"
+            },
+            {
+              "kind": "field",
+              "name": "pb",
+              "type": {
+                "text": "DesignSystemProps['pb'] | undefined"
+              },
+              "attribute": "pb"
+            },
+            {
+              "kind": "field",
+              "name": "px",
+              "type": {
+                "text": "DesignSystemProps['px'] | undefined"
+              },
+              "attribute": "px"
+            },
+            {
+              "kind": "field",
+              "name": "py",
+              "type": {
+                "text": "DesignSystemProps['py'] | undefined"
+              },
+              "attribute": "py"
+            },
+            {
+              "kind": "field",
+              "name": "r",
+              "type": {
+                "text": "DesignSystemProps['r'] | undefined"
+              },
+              "attribute": "r"
+            },
+            {
+              "kind": "field",
+              "name": "rt",
+              "type": {
+                "text": "DesignSystemProps['rt'] | undefined"
+              },
+              "attribute": "rt"
+            },
+            {
+              "kind": "field",
+              "name": "rb",
+              "type": {
+                "text": "DesignSystemProps['rb'] | undefined"
+              },
+              "attribute": "rb"
+            },
+            {
+              "kind": "field",
+              "name": "rl",
+              "type": {
+                "text": "DesignSystemProps['rl'] | undefined"
+              },
+              "attribute": "rl"
+            },
+            {
+              "kind": "field",
+              "name": "rr",
+              "type": {
+                "text": "DesignSystemProps['rr'] | undefined"
+              },
+              "attribute": "rr"
+            },
+            {
+              "kind": "field",
+              "name": "rtl",
+              "type": {
+                "text": "DesignSystemProps['rtl'] | undefined"
+              },
+              "attribute": "rtl"
+            },
+            {
+              "kind": "field",
+              "name": "rtr",
+              "type": {
+                "text": "DesignSystemProps['rtr'] | undefined"
+              },
+              "attribute": "rtr"
+            },
+            {
+              "kind": "field",
+              "name": "rbr",
+              "type": {
+                "text": "DesignSystemProps['rbr'] | undefined"
+              },
+              "attribute": "rbr"
+            },
+            {
+              "kind": "field",
+              "name": "rbl",
+              "type": {
+                "text": "DesignSystemProps['rbl'] | undefined"
+              },
+              "attribute": "rbl"
+            },
+            {
+              "kind": "field",
+              "name": "hover",
+              "type": {
+                "text": "DesignSystemProps['hover'] | undefined"
+              },
+              "attribute": "hover"
+            },
+            {
+              "kind": "field",
+              "name": "active",
+              "type": {
+                "text": "DesignSystemProps['active'] | undefined"
+              },
+              "attribute": "active"
             },
             {
               "kind": "field",
@@ -2430,10 +3104,16 @@
               }
             },
             {
-              "kind": "field",
-              "name": "_panels",
-              "type": {
-                "text": "HTMLElement[]"
+              "kind": "method",
+              "name": "getDesignSystemProps",
+              "return": {
+                "type": {
+                  "text": "DesignSystemProps"
+                }
+              },
+              "inheritedFrom": {
+                "name": "BaseElement",
+                "module": "src/shared/base-element.ts"
               }
             },
             {
@@ -2460,27 +3140,236 @@
           ],
           "attributes": [
             {
-              "name": "value",
+              "name": "activeKey",
               "type": {
                 "text": "string"
               },
               "default": "''",
-              "fieldName": "value"
+              "fieldName": "activeKey"
+            },
+            {
+              "name": "bg",
+              "type": {
+                "text": "DesignSystemProps['bg'] | undefined"
+              },
+              "fieldName": "bg"
+            },
+            {
+              "name": "color",
+              "type": {
+                "text": "DesignSystemProps['color'] | undefined"
+              },
+              "fieldName": "color"
+            },
+            {
+              "name": "direction",
+              "type": {
+                "text": "DesignSystemProps['direction'] | undefined"
+              },
+              "fieldName": "direction"
+            },
+            {
+              "name": "ax",
+              "type": {
+                "text": "DesignSystemProps['ax'] | undefined"
+              },
+              "fieldName": "ax"
+            },
+            {
+              "name": "ay",
+              "type": {
+                "text": "DesignSystemProps['ay'] | undefined"
+              },
+              "fieldName": "ay"
+            },
+            {
+              "name": "wrap",
+              "type": {
+                "text": "DesignSystemProps['wrap'] | undefined"
+              },
+              "fieldName": "wrap"
             },
             {
               "name": "gap",
               "type": {
-                "text": "string | undefined"
+                "text": "DesignSystemProps['gap'] | undefined"
               },
               "fieldName": "gap"
             },
             {
-              "name": "fill",
+              "name": "m",
               "type": {
-                "text": "boolean"
+                "text": "DesignSystemProps['m'] | undefined"
               },
-              "default": "false",
-              "fieldName": "fill"
+              "fieldName": "m"
+            },
+            {
+              "name": "ml",
+              "type": {
+                "text": "DesignSystemProps['ml'] | undefined"
+              },
+              "fieldName": "ml"
+            },
+            {
+              "name": "mr",
+              "type": {
+                "text": "DesignSystemProps['mr'] | undefined"
+              },
+              "fieldName": "mr"
+            },
+            {
+              "name": "mt",
+              "type": {
+                "text": "DesignSystemProps['mt'] | undefined"
+              },
+              "fieldName": "mt"
+            },
+            {
+              "name": "mb",
+              "type": {
+                "text": "DesignSystemProps['mb'] | undefined"
+              },
+              "fieldName": "mb"
+            },
+            {
+              "name": "mx",
+              "type": {
+                "text": "DesignSystemProps['mx'] | undefined"
+              },
+              "fieldName": "mx"
+            },
+            {
+              "name": "my",
+              "type": {
+                "text": "DesignSystemProps['my'] | undefined"
+              },
+              "fieldName": "my"
+            },
+            {
+              "name": "p",
+              "type": {
+                "text": "DesignSystemProps['p'] | undefined"
+              },
+              "fieldName": "p"
+            },
+            {
+              "name": "pl",
+              "type": {
+                "text": "DesignSystemProps['pl'] | undefined"
+              },
+              "fieldName": "pl"
+            },
+            {
+              "name": "pr",
+              "type": {
+                "text": "DesignSystemProps['pr'] | undefined"
+              },
+              "fieldName": "pr"
+            },
+            {
+              "name": "pt",
+              "type": {
+                "text": "DesignSystemProps['pt'] | undefined"
+              },
+              "fieldName": "pt"
+            },
+            {
+              "name": "pb",
+              "type": {
+                "text": "DesignSystemProps['pb'] | undefined"
+              },
+              "fieldName": "pb"
+            },
+            {
+              "name": "px",
+              "type": {
+                "text": "DesignSystemProps['px'] | undefined"
+              },
+              "fieldName": "px"
+            },
+            {
+              "name": "py",
+              "type": {
+                "text": "DesignSystemProps['py'] | undefined"
+              },
+              "fieldName": "py"
+            },
+            {
+              "name": "r",
+              "type": {
+                "text": "DesignSystemProps['r'] | undefined"
+              },
+              "fieldName": "r"
+            },
+            {
+              "name": "rt",
+              "type": {
+                "text": "DesignSystemProps['rt'] | undefined"
+              },
+              "fieldName": "rt"
+            },
+            {
+              "name": "rb",
+              "type": {
+                "text": "DesignSystemProps['rb'] | undefined"
+              },
+              "fieldName": "rb"
+            },
+            {
+              "name": "rl",
+              "type": {
+                "text": "DesignSystemProps['rl'] | undefined"
+              },
+              "fieldName": "rl"
+            },
+            {
+              "name": "rr",
+              "type": {
+                "text": "DesignSystemProps['rr'] | undefined"
+              },
+              "fieldName": "rr"
+            },
+            {
+              "name": "rtl",
+              "type": {
+                "text": "DesignSystemProps['rtl'] | undefined"
+              },
+              "fieldName": "rtl"
+            },
+            {
+              "name": "rtr",
+              "type": {
+                "text": "DesignSystemProps['rtr'] | undefined"
+              },
+              "fieldName": "rtr"
+            },
+            {
+              "name": "rbr",
+              "type": {
+                "text": "DesignSystemProps['rbr'] | undefined"
+              },
+              "fieldName": "rbr"
+            },
+            {
+              "name": "rbl",
+              "type": {
+                "text": "DesignSystemProps['rbl'] | undefined"
+              },
+              "fieldName": "rbl"
+            },
+            {
+              "name": "hover",
+              "type": {
+                "text": "DesignSystemProps['hover'] | undefined"
+              },
+              "fieldName": "hover"
+            },
+            {
+              "name": "active",
+              "type": {
+                "text": "DesignSystemProps['active'] | undefined"
+              },
+              "fieldName": "active"
             },
             {
               "name": "styles",
@@ -2492,8 +3381,8 @@
             }
           ],
           "superclass": {
-            "name": "LitElement",
-            "package": "lit"
+            "name": "BaseElement",
+            "module": "/src/shared/base-element"
           },
           "tagName": "we-tabs",
           "customElement": true
@@ -2550,16 +3439,6 @@
                 "text": "SpaceToken | undefined"
               },
               "attribute": "size",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "variant",
-              "type": {
-                "text": "TextVariant"
-              },
-              "default": "''",
-              "attribute": "variant",
               "reflects": true
             },
             {
@@ -2627,14 +3506,6 @@
                 "text": "SpaceToken | undefined"
               },
               "fieldName": "size"
-            },
-            {
-              "name": "variant",
-              "type": {
-                "text": "TextVariant"
-              },
-              "default": "''",
-              "fieldName": "variant"
             },
             {
               "name": "tag",
@@ -2867,6 +3738,217 @@
       "path": "src/shared/base-element.ts",
       "declarations": [
         {
+          "kind": "class",
+          "description": "",
+          "name": "BaseElement",
+          "members": [
+            {
+              "kind": "method",
+              "name": "getDesignSystemProps",
+              "return": {
+                "type": {
+                  "text": "DesignSystemProps"
+                }
+              }
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "BaseElement",
+          "declaration": {
+            "name": "BaseElement",
+            "module": "src/shared/base-element.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/shared/helpers.ts",
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "mergeDesignSystemProps",
+          "return": {
+            "type": {
+              "text": "DesignSystemProps"
+            }
+          },
+          "parameters": [
+            {
+              "name": "props",
+              "type": {
+                "text": "Record<string, any>"
+              }
+            },
+            {
+              "name": "defaults",
+              "type": {
+                "text": "Partial<DesignSystemProps>"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "setDesignSystemVars",
+          "parameters": [
+            {
+              "name": "el",
+              "type": {
+                "text": "HTMLElement"
+              }
+            },
+            {
+              "name": "props",
+              "type": {
+                "text": "DesignSystemProps"
+              }
+            },
+            {
+              "name": "type",
+              "optional": true,
+              "type": {
+                "text": "string"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "baseCssVars"
+        },
+        {
+          "kind": "function",
+          "name": "stateCssVars",
+          "parameters": [
+            {
+              "name": "state",
+              "type": {
+                "text": "'hover' | 'active'"
+              }
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "mergeDesignSystemProps",
+          "declaration": {
+            "name": "mergeDesignSystemProps",
+            "module": "src/shared/helpers.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "setDesignSystemVars",
+          "declaration": {
+            "name": "setDesignSystemVars",
+            "module": "src/shared/helpers.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "baseCssVars",
+          "declaration": {
+            "name": "baseCssVars",
+            "module": "src/shared/helpers.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "stateCssVars",
+          "declaration": {
+            "name": "stateCssVars",
+            "module": "src/shared/helpers.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/shared/styles.ts",
+      "declarations": [],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "src/shared/styles.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/shared/tokens.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "colorKeys",
+          "type": {
+            "text": "['bg', 'color']"
+          },
+          "default": "['bg', 'color']"
+        },
+        {
+          "kind": "variable",
+          "name": "flexKeys",
+          "type": {
+            "text": "['direction', 'ax', 'ay', 'wrap', 'gap']"
+          },
+          "default": "['direction', 'ax', 'ay', 'wrap', 'gap']"
+        },
+        {
+          "kind": "variable",
+          "name": "paddingKeys",
+          "type": {
+            "text": "['p', 'px', 'py', 'pt', 'pr', 'pb', 'pl']"
+          },
+          "default": "['p', 'px', 'py', 'pt', 'pr', 'pb', 'pl']"
+        },
+        {
+          "kind": "variable",
+          "name": "marginKeys",
+          "type": {
+            "text": "['m', 'mx', 'my', 'mt', 'mr', 'mb', 'ml']"
+          },
+          "default": "['m', 'mx', 'my', 'mt', 'mr', 'mb', 'ml']"
+        },
+        {
+          "kind": "variable",
+          "name": "radiusKeys",
+          "type": {
+            "text": "['r', 'rr', 'rt', 'rb', 'rl', 'rtl', 'rtr', 'rbr', 'rbl']"
+          },
+          "default": "['r', 'rr', 'rt', 'rb', 'rl', 'rtl', 'rtr', 'rbr', 'rbl']"
+        },
+        {
+          "kind": "variable",
+          "name": "styleKeys",
+          "type": {
+            "text": "['hover', 'active', 'styles']"
+          },
+          "default": "['hover', 'active', 'styles']"
+        },
+        {
+          "kind": "variable",
+          "name": "designSystemKeys",
+          "type": {
+            "text": "array"
+          },
+          "default": "[...colorKeys, ...flexKeys, ...paddingKeys, ...marginKeys, ...radiusKeys, ...styleKeys]"
+        },
+        {
           "kind": "function",
           "name": "tokenVar",
           "parameters": [
@@ -2888,48 +3970,71 @@
               "default": "'0'"
             }
           ]
-        },
-        {
-          "kind": "class",
-          "description": "",
-          "name": "BaseElement",
-          "members": [],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "customElement": true
         }
       ],
       "exports": [
         {
           "kind": "js",
-          "name": "tokenVar",
+          "name": "colorKeys",
           "declaration": {
-            "name": "tokenVar",
-            "module": "src/shared/base-element.ts"
+            "name": "colorKeys",
+            "module": "src/shared/tokens.ts"
           }
         },
         {
           "kind": "js",
-          "name": "BaseElement",
+          "name": "flexKeys",
           "declaration": {
-            "name": "BaseElement",
-            "module": "src/shared/base-element.ts"
+            "name": "flexKeys",
+            "module": "src/shared/tokens.ts"
           }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/shared/styles.ts",
-      "declarations": [],
-      "exports": [
+        },
         {
           "kind": "js",
-          "name": "default",
+          "name": "paddingKeys",
           "declaration": {
-            "module": "src/shared/styles.ts"
+            "name": "paddingKeys",
+            "module": "src/shared/tokens.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "marginKeys",
+          "declaration": {
+            "name": "marginKeys",
+            "module": "src/shared/tokens.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "radiusKeys",
+          "declaration": {
+            "name": "radiusKeys",
+            "module": "src/shared/tokens.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "styleKeys",
+          "declaration": {
+            "name": "styleKeys",
+            "module": "src/shared/tokens.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "designSystemKeys",
+          "declaration": {
+            "name": "designSystemKeys",
+            "module": "src/shared/tokens.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "tokenVar",
+          "declaration": {
+            "name": "tokenVar",
+            "module": "src/shared/tokens.ts"
           }
         }
       ]
