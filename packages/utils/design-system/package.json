@@ -1,5 +1,5 @@
 {
-  "name": "@we/solid-utils",
+  "name": "@we/design-system-utils",
   "version": "1.0.0",
   "type": "module",
   "sideEffects": false,
@@ -12,18 +12,10 @@
       "import": "./dist/index.js"
     }
   },
-  "dependencies": {
-    "@we/design-system-utils": "workspace:*"
-  },
-  "peerDependencies": {
-    "solid-js": "^1.9.0"
-  },
   "devDependencies": {
     "@we/types": "workspace:*",
     "tsup": "^8.3.0",
-    "typescript": "^5.7.2",
-    "solid-js": "^1.9.0",
-    "esbuild-plugin-solid": "^0.6.0"
+    "typescript": "^5.7.2"
   },
   "scripts": {
     "build": "tsup --config tsup.config.ts"

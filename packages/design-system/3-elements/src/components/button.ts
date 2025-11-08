@@ -4,9 +4,10 @@ import { styleMap } from 'lit/directives/style-map.js';
 import sharedStyles from '../shared/styles';
 import { BaseElement } from '../shared/base-element';
 import type { DesignSystemProps } from '@we/types';
-import { baseCssVars, stateCssVars, mergeDesignSystemProps } from '../shared/helpers';
+import { baseCssVars, stateCssVars } from '../shared/helpers';
+import { mergeProps } from '@we/design-system-utils';
 
-const defaults: Partial<DesignSystemProps> = {
+const DEFAULT_PROPS: Partial<DesignSystemProps> = {
   bg: 'primary-100',
   color: 'primary-800',
   r: 'md',
@@ -17,7 +18,7 @@ const defaults: Partial<DesignSystemProps> = {
   gap: '300',
 };
 
-const cssStyles = css`
+const CSS_STYLES = css`
   :host {
     display: flex;
     white-space: nowrap;
@@ -46,13 +47,14 @@ const cssStyles = css`
 
 @customElement('we-button')
 export default class Button extends BaseElement implements DesignSystemProps {
-  static styles = [sharedStyles, cssStyles];
+  static styles = [sharedStyles, CSS_STYLES];
 
-  // Button-specific props
+  // Button props
   @property({ type: String }) text?: string;
   @property({ type: String }) href?: string;
   @property({ type: Boolean, reflect: true }) disabled = false;
   @property({ type: Boolean, reflect: true }) loading = false;
+  @property({ type: Object }) styles?: Record<string, string | number | undefined>;
   @property({ attribute: false }) onClick: (event: MouseEvent) => void = () => {};
 
   // Design system props
@@ -90,10 +92,10 @@ export default class Button extends BaseElement implements DesignSystemProps {
   @property({ type: String }) rbl?: DesignSystemProps['rbl'];
   @property({ type: Object }) hover?: DesignSystemProps['hover'];
   @property({ type: Object }) active?: DesignSystemProps['active'];
-  @property({ type: Object }) styles?: DesignSystemProps['styles'];
 
+  // Merge button defaults with design system props
   getDesignSystemProps(): DesignSystemProps {
-    return mergeDesignSystemProps(this, defaults);
+    return mergeProps(this as Record<string, unknown>, DEFAULT_PROPS);
   }
 
   private handleClick(event: MouseEvent) {

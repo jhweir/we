@@ -2,15 +2,15 @@ import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
-import { generateVariable } from '../helpers';
 import sharedStyles from '../shared/styles';
 import { IconSize, IconWeight } from '../types';
+import { tokenVar } from '@we/design-system-utils';
 
 const styles = css`
   :host {
     --icon-color: currentColor;
     --icon-size: 26px;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
   }
@@ -73,8 +73,7 @@ export default class Icon extends LitElement {
   updated(props: Map<string, unknown>) {
     super.updated(props);
     if (props.has('name') || props.has('weight')) this.loadIcon();
-    if (props.has('color'))
-      this.style.setProperty('--icon-color', generateVariable('we-color', this.color, 'currentColor'));
+    if (props.has('color')) this.style.setProperty('--icon-color', tokenVar('color', this.color, 'currentColor'));
   }
 
   render() {

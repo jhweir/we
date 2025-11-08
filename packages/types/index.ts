@@ -1,12 +1,8 @@
 import type { RadiusToken, SpaceToken } from '@we/tokens';
 
-// Shared package specific types
-type FlexDirection = 'row' | 'row-reverse' | 'column' | 'column-reverse';
-type AlignPositionTuple = readonly ['start', 'center', 'end'];
-type AlignPositionAndSpacingTuple = [...AlignPositionTuple, 'between', 'around'];
-
-export type AlignPosition = AlignPositionTuple[number];
-export type AlignPositionAndSpacing = AlignPositionAndSpacingTuple[number];
+export type FlexDirection = 'row' | 'row-reverse' | 'column' | 'column-reverse';
+export type FlexMainAxis = 'start' | 'center' | 'end' | 'between' | 'around';
+export type FlexCrossAxis = 'start' | 'center' | 'end';
 
 export interface DesignSystemProps {
   // Colors
@@ -17,8 +13,8 @@ export interface DesignSystemProps {
   width?: string;
   height?: string;
   direction?: FlexDirection;
-  ax?: AlignPositionAndSpacing; // Align X axis (←→)
-  ay?: AlignPosition; // Align Y axis (↑↓)
+  ax?: FlexMainAxis;
+  ay?: FlexMainAxis;
   wrap?: boolean;
   gap?: SpaceToken;
 
@@ -54,7 +50,4 @@ export interface DesignSystemProps {
   // Dynamic styles for states
   hover?: Record<string, string | undefined>;
   active?: Record<string, string | undefined>;
-
-  // Standard HTML props
-  styles?: Record<string, string | number | undefined>;
 }

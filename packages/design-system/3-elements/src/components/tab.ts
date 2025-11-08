@@ -4,11 +4,12 @@ import { styleMap } from 'lit/directives/style-map.js';
 import sharedStyles from '../shared/styles';
 import { BaseElement } from '../shared/base-element';
 import type { DesignSystemProps } from '@we/types';
-import { baseCssVars, mergeDesignSystemProps, stateCssVars } from '../shared/helpers';
+import { baseCssVars, stateCssVars } from '../shared/helpers';
+import { mergeProps } from '@we/design-system-utils';
 
-const defaults: Partial<DesignSystemProps> = { rt: 'md', py: '200', px: '300' };
+const DEFAULT_PROPS: Partial<DesignSystemProps> = { rt: 'md', py: '200', px: '300' };
 
-const styles = css`
+const CSS_STYLES = css`
   :host {
     display: flex;
     white-space: nowrap;
@@ -36,12 +37,13 @@ const styles = css`
 
 @customElement('we-tab')
 export class Tab extends BaseElement implements DesignSystemProps {
-  static styles = [sharedStyles, styles];
+  static styles = [sharedStyles, CSS_STYLES];
 
   // Tab specific props
   @property({ type: String, reflect: true }) key = '';
   @property({ type: String }) label?: string;
   @property({ type: Object }) onClick?: any;
+  @property({ type: Object }) styles?: Record<string, string | number | undefined>;
 
   // Design system props
   @property({ type: String }) bg?: DesignSystemProps['bg'];
@@ -78,10 +80,9 @@ export class Tab extends BaseElement implements DesignSystemProps {
   @property({ type: String }) rbl?: DesignSystemProps['rbl'];
   @property({ type: Object }) hover?: DesignSystemProps['hover'];
   @property({ type: Object }) active?: DesignSystemProps['active'];
-  @property({ type: Object }) styles?: DesignSystemProps['styles'];
 
   getDesignSystemProps(): DesignSystemProps {
-    return mergeDesignSystemProps(this, defaults);
+    return mergeProps(this as Record<string, unknown>, DEFAULT_PROPS);
   }
 
   private handleClick(e: MouseEvent) {

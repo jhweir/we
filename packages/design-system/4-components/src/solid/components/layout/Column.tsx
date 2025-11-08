@@ -1,138 +1,17 @@
-import { createMemo, JSX, splitProps } from 'solid-js';
+import { designSystemKeys, mergeProps } from '@we/design-system-utils';
+import { buildLayoutStyles, type LayoutProps } from '@we/solid-utils';
+import { FlexCrossAxis, FlexMainAxis } from 'packages/types/dist';
+import { createMemo, splitProps } from 'solid-js';
 
-import type { AlignPosition, AlignPositionAndSpacing, RadiusToken, SpaceToken } from '../../../shared/types';
+export type ColumnProps = Omit<LayoutProps, 'ax' | 'ay'> & { ax?: FlexCrossAxis; ay?: FlexMainAxis };
 
-type ColumnPropsBase = {
-  // Layout
-  width?: string;
-  height?: string;
-  ax?: AlignPosition; // Align X axis (←→)
-  ay?: AlignPositionAndSpacing; // Align Y axis (↑↓)
-  wrap?: boolean;
-  reverse?: boolean;
-  gap?: SpaceToken;
-
-  // Padding
-  p?: SpaceToken;
-  pl?: SpaceToken;
-  pr?: SpaceToken;
-  pt?: SpaceToken;
-  pb?: SpaceToken;
-  px?: SpaceToken;
-  py?: SpaceToken;
-
-  // Margin
-  m?: SpaceToken;
-  ml?: SpaceToken;
-  mr?: SpaceToken;
-  mt?: SpaceToken;
-  mb?: SpaceToken;
-  mx?: SpaceToken;
-  my?: SpaceToken;
-
-  // Radius
-  r?: RadiusToken;
-  rt?: RadiusToken;
-  rb?: RadiusToken;
-  rl?: RadiusToken;
-  rr?: RadiusToken;
-  rtl?: RadiusToken;
-  rtr?: RadiusToken;
-  rbr?: RadiusToken;
-  rbl?: RadiusToken;
-
-  // Colors
-  bg?: string;
-  color?: string;
-
-  // Standard HTML props
-  styles?: JSX.CSSProperties;
-  children?: JSX.Element;
-};
-
-export type ColumnProps = ColumnPropsBase & Omit<JSX.HTMLAttributes<HTMLDivElement>, 'style' | 'color'>;
-
-function tokenVar(prefix: string, token?: string) {
-  return token ? `var(--we-${prefix}-${token})` : '0';
-}
+const DEFAULTS: Partial<ColumnProps> = {};
+const columnKeys = [...designSystemKeys.filter((key) => key !== 'direction'), 'reverse', 'children'];
 
 export function Column(allProps: ColumnProps) {
-  // prettier-ignore
-  const [props, rest] = splitProps(allProps, [
-    'width','height','ax','ay','wrap','reverse','gap', // Layout
-    'p','pl','pr','pt','pb','px','py', // Padding
-    'm','ml','mr','mt','mb','mx','my', // Margin
-    'r','rt','rb','rl','rr','rtl','rtr','rbr','rbl', // Radius
-    'bg','color', // Colors
-    'styles','children', // Other
-  ] as const);
-
-  const reactiveStyles = createMemo(() => {
-    const style: JSX.CSSProperties = {
-      display: 'flex',
-      'flex-direction': props.reverse ? 'column-reverse' : 'column',
-      'flex-wrap': props.wrap ? 'wrap' : 'nowrap',
-      ...props.styles,
-    };
-
-    // Width & Height
-    if (props.width) style.width = props.width;
-    if (props.height) style.height = props.height;
-
-    // Align cross-axis (items)
-    if (props.ax === 'center') style['align-items'] = 'center';
-    else if (props.ax === 'end') style['align-items'] = 'flex-end';
-    else if (props.ax === 'start' || props.ax === '') style['align-items'] = 'flex-start';
-
-    // Align main-axis (content)
-    if (props.ay === 'center') style['justify-content'] = 'center';
-    else if (props.ay === 'end') style['justify-content'] = 'flex-end';
-    else if (props.ay === 'between') style['justify-content'] = 'space-between';
-    else if (props.ay === 'around') style['justify-content'] = 'space-around';
-    else if (props.ay === 'start' || props.ay === '') style['justify-content'] = 'flex-start';
-
-    // Gap
-    if (props.gap) style.gap = tokenVar('space', props.gap);
-
-    // Padding
-    const padding = [
-      tokenVar('space', props.pt || props.py || props.p),
-      tokenVar('space', props.pr || props.px || props.p),
-      tokenVar('space', props.pb || props.py || props.p),
-      tokenVar('space', props.pl || props.px || props.p),
-    ]
-      .join(' ')
-      .trim();
-    if (padding !== '0 0 0 0') style.padding = padding;
-
-    // Margin
-    const margin = [
-      tokenVar('space', props.mt || props.my || props.m),
-      tokenVar('space', props.mr || props.mx || props.m),
-      tokenVar('space', props.mb || props.my || props.m),
-      tokenVar('space', props.ml || props.mx || props.m),
-    ]
-      .join(' ')
-      .trim();
-    if (margin !== '0 0 0 0') style.margin = margin;
-
-    // Border radius (TL TR BR BL)
-    const radius = [
-      tokenVar('radius', props.rtl || props.rt || props.rl || props.r),
-      tokenVar('radius', props.rtr || props.rt || props.rr || props.r),
-      tokenVar('radius', props.rbr || props.rb || props.rr || props.r),
-      tokenVar('radius', props.rbl || props.rb || props.rl || props.r),
-    ]
-      .join(' ')
-      .trim();
-    if (radius !== '0 0 0 0') style['border-radius'] = radius;
-
-    // Colors
-    if (props.bg) style['background-color'] = `var(--we-color-${props.bg})`;
-    if (props.color) style.color = `var(--we-color-${props.color})`;
-
-    return style;
-  });
+  const [designSystemProps, rest] = splitProps(allProps, columnKeys as (keyof ColumnProps)[]);
+  const props = mergeProps(designSystemProps, DEFAULTS, columnKeys) as ColumnProps;
+  const reactiveStyles = createMemo(() => buildLayoutStyles(props, 'column'));
 
   return (
     <div style={reactiveStyles()} {...rest}>

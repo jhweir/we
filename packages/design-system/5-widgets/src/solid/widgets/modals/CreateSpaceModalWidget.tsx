@@ -53,7 +53,7 @@ export function CreateSpaceModalWidget(props: CreateSpaceModalWidgetProps) {
   return (
     <we-modal close={props.close}>
       <Column p="600" gap="400" ax="center">
-        <we-text variant="heading">Create a new space</we-text>
+        <we-text>Create a new space</we-text>
 
         <we-input
           label="Name"

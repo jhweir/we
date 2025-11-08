@@ -15,3 +15,5 @@
 ### @we/elements
 
 - Prevent icons loading multiple times (particularly noticable in block menu)
+- Get design system props onto all elements
+- align usage of size and spacing (raidus currently using spacing only?)

@@ -11,7 +11,7 @@ const componentEntries = glob.sync('src/components/**/*.ts').reduce((acc, file) 
 }, {});
 
 export default {
-  input: { index: 'src/index.ts', helpers: 'src/helpers.ts', ...componentEntries },
+  input: { index: 'src/index.ts', ...componentEntries },
   output: {
     dir: 'dist',
     format: 'es',
@@ -38,11 +38,7 @@ export default {
     }),
     terser({ format: { comments: false } }), // Remove comments
     copy({
-      targets: [
-        { src: 'src/styles/themes/*', dest: 'dist/styles/themes' },
-        { src: 'src/styles/variables.css', dest: 'dist/styles' },
-        { src: 'src/types.ts', dest: 'dist' },
-      ],
+      targets: [{ src: 'src/types.ts', dest: 'dist' }],
     }),
   ],
 };

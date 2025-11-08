@@ -1,59 +1,18 @@
 import type { DesignSystemProps } from '@we/types';
-import { paddingKeys, marginKeys, radiusKeys, tokenVar, designSystemKeys } from './tokens';
+import {
+  tokenVar,
+  paddingKeys,
+  marginKeys,
+  radiusKeys,
+  getMarginValues,
+  getPaddingValues,
+  getRadiusValues,
+} from '@we/design-system-utils';
 
 // Helper to update or remove a style property
 function updateStyle(el: HTMLElement, prop: string, value?: string) {
   if (value !== undefined && value !== null && value !== '') el.style.setProperty(prop, value);
   else el.style.removeProperty(prop);
-}
-
-// Helper to merge design system props with component specific defaults
-export function mergeDesignSystemProps(
-  props: Record<string, any>,
-  defaults: Partial<DesignSystemProps>,
-): DesignSystemProps {
-  // Select used design system props from the instance
-  const picked: Partial<DesignSystemProps> = Object.fromEntries(
-    designSystemKeys.filter((key) => props[key] !== undefined).map((key) => [key, props[key]]),
-  );
-
-  // Merge defaults with picked props
-  const merged = { ...defaults, ...picked };
-
-  // Handle precedence so generic props override specific defaults
-  // Margin shorthand precedence
-  if (props.m !== undefined) {
-    if (props.mx === undefined) merged.mx = props.m;
-    if (props.my === undefined) merged.my = props.m;
-    if (props.mt === undefined) merged.mt = props.m;
-    if (props.mr === undefined) merged.mr = props.m;
-    if (props.mb === undefined) merged.mb = props.m;
-    if (props.ml === undefined) merged.ml = props.m;
-  }
-
-  // Padding shorthand precedence
-  if (props.p !== undefined) {
-    if (props.px === undefined) merged.px = props.p;
-    if (props.py === undefined) merged.py = props.p;
-    if (props.pt === undefined) merged.pt = props.p;
-    if (props.pr === undefined) merged.pr = props.p;
-    if (props.pb === undefined) merged.pb = props.p;
-    if (props.pl === undefined) merged.pl = props.p;
-  }
-
-  // Radius shorthand precedence
-  if (props.r !== undefined) {
-    if (props.rtl === undefined) merged.rtl = props.r;
-    if (props.rtr === undefined) merged.rtr = props.r;
-    if (props.rbr === undefined) merged.rbr = props.r;
-    if (props.rbl === undefined) merged.rbl = props.r;
-    if (props.rt === undefined) merged.rt = props.r;
-    if (props.rb === undefined) merged.rb = props.r;
-    if (props.rl === undefined) merged.rl = props.r;
-    if (props.rr === undefined) merged.rr = props.r;
-  }
-
-  return merged;
 }
 
 // Set design system CSS variables on an element
@@ -74,46 +33,16 @@ export function setDesignSystemVars(el: HTMLElement, props: DesignSystemProps, t
   updateStyle(el, `${prefix}gap`, props.gap ? tokenVar('space', props.gap) : undefined);
 
   // Margin
-  updateStyle(
-    el,
-    `${prefix}margin`,
-    marginKeys.some((k) => typeof props[k] !== 'undefined' && props[k] !== null)
-      ? [
-          tokenVar('space', props.mt || props.my || props.m),
-          tokenVar('space', props.mr || props.mx || props.m),
-          tokenVar('space', props.mb || props.my || props.m),
-          tokenVar('space', props.ml || props.mx || props.m),
-        ].join(' ')
-      : undefined,
-  );
+  const hasMargin = marginKeys.some((k) => typeof props[k] !== 'undefined' && props[k] !== null);
+  updateStyle(el, `${prefix}margin`, hasMargin ? getMarginValues(props) : undefined);
 
   // Padding
-  updateStyle(
-    el,
-    `${prefix}padding`,
-    paddingKeys.some((k) => typeof props[k] !== 'undefined' && props[k] !== null)
-      ? [
-          tokenVar('space', props.pt || props.py || props.p),
-          tokenVar('space', props.pr || props.px || props.p),
-          tokenVar('space', props.pb || props.py || props.p),
-          tokenVar('space', props.pl || props.px || props.p),
-        ].join(' ')
-      : undefined,
-  );
+  const hasPadding = paddingKeys.some((k) => typeof props[k] !== 'undefined' && props[k] !== null);
+  updateStyle(el, `${prefix}padding`, hasPadding ? getPaddingValues(props) : undefined);
 
   // Radius
-  updateStyle(
-    el,
-    `${prefix}radius`,
-    radiusKeys.some((k) => typeof props[k] !== 'undefined' && props[k] !== null)
-      ? [
-          tokenVar('radius', props.rtl || props.rt || props.rl || props.r),
-          tokenVar('radius', props.rtr || props.rt || props.rr || props.r),
-          tokenVar('radius', props.rbr || props.rb || props.rr || props.r),
-          tokenVar('radius', props.rbl || props.rb || props.rl || props.r),
-        ].join(' ')
-      : undefined,
-  );
+  const hasRadius = radiusKeys.some((k) => typeof props[k] !== 'undefined' && props[k] !== null);
+  updateStyle(el, `${prefix}radius`, hasRadius ? getRadiusValues(props) : undefined);
 }
 
 // Generate base CSS variables for design system props

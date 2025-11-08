@@ -2,9 +2,9 @@ import { Column, PostCard } from '@we/components/solid';
 import { JSX } from 'solid-js';
 
 type Post = {
-  creator: { name: string; avatarUrl: string };
+  creator: { name: string; avatar: string };
   title: string;
-  content: string;
+  text: string;
 };
 
 export interface PostPageProps {
@@ -17,7 +17,7 @@ export function PostPage(props: PostPageProps) {
   return (
     <Column class={`we-post-page ${props.class || ''}`} styles={props.styles} p="1000" data-we-page>
       {props.posts.map((post) => (
-        <PostCard creator={post.creator} title={post.title} content={post.content} styles={{ margin: '20px 0' }} />
+        <PostCard creator={post.creator} title={post.title} text={post.text} styles={{ margin: '20px 0' }} />
       ))}
     </Column>
   );

@@ -4,11 +4,12 @@ import { styleMap } from 'lit/directives/style-map.js';
 import sharedStyles from '../shared/styles';
 import { BaseElement } from '../shared/base-element';
 import type { DesignSystemProps } from '@we/types';
-import { baseCssVars, mergeDesignSystemProps, stateCssVars } from '../shared/helpers';
+import { baseCssVars, stateCssVars } from '../shared/helpers';
+import { mergeProps } from '@we/design-system-utils';
 
-const defaults: Partial<DesignSystemProps> = {};
+const DEFAULT_PROPS: Partial<DesignSystemProps> = {};
 
-const styles = css`
+const CSS_STYLES = css`
   :host {
     display: flex;
   }
@@ -23,10 +24,11 @@ const styles = css`
 
 @customElement('we-tabs')
 export class Tabs extends BaseElement implements DesignSystemProps {
-  static styles = [sharedStyles, styles];
+  static styles = [sharedStyles, CSS_STYLES];
 
   // Tabs specific props
   @property({ type: String }) activeKey: string = '';
+  @property({ type: Object }) styles?: Record<string, string | number | undefined>;
 
   // Design system props
   @property({ type: String }) bg?: DesignSystemProps['bg'];
@@ -63,12 +65,11 @@ export class Tabs extends BaseElement implements DesignSystemProps {
   @property({ type: String }) rbl?: DesignSystemProps['rbl'];
   @property({ type: Object }) hover?: DesignSystemProps['hover'];
   @property({ type: Object }) active?: DesignSystemProps['active'];
-  @property({ type: Object }) styles?: DesignSystemProps['styles'];
 
   @queryAssignedElements({ slot: 'tab' }) _tabs!: HTMLElement[];
 
   getDesignSystemProps(): DesignSystemProps {
-    return mergeDesignSystemProps(this, defaults);
+    return mergeProps(this as Record<string, unknown>, DEFAULT_PROPS);
   }
 
   updated() {

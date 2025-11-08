@@ -663,6 +663,14 @@
               "fieldName": "loading"
             },
             {
+              "name": "styles",
+              "type": {
+                "text": "array"
+              },
+              "default": "[sharedStyles, CSS_STYLES]",
+              "fieldName": "styles"
+            },
+            {
               "name": "bg",
               "type": {
                 "text": "DesignSystemProps['bg'] | undefined"
@@ -899,14 +907,6 @@
                 "text": "DesignSystemProps['active'] | undefined"
               },
               "fieldName": "active"
-            },
-            {
-              "name": "styles",
-              "type": {
-                "text": "array"
-              },
-              "default": "[sharedStyles, cssStyles]",
-              "fieldName": "styles"
             }
           ],
           "superclass": {
@@ -2601,6 +2601,14 @@
               "fieldName": "onClick"
             },
             {
+              "name": "styles",
+              "type": {
+                "text": "array"
+              },
+              "default": "[sharedStyles, CSS_STYLES]",
+              "fieldName": "styles"
+            },
+            {
               "name": "bg",
               "type": {
                 "text": "DesignSystemProps['bg'] | undefined"
@@ -2837,14 +2845,6 @@
                 "text": "DesignSystemProps['active'] | undefined"
               },
               "fieldName": "active"
-            },
-            {
-              "name": "styles",
-              "type": {
-                "text": "array"
-              },
-              "default": "[sharedStyles, styles]",
-              "fieldName": "styles"
             }
           ],
           "superclass": {
@@ -3224,6 +3224,14 @@
               "fieldName": "activeKey"
             },
             {
+              "name": "styles",
+              "type": {
+                "text": "array"
+              },
+              "default": "[sharedStyles, CSS_STYLES]",
+              "fieldName": "styles"
+            },
+            {
               "name": "bg",
               "type": {
                 "text": "DesignSystemProps['bg'] | undefined"
@@ -3460,14 +3468,6 @@
                 "text": "DesignSystemProps['active'] | undefined"
               },
               "fieldName": "active"
-            },
-            {
-              "name": "styles",
-              "type": {
-                "text": "array"
-              },
-              "default": "[sharedStyles, styles]",
-              "fieldName": "styles"
             }
           ],
           "superclass": {
@@ -3866,29 +3866,6 @@
       "declarations": [
         {
           "kind": "function",
-          "name": "mergeDesignSystemProps",
-          "return": {
-            "type": {
-              "text": "DesignSystemProps"
-            }
-          },
-          "parameters": [
-            {
-              "name": "props",
-              "type": {
-                "text": "Record<string, any>"
-              }
-            },
-            {
-              "name": "defaults",
-              "type": {
-                "text": "Partial<DesignSystemProps>"
-              }
-            }
-          ]
-        },
-        {
-          "kind": "function",
           "name": "setDesignSystemVars",
           "parameters": [
             {
@@ -3932,14 +3909,6 @@
       "exports": [
         {
           "kind": "js",
-          "name": "mergeDesignSystemProps",
-          "declaration": {
-            "name": "mergeDesignSystemProps",
-            "module": "src/shared/helpers.ts"
-          }
-        },
-        {
-          "kind": "js",
           "name": "setDesignSystemVars",
           "declaration": {
             "name": "setDesignSystemVars",
@@ -3974,173 +3943,6 @@
           "name": "default",
           "declaration": {
             "module": "src/shared/styles.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/shared/tokens.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "colorKeys",
-          "type": {
-            "text": "['bg', 'color']"
-          },
-          "default": "['bg', 'color']"
-        },
-        {
-          "kind": "variable",
-          "name": "flexKeys",
-          "type": {
-            "text": "['direction', 'ax', 'ay', 'wrap', 'gap']"
-          },
-          "default": "['direction', 'ax', 'ay', 'wrap', 'gap']"
-        },
-        {
-          "kind": "variable",
-          "name": "layoutKeys",
-          "type": {
-            "text": "['height', 'width']"
-          },
-          "default": "['height', 'width']"
-        },
-        {
-          "kind": "variable",
-          "name": "paddingKeys",
-          "type": {
-            "text": "['p', 'px', 'py', 'pt', 'pr', 'pb', 'pl']"
-          },
-          "default": "['p', 'px', 'py', 'pt', 'pr', 'pb', 'pl']"
-        },
-        {
-          "kind": "variable",
-          "name": "marginKeys",
-          "type": {
-            "text": "['m', 'mx', 'my', 'mt', 'mr', 'mb', 'ml']"
-          },
-          "default": "['m', 'mx', 'my', 'mt', 'mr', 'mb', 'ml']"
-        },
-        {
-          "kind": "variable",
-          "name": "radiusKeys",
-          "type": {
-            "text": "['r', 'rr', 'rt', 'rb', 'rl', 'rtl', 'rtr', 'rbr', 'rbl']"
-          },
-          "default": "['r', 'rr', 'rt', 'rb', 'rl', 'rtl', 'rtr', 'rbr', 'rbl']"
-        },
-        {
-          "kind": "variable",
-          "name": "styleKeys",
-          "type": {
-            "text": "['hover', 'active', 'styles']"
-          },
-          "default": "['hover', 'active', 'styles']"
-        },
-        {
-          "kind": "variable",
-          "name": "designSystemKeys",
-          "type": {
-            "text": "array"
-          },
-          "default": "[ ...colorKeys, ...flexKeys, ...layoutKeys, ...paddingKeys, ...marginKeys, ...radiusKeys, ...styleKeys, ]"
-        },
-        {
-          "kind": "function",
-          "name": "tokenVar",
-          "parameters": [
-            {
-              "name": "prefix",
-              "type": {
-                "text": "string"
-              }
-            },
-            {
-              "name": "token",
-              "optional": true,
-              "type": {
-                "text": "string"
-              }
-            },
-            {
-              "name": "fallback",
-              "default": "'0'"
-            }
-          ]
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "colorKeys",
-          "declaration": {
-            "name": "colorKeys",
-            "module": "src/shared/tokens.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "flexKeys",
-          "declaration": {
-            "name": "flexKeys",
-            "module": "src/shared/tokens.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "layoutKeys",
-          "declaration": {
-            "name": "layoutKeys",
-            "module": "src/shared/tokens.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "paddingKeys",
-          "declaration": {
-            "name": "paddingKeys",
-            "module": "src/shared/tokens.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "marginKeys",
-          "declaration": {
-            "name": "marginKeys",
-            "module": "src/shared/tokens.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "radiusKeys",
-          "declaration": {
-            "name": "radiusKeys",
-            "module": "src/shared/tokens.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "styleKeys",
-          "declaration": {
-            "name": "styleKeys",
-            "module": "src/shared/tokens.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "designSystemKeys",
-          "declaration": {
-            "name": "designSystemKeys",
-            "module": "src/shared/tokens.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "tokenVar",
-          "declaration": {
-            "name": "tokenVar",
-            "module": "src/shared/tokens.ts"
           }
         }
       ]
