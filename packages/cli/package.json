@@ -1,11 +1,14 @@
 {
-  "name": "@we/design-system-utils",
+  "name": "@we/cli",
   "version": "1.0.0",
   "type": "module",
   "sideEffects": false,
   "files": [
     "dist"
   ],
+  "bin": {
+    "we-banner": "./dist/print-banner.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -13,12 +16,12 @@
     }
   },
   "devDependencies": {
-    "@we/cli": "workspace:*",
-    "@we/types": "workspace:*",
+    "@types/node": "^24.10.0",
     "tsup": "^8.3.0",
     "typescript": "^5.7.2"
   },
   "scripts": {
-    "build": "we-banner && tsup --config tsup.config.ts"
+    "prepare": "tsup --config tsup.config.ts",
+    "build": "[ -f ./dist/print-banner.js ] && node ./dist/print-banner.js; tsup --config tsup.config.ts"
   }
 }

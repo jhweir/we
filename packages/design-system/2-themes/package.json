@@ -20,12 +20,15 @@
   "author": "James Weir",
   "license": "MIT",
   "scripts": {
-    "build": "rimraf dist && postcss 'src/**/index.css' --base src --dir dist"
+    "clean": "rimraf dist",
+    "build:css": "postcss 'src/**/index.css' --base src --dir dist",
+    "build": "we-banner && pnpm run clean && pnpm run build:css"
   },
   "peerDependencies": {
     "@we/tokens": "workspace:*"
   },
   "devDependencies": {
+    "@we/cli": "workspace:*",
     "postcss": "^8.4.23",
     "postcss-cli": "^10.1.0",
     "postcss-import": "^15.1.0",

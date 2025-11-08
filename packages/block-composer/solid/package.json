@@ -33,6 +33,7 @@
     "@coasys/ad4m": "0.10.1"
   },
   "devDependencies": {
+    "@we/cli": "workspace:*",
     "@we/elements": "workspace:*",
     "@we/components": "workspace:*",
     "@we/models": "workspace:*",
@@ -44,6 +45,6 @@
   },
   "scripts": {
     "build:css": "sass src/styles/index.scss dist/styles/index.css --no-source-map --style=compressed",
-    "build": "tsup --config tsup.config.ts && pnpm build:css"
+    "build": "we-banner && tsup --config tsup.config.ts && pnpm build:css"
   }
 }

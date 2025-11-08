@@ -33,12 +33,13 @@
   "author": "James Weir",
   "license": "MIT",
   "scripts": {
-    "clean": "rimraf dist dist-plugins",
+    "clean": "rimraf dist",
     "build:plugin": "esbuild plugins/css-generator.ts --outfile=dist/plugins/css-generator.js --format=esm --platform=node",
     "build:tokens": "rollup -c",
-    "build": "pnpm run clean && pnpm run build:plugin && pnpm run build:tokens"
+    "build": "we-banner && pnpm run clean && pnpm run build:plugin && pnpm run build:tokens"
   },
   "devDependencies": {
+    "@we/cli": "workspace:*",
     "@rollup/plugin-node-resolve": "^15.3.0",
     "@rollup/plugin-typescript": "^12.1.4",
     "@types/node": "^20.0.0",

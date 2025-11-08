@@ -16,7 +16,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "rimraf dist && tsc --project tsconfig.json"
+    "clean": "rimraf dist",
+    "build": "we-banner && pnpm run clean && tsc --project tsconfig.json"
   },
   "keywords": [
     "adam",
@@ -32,6 +33,7 @@
     "@coasys/ad4m": "0.10.1"
   },
   "devDependencies": {
+    "@we/cli": "workspace:*",
     "rimraf": "^6.0.1"
   }
 }

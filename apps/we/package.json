@@ -6,11 +6,12 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
-    "build": "vite build",
+    "build": "we-banner && vite build",
     "serve": "vite preview"
   },
   "license": "MIT",
   "devDependencies": {
+    "@we/cli": "workspace:*",
     "@types/three": "^0.176.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.0",
