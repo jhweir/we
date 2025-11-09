@@ -105,7 +105,8 @@
     "clean": "rimraf dist",
     "build:cem": "cem analyze --litelement --globs src/**/*.ts",
     "build:declarations": "tsx scripts/generate-framework-declarations.ts",
-    "build": "we-banner && pnpm build:cem && pnpm run clean && rollup -c && pnpm build:declarations",
+    "build:steps": "pnpm build:cem && pnpm run clean && rollup -c && pnpm build:declarations",
+    "build": "we-build",
     "start": "pnpm build:cem && storybook dev -p 6006",
     "storybook:build": "storybook build",
     "publish": "npm publish --access public"

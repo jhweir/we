@@ -27,6 +27,7 @@
     "esbuild-plugin-solid": "^0.6.0"
   },
   "scripts": {
-    "build": "we-banner && tsup --config tsup.config.ts"
+    "build:steps": "tsup --config tsup.config.ts",
+    "build": "we-build"
   }
 }

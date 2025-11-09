@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: { 'print-banner': 'scripts/print-banner.ts' },
+  entry: { 'we-build': 'scripts/we-build.ts', 'we-banner': 'scripts/we-banner.ts' },
   format: ['esm'],
   dts: true,
   sourcemap: true,

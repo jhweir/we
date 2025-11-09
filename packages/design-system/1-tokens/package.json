@@ -36,7 +36,8 @@
     "clean": "rimraf dist",
     "build:plugin": "esbuild plugins/css-generator.ts --outfile=dist/plugins/css-generator.js --format=esm --platform=node",
     "build:tokens": "rollup -c",
-    "build": "we-banner && pnpm run clean && pnpm run build:plugin && pnpm run build:tokens"
+    "build:steps": "pnpm run clean && pnpm run build:plugin && pnpm run build:tokens",
+    "build": "we-build"
   },
   "devDependencies": {
     "@we/cli": "workspace:*",

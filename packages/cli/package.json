@@ -7,7 +7,8 @@
     "dist"
   ],
   "bin": {
-    "we-banner": "./dist/print-banner.js"
+    "we-build": "./dist/we-build.js",
+    "we-banner": "./dist/we-banner.js"
   },
   "exports": {
     ".": {
@@ -21,7 +22,8 @@
     "typescript": "^5.7.2"
   },
   "scripts": {
-    "prepare": "tsup --config tsup.config.ts",
-    "build": "[ -f ./dist/print-banner.js ] && node ./dist/print-banner.js; tsup --config tsup.config.ts"
+    "prepare": "pnpm run build:steps",
+    "build:steps": "tsup --config tsup.config.ts",
+    "build": "[ -f ./dist/we-build.js ] && node ./dist/we-build.js || pnpm run build:steps"
   }
 }

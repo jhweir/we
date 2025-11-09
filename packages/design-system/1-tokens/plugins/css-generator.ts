@@ -26,9 +26,7 @@ export function cssGenerator(options: CssGeneratorOptions = {}): Plugin {
     writeBundle: async (outputOptions) => {
       try {
         // Ensure output directory exists
-        if (!fs.existsSync(outputDir)) {
-          fs.mkdirSync(outputDir, { recursive: true });
-        }
+        if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
         // Import the compiled tokens dynamically
         const indexFile = path.resolve(outputOptions.dir || 'dist', 'index.js');
@@ -50,7 +48,7 @@ export function cssGenerator(options: CssGeneratorOptions = {}): Plugin {
         // Generate combined index file
         generateCombinedCSS(outputDir);
 
-        console.log('✅ CSS files generated successfully');
+        console.log('CSS files generated successfully');
       } catch (error) {
         console.error('❌ Failed to generate CSS:', error);
         throw error;

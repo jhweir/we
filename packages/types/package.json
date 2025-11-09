@@ -14,7 +14,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "we-banner && tsc --project tsconfig.json"
+    "build:steps": "tsc --project tsconfig.json",
+    "build": "we-build"
   },
   "keywords": [
     "types",

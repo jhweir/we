@@ -22,7 +22,8 @@
   "scripts": {
     "clean": "rimraf dist",
     "build:css": "postcss 'src/**/index.css' --base src --dir dist",
-    "build": "we-banner && pnpm run clean && pnpm run build:css"
+    "build:steps": "pnpm run clean && pnpm run build:css",
+    "build": "we-build"
   },
   "peerDependencies": {
     "@we/tokens": "workspace:*"

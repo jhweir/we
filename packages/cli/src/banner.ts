@@ -4,11 +4,8 @@ export async function printBuildBanner(pkg: { name: string; version: string }) {
   const green = '\x1b[32m';
   const bold = '\x1b[1m';
   const reset = '\x1b[0m';
-  //   const greenBg = '\x1b[102m';
-  //   const blue = '\x1b[34m';
-  //   const purple = '\x1b[35m';
-  //   const cyan = '\x1b[36m';
 
+  // Emojis
   // 🚀 🌎 🌌 👨‍💻 ✨ 🏗
 
   // Calculate padding and box dimensions
@@ -22,12 +19,8 @@ export async function printBuildBanner(pkg: { name: string; version: string }) {
 
   // Print the banner
   console.log(
-    `
-${green}
-╔${'═'.repeat(boxWidth)}╗
+    `${green}╔${'═'.repeat(boxWidth)}╗
 ║${displayContent}║
-╚${'═'.repeat(boxWidth)}╝
-${reset}
-  `,
+╚${'═'.repeat(boxWidth)}╝${reset}`,
   );
 }

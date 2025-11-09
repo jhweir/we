@@ -45,6 +45,7 @@
   },
   "scripts": {
     "build:css": "sass src/styles/index.scss dist/styles/index.css --no-source-map --style=compressed",
-    "build": "we-banner && tsup --config tsup.config.ts && pnpm build:css"
+    "build:steps": "tsup --config tsup.config.ts && pnpm build:css",
+    "build": "we-build"
   }
 }

@@ -17,7 +17,8 @@
   ],
   "scripts": {
     "clean": "rimraf dist",
-    "build": "we-banner && pnpm run clean && tsc --project tsconfig.json"
+    "build:steps": "pnpm run clean && tsc --project tsconfig.json",
+    "build": "we-build"
   },
   "keywords": [
     "adam",

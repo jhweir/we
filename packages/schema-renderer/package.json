@@ -32,6 +32,7 @@
     "typescript": "^5.7.2"
   },
   "scripts": {
-    "build": "we-banner && tsup --config tsup.config.ts"
+    "build:steps": "tsup --config tsup.config.ts",
+    "build": "we-build"
   }
 }
