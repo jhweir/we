@@ -549,7 +549,7 @@ export function testMutations(currentSchema: TemplateSchema, setCurrentSchema: S
         r: 'pill',
         onClick: { $action: 'routeStore.navigate', args: ['/new'] },
         styles: { height: '50px' },
-        hover: { bg: 'ui-100', styles: { height: '100px' } },
+        hoverProps: { bg: 'ui-100', styles: { height: '100px' } },
       },
       children: [
         {

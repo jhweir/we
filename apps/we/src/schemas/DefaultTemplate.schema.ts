@@ -173,7 +173,7 @@ export const defaultTemplateSchema: TemplateSchema = {
           children: [
             {
               type: 'Row',
-              props: { bg: 'ui-200', ay: 'center', gap: '400', px: '400', style: { height: '60px' } },
+              props: { bg: 'ui-200', ay: 'center', gap: '400', px: '400', height: '60px' },
               children: [
                 {
                   type: 'we-button',

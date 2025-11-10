@@ -4,7 +4,7 @@ const border = '1px solid var(--we-color-ui-50)';
 
 const sidebarLeft = {
   type: 'Column',
-  props: { bg: 'ui-0', py: '400', pr: '600', gap: '300', width: '275px', height: '100%' },
+  props: { ax: 'start', bg: 'ui-0', py: '400', pr: '600', gap: '300', width: '275px', height: '100%' },
   children: [
     {
       type: 'we-button',
@@ -13,7 +13,7 @@ const sidebarLeft = {
         r: 'full',
         bg: 'ui-0',
         color: 'ui-1000',
-        hover: { bg: 'ui-100' },
+        hoverProps: { bg: 'ui-100' },
         onClick: { $action: 'routeStore.navigate', args: ['/'] },
       },
       children: [{ type: 'we-icon', props: { name: 'x-logo', size: 'lg' } }],
@@ -45,7 +45,7 @@ const sidebarLeft = {
             r: 'pill',
             bg: 'ui-0',
             height: '50px',
-            hover: { bg: 'ui-100' },
+            hoverProps: { bg: 'ui-100' },
             onClick: { $action: 'routeStore.navigate', args: [{ $expr: 'button.path' }] },
           },
           children: [
@@ -89,7 +89,10 @@ const sidebarLeft = {
         bg: 'ui-1000',
         width: '100%',
         height: '50px',
-        hover: { bg: 'ui-800' },
+        // m: '400',
+        // p: '900',
+        hoverProps: { bg: 'ui-800', width: '50%' },
+        // hoverProps: { bg: 'ui-800', width: '100%' },
         onClick: { $action: 'routeStore.navigate', args: ['/post'] },
       },
       children: [
@@ -111,7 +114,7 @@ const centerContent = {
 
 const sidebarRight = {
   type: 'Column',
-  props: { gap: '300', p: '500', width: '350px', height: '100%' },
+  props: { ax: 'start', gap: '300', p: '500', width: '350px', height: '100%' },
   children: [
     {
       type: 'we-button',
@@ -120,7 +123,7 @@ const sidebarRight = {
     },
     {
       type: 'we-button',
-      props: { height: '60px', hover: { height: '80px' } },
+      props: { height: '60px', hoverProps: { height: '80px' } },
       children: ['Hover Button'],
     },
     {
@@ -159,8 +162,10 @@ export const twitterTemplateSchema: TemplateSchema = {
           type: 'we-tabs',
           props: {
             activeKey: { $store: 'routeStore.currentPath' },
-            width: '100%',
+            width: '50%',
             height: '50px',
+            // ax: 'start',
+            // ay: 'start',
           },
           children: [
             {
@@ -168,12 +173,11 @@ export const twitterTemplateSchema: TemplateSchema = {
               slot: 'tab',
               props: {
                 label: 'For you',
-                // r: 'pill',
-                // rt: 'md',
                 key: '/',
+                // width: '50%',
+                hoverProps: { bg: 'ui-500' },
                 onClick: { $action: 'routeStore.navigate', args: ['/'] },
-                // styles: { height: '50px' },
-                hover: { bg: 'ui-500' },
+                // style: { flex: 1 },
               },
             },
             {
@@ -182,8 +186,10 @@ export const twitterTemplateSchema: TemplateSchema = {
               props: {
                 label: 'Following',
                 key: '/following',
+                // width: '50%',
+                hoverProps: { bg: 'ui-500' },
                 onClick: { $action: 'routeStore.navigate', args: ['/following'] },
-                // styles: { height: '50px' },
+                // style: { flex: 1 },
               },
             },
           ],
