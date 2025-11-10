@@ -14,11 +14,19 @@ export class BaseElement extends LitElement {
     setDesignSystemVars(this, props);
 
     // Hover styles
-    const hoverProps = props.hover as DesignSystemProps;
+    const hoverProps = props.hoverProps as DesignSystemProps;
     if (hoverProps && typeof hoverProps === 'object') setDesignSystemVars(this, hoverProps, 'hover');
 
     // Active styles
-    const activeProps = props.active as DesignSystemProps;
+    const activeProps = props.activeProps as DesignSystemProps;
     if (activeProps && typeof activeProps === 'object') setDesignSystemVars(this, activeProps, 'active');
+
+    // Focus styles
+    const focusProps = props.focusProps as DesignSystemProps;
+    if (focusProps && typeof focusProps === 'object') setDesignSystemVars(this, focusProps, 'focus');
+
+    // Disabled styles
+    const disabledProps = props.disabledProps as DesignSystemProps;
+    if (disabledProps && typeof disabledProps === 'object') setDesignSystemVars(this, disabledProps, 'disabled');
   }
 }

@@ -7,7 +7,10 @@ import {
   getMarginValues,
   getPaddingValues,
   getRadiusValues,
+  mapFlexAxes,
 } from '@we/design-system-utils';
+
+type ElementState = 'hover' | 'active' | 'focus' | 'disabled';
 
 // Helper to update or remove a style property
 function updateStyle(el: HTMLElement, prop: string, value?: string) {
@@ -27,8 +30,9 @@ export function setDesignSystemVars(el: HTMLElement, props: DesignSystemProps, t
   updateStyle(el, `${prefix}height`, props.height);
   updateStyle(el, `${prefix}width`, props.width);
   updateStyle(el, `${prefix}direction`, props.direction);
-  updateStyle(el, `${prefix}ax`, props.ax);
-  updateStyle(el, `${prefix}ay`, props.ay);
+  const { main, cross } = mapFlexAxes(props, props.direction ?? 'row');
+  updateStyle(el, `${prefix}main-axis`, main);
+  updateStyle(el, `${prefix}cross-axis`, cross);
   updateStyle(el, `${prefix}wrap`, 'wrap' in props ? (props.wrap ? 'wrap' : 'nowrap') : undefined);
   updateStyle(el, `${prefix}gap`, props.gap ? tokenVar('space', props.gap) : undefined);
 
@@ -45,39 +49,82 @@ export function setDesignSystemVars(el: HTMLElement, props: DesignSystemProps, t
   updateStyle(el, `${prefix}radius`, hasRadius ? getRadiusValues(props) : undefined);
 }
 
-// Generate base CSS variables for design system props
-export function baseCssVars() {
+// Generate design system styles for Lit components
+export function hostStyles() {
   return `
-    background: var(--we-bg);
-    color: var(--we-color);
+    display: flex;
+    transition: all 0.2s;
+
     width: var(--we-width);
     height: var(--we-height);
+    margin: var(--we-margin);
+  `;
+}
+
+export function hostStateStyles(state: ElementState) {
+  const prefix = `--we-${state}-`;
+  return `
+      width: var(${prefix}width, var(--we-width));
+      height: var(${prefix}height, var(--we-height));
+      margin: var(${prefix}margin, var(--we-margin));
+  `;
+}
+
+export function baseStyles() {
+  return `
+    display: flex;
+    width: 100%;
+    height: 100%;
+    transition: all 0.2s;
+
+    background: var(--we-bg);
+    color: var(--we-color);
     flex-direction: var(--we-direction);
-    justify-content: var(--we-ax);
-    align-items: var(--we-ay);
+    justify-content: var(--we-main-axis);
+    align-items: var(--we-cross-axis);
     flex-wrap: var(--we-wrap);
     gap: var(--we-gap);
-    margin: var(--we-margin);
     padding: var(--we-padding);
     border-radius: var(--we-radius);
   `;
 }
 
-// Generate CSS variables for a specific state (hover, active etc.)
-export function stateCssVars(state: 'hover' | 'active') {
+export function baseStateStyles(state: ElementState) {
   const prefix = `--we-${state}-`;
   return `
     background: var(${prefix}bg, var(--we-bg));
     color: var(${prefix}color, var(--we-color));
-    width: var(${prefix}width, var(--we-width));
-    height: var(${prefix}height, var(--we-height));
     flex-direction: var(${prefix}direction, var(--we-direction));
-    justify-content: var(${prefix}ax, var(--we-ax));
-    align-items: var(${prefix}ay, var(--we-ay));
+    justify-content: var(${prefix}main-axis, var(--we-main-axis));
+    align-items: var(${prefix}cross-axis, var(--we-cross-axis));
     flex-wrap: var(${prefix}wrap, var(--we-wrap));
     gap: var(${prefix}gap, var(--we-gap));
-    margin: var(${prefix}margin, var(--we-margin));
     padding: var(${prefix}padding, var(--we-padding));
     border-radius: var(${prefix}radius, var(--we-radius));
+  `;
+}
+
+export function designSystemStyles(states: Array<ElementState> = ['hover']) {
+  const hostStateCss = states
+    .map((state) =>
+      state === 'disabled'
+        ? `:host([disabled]) {${hostStateStyles('disabled')}}`
+        : `:host(:${state}) {${hostStateStyles(state)}}`,
+    )
+    .join('\n');
+
+  const baseStateCss = states
+    .map((state) =>
+      state === 'disabled'
+        ? `[part='base']:disabled,\n[part='base'][aria-disabled='true'] {${baseStateStyles('disabled')}}`
+        : `[part='base']:${state}:not(:disabled),\n[part='base']:${state}:not([aria-disabled='true']) {${baseStateStyles(state)}}`,
+    )
+    .join('\n');
+
+  return `
+    :host {${hostStyles()}}
+    ${hostStateCss}
+    [part='base'] {${baseStyles()}}
+    ${baseStateCss}
   `;
 }

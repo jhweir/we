@@ -4,22 +4,13 @@ import { styleMap } from 'lit/directives/style-map.js';
 import sharedStyles from '../shared/styles';
 import { BaseElement } from '../shared/base-element';
 import type { DesignSystemProps } from '@we/types';
-import { baseCssVars, stateCssVars } from '../shared/helpers';
+import { designSystemStyles } from '../shared/helpers';
 import { mergeProps } from '@we/design-system-utils';
 
 const DEFAULT_PROPS: Partial<DesignSystemProps> = {};
 
 const CSS_STYLES = css`
-  :host {
-    display: flex;
-  }
-  .tabs {
-    display: flex;
-    ${unsafeCSS(baseCssVars())}
-  }
-  .tabs:hover {
-    ${unsafeCSS(stateCssVars('hover'))}
-  }
+  ${unsafeCSS(designSystemStyles(['hover', 'active', 'focus', 'disabled']))}
 `;
 
 @customElement('we-tabs')
@@ -63,8 +54,10 @@ export class Tabs extends BaseElement implements DesignSystemProps {
   @property({ type: String }) rtr?: DesignSystemProps['rtr'];
   @property({ type: String }) rbr?: DesignSystemProps['rbr'];
   @property({ type: String }) rbl?: DesignSystemProps['rbl'];
-  @property({ type: Object }) hover?: DesignSystemProps['hover'];
-  @property({ type: Object }) active?: DesignSystemProps['active'];
+  @property({ type: Object, attribute: false }) hoverProps?: DesignSystemProps['hoverProps'];
+  @property({ type: Object, attribute: false }) activeProps?: DesignSystemProps['activeProps'];
+  @property({ type: Object, attribute: false }) focusProps?: DesignSystemProps['focusProps'];
+  @property({ type: Object, attribute: false }) disabledProps?: DesignSystemProps['disabledProps'];
 
   @queryAssignedElements({ slot: 'tab' }) _tabs!: HTMLElement[];
 
@@ -73,6 +66,7 @@ export class Tabs extends BaseElement implements DesignSystemProps {
   }
 
   updated() {
+    super.updated();
     // Set selected state on tabs
     this._tabs?.forEach((tab) => {
       (tab as any).selected = (tab as any).active === this.activeKey;
@@ -87,7 +81,7 @@ export class Tabs extends BaseElement implements DesignSystemProps {
   render() {
     const inlineStyles = this.styles || {};
     return html`
-      <nav class="tabs" role="tablist" style=${styleMap(inlineStyles)}>
+      <nav part="base" role="tablist" style=${styleMap(inlineStyles)}>
         <slot name="tab" @tab-select=${this.onTabSelect}></slot>
       </nav>
     `;

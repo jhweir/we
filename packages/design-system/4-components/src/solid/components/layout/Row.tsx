@@ -1,6 +1,6 @@
 import { designSystemKeys, mergeProps } from '@we/design-system-utils';
 import { buildLayoutStyles, type LayoutProps } from '@we/solid-utils';
-import { FlexCrossAxis, FlexMainAxis } from 'packages/types/dist';
+import type { FlexCrossAxis, FlexMainAxis } from '@we/types';
 import { createMemo, splitProps } from 'solid-js';
 
 export type RowProps = Omit<LayoutProps, 'ax' | 'ay'> & { ax?: FlexMainAxis; ay?: FlexCrossAxis };

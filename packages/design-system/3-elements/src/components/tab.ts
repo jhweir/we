@@ -4,36 +4,24 @@ import { styleMap } from 'lit/directives/style-map.js';
 import sharedStyles from '../shared/styles';
 import { BaseElement } from '../shared/base-element';
 import type { DesignSystemProps } from '@we/types';
-import { baseCssVars, stateCssVars } from '../shared/helpers';
+import { designSystemStyles } from '../shared/helpers';
 import { mergeProps } from '@we/design-system-utils';
 
 const DEFAULT_PROPS: Partial<DesignSystemProps> = { rt: 'md', py: '200', px: '300' };
 
 const CSS_STYLES = css`
   :host {
-    display: flex;
     white-space: nowrap;
-    height: 100%;
   }
-  button {
+
+  [part='base'] {
     all: unset;
-    display: flex;
+    box-sizing: border-box;
     cursor: pointer;
+  }
 
-    ${unsafeCSS(baseCssVars())}
-  }
-  button[active] {
-    background: var(--we-bg-active, var(--we-color-primary-50));
-    color: var(--we-color-active, var(--we-color-primary-600));
-    font-weight: var(--we-font-weight-active, 600);
-  }
-  button:hover:not([active]) {
-    ${unsafeCSS(stateCssVars('hover'))}
-  }
+  ${unsafeCSS(designSystemStyles(['hover', 'active', 'focus', 'disabled']))}
 `;
-
-// background: var(--we-bg-hover, var(--we-color-ui-100));
-// color: var(--we-color-hover, var(--we-color-primary-700));
 
 @customElement('we-tab')
 export class Tab extends BaseElement implements DesignSystemProps {
@@ -41,6 +29,7 @@ export class Tab extends BaseElement implements DesignSystemProps {
 
   // Tab specific props
   @property({ type: String, reflect: true }) key = '';
+  @property({ type: Boolean, reflect: true }) active = false;
   @property({ type: String }) label?: string;
   @property({ type: Object }) onClick?: any;
   @property({ type: Object }) styles?: Record<string, string | number | undefined>;
@@ -78,8 +67,10 @@ export class Tab extends BaseElement implements DesignSystemProps {
   @property({ type: String }) rtr?: DesignSystemProps['rtr'];
   @property({ type: String }) rbr?: DesignSystemProps['rbr'];
   @property({ type: String }) rbl?: DesignSystemProps['rbl'];
-  @property({ type: Object }) hover?: DesignSystemProps['hover'];
-  @property({ type: Object }) active?: DesignSystemProps['active'];
+  @property({ type: Object, attribute: false }) hoverProps?: DesignSystemProps['hoverProps'];
+  @property({ type: Object, attribute: false }) activeProps?: DesignSystemProps['activeProps'];
+  @property({ type: Object, attribute: false }) focusProps?: DesignSystemProps['focusProps'];
+  @property({ type: Object, attribute: false }) disabledProps?: DesignSystemProps['disabledProps'];
 
   getDesignSystemProps(): DesignSystemProps {
     return mergeProps(this as Record<string, unknown>, DEFAULT_PROPS);
@@ -97,6 +88,7 @@ export class Tab extends BaseElement implements DesignSystemProps {
     const inlineStyles = this.styles || {};
     return html`
       <button
+        part="base"
         role="tab"
         ?active=${this.active}
         aria-selected=${this.active}

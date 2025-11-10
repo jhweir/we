@@ -4,7 +4,7 @@ import { styleMap } from 'lit/directives/style-map.js';
 import sharedStyles from '../shared/styles';
 import { BaseElement } from '../shared/base-element';
 import type { DesignSystemProps } from '@we/types';
-import { baseCssVars, stateCssVars } from '../shared/helpers';
+import { designSystemStyles } from '../shared/helpers';
 import { mergeProps } from '@we/design-system-utils';
 
 const DEFAULT_PROPS: Partial<DesignSystemProps> = {
@@ -20,29 +20,22 @@ const DEFAULT_PROPS: Partial<DesignSystemProps> = {
 
 const CSS_STYLES = css`
   :host {
-    display: flex;
     white-space: nowrap;
   }
 
-  button,
-  a {
+  [part='base'] {
     all: unset;
-    display: flex;
+    box-sizing: border-box;
     cursor: pointer;
-    transition: all 0.2s;
-    ${unsafeCSS(baseCssVars())}
   }
 
-  button:disabled,
-  a[aria-disabled='true'] {
+  [part='base']:disabled,
+  [part='base'][aria-disabled='true'] {
     opacity: 0.5;
     cursor: not-allowed;
   }
 
-  button:hover:not(:disabled),
-  a:hover:not([aria-disabled='true']) {
-    ${unsafeCSS(stateCssVars('hover'))}
-  }
+  ${unsafeCSS(designSystemStyles(['hover', 'active', 'focus', 'disabled']))}
 `;
 
 @customElement('we-button')
@@ -90,8 +83,10 @@ export default class Button extends BaseElement implements DesignSystemProps {
   @property({ type: String }) rtr?: DesignSystemProps['rtr'];
   @property({ type: String }) rbr?: DesignSystemProps['rbr'];
   @property({ type: String }) rbl?: DesignSystemProps['rbl'];
-  @property({ type: Object }) hover?: DesignSystemProps['hover'];
-  @property({ type: Object }) active?: DesignSystemProps['active'];
+  @property({ type: Object, attribute: false }) hoverProps?: DesignSystemProps['hoverProps'];
+  @property({ type: Object, attribute: false }) activeProps?: DesignSystemProps['activeProps'];
+  @property({ type: Object, attribute: false }) focusProps?: DesignSystemProps['focusProps'];
+  @property({ type: Object, attribute: false }) disabledProps?: DesignSystemProps['disabledProps'];
 
   // Merge button defaults with design system props
   getDesignSystemProps(): DesignSystemProps {

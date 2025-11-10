@@ -1,8 +1,8 @@
-import type { DesignSystemProps } from '@we/types';
+import type { DesignSystemProps, FlexDirection } from '@we/types';
 
 const colorKeys = ['bg', 'color'] as const;
 const layoutKeys = ['height', 'width', 'direction', 'ax', 'ay', 'wrap', 'gap'] as const;
-const styleKeys = ['hover', 'active', 'styles'] as const;
+const stateKeys = ['hoverProps', 'activeProps', 'focusProps', 'disabledProps'] as const;
 export const paddingKeys = ['p', 'px', 'py', 'pt', 'pr', 'pb', 'pl'] as const;
 export const marginKeys = ['m', 'mx', 'my', 'mt', 'mr', 'mb', 'ml'] as const;
 export const radiusKeys = ['r', 'rr', 'rt', 'rb', 'rl', 'rtl', 'rtr', 'rbr', 'rbl'] as const;
@@ -12,8 +12,20 @@ export const designSystemKeys = [
   ...paddingKeys,
   ...marginKeys,
   ...radiusKeys,
-  ...styleKeys,
+  ...stateKeys,
+  'styles',
 ];
+
+const flexMainAxisMap = {
+  start: 'flex-start',
+  center: 'center',
+  end: 'flex-end',
+  between: 'space-between',
+  around: 'space-around',
+  even: 'space-evenly',
+} as const;
+
+const flexCrossAxisMap = { start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch' } as const;
 
 function isHexColor(value: string): boolean {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value);
@@ -103,4 +115,17 @@ export function mergeProps(
   }
 
   return merged;
+}
+
+// Map flex axes based on direction
+export function mapFlexAxes(props: DesignSystemProps, direction: FlexDirection) {
+  const isRow = direction.includes('row');
+  const mainKey = isRow ? props.ax : props.ay;
+  const crossKey = isRow ? props.ay : props.ax;
+
+  return {
+    direction,
+    main: flexMainAxisMap[mainKey as keyof typeof flexMainAxisMap],
+    cross: flexCrossAxisMap[crossKey as keyof typeof flexCrossAxisMap],
+  };
 }

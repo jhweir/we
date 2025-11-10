@@ -578,19 +578,31 @@
             },
             {
               "kind": "field",
-              "name": "hover",
+              "name": "hoverProps",
               "type": {
-                "text": "DesignSystemProps['hover'] | undefined"
-              },
-              "attribute": "hover"
+                "text": "DesignSystemProps['hoverProps'] | undefined"
+              }
             },
             {
               "kind": "field",
-              "name": "active",
+              "name": "activeProps",
               "type": {
-                "text": "DesignSystemProps['active'] | undefined"
-              },
-              "attribute": "active"
+                "text": "DesignSystemProps['activeProps'] | undefined"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "focusProps",
+              "type": {
+                "text": "DesignSystemProps['focusProps'] | undefined"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "disabledProps",
+              "type": {
+                "text": "DesignSystemProps['disabledProps'] | undefined"
+              }
             },
             {
               "kind": "method",
@@ -893,20 +905,6 @@
                 "text": "DesignSystemProps['rbl'] | undefined"
               },
               "fieldName": "rbl"
-            },
-            {
-              "name": "hover",
-              "type": {
-                "text": "DesignSystemProps['hover'] | undefined"
-              },
-              "fieldName": "hover"
-            },
-            {
-              "name": "active",
-              "type": {
-                "text": "DesignSystemProps['active'] | undefined"
-              },
-              "fieldName": "active"
             }
           ],
           "superclass": {
@@ -2256,6 +2254,16 @@
             },
             {
               "kind": "field",
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "active",
+              "reflects": true
+            },
+            {
+              "kind": "field",
               "name": "label",
               "type": {
                 "text": "string | undefined"
@@ -2528,19 +2536,35 @@
             },
             {
               "kind": "field",
-              "name": "hover",
+              "name": "hoverProps",
               "type": {
-                "text": "DesignSystemProps['hover'] | undefined"
+                "text": "DesignSystemProps['hoverProps'] | undefined"
               },
-              "attribute": "hover"
+              "attribute": "hoverProps"
             },
             {
               "kind": "field",
-              "name": "active",
+              "name": "activeProps",
               "type": {
-                "text": "DesignSystemProps['active'] | undefined"
+                "text": "DesignSystemProps['activeProps'] | undefined"
               },
-              "attribute": "active"
+              "attribute": "activeProps"
+            },
+            {
+              "kind": "field",
+              "name": "focusProps",
+              "type": {
+                "text": "DesignSystemProps['focusProps'] | undefined"
+              },
+              "attribute": "focusProps"
+            },
+            {
+              "kind": "field",
+              "name": "disabledProps",
+              "type": {
+                "text": "DesignSystemProps['disabledProps'] | undefined"
+              },
+              "attribute": "disabledProps"
             },
             {
               "kind": "method",
@@ -2585,6 +2609,14 @@
               },
               "default": "''",
               "fieldName": "key"
+            },
+            {
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "active"
             },
             {
               "name": "label",
@@ -2833,18 +2865,32 @@
               "fieldName": "rbl"
             },
             {
-              "name": "hover",
+              "name": "hoverProps",
               "type": {
-                "text": "DesignSystemProps['hover'] | undefined"
+                "text": "DesignSystemProps['hoverProps'] | undefined"
               },
-              "fieldName": "hover"
+              "fieldName": "hoverProps"
             },
             {
-              "name": "active",
+              "name": "activeProps",
               "type": {
-                "text": "DesignSystemProps['active'] | undefined"
+                "text": "DesignSystemProps['activeProps'] | undefined"
               },
-              "fieldName": "active"
+              "fieldName": "activeProps"
+            },
+            {
+              "name": "focusProps",
+              "type": {
+                "text": "DesignSystemProps['focusProps'] | undefined"
+              },
+              "fieldName": "focusProps"
+            },
+            {
+              "name": "disabledProps",
+              "type": {
+                "text": "DesignSystemProps['disabledProps'] | undefined"
+              },
+              "fieldName": "disabledProps"
             }
           ],
           "superclass": {
@@ -3158,19 +3204,35 @@
             },
             {
               "kind": "field",
-              "name": "hover",
+              "name": "hoverProps",
               "type": {
-                "text": "DesignSystemProps['hover'] | undefined"
+                "text": "DesignSystemProps['hoverProps'] | undefined"
               },
-              "attribute": "hover"
+              "attribute": "hoverProps"
             },
             {
               "kind": "field",
-              "name": "active",
+              "name": "activeProps",
               "type": {
-                "text": "DesignSystemProps['active'] | undefined"
+                "text": "DesignSystemProps['activeProps'] | undefined"
               },
-              "attribute": "active"
+              "attribute": "activeProps"
+            },
+            {
+              "kind": "field",
+              "name": "focusProps",
+              "type": {
+                "text": "DesignSystemProps['focusProps'] | undefined"
+              },
+              "attribute": "focusProps"
+            },
+            {
+              "kind": "field",
+              "name": "disabledProps",
+              "type": {
+                "text": "DesignSystemProps['disabledProps'] | undefined"
+              },
+              "attribute": "disabledProps"
             },
             {
               "kind": "field",
@@ -3456,18 +3518,32 @@
               "fieldName": "rbl"
             },
             {
-              "name": "hover",
+              "name": "hoverProps",
               "type": {
-                "text": "DesignSystemProps['hover'] | undefined"
+                "text": "DesignSystemProps['hoverProps'] | undefined"
               },
-              "fieldName": "hover"
+              "fieldName": "hoverProps"
             },
             {
-              "name": "active",
+              "name": "activeProps",
               "type": {
-                "text": "DesignSystemProps['active'] | undefined"
+                "text": "DesignSystemProps['activeProps'] | undefined"
               },
-              "fieldName": "active"
+              "fieldName": "activeProps"
+            },
+            {
+              "name": "focusProps",
+              "type": {
+                "text": "DesignSystemProps['focusProps'] | undefined"
+              },
+              "fieldName": "focusProps"
+            },
+            {
+              "name": "disabledProps",
+              "type": {
+                "text": "DesignSystemProps['disabledProps'] | undefined"
+              },
+              "fieldName": "disabledProps"
             }
           ],
           "superclass": {
@@ -3891,16 +3967,45 @@
         },
         {
           "kind": "function",
-          "name": "baseCssVars"
+          "name": "hostStyles"
         },
         {
           "kind": "function",
-          "name": "stateCssVars",
+          "name": "hostStateStyles",
           "parameters": [
             {
               "name": "state",
               "type": {
-                "text": "'hover' | 'active'"
+                "text": "ElementState"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "baseStyles"
+        },
+        {
+          "kind": "function",
+          "name": "baseStateStyles",
+          "parameters": [
+            {
+              "name": "state",
+              "type": {
+                "text": "ElementState"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "designSystemStyles",
+          "parameters": [
+            {
+              "name": "states",
+              "default": "['hover']",
+              "type": {
+                "text": "Array<ElementState>"
               }
             }
           ]
@@ -3917,17 +4022,41 @@
         },
         {
           "kind": "js",
-          "name": "baseCssVars",
+          "name": "hostStyles",
           "declaration": {
-            "name": "baseCssVars",
+            "name": "hostStyles",
             "module": "src/shared/helpers.ts"
           }
         },
         {
           "kind": "js",
-          "name": "stateCssVars",
+          "name": "hostStateStyles",
           "declaration": {
-            "name": "stateCssVars",
+            "name": "hostStateStyles",
+            "module": "src/shared/helpers.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "baseStyles",
+          "declaration": {
+            "name": "baseStyles",
+            "module": "src/shared/helpers.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "baseStateStyles",
+          "declaration": {
+            "name": "baseStateStyles",
+            "module": "src/shared/helpers.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "designSystemStyles",
+          "declaration": {
+            "name": "designSystemStyles",
             "module": "src/shared/helpers.ts"
           }
         }
