@@ -202,3 +202,15 @@ export function resolveProps(props: Props | undefined, stores: Props, context: P
     resolvedProps[key] = resolveProp(value, stores, context, memo);
   return resolvedProps;
 }
+
+// Splits props into safe (primitive) and complex (object/array) props
+export function splitProps(all: Record<string, unknown>) {
+  const safe: Record<string, unknown> = {};
+  const complex: Record<string, unknown> = {};
+
+  for (const [k, v] of Object.entries(all)) {
+    if (v === null || ['boolean', 'string', 'number', 'function'].includes(typeof v)) safe[k] = v;
+    else complex[k] = v;
+  }
+  return { safeProps: safe, complexProps: complex };
+}

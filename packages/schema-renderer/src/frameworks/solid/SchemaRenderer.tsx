@@ -2,7 +2,7 @@ import { batch, createEffect, createMemo, For, JSX, Show } from 'solid-js';
 import { createStore, produce } from 'solid-js/store';
 import { Dynamic } from 'solid-js/web';
 
-import { resolveProp, resolveProps } from '../../shared/propResolvers';
+import { resolveProp, resolveProps, splitProps } from '../../shared/propResolvers';
 import type { RendererOutput, RenderProps, SchemaNode } from './types';
 
 export function RenderSchema({ node, stores, registry, context = {}, children }: RenderProps): RendererOutput {
@@ -111,17 +111,21 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
   const component = createMemo(() => registry[node.type ?? '']);
   if (!component()) throw new Error(`Schema node has unknown type "${node.type}".`);
 
-  // TODO: clean up
+  // Split resolved props into safe props and complex props that need to be set directly on the DOM element for web components
+  let hostRef: (HTMLElement & Record<string, unknown>) | undefined;
+  const { safeProps, complexProps } = splitProps(resolveProps(node.props, stores, context, createMemo));
+  createEffect(() => {
+    if (!hostRef) return;
+    for (const [k, v] of Object.entries(complexProps)) hostRef[k] = v;
+  });
+
+  // Merge all props together
   const slotProp = node.slot ? { slot: node.slot } : {};
+  const mergedProps = { ...safeProps, ...slotProp, ...slotElements };
 
   // Return the rendered component with its resolved props, slots, and children
   return (
-    <Dynamic
-      component={component()}
-      {...resolveProps(node.props, stores, context, createMemo)}
-      {...slotElements}
-      {...slotProp}
-    >
+    <Dynamic ref={hostRef} component={component()} {...mergedProps}>
       {renderChildren(node.children)}
     </Dynamic>
   );
