@@ -2,7 +2,7 @@ import type { DesignSystemProps, FlexDirection } from '@we/types';
 
 const colorKeys = ['bg', 'color'] as const;
 const layoutKeys = ['height', 'width', 'direction', 'ax', 'ay', 'wrap', 'gap'] as const;
-const stateKeys = ['hoverProps', 'activeProps', 'focusProps', 'disabledProps'] as const;
+export const stateKeys = ['hoverProps', 'activeProps', 'focusProps', 'disabledProps'] as const;
 export const paddingKeys = ['p', 'px', 'py', 'pt', 'pr', 'pb', 'pl'] as const;
 export const marginKeys = ['m', 'mx', 'my', 'mt', 'mr', 'mb', 'ml'] as const;
 export const radiusKeys = ['r', 'rr', 'rt', 'rb', 'rl', 'rtl', 'rtr', 'rbr', 'rbl'] as const;
@@ -14,7 +14,7 @@ export const designSystemKeys = [
   ...radiusKeys,
   ...stateKeys,
   'styles',
-];
+] as const;
 
 const flexMainAxisMap = {
   start: 'flex-start',
@@ -69,49 +69,50 @@ export function getRadiusValues(props: DesignSystemProps) {
   ].join(' ');
 }
 
-// Helper to merge props with component specific defaults with the correct precedence
+// Filter props based on allowed keys
+export function filterProps(source: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
+  return Object.fromEntries(keys.filter((key) => source[key] !== undefined).map((key) => [key, source[key]]));
+}
+
+// Merge props with the correct design system precedence
 export function mergeProps(
-  props: Record<string, unknown>,
-  defaults: Record<string, unknown>,
-  keys: readonly string[] = designSystemKeys,
-): DesignSystemProps {
-  // Select used props from the instance
-  const usedProps = Object.fromEntries(keys.filter((key) => props[key] !== undefined).map((key) => [key, props[key]]));
+  primary: Record<string, unknown>,
+  secondary: Record<string, unknown>,
+): Record<string, unknown> {
+  // Spread primary props over secondary props
+  const merged = { ...secondary, ...primary };
 
-  // Spread used props over defaults
-  const merged = { ...defaults, ...usedProps };
-
-  // Handle precedence so used generic props (m, p, r etc.) override specific defaults (mx, pt, rtl etc.)
-  // Margin
-  if (props.m !== undefined) {
-    if (props.mx === undefined) merged.mx = props.m;
-    if (props.my === undefined) merged.my = props.m;
-    if (props.mt === undefined) merged.mt = props.m;
-    if (props.mr === undefined) merged.mr = props.m;
-    if (props.mb === undefined) merged.mb = props.m;
-    if (props.ml === undefined) merged.ml = props.m;
+  // Ensure generic primary props (m, p, rt etc.) override specific secondary props (mx, pt, rtl etc.)
+  // Margin precedence
+  if (primary.m !== undefined) {
+    if (primary.mx === undefined) merged.mx = primary.m;
+    if (primary.my === undefined) merged.my = primary.m;
+    if (primary.mt === undefined) merged.mt = primary.m;
+    if (primary.mr === undefined) merged.mr = primary.m;
+    if (primary.mb === undefined) merged.mb = primary.m;
+    if (primary.ml === undefined) merged.ml = primary.m;
   }
 
-  // Padding
-  if (props.p !== undefined) {
-    if (props.px === undefined) merged.px = props.p;
-    if (props.py === undefined) merged.py = props.p;
-    if (props.pt === undefined) merged.pt = props.p;
-    if (props.pr === undefined) merged.pr = props.p;
-    if (props.pb === undefined) merged.pb = props.p;
-    if (props.pl === undefined) merged.pl = props.p;
+  // Padding precedence
+  if (primary.p !== undefined) {
+    if (primary.px === undefined) merged.px = primary.p;
+    if (primary.py === undefined) merged.py = primary.p;
+    if (primary.pt === undefined) merged.pt = primary.p;
+    if (primary.pr === undefined) merged.pr = primary.p;
+    if (primary.pb === undefined) merged.pb = primary.p;
+    if (primary.pl === undefined) merged.pl = primary.p;
   }
 
-  // Radius
-  if (props.r !== undefined) {
-    if (props.rtl === undefined) merged.rtl = props.r;
-    if (props.rtr === undefined) merged.rtr = props.r;
-    if (props.rbr === undefined) merged.rbr = props.r;
-    if (props.rbl === undefined) merged.rbl = props.r;
-    if (props.rt === undefined) merged.rt = props.r;
-    if (props.rb === undefined) merged.rb = props.r;
-    if (props.rl === undefined) merged.rl = props.r;
-    if (props.rr === undefined) merged.rr = props.r;
+  // Radius precedence
+  if (primary.r !== undefined) {
+    if (primary.rtl === undefined) merged.rtl = primary.r;
+    if (primary.rtr === undefined) merged.rtr = primary.r;
+    if (primary.rbr === undefined) merged.rbr = primary.r;
+    if (primary.rbl === undefined) merged.rbl = primary.r;
+    if (primary.rt === undefined) merged.rt = primary.r;
+    if (primary.rb === undefined) merged.rb = primary.r;
+    if (primary.rl === undefined) merged.rl = primary.r;
+    if (primary.rr === undefined) merged.rr = primary.r;
   }
 
   return merged;

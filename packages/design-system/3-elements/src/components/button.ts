@@ -1,144 +1,3 @@
-// import { css, html, unsafeCSS } from 'lit';
-// import { customElement, property } from 'lit/decorators.js';
-// import { styleMap } from 'lit/directives/style-map.js';
-// import sharedStyles from '../shared/styles';
-// import { BaseElement } from '../shared/base-element';
-// import type { DesignSystemProps } from '@we/types';
-// import { designSystemStyles } from '../shared/helpers';
-// import { mergeProps } from '@we/design-system-utils';
-
-// const DEFAULT_PROPS: Partial<DesignSystemProps> = {
-//   bg: 'primary-100',
-//   color: 'primary-800',
-//   r: 'md',
-//   px: '400',
-//   py: '200',
-//   ax: 'center',
-//   ay: 'center',
-//   gap: '300',
-// };
-
-// const CSS_STYLES = css`
-//   :host {
-//     white-space: nowrap;
-//   }
-
-//   [part='base'] {
-//     all: unset;
-//     box-sizing: border-box;
-//     cursor: pointer;
-//   }
-
-//   [part='base']:disabled,
-//   [part='base'][aria-disabled='true'] {
-//     opacity: 0.5;
-//     cursor: not-allowed;
-//   }
-
-//   ${unsafeCSS(designSystemStyles(['hover', 'focus', 'active', 'disabled']))}
-// `;
-
-// @customElement('we-button')
-// export default class Button extends BaseElement implements DesignSystemProps {
-//   static styles = [sharedStyles, CSS_STYLES];
-
-//   // Button props
-//   @property({ type: String }) text?: string;
-//   @property({ type: String }) href?: string;
-//   @property({ type: Boolean, reflect: true }) disabled = false;
-//   @property({ type: Boolean, reflect: true }) loading = false;
-//   @property({ type: Object }) styles?: Record<string, string | number | undefined>;
-//   @property({ attribute: false }) onClick: (event: MouseEvent) => void = () => {};
-
-//   // Design system props
-// @property({ type: String }) bg?: DesignSystemProps['bg'];
-// @property({ type: String }) color?: DesignSystemProps['color'];
-// @property({ type: String }) width?: DesignSystemProps['width'];
-// @property({ type: String }) height?: DesignSystemProps['height'];
-// @property({ type: String }) direction?: DesignSystemProps['direction'];
-// @property({ type: String }) ax?: DesignSystemProps['ax'];
-// @property({ type: String }) ay?: DesignSystemProps['ay'];
-// @property({ type: Boolean }) wrap?: DesignSystemProps['wrap'];
-// @property({ type: String }) gap?: DesignSystemProps['gap'];
-// @property({ type: String }) m?: DesignSystemProps['m'];
-// @property({ type: String }) ml?: DesignSystemProps['ml'];
-// @property({ type: String }) mr?: DesignSystemProps['mr'];
-// @property({ type: String }) mt?: DesignSystemProps['mt'];
-// @property({ type: String }) mb?: DesignSystemProps['mb'];
-// @property({ type: String }) mx?: DesignSystemProps['mx'];
-// @property({ type: String }) my?: DesignSystemProps['my'];
-// @property({ type: String }) p?: DesignSystemProps['p'];
-// @property({ type: String }) pl?: DesignSystemProps['pl'];
-// @property({ type: String }) pr?: DesignSystemProps['pr'];
-// @property({ type: String }) pt?: DesignSystemProps['pt'];
-// @property({ type: String }) pb?: DesignSystemProps['pb'];
-// @property({ type: String }) px?: DesignSystemProps['px'];
-// @property({ type: String }) py?: DesignSystemProps['py'];
-// @property({ type: String }) r?: DesignSystemProps['r'];
-// @property({ type: String }) rt?: DesignSystemProps['rt'];
-// @property({ type: String }) rb?: DesignSystemProps['rb'];
-// @property({ type: String }) rl?: DesignSystemProps['rl'];
-// @property({ type: String }) rr?: DesignSystemProps['rr'];
-// @property({ type: String }) rtl?: DesignSystemProps['rtl'];
-// @property({ type: String }) rtr?: DesignSystemProps['rtr'];
-// @property({ type: String }) rbr?: DesignSystemProps['rbr'];
-// @property({ type: String }) rbl?: DesignSystemProps['rbl'];
-// @property({ type: Object, attribute: false }) hoverProps?: DesignSystemProps['hoverProps'];
-// @property({ type: Object, attribute: false }) activeProps?: DesignSystemProps['activeProps'];
-// @property({ type: Object, attribute: false }) focusProps?: DesignSystemProps['focusProps'];
-// @property({ type: Object, attribute: false }) disabledProps?: DesignSystemProps['disabledProps'];
-
-//   // Merge button defaults with design system props
-//   getDesignSystemProps(): DesignSystemProps {
-//     return mergeProps(this as Record<string, unknown>, DEFAULT_PROPS);
-//   }
-
-//   private handleClick(event: MouseEvent) {
-//     if (this.disabled || this.loading) {
-//       event.preventDefault();
-//       event.stopPropagation();
-//     }
-//     this.dispatchEvent(new CustomEvent('button-click', { detail: event }));
-//   }
-
-//   renderContent() {
-//     return html`
-//       ${this.loading ? html`<we-spinner size="sm"></we-spinner>` : null}
-//       <slot name="start"></slot>
-//       ${this.text ? this.text : html`<slot></slot>`}
-//       <slot name="end"></slot>
-//     `;
-//   }
-
-//   render() {
-//     const inlineStyles = this.styles || {};
-
-//     if (this.href) {
-//       return html`
-//         <a
-//           part="base"
-//           href=${this.href}
-//           aria-disabled=${this.disabled || this.loading ? 'true' : 'false'}
-//           @click=${this.handleClick}
-//           style=${styleMap(inlineStyles)}
-//         >
-//           ${this.renderContent()}
-//         </a>
-//       `;
-//     }
-//     return html`
-//       <button
-//         part="base"
-//         ?disabled=${this.disabled || this.loading}
-//         @click=${this.handleClick}
-//         style=${styleMap(inlineStyles)}
-//       >
-//         ${this.renderContent()}
-//       </button>
-//     `;
-//   }
-// }
-
 import { html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
@@ -155,12 +14,11 @@ const DEFAULT_PROPS: Partial<DesignSystemProps> = {
   ax: 'center',
   ay: 'center',
   gap: '300',
-  // TODO: add opacity and cursor to design system?
-  // disabledProps: { opacity: 0.5, cursor: 'not-allowed' },
+  // TODO: add disabledProps: { opacity: '50', cursor: 'not-allowed'} when opacity and cursor are supported
 };
 
 @customElement('we-button')
-export default class Button extends BaseElement implements Partial<DesignSystemProps> {
+export default class Button extends BaseElement {
   static styles = [
     sharedStyles,
     css`
@@ -180,7 +38,6 @@ export default class Button extends BaseElement implements Partial<DesignSystemP
     `,
   ];
 
-  // Button‑specific props
   @property({ type: String }) text?: string;
   @property({ type: String }) href?: string;
   @property({ type: Boolean, reflect: true }) disabled = false;
@@ -188,45 +45,7 @@ export default class Button extends BaseElement implements Partial<DesignSystemP
   @property({ type: Object }) styles?: Record<string, string | number | undefined>;
   @property({ attribute: false }) onClick = () => {};
 
-  // Design‑system props
-  @property({ type: String }) bg?: DesignSystemProps['bg'];
-  @property({ type: String }) color?: DesignSystemProps['color'];
-  @property({ type: String }) width?: DesignSystemProps['width'];
-  @property({ type: String }) height?: DesignSystemProps['height'];
-  @property({ type: String }) direction?: DesignSystemProps['direction'];
-  @property({ type: String }) ax?: DesignSystemProps['ax'];
-  @property({ type: String }) ay?: DesignSystemProps['ay'];
-  @property({ type: Boolean }) wrap?: DesignSystemProps['wrap'];
-  @property({ type: String }) gap?: DesignSystemProps['gap'];
-  @property({ type: String }) m?: DesignSystemProps['m'];
-  @property({ type: String }) ml?: DesignSystemProps['ml'];
-  @property({ type: String }) mr?: DesignSystemProps['mr'];
-  @property({ type: String }) mt?: DesignSystemProps['mt'];
-  @property({ type: String }) mb?: DesignSystemProps['mb'];
-  @property({ type: String }) mx?: DesignSystemProps['mx'];
-  @property({ type: String }) my?: DesignSystemProps['my'];
-  @property({ type: String }) p?: DesignSystemProps['p'];
-  @property({ type: String }) pl?: DesignSystemProps['pl'];
-  @property({ type: String }) pr?: DesignSystemProps['pr'];
-  @property({ type: String }) pt?: DesignSystemProps['pt'];
-  @property({ type: String }) pb?: DesignSystemProps['pb'];
-  @property({ type: String }) px?: DesignSystemProps['px'];
-  @property({ type: String }) py?: DesignSystemProps['py'];
-  @property({ type: String }) r?: DesignSystemProps['r'];
-  @property({ type: String }) rt?: DesignSystemProps['rt'];
-  @property({ type: String }) rb?: DesignSystemProps['rb'];
-  @property({ type: String }) rl?: DesignSystemProps['rl'];
-  @property({ type: String }) rr?: DesignSystemProps['rr'];
-  @property({ type: String }) rtl?: DesignSystemProps['rtl'];
-  @property({ type: String }) rtr?: DesignSystemProps['rtr'];
-  @property({ type: String }) rbr?: DesignSystemProps['rbr'];
-  @property({ type: String }) rbl?: DesignSystemProps['rbl'];
-  @property({ type: Object, attribute: false }) hoverProps?: DesignSystemProps['hoverProps'];
-  @property({ type: Object, attribute: false }) activeProps?: DesignSystemProps['activeProps'];
-  @property({ type: Object, attribute: false }) focusProps?: DesignSystemProps['focusProps'];
-  @property({ type: Object, attribute: false }) disabledProps?: DesignSystemProps['disabledProps'];
-
-  protected getDefaultProps() {
+  static getDefaultProps() {
     return DEFAULT_PROPS;
   }
 
@@ -239,37 +58,41 @@ export default class Button extends BaseElement implements Partial<DesignSystemP
     this.dispatchEvent(new CustomEvent('button-click', { detail: e }));
   };
 
-  render() {
-    const inline = this.styles || {};
-
-    if (this.href) {
-      return html` <a
-        part="base"
-        href=${this.href}
-        aria-disabled=${this.disabled || this.loading ? 'true' : 'false'}
-        @click=${this._handleClick}
-        style=${styleMap(inline)}
-      >
-        ${this._content()}
-      </a>`;
-    }
-
-    return html` <button
-      part="base"
-      ?disabled=${this.disabled || this.loading}
-      @click=${this._handleClick}
-      style=${styleMap(inline)}
-    >
-      ${this._content()}
-    </button>`;
-  }
-
   private _content() {
     return html`
       ${this.loading ? html`<we-spinner size="sm"></we-spinner>` : null}
       <slot name="start"></slot>
       ${this.text ?? html`<slot></slot>`}
       <slot name="end"></slot>
+    `;
+  }
+
+  render() {
+    const inline = this.styles || {};
+
+    if (this.href) {
+      return html`
+        <a
+          part="base"
+          href=${this.href}
+          aria-disabled=${this.disabled || this.loading ? 'true' : 'false'}
+          @click=${this._handleClick}
+          style=${styleMap(inline)}
+        >
+          ${this._content()}
+        </a>
+      `;
+    }
+
+    return html`
+      <button
+        part="base"
+        ?disabled=${this.disabled || this.loading}
+        @click=${this._handleClick}
+        style=${styleMap(inline)}
+      >
+        ${this._content()}
+      </button>
     `;
   }
 }
