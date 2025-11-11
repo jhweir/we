@@ -17,26 +17,25 @@ const DEFAULT_PROPS: Partial<DesignSystemProps> = {
   // TODO: add disabledProps: { opacity: '50', cursor: 'not-allowed'} when opacity and cursor are supported
 };
 
+const CSS_STYLES = css`
+  :host {
+    white-space: nowrap;
+  }
+  [part='base'] {
+    all: unset;
+    box-sizing: border-box;
+    cursor: pointer;
+  }
+  [part='base']:disabled,
+  [part='base'][aria-disabled='true'] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
 @customElement('we-button')
 export default class Button extends BaseElement {
-  static styles = [
-    sharedStyles,
-    css`
-      :host {
-        white-space: nowrap;
-      }
-      [part='base'] {
-        all: unset;
-        box-sizing: border-box;
-        cursor: pointer;
-      }
-      [part='base']:disabled,
-      [part='base'][aria-disabled='true'] {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-    `,
-  ];
+  static styles = [sharedStyles, CSS_STYLES];
 
   @property({ type: String }) text?: string;
   @property({ type: String }) href?: string;
