@@ -111,21 +111,19 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
   const component = createMemo(() => registry[node.type ?? '']);
   if (!component()) throw new Error(`Schema node has unknown type "${node.type}".`);
 
-  // Split resolved props into safe props and complex props that need to be set directly on the DOM element for web components
+  // Split resolved props into safe complex props that need to be set directly on the DOM element for web components
   let hostRef: (HTMLElement & Record<string, unknown>) | undefined;
-  const { safeProps, complexProps } = splitProps(resolveProps(node.props, stores, context, createMemo));
+  const split = createMemo(() => splitProps(resolveProps(node.props, stores, context, createMemo)));
   createEffect(() => {
     if (!hostRef) return;
+    const { complexProps } = split();
     for (const [k, v] of Object.entries(complexProps)) hostRef[k] = v;
   });
-
-  // Merge all props together
   const slotProp = node.slot ? { slot: node.slot } : {};
-  const mergedProps = { ...safeProps, ...slotProp, ...slotElements };
 
-  // Return the rendered component with its resolved props, slots, and children
+  // Return the component with merged props, slots, and children
   return (
-    <Dynamic ref={hostRef} component={component()} {...mergedProps}>
+    <Dynamic ref={hostRef} component={component()} {...split().safeProps} {...slotProp} {...slotElements}>
       {renderChildren(node.children)}
     </Dynamic>
   );

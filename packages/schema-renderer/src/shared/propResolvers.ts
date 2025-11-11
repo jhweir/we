@@ -203,7 +203,7 @@ export function resolveProps(props: Props | undefined, stores: Props, context: P
   return resolvedProps;
 }
 
-// Splits props into safe (primitive) and complex (object/array) props
+// Splits props into safe (primitive) and complex (object/array) props for web component handling
 export function splitProps(all: Record<string, unknown>) {
   const safe: Record<string, unknown> = {};
   const complex: Record<string, unknown> = {};
