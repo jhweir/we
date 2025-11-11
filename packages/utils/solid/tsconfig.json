@@ -4,13 +4,7 @@
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
     "types": ["solid-js"],
-    "module": "ESNext",
-    "target": "ES2022",
-    "moduleResolution": "Bundler",
-    "strict": true,
-    "skipLibCheck": true,
-    "outDir": "dist",
-    "declaration": true
+    "outDir": "dist"
   },
   "include": ["src"]
 }

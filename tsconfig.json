@@ -1,15 +1,24 @@
 {
   "compilerOptions": {
+    // Language & Module Targeting
     "target": "ES2020",
     "module": "ESNext",
-    "strict": true,
+
+    // Module Resolution
     "moduleResolution": "bundler",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+
+    // Type Checking & Strictness
+    "strict": true,
     "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    // Interop & Compatibility
+    "esModuleInterop": true,
+
+    // Output Options
     "declaration": true,
-    "sourceMap": true,
-    "baseUrl": "."
+    "sourceMap": true
   },
   "exclude": ["node_modules", "dist", "old"]
 }
