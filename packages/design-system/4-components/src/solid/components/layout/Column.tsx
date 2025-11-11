@@ -1,4 +1,4 @@
-import { designSystemKeys, mergeProps } from '@we/design-system-utils';
+import { designSystemKeys, filterProps, mergeProps } from '@we/design-system-utils';
 import { buildLayoutStyles, type LayoutProps } from '@we/solid-utils';
 import type { FlexCrossAxis, FlexMainAxis } from '@we/types';
 import { createMemo, splitProps } from 'solid-js';
@@ -10,7 +10,8 @@ const columnKeys = [...designSystemKeys.filter((key) => key !== 'direction'), 'r
 
 export function Column(allProps: ColumnProps) {
   const [designSystemProps, rest] = splitProps(allProps, columnKeys as (keyof ColumnProps)[]);
-  const props = mergeProps(designSystemProps, DEFAULTS, columnKeys) as ColumnProps;
+  const usedProps = filterProps(designSystemProps, columnKeys);
+  const props = mergeProps(usedProps, DEFAULTS) as ColumnProps;
   const reactiveStyles = createMemo(() => buildLayoutStyles(props, 'column'));
 
   return (
