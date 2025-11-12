@@ -3,7 +3,7 @@ import { customElement, property } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import sharedStyles from '../shared/styles';
 import { BaseElement } from '../shared/base-element';
-import type { DesignSystemProps } from '@we/types';
+import type { DesignSystemProps } from '@we/design-system-types';
 
 const DEFAULT_PROPS: Partial<DesignSystemProps> = { rt: 'md', py: '200', px: '300' };
 
@@ -16,6 +16,10 @@ const CSS_STYLES = css`
     all: unset;
     box-sizing: border-box;
     cursor: pointer;
+  }
+
+  [part='base']:focus-visible {
+    box-shadow: 0 0 0 2px var(--we-color-primary-500, #3b82f6);
   }
 `;
 

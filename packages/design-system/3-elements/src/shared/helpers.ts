@@ -1,4 +1,4 @@
-import type { DesignSystemProps, ElementState } from '@we/types';
+import type { DesignSystemProps, ElementState } from '@we/design-system-types';
 import {
   tokenVar,
   paddingKeys,
@@ -135,6 +135,7 @@ export function getDesignSystemCSS(el: HTMLElement, props: Partial<DesignSystemP
   // Build state styles
   for (const state of ELEMENT_STATES) {
     const stateProps = props[`${state}Props`];
+
     // Skip if no state props defined
     if (!stateProps || typeof stateProps !== 'object' || !Object.keys(stateProps).length) continue;
 

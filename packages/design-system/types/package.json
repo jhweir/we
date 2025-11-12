@@ -1,5 +1,5 @@
 {
-  "name": "@we/types",
+  "name": "@we/design-system-types",
   "version": "0.1.0",
   "description": "Shared types for WE",
   "type": "module",

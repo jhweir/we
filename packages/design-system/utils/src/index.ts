@@ -1,4 +1,4 @@
-import type { DesignSystemProps, FlexDirection } from '@we/types';
+import type { DesignSystemProps, FlexDirection } from '@we/design-system-types';
 
 const colorKeys = ['bg', 'color'] as const;
 const layoutKeys = ['height', 'width', 'direction', 'ax', 'ay', 'wrap', 'gap'] as const;

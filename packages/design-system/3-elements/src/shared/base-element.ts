@@ -1,6 +1,6 @@
 import { LitElement } from 'lit';
 import { getDesignSystemCSS } from './helpers';
-import type { DesignSystemProps } from '@we/types';
+import type { DesignSystemProps } from '@we/design-system-types';
 import { DesignSystemElement } from './ds-mixin';
 
 // Base class for all design system elements

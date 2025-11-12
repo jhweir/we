@@ -28,7 +28,7 @@
     "@we/templates": "workspace:*",
     "@we/themes": "workspace:*",
     "@we/tokens": "workspace:*",
-    "@we/types": "workspace:*",
+    "@we/design-system-types": "workspace:*",
     "@we/models": "workspace:*",
     "@we/widgets": "workspace:*",
     "@we/schema-renderer": "workspace:*",

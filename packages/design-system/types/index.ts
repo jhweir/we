@@ -1,5 +1,6 @@
 import type { RadiusToken, SpaceToken } from '@we/tokens';
 
+export type ElementState = 'hover' | 'focus' | 'active' | 'disabled';
 export type FlexDirection = 'row' | 'row-reverse' | 'column' | 'column-reverse';
 export type FlexMainAxis = 'start' | 'center' | 'end' | 'between' | 'around' | 'even';
 export type FlexCrossAxis = 'start' | 'center' | 'end' | 'stretch';
@@ -48,8 +49,21 @@ export interface DesignSystemProps {
   rbl?: RadiusToken;
 
   // Dynamic styles for states
-  hoverProps?: Record<string, string | undefined>;
-  activeProps?: Record<string, string | undefined>;
-  focusProps?: Record<string, string | undefined>;
-  disabledProps?: Record<string, string | undefined>;
+  hoverProps?: Partial<DesignSystemProps>;
+  activeProps?: Partial<DesignSystemProps>;
+  focusProps?: Partial<DesignSystemProps>;
+  disabledProps?: Partial<DesignSystemProps>;
 }
+
+// TODO:
+
+// allow raw px or % values for spacing and radius as well as tokens
+
+// add more props:
+// display?: 'flex' | 'block' | 'inline' | ...
+// position?: 'relative' | 'absolute' | ...
+// overflow?: 'hidden' | 'auto'
+// cursor?: 'pointer' | 'default'
+// textAlign?: 'left' | 'center'
+// fontWeight?, fontSize?
+// border?, shadow?
