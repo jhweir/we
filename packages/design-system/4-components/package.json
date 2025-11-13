@@ -9,6 +9,7 @@
     "build:steps": "tsup",
     "build": "we-build"
   },
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
