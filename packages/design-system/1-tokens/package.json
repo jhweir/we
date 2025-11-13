@@ -2,9 +2,13 @@
   "name": "@we/tokens",
   "version": "0.1.0",
   "description": "Design tokens for WE",
+  "author": "James Weir",
+  "license": "MIT",
   "type": "module",
-  "main": "dist/index.js",
-  "module": "dist/index.js",
+  "scripts": {
+    "build": "we-build",
+    "build:steps": "tsup"
+  },
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
@@ -21,28 +25,15 @@
   "files": [
     "dist"
   ],
-  "sideEffects": [
-    "*.css"
-  ],
-  "keywords": [
-    "design-tokens",
-    "css",
-    "design-system",
-    "tokens"
-  ],
-  "author": "James Weir",
-  "license": "MIT",
-  "scripts": {
-    "build:steps": "tsup --config tsup.config.ts ",
-    "build": "we-build"
-  },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@we/cli": "workspace:*",
-    "tsup": "^8.5.0",
-    "typescript": "^5.7.2"
+    "tsup": "^8.5.0"
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "sideEffects": [
+    "*.css"
+  ]
 }

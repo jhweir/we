@@ -1,11 +1,15 @@
 {
   "name": "@we/cli",
   "version": "1.0.0",
+  "description": "CLI tools for WE",
+  "author": "James Weir",
+  "license": "MIT",
   "type": "module",
-  "sideEffects": false,
-  "files": [
-    "dist"
-  ],
+  "scripts": {
+    "prepare": "pnpm run build:steps",
+    "build:steps": "tsup",
+    "build": "[ -f ./dist/we-build.js ] && node ./dist/we-build.js || pnpm run build:steps"
+  },
   "bin": {
     "we-build": "./dist/we-build.js",
     "we-banner": "./dist/we-banner.js"
@@ -16,14 +20,16 @@
       "import": "./dist/index.js"
     }
   },
+  "files": [
+    "dist"
+  ],
   "devDependencies": {
     "@types/node": "^24.10.0",
     "tsup": "^8.3.0",
     "typescript": "^5.7.2"
   },
-  "scripts": {
-    "prepare": "pnpm run build:steps",
-    "build:steps": "tsup --config tsup.config.ts",
-    "build": "[ -f ./dist/we-build.js ] && node ./dist/we-build.js || pnpm run build:steps"
-  }
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false
 }

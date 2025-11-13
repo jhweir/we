@@ -2,11 +2,13 @@
   "name": "@we/schema-renderer",
   "version": "0.1.0",
   "description": "UI renderer for WE apps",
+  "author": "James Weir",
+  "license": "MIT",
   "type": "module",
-  "sideEffects": false,
-  "files": [
-    "dist"
-  ],
+  "scripts": {
+    "build:steps": "tsup",
+    "build": "we-build"
+  },
   "types": "dist/index.d.ts",
   "exports": {
     "./shared": {
@@ -18,6 +20,9 @@
       "import": "./dist/solid/index.js"
     }
   },
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "zod": "^4.1.12"
   },
@@ -31,8 +36,8 @@
     "tsup": "^8.3.0",
     "typescript": "^5.7.2"
   },
-  "scripts": {
-    "build:steps": "tsup --config tsup.config.ts",
-    "build": "we-build"
-  }
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false
 }

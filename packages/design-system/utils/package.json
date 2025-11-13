@@ -1,25 +1,30 @@
 {
   "name": "@we/design-system-utils",
   "version": "1.0.0",
+  "author": "James Weir",
+  "license": "MIT",
   "type": "module",
-  "sideEffects": false,
-  "files": [
-    "dist"
-  ],
+  "scripts": {
+    "build:steps": "tsup",
+    "build": "we-build"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
+  "files": [
+    "dist"
+  ],
   "devDependencies": {
     "@we/cli": "workspace:*",
     "@we/design-system-types": "workspace:*",
     "tsup": "^8.3.0",
     "typescript": "^5.7.2"
   },
-  "scripts": {
-    "build:steps": "tsup --config tsup.config.ts",
-    "build": "we-build"
-  }
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false
 }

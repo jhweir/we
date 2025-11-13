@@ -2,11 +2,14 @@
   "name": "@we/templates",
   "version": "0.1.0",
   "description": "Templates components for WE",
+  "author": "James Weir",
+  "license": "MIT",
   "type": "module",
-  "sideEffects": false,
-  "files": [
-    "dist"
-  ],
+  "scripts": {
+    "build:css": "sass src/styles/index.scss dist/styles/index.css --no-source-map --style=compressed",
+    "build:steps": "tsup && pnpm build:css",
+    "build": "we-build"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -20,6 +23,9 @@
       "import": "./dist/solid/index.js"
     }
   },
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "zod": "^4.1.11"
   },
@@ -43,12 +49,10 @@
     "tsup": "^8.3.0",
     "typescript": "^5.7.2"
   },
-  "scripts": {
-    "build:css": "sass src/styles/index.scss dist/styles/index.css --no-source-map --style=compressed",
-    "build:steps": "tsup --config tsup.config.ts && pnpm build:css",
-    "build": "we-build"
-  },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "sideEffects": [
+    "*.css"
+  ]
 }

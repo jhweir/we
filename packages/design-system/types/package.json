@@ -2,8 +2,13 @@
   "name": "@we/design-system-types",
   "version": "0.1.0",
   "description": "Shared types for WE",
+  "author": "James Weir",
+  "license": "MIT",
   "type": "module",
-  "main": "dist/index.js",
+  "scripts": {
+    "build:steps": "tsc --project tsconfig.json",
+    "build": "we-build"
+  },
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
@@ -13,23 +18,11 @@
   "files": [
     "dist"
   ],
-  "scripts": {
-    "build:steps": "tsc --project tsconfig.json",
-    "build": "we-build"
-  },
-  "keywords": [
-    "types",
-    "shared",
-    "design-system",
-    "we"
-  ],
-  "author": "James Weir",
-  "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
   "devDependencies": {
     "@we/cli": "workspace:*",
     "@we/tokens": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -2,9 +2,13 @@
   "name": "@we/models",
   "version": "0.1.0",
   "description": "Shared adam models for WE",
+  "author": "James Weir",
+  "license": "MIT",
   "type": "module",
-  "main": "dist/index.js",
-  "module": "dist/index.js",
+  "scripts": {
+    "build:steps": "tsup",
+    "build": "we-build"
+  },
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
@@ -15,26 +19,14 @@
   "files": [
     "dist"
   ],
-  "scripts": {
-    "clean": "rimraf dist",
-    "build:steps": "pnpm run clean && tsc --project tsconfig.json",
-    "build": "we-build"
-  },
-  "keywords": [
-    "adam",
-    "models",
-    "we"
-  ],
-  "author": "James Weir",
-  "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
   "peerDependencies": {
     "@coasys/ad4m": "0.10.1"
   },
   "devDependencies": {
     "@we/cli": "workspace:*",
-    "rimraf": "^6.0.1"
+    "tsup": "^8.5.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
