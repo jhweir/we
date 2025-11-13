@@ -1,60 +1,49 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import type { Plugin } from 'rollup';
+import type { animation as animationTokens } from '../src/animation.js';
+import type { border as borderTokens } from '../src/border.js';
+import type { color as colorTokens } from '../src/color.js';
+import type { component as componentTokens } from '../src/component.js';
+import type { effect as effectTokens } from '../src/effect.js';
+import type { font as fontTokens } from '../src/font.js';
+import type { avatarSize as avatarSizeTokens, radius as radiusTokens, size as sizeTokens } from '../src/size.js';
+import type { space as spaceTokens } from '../src/space.js';
 
-import { animation as animationTokens } from '../src/animation';
-import { border as borderTokens } from '../src/border';
-import { color as colorTokens } from '../src/color';
-import { component as componentTokens } from '../src/component';
-import { effect as effectTokens } from '../src/effect';
-import { font as fontTokens } from '../src/font';
-import { avatarSize as avatarSizeTokens, radius as radiusTokens, size as sizeTokens } from '../src/size';
-import { space as spaceTokens } from '../src/space';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-interface CssGeneratorOptions {
-  outputDir?: string;
-}
+export async function generateCSS() {
+  const outputDir = path.resolve(__dirname, '../dist/css');
 
-export function cssGenerator(options: CssGeneratorOptions = {}): Plugin {
-  const outputDir = options.outputDir || 'dist/css';
+  try {
+    // Ensure output directory exists
+    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
-  return {
-    name: 'css-generator',
+    // Import the compiled tokens dynamically
+    const indexFile = path.resolve(__dirname, '../dist/index.js');
+    const tokens = await import(`file://${indexFile}`);
+    const { animation, border, color, component, effect, font, size, radius, avatarSize, space } = tokens;
 
-    // Generate CSS after the main build is complete
-    writeBundle: async (outputOptions) => {
-      try {
-        // Ensure output directory exists
-        if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+    // Generate CSS files
+    generateAnimationCSS(animation, outputDir);
+    generateBorderCSS(border, outputDir);
+    generateColorCSS(color, outputDir);
+    generateComponentCSS(component, outputDir);
+    generateEffectCSS(effect, outputDir);
+    generateFontCSS(font, outputDir);
+    generateSizeCSS(size, radius, avatarSize, outputDir);
+    generateSpaceCSS(space, outputDir);
 
-        // Import the compiled tokens dynamically
-        const indexFile = path.resolve(outputOptions.dir || 'dist', 'index.js');
+    // Generate combined index file
+    generateCombinedCSS(outputDir);
 
-        // Use dynamic import to load the compiled tokens
-        const tokens = await import(`file://${indexFile}`);
-        const { animation, border, color, component, effect, font, size, radius, avatarSize, space } = tokens;
-
-        // Generate CSS files
-        generateAnimationCSS(animation, outputDir);
-        generateBorderCSS(border, outputDir);
-        generateColorCSS(color, outputDir);
-        generateComponentCSS(component, outputDir);
-        generateEffectCSS(effect, outputDir);
-        generateFontCSS(font, outputDir);
-        generateSizeCSS(size, radius, avatarSize, outputDir);
-        generateSpaceCSS(space, outputDir);
-
-        // Generate combined index file
-        generateCombinedCSS(outputDir);
-
-        console.log('CSS files generated successfully');
-      } catch (error) {
-        console.error('❌ Failed to generate CSS:', error);
-        throw error;
-      }
-    },
-  };
+    console.log('✅ CSS files generated successfully');
+  } catch (error) {
+    console.error('❌ Failed to generate CSS:', error);
+    throw error;
+  }
 }
 
 // Helper functions for CSS generation
@@ -156,7 +145,7 @@ ${colorPalettes}
 
 function generateComponentCSS(component: typeof componentTokens, outputDir: string) {
   const scrollbarVars = Object.entries(component.scrollbar)
-    .filter(([key]) => key !== 'thumbBorderRadius' && key !== 'thumbBackground') // Handle these separately
+    .filter(([key]) => key !== 'thumbBorderRadius' && key !== 'thumbBackground')
     .map(([key, value]) => `  --we-scrollbar-${key}: ${value};`)
     .join('\n');
 
@@ -174,7 +163,7 @@ ${scrollbarVars}
 
 function generateEffectCSS(effect: typeof effectTokens, outputDir: string) {
   const depthVars = Object.entries(effect.depth)
-    .filter(([key]) => key !== 'none') // Handle 'none' separately to put it first
+    .filter(([key]) => key !== 'none')
     .map(([key, value]) => `  --we-depth-${key}: ${value};`)
     .join('\n');
 
@@ -191,7 +180,7 @@ ${depthVars}
 
 function generateFontCSS(font: typeof fontTokens, outputDir: string) {
   const fontSizeVars = Object.entries(font.size)
-    .filter(([key]) => key !== 'base') // Handle 'base' separately to put it first
+    .filter(([key]) => key !== 'base')
     .map(([key, value]) => `  --we-font-size-${key}: ${value};`)
     .join('\n');
 
@@ -276,4 +265,9 @@ function generateCombinedCSS(outputDir: string) {
 `;
 
   fs.writeFileSync(path.join(outputDir, 'index.css'), indexCSS);
+}
+
+// Run if called directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  generateCSS();
 }

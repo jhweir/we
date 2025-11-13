@@ -2,9 +2,7 @@ import { solidPlugin } from 'esbuild-plugin-solid';
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: {
-    'solid/index': 'src/solid/index.ts',
-  },
+  entry: { 'solid/index': 'src/solid/index.ts' },
   format: ['esm'],
   dts: true,
   sourcemap: true,
