@@ -26,9 +26,9 @@
     "dist"
   ],
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^24.10.0",
     "@we/cli": "workspace:*",
-    "tsup": "^8.5.0"
+    "tsup": "^8.5.1"
   },
   "publishConfig": {
     "access": "public"

@@ -31,7 +31,7 @@
   },
   "peerDependencies": {
     "@we/elements": "^1.0.0",
-    "solid-js": "^1.9.0"
+    "solid-js": "^1.9.5"
   },
   "devDependencies": {
     "@we/cli": "workspace:*",
@@ -41,8 +41,8 @@
     "@we/design-system-types": "workspace:*",
     "esbuild-plugin-solid": "^0.6.0",
     "sass": "^1.92.1",
-    "solid-js": "^1.9.0",
-    "tsup": "^8.3.0"
+    "solid-js": "^1.9.5",
+    "tsup": "^8.5.1"
   },
   "publishConfig": {
     "access": "public"

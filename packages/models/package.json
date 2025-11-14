@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@we/cli": "workspace:*",
-    "tsup": "^8.5.0"
+    "tsup": "^8.5.1"
   },
   "publishConfig": {
     "access": "public"

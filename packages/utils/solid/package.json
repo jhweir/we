@@ -1,6 +1,6 @@
 {
   "name": "@we/solid-utils",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "author": "James Weir",
   "license": "MIT",
   "type": "module",
@@ -22,14 +22,13 @@
     "@we/design-system-utils": "workspace:*"
   },
   "peerDependencies": {
-    "solid-js": "^1.9.0"
+    "solid-js": "^1.9.5"
   },
   "devDependencies": {
     "@we/cli": "workspace:*",
     "@we/design-system-types": "workspace:*",
-    "tsup": "^8.3.0",
-    "typescript": "^5.7.2",
-    "solid-js": "^1.9.0",
+    "tsup": "^8.5.1",
+    "solid-js": "^1.9.5",
     "esbuild-plugin-solid": "^0.6.0"
   },
   "publishConfig": {

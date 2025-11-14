@@ -1,6 +1,6 @@
 {
-  "name": "we",
   "private": true,
+  "name": "we",
   "version": "0.0.0",
   "type": "module",
   "scripts": {
@@ -29,7 +29,7 @@
     "@vitejs/plugin-react-swc": "^3.9.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
-    "sass": "^1.87.0",
+    "sass": "^1.92.1",
     "vite": "^6.3.1"
   }
 }

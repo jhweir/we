@@ -1,6 +1,6 @@
 {
   "name": "@we/cli",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "CLI tools for WE",
   "author": "James Weir",
   "license": "MIT",
@@ -25,8 +25,7 @@
   ],
   "devDependencies": {
     "@types/node": "^24.10.0",
-    "tsup": "^8.3.0",
-    "typescript": "^5.7.2"
+    "tsup": "^8.5.1"
   },
   "publishConfig": {
     "access": "public"
