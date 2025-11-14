@@ -72,7 +72,7 @@ function extractComponentsFromCustomElementsManifest(cemData: CustomElementsMani
       const baseName = module.path ? path.basename(module.path, '.ts') : '';
 
       return (module.declarations || [])
-        .filter((declaration) => declaration.kind === 'class' && declaration.customElement)
+        .filter((declaration) => declaration.kind === 'class' && declaration.customElement && declaration.tagName)
         .map((declaration) => {
           // Extract properties
           const properties: Record<string, ComponentProperty> = {};
@@ -213,7 +213,7 @@ async function generateFrameworkDeclarations(): Promise<void> {
     const components = extractComponentsFromCustomElementsManifest(cemData);
 
     console.log(`Found ${components.length} components`);
-    console.log('Generating type declarations...');
+    console.log('Generating type declarations');
 
     // Process all frameworks in parallel
     await Promise.all(
@@ -230,11 +230,11 @@ async function generateFrameworkDeclarations(): Promise<void> {
           // Generate index file declaration
           await generateFrameworkIndexFile(components, framework);
 
-          console.log(`✅ Type declarations generated for ${framework.name}`);
+          console.log(`Type declarations generated for ${framework.name}`);
         }),
     );
 
-    console.log('✅ All type declarations generated successfully!');
+    console.log('All type declarations generated successfully!');
   } catch (err) {
     console.error('Error generating types:', err);
     process.exit(1);

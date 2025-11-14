@@ -6,7 +6,8 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build:steps": "tsc --project tsconfig.json",
+    "clean": "rimraf dist",
+    "build:steps": "pnpm run clean && tsc",
     "build": "we-build"
   },
   "types": "dist/index.d.ts",
@@ -20,7 +21,8 @@
   ],
   "devDependencies": {
     "@we/cli": "workspace:*",
-    "@we/tokens": "workspace:*"
+    "@we/tokens": "workspace:*",
+    "rimraf": "^6.1.0"
   },
   "publishConfig": {
     "access": "public"

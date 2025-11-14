@@ -5,7 +5,7 @@
     "declarationMap": true,
     "emitDeclarationOnly": false,
     "composite": false,
-    "rootDir": "."
+    "rootDir": "src"
   },
-  "include": ["index.ts"]
+  "include": ["src"]
 }

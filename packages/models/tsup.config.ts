@@ -9,4 +9,5 @@ export default defineConfig({
   target: 'es2022',
   splitting: false,
   treeshake: true,
+  external: ['@coasys/ad4m'],
 });

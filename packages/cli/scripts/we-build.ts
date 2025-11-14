@@ -5,6 +5,7 @@ import { printBuildBanner } from '../src/banner.js';
 
 const green = '\x1b[32m';
 const reset = '\x1b[0m';
+const bold = '\x1b[1m';
 
 // Read package.json
 const pkg = JSON.parse(await readFile('package.json', 'utf8'));
@@ -26,4 +27,5 @@ await new Promise((resolve, reject) => {
 
 // Print success
 const durationMs = Number(process.hrtime.bigint() - start) / 1e6;
-console.log(`\n${green}✅ Build complete: ${pkg.name} in ${durationMs.toFixed(0)}ms${reset}`);
+// console.log(`\n${green}✅ Build complete in ${durationMs.toFixed(0)}ms: ${bold}${pkg.name}${reset}`);
+console.log(`\n${green}✅ ${bold}${pkg.name}${reset}${green} built in ${durationMs.toFixed(0)}ms${reset}`);

@@ -39,7 +39,7 @@ export async function generateCSS() {
     // Generate combined index file
     generateCombinedCSS(outputDir);
 
-    console.log('✅ CSS files generated successfully');
+    console.log('CSS files generated successfully');
   } catch (error) {
     console.error('❌ Failed to generate CSS:', error);
     throw error;

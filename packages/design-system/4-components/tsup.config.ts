@@ -16,4 +16,5 @@ export default defineConfig({
     o.jsx = 'automatic';
     o.jsxImportSource = 'solid-js';
   },
+  onSuccess: 'sass src/styles/index.scss dist/styles/index.css --no-source-map --style=compressed',
 });

@@ -6,14 +6,11 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "clean": "rimraf dist",
     "build:cem": "cem analyze --litelement --config custom-elements-manifest.config.mjs --globs src/**/*.ts",
-    "build:declarations": "tsx scripts/generate-framework-declarations.ts",
-    "build:steps": "pnpm build:cem && pnpm run clean && rollup -c && pnpm build:declarations",
+    "build:steps": "pnpm build:cem && tsup",
     "build": "we-build",
     "start": "pnpm build:cem && storybook dev -p 6006",
-    "storybook:build": "storybook build",
-    "publish": "npm publish --access public"
+    "storybook:build": "storybook build"
   },
   "exports": {
     "./types": {
@@ -74,8 +71,8 @@
   "dependencies": {
     "@phosphor-icons/core": "^2.1.1",
     "@popperjs/core": "^2.11.8",
-    "@we/tokens": "workspace:*",
     "@we/design-system-utils": "workspace:*",
+    "@we/tokens": "workspace:*",
     "jdenticon": "3.3.0",
     "lit": "3.2.1",
     "tslib": "2.8.1"
@@ -92,23 +89,14 @@
     "@we/cli": "workspace:*",
     "@we/design-system-types": "workspace:*",
     "@custom-elements-manifest/analyzer": "0.10.4",
-    "@rollup/plugin-node-resolve": "^15.3.0",
-    "@rollup/plugin-terser": "^0.4.4",
     "@storybook/addon-essentials": "8.4.6",
     "@storybook/web-components": "8.4.6",
     "@storybook/web-components-vite": "8.4.6",
     "@types/node": "^22.15.17",
     "eslint-plugin-lit": "^2.1.1",
-    "glob": "^11.0.2",
-    "rimraf": "^6.0.1",
-    "rollup": "^4.28.1",
-    "rollup-plugin-copy": "^3.5.0",
-    "rollup-plugin-esbuild": "^6.2.1",
-    "rollup-plugin-postcss": "^4.0.2",
-    "rollup-plugin-typescript2": "^0.36.0",
     "storybook": "8.4.6",
-    "tsx": "^4.19.3",
-    "typescript": "^5.7.2"
+    "tsup": "^8.5.1",
+    "tsx": "^4.19.3"
   },
   "publishConfig": {
     "access": "public"
