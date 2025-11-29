@@ -2,6 +2,7 @@ import {
   aiSampleTemplateSchema,
   defaultTemplateSchema,
   secondaryTemplateSchema,
+  subscriptionTestingSchema,
   testTemplateSchema,
   twitterTemplateSchema,
 } from '../schemas';
@@ -12,6 +13,7 @@ export const templateRegistry = {
   twitter: twitterTemplateSchema,
   test: testTemplateSchema,
   aiSample: aiSampleTemplateSchema,
+  subscriptions: subscriptionTestingSchema,
 };
 
 export type TemplateId = keyof typeof templateRegistry;
