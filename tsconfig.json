@@ -1,22 +1,22 @@
 {
   "compilerOptions": {
-    // Language & Module Targeting
+    // Language & module targeting
     "target": "ES2020",
     "module": "ESNext",
 
-    // Module Resolution
+    // Module resolution
     "moduleResolution": "bundler",
     "baseUrl": ".",
 
-    // Type Checking & Strictness
+    // Type checking & strictness
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
 
-    // Interop & Compatibility
+    // Interop & compatibility
     "esModuleInterop": true,
 
-    // Output Options
+    // Output options
     "declaration": true,
     "sourceMap": true
   },

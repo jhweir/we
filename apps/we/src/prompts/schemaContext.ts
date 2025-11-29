@@ -367,7 +367,9 @@ Example:
 - Nest components using children or slots as needed.
 - For routes, use the routes array with path and child nodes.
 - Do not invent new components or props—use only those in the registry and reference.
-- Important: All schemas must be valid JSON with all property names and string values in double quotes.
+- Important:
+  - All schemas must be valid JSON with all property names and string values in double quotes.
+  - Never wrap the returned JSON with \`\`\`json ... \`\`\` markers.
 
 ---
 
