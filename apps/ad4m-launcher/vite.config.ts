@@ -1,3 +1,4 @@
+import { resolve } from 'path';
 import { defineConfig } from 'vite';
 import solid from 'vite-plugin-solid';
 
@@ -28,4 +29,6 @@ export default defineConfig(async () => ({
       ignored: ['**/src-tauri/**'],
     },
   },
+  resolve: { alias: [{ find: '@', replacement: resolve(__dirname, 'src') }] },
+  assetsInclude: ['**/*.glb'],
 }));
