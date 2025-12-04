@@ -10,7 +10,6 @@ export default defineConfig({
       reporter: ['text', 'lcov'],
       reportsDirectory: './.coverage',
       exclude: ['**/node_modules/**', 'tests/**', 'src/**/index.ts', 'src/frameworks/**', 'src/shared/validators.ts'],
-      all: true,
       thresholds: {
         global: {
           statements: 100,
