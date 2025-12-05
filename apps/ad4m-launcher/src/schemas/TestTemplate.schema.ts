@@ -12,107 +12,68 @@ const testButtons = {
     { type: 'we-text', props: { size: '600' }, children: ['Testing buttons'] },
     // {
     //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.changeNodeType' },
-    //     children: ['changeNodeType'],
-    //   },
+    //   props: { onClick: { $action: 'templateStore.changeNodeType' } },
+    //   children: ['changeNodeType'],
     // },
     // {
     //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.removeTemplateHeaderSlot' },
-    //     children: ['removeTemplateHeaderSlot'],
-    //   },
+    //   props: { onClick: { $action: 'templateStore.removeTemplateHeaderSlot' } },
+    //   children: ['removeTemplateHeaderSlot'],
     // },
     // {
     //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.addTemplateHeaderSlot' },
-    //     children: ['addTemplateHeaderSlot'],
-    //   },
+    //   props: { onClick: { $action: 'templateStore.addTemplateHeaderSlot' } },
+    //   children: ['addTemplateHeaderSlot'],
     // },
     // {
     //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.changeTemplateHeaderProp' },
-    //     children: ['changeTemplateHeaderProp'],
-    //   },
+    //   props: { onClick: { $action: 'templateStore.changeTemplateHeaderProp' } },
+    //   children: ['changeTemplateHeaderProp'],
     // },
     // {
     //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.changeTemplateHeaderChildProp' },
-    //     children: ['changeTemplateHeaderChildProp'],
-    //   },
+    //   props: { onClick: { $action: 'templateStore.changeTemplateHeaderChildProp' } },
+    //   children: ['changeTemplateHeaderChildProp'],
     // },
     // {
     //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.changeSidebarProp' },
-    //     children: ['changeSidebarProp'],
-    //   },
+    //   props: { onClick: { $action: 'templateStore.changeSidebarProp' } },
+    //   children: ['changeSidebarProp'],
     // },
     // {
     //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.editSpacePageHeaderButton' },
-    //     children: ['editSpacePageHeaderButton'],
-    //   },
+    //   props: { onClick: { $action: 'templateStore.editSpacePageHeaderButton' } },
+    //   children: ['editSpacePageHeaderButton'],
     // },
     // {
     //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.editPostsPageHeaderButton' },
-    //     children: ['editPostsPageHeaderButton'],
-    //   },
+    //   props: { onClick: { $action: 'templateStore.editPostsPageHeaderButton' } },
+    //   children: ['editPostsPageHeaderButton'],
     // },
     // {
     //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.addPostsPageHeaderButton' },
-    //     children: ['addPostsPageHeaderButton'],
-    //   },
+    //   props: { onClick: { $action: 'templateStore.addPostsPageHeaderButton' } },
+    //   children: ['addPostsPageHeaderButton'],
     // },
     // {
     //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.addSidebarButton' },
-    //     children: ['addSidebarButton'],
-    //   },
+    //   props: { onClick: { $action: 'templateStore.addSidebarButton' } },
+    //   children: ['addSidebarButton'],
     // },
     // {
     //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.createInvalidSchema' },
-    //     children: ['createInvalidSchema'],
-    //   },
+    //   props: { onClick: { $action: 'templateStore.createInvalidSchema' } },
+    //   children: ['createInvalidSchema'],
     // },
     {
       type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'templateStore.addSidebarButton2' },
-        children: ['addSidebarButton2'],
-      },
+      props: { onClick: { $action: 'templateStore.addSidebarButton2' } },
+      children: ['addSidebarButton2'],
     },
     // {
     //   type: 'we-button',
-    //   props: {
-    //     variant: 'subtle',
-    //     onClick: { $action: 'templateStore.addTwitterButton' },
-    //     children: ['addTwitterButton'],
-    //   },
+    //   props: { onClick: { $action: 'templateStore.addTwitterButton' } },
+    //   children: ['addTwitterButton'],
     // },
   ],
 };
@@ -281,27 +242,18 @@ const spacePageHeader = {
     { type: 'we-text', props: { size: '600' }, children: ['Space page'] },
     {
       type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'routeStore.navigate', args: ['.'] },
-        children: ['About'],
-      },
+      props: { onClick: { $action: 'routeStore.navigate', args: ['.'] } },
+      children: ['About'],
     },
     {
       type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'routeStore.navigate', args: ['./posts'] },
-        children: ['Posts'],
-      },
+      props: { onClick: { $action: 'routeStore.navigate', args: ['./posts'] } },
+      children: ['Posts'],
     },
     {
       type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'routeStore.navigate', args: ['./users'] },
-        children: ['Users'],
-      },
+      props: { onClick: { $action: 'routeStore.navigate', args: ['./users'] } },
+      children: ['Users'],
     },
     { type: 'RerenderLog', props: { location: 'SpacePage Header' } },
   ],
@@ -350,27 +302,18 @@ export const testTemplateSchema: TemplateSchema = {
               children: [
                 {
                   type: 'we-button',
-                  props: {
-                    variant: 'subtle',
-                    onClick: { $action: 'routeStore.navigate', args: ['./1'] },
-                    children: ['Post 1'],
-                  },
+                  props: { onClick: { $action: 'routeStore.navigate', args: ['./1'] } },
+                  children: ['Post 1'],
                 },
                 {
                   type: 'we-button',
-                  props: {
-                    variant: 'subtle',
-                    onClick: { $action: 'routeStore.navigate', args: ['./2'] },
-                    children: ['Post 2'],
-                  },
+                  props: { onClick: { $action: 'routeStore.navigate', args: ['./2'] } },
+                  children: ['Post 2'],
                 },
                 {
                   type: 'we-button',
-                  props: {
-                    variant: 'subtle',
-                    onClick: { $action: 'routeStore.navigate', args: ['../users'] },
-                    children: ['Return back up to users'],
-                  },
+                  props: { onClick: { $action: 'routeStore.navigate', args: ['../users'] } },
+                  children: ['Return back up to users'],
                 },
                 { type: 'RerenderLog', props: { location: 'PostsPage header buttons' } },
               ],

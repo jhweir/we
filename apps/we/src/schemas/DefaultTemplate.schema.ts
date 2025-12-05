@@ -113,27 +113,18 @@ const spacePageHeader = {
     { type: 'we-text', props: { size: '600' }, children: ['Space page'] },
     {
       type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'routeStore.navigate', args: ['.'] },
-        children: ['About'],
-      },
+      props: { onClick: { $action: 'routeStore.navigate', args: ['.'] } },
+      children: ['About'],
     },
     {
       type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'routeStore.navigate', args: ['./posts'] },
-        children: ['Posts'],
-      },
+      props: { onClick: { $action: 'routeStore.navigate', args: ['./posts'] } },
+      children: ['Posts'],
     },
     {
       type: 'we-button',
-      props: {
-        variant: 'subtle',
-        onClick: { $action: 'routeStore.navigate', args: ['./users'] },
-        children: ['Users'],
-      },
+      props: { onClick: { $action: 'routeStore.navigate', args: ['./users'] } },
+      children: ['Users'],
     },
   ],
 };
@@ -177,27 +168,18 @@ export const defaultTemplateSchema: TemplateSchema = {
               children: [
                 {
                   type: 'we-button',
-                  props: {
-                    variant: 'subtle',
-                    onClick: { $action: 'routeStore.navigate', args: ['./1'] },
-                    children: ['Post 1'],
-                  },
+                  props: { onClick: { $action: 'routeStore.navigate', args: ['./1'] } },
+                  children: ['Post 1'],
                 },
                 {
                   type: 'we-button',
-                  props: {
-                    variant: 'subtle',
-                    onClick: { $action: 'routeStore.navigate', args: ['./2'] },
-                    children: ['Post 2'],
-                  },
+                  props: { onClick: { $action: 'routeStore.navigate', args: ['./2'] } },
+                  children: ['Post 2'],
                 },
                 {
                   type: 'we-button',
-                  props: {
-                    variant: 'subtle',
-                    onClick: { $action: 'routeStore.navigate', args: ['../users'] },
-                    children: ['Return back up to users'],
-                  },
+                  props: { onClick: { $action: 'routeStore.navigate', args: ['../users'] } },
+                  children: ['Return back up to users'],
                 },
               ],
             },
