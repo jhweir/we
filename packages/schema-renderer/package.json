@@ -7,7 +7,9 @@
   "type": "module",
   "scripts": {
     "build:steps": "tsup",
-    "build": "we-build"
+    "build": "we-build",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
   },
   "types": "dist/index.d.ts",
   "exports": {
@@ -30,10 +32,13 @@
     "solid-js": "^1.9.5"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.0.15",
     "@we/cli": "workspace:*",
     "esbuild-plugin-solid": "^0.6.0",
+    "jsdom": "^27.2.0",
     "solid-js": "^1.9.5",
-    "tsup": "^8.5.1"
+    "tsup": "^8.5.1",
+    "vitest": "^4.0.15"
   },
   "publishConfig": {
     "access": "public"

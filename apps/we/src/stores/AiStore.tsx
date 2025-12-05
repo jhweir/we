@@ -6,6 +6,29 @@ import { schemaPromptContext } from '@/prompts/schemaContext';
 import { schemaPromptExamples } from '@/prompts/schemaExamples';
 import { useAdamStore, useTemplateStore } from '@/stores';
 
+const extractJSON = (text: string) => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    try {
+      const jsonFence = extractJSONFence(text);
+      if (!jsonFence) return null;
+      return JSON.parse(jsonFence);
+    } catch {
+      return null;
+    }
+  }
+};
+
+const extractJSONFence = (text: string): string | null => {
+  const regex = /```json([\s\S]*?)```/;
+  const match = text.match(regex);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  return null;
+};
+
 export interface AiStore {
   // State
   models: Accessor<Model[]>;
@@ -17,15 +40,13 @@ export interface AiStore {
 
 const AiContext = createContext<AiStore>();
 
-const schemaTask: AITask = {
+const schemaTask: Omit<AITask, 'createdAt' | 'updatedAt'> = {
   taskId: 'we-schema-generation',
   name: 'WE Schema Generation',
-  modelId: 'gpt-4',
+  modelId: 'default',
   systemPrompt: schemaPromptContext,
   promptExamples: schemaPromptExamples,
   metaData: 'Generates UI JSON schema based on user requirements',
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
 };
 
 export function AiStoreProvider(props: ParentProps) {
@@ -44,7 +65,12 @@ export function AiStoreProvider(props: ParentProps) {
       const existingSchemaTask = tasks().find((r) => r.name === schemaTask.name);
       if (!existingSchemaTask) {
         console.log('Creating schema task');
-        await client.ai.addTask(schemaTask.name, 'default', schemaTask.systemPrompt, schemaTask.promptExamples);
+        await client.ai.addTask(
+          schemaTask.name,
+          schemaTask.modelId,
+          schemaTask.systemPrompt,
+          schemaTask.promptExamples,
+        );
         setTasks(await client.ai.tasks());
         console.log('Schema task created', { tasks: tasks() });
       }
@@ -69,10 +95,10 @@ export function AiStoreProvider(props: ParentProps) {
 
     const result = await client.ai.prompt(taskId, fullPrompt);
 
-    console.log('Schema generation result', result);
-
     try {
-      const parsedResult = JSON.parse(result || '{}');
+      console.log('Schema generation result', result);
+      const parsedResult = extractJSON(result);
+      console.log('Schema generation result', parsedResult);
       const updatedSchema = parsedResult.updatedSchema;
       const response = parsedResult.response;
 
