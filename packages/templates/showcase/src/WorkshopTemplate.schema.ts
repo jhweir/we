@@ -36,12 +36,16 @@
  *
  * `meta.panels`, and three of the four kinds of entry it can carry:
  *
- * - **`node`** for the transcript, the extraction readout and the calls list — this template's own
- *   schema. The transcript was `module: 'transcribe'` and is not any more: that panel reads the call
- *   being *recorded into*, and everything here is about the call *on screen*, so placing it would
- *   put one surface about a different meeting beside three about this one. The module still owns the
- *   microphone and every write; what moved is arrangement, which is what a template is made of.
- * - **`module`** for the call itself, which is a video stage no schema could express.
+ * - **`node`** for the extraction readout and the calls list — this template's own schema.
+ * - **`module`** for the call stage, which no schema could express, and for the transcript, which
+ *   one could and should not. The transcript was a `node` here for one real reason: the module's
+ *   panel read the call being *recorded into*, and everything here is about the call *on screen*.
+ *   Writing a body bought that and a second copy of the header, the feed and the gating, which
+ *   promptly drifted — the copy never gained the module's coverage readout or its capture status,
+ *   so the interface built around recording a meeting said less about a failing microphone than the
+ *   default one did. Following the address is what any transcript panel should do, so it lives in
+ *   the module now and this places it. A body is for an arrangement the module genuinely cannot
+ *   express, not for a difference it should have absorbed.
  * - **no `route` on any of them.** The key exists for a shell that routes itself and wants a panel on
  *   one page only — but scoping these to the board meant crossing to the tasks list *unregistered*
  *   them, throwing away their scroll position, their subscriptions and wherever they had been
@@ -99,9 +103,6 @@ const EXTRACTED = { $: 'modules.transcribe.extractionTargets.map(t, t.entity)' }
  */
 const CALL_EXPR = 'routeStore.params.call ? routeStore.params.call : modules.call.callRecordId';
 const CALL = { $: CALL_EXPR };
-
-/** Whether the call on screen is the one being recorded, as opposed to one being looked back at. */
-const VIEWING_LIVE = { $: 'routeStore.params.call ? false : true' };
 
 /**
  * The page on screen, as a segment — or the board, before the redirect has landed on one.
@@ -597,195 +598,6 @@ const startCall: SchemaNode = {
       ],
     },
   },
-};
-
-/**
- * The transcript of the call on screen — this template's own, not the module's.
- *
- * `@we/module-transcribe` has a perfectly good transcript panel and this template used to place it.
- * It reads `modules.transcribe.collectionId`, which is the call being *recorded into* — so once the
- * call on screen became something the path could name, the module's panel and every other surface
- * here would have been about different calls whenever somebody opened a past one. A panel that
- * disagrees with the board beside it is worse than one more `$query`.
- *
- * So the arrangement is the template's, which is the whole thesis of this package: the pieces are
- * the module's own published parts, the record button is `modules.transcribe.toggle`, and the module
- * still owns everything that is not arrangement — the microphone, the buffering, the writes, and
- * whether this surface is up at all.
- *
- * That last one is why the module's own panel is **not** one click away in the chrome rail, as this
- * used to claim. Supplying a body replaces what is inside the module's dock rather than adding a
- * second panel beside it, so the rail's launcher opens *this* while the workshop is the interface on
- * screen. That is the intended behaviour — two transcripts of one call is the failure this replaced
- * — but it means an interface supplying a body has taken on saying anything the module's panel would
- * have said, and there is no fallback that says it instead.
- */
-const transcriptPanel: SchemaNode = {
-  type: 'Column',
-  props: { width: '100%', height: '100%', p: '300', gap: '300', overflow: 'hidden' },
-  children: [
-    {
-      type: 'Row',
-      props: { width: '100%', ay: 'center', gap: '200' },
-      children: [
-        {
-          type: 'we-text',
-          props: {
-            variant: 'label',
-            color: 'text-muted',
-            textTransform: 'uppercase',
-            letterSpacing: 'wide',
-            flex: '1',
-          },
-          children: [{ $: "routeStore.templateSegments[1] ? 'Past call' : 'Transcript'" }],
-        },
-        /*
-          Recording is about the call you are *in*, so the control is only offered there.
-
-          On a past call the honest offer is to pick it back up — `continueCall` to start a call on
-          the record already on screen, then `resume` to point the recorder at it without waiting for
-          a presence round trip. Gated exactly as the calls list gates the same pair: mid-call, on
-          some other call's board, `resume` would re-point every peer's live transcript at this one,
-          since peers adopt an announced record over their own.
-        */
-        {
-          type: '$if',
-          props: {
-            condition: VIEWING_LIVE,
-            then: {
-              type: '$if',
-              props: {
-                condition: { $: 'modules.call.active' },
-                then: {
-                  type: 'we-button',
-                  props: {
-                    size: 'sm',
-                    gap: '200',
-                    variant: { $: "modules.transcribe.enabled ? 'secondary' : 'ghost'" },
-                    onClick: { $action: 'modules.transcribe.toggle' },
-                  },
-                  children: [
-                    {
-                      type: 'we-icon',
-                      props: {
-                        name: 'microphone',
-                        weight: { $: "modules.transcribe.listening ? 'fill' : 'regular'" },
-                        /*
-                          The `danger` FILL, not `danger-text`.
-
-                          `dangerText` is a derived foreground: its lightness is moved until it is
-                          legible against a card, which in a dark theme means lifting it into a pale
-                          pink. That is right for an error sentence somebody has to read, and wrong
-                          here — this is not text, it is an indicator that something is being
-                          recorded, and it has to read as an alarm at a glance. The fill role holds
-                          a pinned lightness and full chroma, so it is the same saturated red in
-                          either polarity.
-                        */
-                        color: { $: "modules.transcribe.listening ? 'danger' : 'text-muted'" },
-                      },
-                    },
-                    {
-                      type: 'we-text',
-                      props: { variant: 'footnote' },
-                      children: [{ $: "modules.transcribe.enabled ? 'Recording' : 'Record'" }],
-                    },
-                  ],
-                },
-              },
-            },
-            else: {
-              type: '$if',
-              props: {
-                condition: { $: 'modules.call.canCall && !modules.call.active' },
-                then: {
-                  type: 'we-button',
-                  props: {
-                    size: 'sm',
-                    gap: '200',
-                    variant: 'ghost',
-                    onClick: [
-                      // The record on screen, not a new one — see `continueCall` in the calls panel.
-                      { $action: 'modules.call.continueCall', args: [{ $: 'routeStore.params.call' }] },
-                      { $action: 'modules.transcribe.resume', args: [{ $: 'routeStore.params.call' }] },
-                      // And stop naming it: the recorder has just adopted this record, so it is the
-                      // live call now, and an address still pinning to it would say the opposite for
-                      // the rest of the meeting.
-                      openLiveCall,
-                    ],
-                  },
-                  children: [
-                    { type: 'we-icon', props: { name: 'phone-call' } },
-                    { type: 'we-text', props: { variant: 'footnote' }, children: ['Continue'] },
-                  ],
-                },
-              },
-            },
-          },
-        },
-      ],
-    },
-    /*
-      Is it hearing me?
-
-      The feed below cannot answer that, and the gap is bigger than it looks: an utterance is only a
-      row once the speaker has stopped, the audio has reached the model and the block has been
-      written, so for those seconds a transcript of saved lines is indistinguishable from a dead
-      microphone. Long enough that the honest reading of the panel is "this isn't working".
-
-      Only on the live call. The meter is about the microphone *this agent* is running now, which
-      has nothing to do with a past call somebody opened from a link — a bar moving beside last
-      month's meeting would be measuring the wrong thing and saying so confidently. It gates itself
-      on recording as well, so this adds the second condition rather than the first.
-    */
-    {
-      type: '$if',
-      props: { condition: VIEWING_LIVE, then: { type: '$part', props: { id: 'transcribe.captureMeter' } } },
-    },
-    {
-      type: '$if',
-      props: {
-        condition: CALL,
-        /*
-          The module's rows and its unsaved line, in a scroll area this template owns.
-
-          `transcriptLines` rather than `transcriptFeed`, and the scroll area written out here, for
-          one reason: the unsaved line has to be *inside* the scrolling region — immediately after
-          the last saved row, so a sentence does not appear to leap a gap of empty panel when it is
-          written — and it has to be absent on a past call, because that buffer is this agent's live
-          microphone and last month's meeting is not what it is saying. Placing the module's whole
-          feed would give the right position and the wrong call; placing the line beneath the feed
-          gave the right call and the wrong position. Owning the box is what allows both.
-
-          The rows themselves are still the module's, pointed at the call on screen — the query, the
-          attribution and every later fix to them arrive from there rather than being re-made here.
-        */
-        then: {
-          type: 'we-scroll-area',
-          // Follows the tail while somebody is at the tail, and holds still while they read further
-          // up, with a way back to either end — the module's own feed does the same, for the same
-          // reasons.
-          props: { pin: 'end', jump: 'both', flex: '1', minHeight: '0' },
-          children: [
-            {
-              type: 'Column',
-              props: { gap: '300' },
-              children: [
-                { type: '$part', props: { id: 'transcribe.transcriptLines', subject: CALL } },
-                {
-                  type: '$if',
-                  props: {
-                    condition: VIEWING_LIVE,
-                    then: { type: '$part', props: { id: 'transcribe.pendingUtterance' } },
-                  },
-                },
-              ],
-            },
-          ],
-        },
-        else: emptyState({ icon: 'microphone', label: 'a transcript' }),
-      },
-    },
-  ],
 };
 
 /**
@@ -2082,36 +1894,30 @@ export const workshopTemplate: TemplateSchema = {
     */
     panels: [
       /*
-        The transcript is this template's own node, where it used to be `module: 'transcribe'`.
+        The transcribe module's panel, placed. Nothing else — no body of our own.
 
-        The module's panel reads `modules.transcribe.collectionId` — the call being recorded into —
-        and the call *on screen* is now whatever the path names. Placing the module's panel would put
-        one surface about a different call beside three about this one, which is worse than either
-        answer on its own. What the module owns is unchanged: the microphone, the buffering and every
-        write. This is arrangement, which is the layer templates are made of.
-      */
-      /*
-        The transcribe module's panel, arranged here.
+        There was one, for one reason: the module's panel read `modules.transcribe.collectionId`,
+        the call being *recorded into*, and the call on screen here is whatever the path names, so
+        placing it would have put one surface about a different call beside three about this one.
+        Supplying a body bought that at the price of a second copy of the header, the feed and the
+        gating — and the copy drifted exactly as a copy does. It never gained the module's coverage
+        readout or its capture status, so this template silently said less about a failing
+        microphone than the default one did, and a fix to the transcript's scrolling landed on one
+        of the two.
 
-        `module` *and* `node` together: the module goes on owning whether the surface is up — press
-        record anywhere and it opens — and this owns what is inside it. Declared as a panel of its
-        own instead, as it was, the module's panel opened beside this one on the first press and the
-        screen carried two transcripts of the same call.
+        The answer was never a second panel. "Show the call the address names, else the live one" is
+        what a transcript panel should do everywhere, so it moved into the module — see `SUBJECT` in
+        its `Panel.schema.ts` — and this went back to being what a template's panel entry is for:
+        where the thing goes.
+
+        `dock` still names which of the module's two panels this is. It is no longer load-bearing —
+        without a `node` there is nothing to supply — but it is what says the entry means the
+        transcript rather than the extraction readout, and the entry below is its pair.
       */
       {
         id: 'transcript',
         module: 'transcribe',
-        /*
-          Named, now that the module contributes two panels.
-
-          Without it the host cannot tell which body this is, and refuses to supply either rather
-          than guessing — a transcript inside an extraction panel is a silent wrong answer. The two
-          entries below line up one-to-one with the module's two docks, which is what stops this
-          template showing a second copy of anything the module also draws.
-        */
         dock: 'transcript',
-        node: transcriptPanel,
-        title: 'Transcript',
         snap: 'left',
         /*
           One sidebar cut in two, rather than two cards over the board.

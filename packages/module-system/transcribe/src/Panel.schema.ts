@@ -21,6 +21,38 @@ import { expr } from '@we/schema-shared';
 import { extractionActivity } from './ExtractionStatus.schema';
 
 /**
+ * Which call this panel is about — the one named in the address, or the one being recorded.
+ *
+ * A transcript surface has always had two possible subjects and only ever admitted to one. The
+ * workshop template noticed first and answered it by supplying a whole panel body of its own, which
+ * bought route-awareness at the price of a second copy of the header, the feed and the gating — and
+ * the copy promptly drifted: it never gained `coverage` or `captureStatus`, and the first fix to
+ * land on the scroll area landed on one of the two.
+ *
+ * It is not template knowledge. "Show the call the address names, else the live one" is what any
+ * transcript panel should do, so it lives here and every interface gets it by placing the panel.
+ *
+ * `collectionId` rather than the call module's record id: the collection is created on the first
+ * utterance, so its absence is exactly "nothing has been said here", which is the question
+ * `captureStatus` is already answering. A call with a record and no words is not a transcript.
+ */
+export const SUBJECT_EXPR = 'routeStore.params.call ? routeStore.params.call : modules.transcribe.collectionId';
+const SUBJECT = { $: SUBJECT_EXPR };
+
+/**
+ * Whether the call on screen is the one being recorded, as opposed to one being looked back at.
+ *
+ * Everything about *this agent's microphone* is gated on it — the meter, the coverage readout, the
+ * status notes, the unsaved line and the record button. A bar moving beside last month's meeting
+ * would be measuring the wrong thing and saying so confidently.
+ *
+ * Read from the address rather than derived from `SUBJECT`, because whole-token substitution cannot
+ * rewrite an expression that merely mentions the subject: a `$part` pointed at another call is
+ * expected to be on a route that names it, which is what `SUBJECT_EXPR` already assumes.
+ */
+const VIEWING_LIVE = { $: 'routeStore.params.call ? false : true' };
+
+/**
  * A message shown for exactly one status.
  *
  * Every reason this module can produce nothing gets its own line, because from the user's side they
@@ -64,12 +96,15 @@ function note(status: string, icon: string, text: string, action?: SchemaNode): 
  *
  * ## Why this is named
  *
- * Named as a part because a template that supplies its own transcript panel — the workshop
- * template does, since its panels are about the call in the *path* rather than the one being
- * recorded into — otherwise loses the answer to "is it hearing me". That is the one question a
- * transcript cannot answer for itself: an utterance takes seconds to buffer, transcribe and write,
- * so a panel showing only saved lines is indistinguishable from a broken microphone for the whole
- * of that delay.
+ * Named as a part because a template that supplies its own transcript panel otherwise loses the
+ * answer to "is it hearing me". That is the one question a transcript cannot answer for itself: an
+ * utterance takes seconds to buffer, transcribe and write, so a panel showing only saved lines is
+ * indistinguishable from a broken microphone for the whole of that delay.
+ *
+ * The workshop template used to be that consumer, and its copy of the panel never placed this — so
+ * the interface built around recording a meeting said *less* about a failing microphone than the
+ * default one did. It places the whole panel now, which is the better answer to a shared piece; the
+ * part stays for the interface that genuinely wants a different arrangement.
  *
  * No `subject`. Unlike the feed, this is about the microphone *this agent* is running right now,
  * which is a property of the session and not of any call record — pointing it at another call
@@ -974,7 +1009,15 @@ export const captureStatus: SchemaNode = {
 export const pendingUtterance: SchemaNode = {
   type: '$if',
   props: {
-    condition: { $: 'modules.transcribe.pending' },
+    /*
+      Gated on the live call as well as on there being words, and it gates *itself*.
+
+      The buffer is this agent's own microphone, so it has nothing to do with a call somebody opened
+      from a link — and a fragment that has to be wrapped in the right condition by whoever places it
+      is a fragment that will be placed without one. The workshop wrapped it by hand; nothing made
+      that obligatory, and nothing would have said so if it had been forgotten.
+    */
+    condition: { $: 'modules.transcribe.pending && !routeStore.params.call' },
     then: {
       type: 'Column',
       props: { bg: 'accent-muted', r: '300', p: '300', gap: '200' },
@@ -1036,7 +1079,7 @@ export const transcriptFeed: SchemaNode = {
       children: [
         {
           type: '$part',
-          props: { id: 'transcribe.transcriptLines', subject: { $: 'modules.transcribe.collectionId' } },
+          props: { id: 'transcribe.transcriptLines', subject: SUBJECT },
         },
         pendingUtterance,
       ],
@@ -1144,11 +1187,16 @@ export const panel: SchemaNode = {
               type: 'Row',
               props: { gap: '200', ay: 'center' },
               children: [
-                { type: 'we-text', props: { variant: 'heading-sm' }, children: ['Transcript'] },
+                {
+                  type: 'we-text',
+                  props: { variant: 'heading-sm' },
+                  // Says which call this is about, because the panel can now be about either.
+                  children: [{ $: "routeStore.params.call ? 'Past call' : 'Transcript'" }],
+                },
                 {
                   type: '$if',
                   props: {
-                    condition: { $: 'modules.transcribe.listening' },
+                    condition: { $: 'modules.transcribe.listening && !routeStore.params.call' },
                     // `solid`: this is the news, not an annotation on it. Soft would paint the dark
                     // tint and a pale label, which reads as a note about recording rather than as
                     // the fact that it is happening.
@@ -1166,52 +1214,115 @@ export const panel: SchemaNode = {
               props: { gap: '100', ay: 'center' },
               children: [
                 {
-                  // The panel's own record control. The call bar is the natural place for it during a
-                  // call, but the panel has to be self-sufficient: it opens outside a call too, and a
-                  // template may place neither the bar nor the rail.
-                  type: 'we-button',
-                  props: {
-                    variant: { $: "modules.transcribe.enabled ? 'secondary' : 'ghost'" },
-                    size: 'sm',
-                    disabled: { $: '!modules.transcribe.enabled && !modules.transcribe.available' },
-                    onClick: { $action: 'modules.transcribe.toggle' },
-                    title: { $: "modules.transcribe.enabled ? 'Stop transcribing' : 'Start transcribing'" },
-                  },
-                  children: [
-                    {
-                      type: 'we-icon',
-                      props: {
-                        name: 'record',
-                        /*
-                          Not `weight: 'fill'` while listening, and not `danger-text` — the two bugs
-                          `CallControl.schema.ts` documents fixing on the call bar's own record
-                          button, still here on the panel's.
+                  /*
+                    Recording is about the call you are *in*, so the control is only offered there.
 
-                          Only the `regular` weight of any icon is bundled, so every other weight is
-                          a CDN fetch; this one fired at the moment recording started, which on an
-                          offline machine made the icon vanish as you pressed it. And `danger-text`
-                          is a foreground measured for reading against a page — `danger-700`, which
-                          inverts to a pale pink in a dark theme. A record dot is a mark, so it wants
-                          the fill.
-                        */
-                        color: { $: "modules.transcribe.listening ? 'danger' : ''" },
+                    On a call being looked back at the honest offer is to pick it back up:
+                    `continueCall` starts a call on the record already on screen, `resume` points
+                    the recorder at it without waiting for a presence round trip, and the address
+                    stops naming it — the recorder has just adopted this record, so it is the live
+                    call now, and a parameter still pinning to it would say the opposite for the
+                    rest of the meeting.
+
+                    This is the one place this module names another. It is a `$if` on
+                    `modules.call.canCall`, which is absent — and so falsy — in a deployment without
+                    the call module, so the offer simply is not made rather than failing.
+                  */
+                  type: '$if',
+                  props: {
+                    condition: VIEWING_LIVE,
+                    then: {
+                      // The panel's own record control. The call bar is the natural place for it
+                      // during a call, but the panel has to be self-sufficient: it opens outside a
+                      // call too, and a template may place neither the bar nor the rail.
+                      type: 'we-button',
+                      props: {
+                        variant: { $: "modules.transcribe.enabled ? 'secondary' : 'ghost'" },
+                        size: 'sm',
+                        disabled: { $: '!modules.transcribe.enabled && !modules.transcribe.available' },
+                        onClick: { $action: 'modules.transcribe.toggle' },
+                        title: { $: "modules.transcribe.enabled ? 'Stop transcribing' : 'Start transcribing'" },
+                      },
+                      children: [
+                        {
+                          type: 'we-icon',
+                          props: {
+                            name: 'record',
+                            /*
+                              Not `weight: 'fill'` while listening, and not `danger-text` — the two
+                              bugs `CallControl.schema.ts` documents fixing on the call bar's own
+                              record button, still here on the panel's.
+
+                              Only the `regular` weight of any icon is bundled, so every other
+                              weight is a CDN fetch; this one fired at the moment recording started,
+                              which on an offline machine made the icon vanish as you pressed it.
+                              And `danger-text` is a foreground measured for reading against a page
+                              — `danger-700`, which inverts to a pale pink in a dark theme. A record
+                              dot is a mark, so it wants the fill.
+                            */
+                            color: { $: "modules.transcribe.listening ? 'danger' : ''" },
+                          },
+                        },
+                      ],
+                    },
+                    else: {
+                      type: '$if',
+                      props: {
+                        condition: { $: 'modules.call.canCall && !modules.call.active' },
+                        then: {
+                          type: 'we-button',
+                          props: {
+                            variant: 'ghost',
+                            size: 'sm',
+                            gap: '200',
+                            title: 'Start a call on this record and carry on transcribing into it',
+                            onClick: [
+                              { $action: 'modules.call.continueCall', args: [{ $: 'routeStore.params.call' }] },
+                              { $action: 'modules.transcribe.resume', args: [{ $: 'routeStore.params.call' }] },
+                              { $action: 'routeStore.setParam', args: ['call', null] },
+                            ],
+                          },
+                          children: [
+                            { type: 'we-icon', props: { name: 'phone-call' } },
+                            { type: 'we-text', props: { variant: 'footnote' }, children: ['Continue'] },
+                          ],
+                        },
                       },
                     },
-                  ],
+                  },
                 },
               ],
             },
           ],
         },
 
-        // ── Is it hearing me? ────────────────────────────────────────────────
-        captureMeter,
+        /*
+          Everything about this agent's own microphone, and so only about the live call.
 
-        // ── Is it hearing everyone else? ─────────────────────────────────────
-        coverage,
+          One `$if` around the three of them rather than three conditions: they answer one question
+          between them — is it hearing me, is it hearing everyone else, and why is nothing happening
+          — and that question is not asked at all of a meeting somebody is reading back.
+        */
+        {
+          type: '$if',
+          props: {
+            condition: VIEWING_LIVE,
+            then: {
+              type: 'Column',
+              props: { gap: '400' },
+              children: [
+                // ── Is it hearing me? ────────────────────────────────────────
+                captureMeter,
 
-        // ── Why nothing is happening, when nothing is ────────────────────────
-        captureStatus,
+                // ── Is it hearing everyone else? ─────────────────────────────
+                coverage,
+
+                // ── Why nothing is happening, when nothing is ────────────────
+                captureStatus,
+              ],
+            },
+          },
+        },
 
         // ── What has been heard, and what is still being said ────────────────
         // One node, not two: the unsaved line lives inside the feed's scroll region, immediately
