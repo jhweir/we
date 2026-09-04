@@ -792,7 +792,7 @@ export const TEMPLATE_SURFACE: Record<string, Record<string, Classification>> = 
     publishToMarketplace: action('library'),
     // Queries that answer with a value, which $action cannot read: templateManagementList carries
     // isBuiltIn and isInstalled per row, which is the form a template can use.
-    isBuiltInTemplate: WIRING,
+    isBuiltInTemplateId: WIRING,
     isInstalled: WIRING,
 
     /*

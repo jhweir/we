@@ -255,7 +255,7 @@ export function EditorStoreProvider(props: ParentProps) {
   const templateIcon = () => templateStore.currentTemplate.meta?.icon || 'cube';
   const isReadOnly = () => {
     const id = templateStore.currentTemplate.id;
-    return !!id && templateStore.isBuiltInTemplate(id);
+    return !!id && templateStore.isBuiltInTemplateId(id);
   };
 
   // --- Pending changes (buffered edits for read-only templates) ---
@@ -373,7 +373,7 @@ export function EditorStoreProvider(props: ParentProps) {
   /** Load sessions for a given template and activate the most recent one */
   async function loadSessionsForTemplate(templateId: string) {
     // Core (read-only) templates use ephemeral in-memory sessions
-    if (templateStore.isBuiltInTemplate(templateId)) {
+    if (templateStore.isBuiltInTemplateId(templateId)) {
       setSessions([]);
       setActiveSessionId(null);
       activeSessionRecord = null;
@@ -426,7 +426,7 @@ export function EditorStoreProvider(props: ParentProps) {
   /** Create a new chat session for the current template */
   async function newChat() {
     const templateId = templateStore.currentTemplate.id;
-    if (!templateId || templateStore.isBuiltInTemplate(templateId)) {
+    if (!templateId || templateStore.isBuiltInTemplateId(templateId)) {
       // For core templates, clear in-memory messages (ephemeral sessions)
       setMessages([]);
       setMessages((prev) => [...prev, createMessage('assistant', 'Chat cleared. Start a new conversation!')]);
@@ -832,7 +832,7 @@ export function EditorStoreProvider(props: ParentProps) {
   async function sendMessage(text: string) {
     // Lazy session creation for custom templates: if no active session, create one
     const templateId = templateStore.currentTemplate.id;
-    if (templateId && !templateStore.isBuiltInTemplate(templateId) && !activeSessionRecord) {
+    if (templateId && !templateStore.isBuiltInTemplateId(templateId) && !activeSessionRecord) {
       await newChat();
     }
 

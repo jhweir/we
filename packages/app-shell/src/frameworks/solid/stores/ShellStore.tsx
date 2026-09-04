@@ -2176,6 +2176,20 @@ export function ShellStoreProvider(props: ParentProps) {
         };
       });
 
+      /*
+        The id and the name go through untouched, and the library decides what they become.
+
+        This used to be the way a built-in got saved over: the schema carries the id it was forked
+        from, so on a built-in the save landed *on* it — no new row, nothing to switch between, and
+        every later release of that template invisible from then on, while the control said "fork".
+        `saveTemplateAs` reserves the id and renames when it does, so the same call now forks a
+        built-in and saves in place on something you already own, which is what both readings of
+        this button wanted.
+
+        Not the naming picker, which is what a considered fork gets: that lives on `editorStore`
+        and this store has no edge to it. Worth doing when one exists — a reader would rather say
+        what an arrangement is for than be handed a suffix.
+      */
       return saver.save({ ...schema, meta: { ...schema.meta, panels: arranged } });
     },
     toggleSpaceSettings: () => setSpaceSettingsOpen((open) => !open),
