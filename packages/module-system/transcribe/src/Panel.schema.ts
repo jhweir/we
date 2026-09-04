@@ -1026,8 +1026,9 @@ export const pendingUtterance: SchemaNode = {
 export const transcriptFeed: SchemaNode = {
   type: 'we-scroll-area',
   // Follows the tail while somebody is at the tail, and holds still while they read further
-  // up. A live transcript is the case this exists for.
-  props: { pin: 'end', flex: '1', minHeight: '0' },
+  // up. A live transcript is the case this exists for — and the case that most needs a way back
+  // down again, since holding still is otherwise a decision nothing offers to undo.
+  props: { pin: 'end', jump: 'both', flex: '1', minHeight: '0' },
   children: [
     {
       type: 'Column',

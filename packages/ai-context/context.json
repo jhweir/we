@@ -1349,6 +1349,12 @@
           "type": "'' | 'end'",
           "optional": false,
           "default": "''"
+        },
+        {
+          "name": "jump",
+          "type": "'' | 'start' | 'end' | 'both'",
+          "optional": false,
+          "default": "''"
         }
       ]
     },

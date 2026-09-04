@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 
 interface ScrollAreaEl extends HTMLElement {
   pin: '' | 'end';
+  jump: '' | 'start' | 'end' | 'both';
   updateComplete: Promise<unknown>;
 }
 
@@ -33,9 +34,15 @@ const settle = async () => {
  * fixed, because the bug this file exists to pin down is content growing between one measurement
  * and the next.
  */
-async function mount(options: { pin?: 'end'; scrollHeight?: number; clientHeight?: number }) {
+async function mount(options: {
+  pin?: 'end';
+  jump?: 'start' | 'end' | 'both';
+  scrollHeight?: number;
+  clientHeight?: number;
+}) {
   const el = document.createElement('we-scroll-area') as ScrollAreaEl;
   if (options.pin) el.pin = options.pin;
+  if (options.jump) el.jump = options.jump;
   document.body.appendChild(el);
   await el.updateComplete;
 
@@ -67,7 +74,34 @@ async function mount(options: { pin?: 'end'; scrollHeight?: number; clientHeight
   /** The scroll event the browser queues for a write we made, delivered after the frame's layout. */
   const deliverOurScroll = () => base.dispatchEvent(new Event('scroll'));
 
-  return { el, base, scrollTo, addRow, grow, deliverOurScroll, end: () => scrollHeight - clientHeight };
+  /** Which jump controls are currently drawn. Lit re-renders on the state they are gated on. */
+  const controls = async () => {
+    await el.updateComplete;
+    const root = el.shadowRoot!;
+    return {
+      start: !!root.querySelector('[part="jump-start"]'),
+      end: !!root.querySelector('[part="jump-end"]'),
+    };
+  };
+
+  const press = async (which: 'start' | 'end') => {
+    await el.updateComplete;
+    const button = el.shadowRoot!.querySelector(`[part="jump-${which}"] we-button`);
+    button!.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+    await el.updateComplete;
+  };
+
+  return {
+    el,
+    base,
+    scrollTo,
+    addRow,
+    grow,
+    deliverOurScroll,
+    controls,
+    press,
+    end: () => scrollHeight - clientHeight,
+  };
 }
 
 describe('we-scroll-area pin="end"', () => {
@@ -160,6 +194,21 @@ describe('we-scroll-area pin="end"', () => {
     expect(base.scrollTop).toBe(300);
   });
 
+  it('re-arms following when the reader presses jump-to-end', async () => {
+    const { base, scrollTo, addRow, press } = await mount({ pin: 'end', jump: 'end' });
+
+    scrollTo(100);
+    await addRow();
+    expect(base.scrollTop).toBe(100);
+
+    await press('end');
+    expect(base.scrollTop).toBe(800);
+
+    // The press is worth more than one scroll: the list carries the reader again from here.
+    await addRow();
+    expect(base.scrollTop).toBe(800);
+  });
+
   it('scrolls to the end the prop asks for, even when the prop is set late', async () => {
     const { el, base } = await mount({});
 
@@ -169,5 +218,83 @@ describe('we-scroll-area pin="end"', () => {
     await el.updateComplete;
 
     expect(base.scrollTop).toBe(800);
+  });
+});
+
+describe('we-scroll-area jump', () => {
+  it('offers neither control without the prop', async () => {
+    const { scrollTo, controls } = await mount({});
+
+    scrollTo(400);
+
+    expect(await controls()).toEqual({ start: false, end: false });
+  });
+
+  it('offers only the direction there is somewhere to go in', async () => {
+    const { scrollTo, controls } = await mount({ jump: 'both' });
+
+    scrollTo(0);
+    expect(await controls()).toEqual({ start: false, end: true });
+
+    scrollTo(400);
+    expect(await controls()).toEqual({ start: true, end: true });
+
+    scrollTo(800);
+    expect(await controls()).toEqual({ start: true, end: false });
+  });
+
+  it('honours which directions were asked for', async () => {
+    const { scrollTo, controls } = await mount({ jump: 'end' });
+
+    scrollTo(400);
+
+    expect(await controls()).toEqual({ start: false, end: true });
+  });
+
+  it('draws nothing at all when there is nothing to scroll', async () => {
+    const { scrollTo, controls } = await mount({ jump: 'both', scrollHeight: 210, clientHeight: 200 });
+
+    scrollTo(0);
+
+    // 10px of overflow is within AT_END_PX — a button to cross it would be chrome for its own sake.
+    expect(await controls()).toEqual({ start: false, end: false });
+  });
+
+  it('appears when the content grows past a reader who has not moved', async () => {
+    const { scrollTo, addRow, grow, controls } = await mount({ jump: 'end', scrollHeight: 200 });
+
+    scrollTo(0);
+    expect(await controls()).toEqual({ start: false, end: false });
+
+    // Nobody scrolled; the end moved. This is the moment the control is worth offering, and an
+    // answer computed only from scroll events would never notice it.
+    grow(600);
+    await addRow();
+
+    expect(await controls()).toEqual({ start: false, end: true });
+  });
+
+  it('becomes the containing block for its controls, and only then', async () => {
+    // `position` is DS-covered on :host, so it can only arrive through the prop merge — hardcoding
+    // it in the component's own CSS is reverted the moment an instance renders. And an ordinary
+    // scroll area must not become a stacking context for nothing: something absolutely positioned
+    // in slotted content would quietly start resolving against it.
+    const plain = await mount({});
+    expect(plain.el.style.getPropertyValue('--we-scroll-area-position')).toBe('');
+
+    const withControls = await mount({ jump: 'end' });
+    expect(withControls.el.style.getPropertyValue('--we-scroll-area-position')).toBe('relative');
+  });
+
+  it('takes the reader back to the start, without re-arming the pin', async () => {
+    const { base, scrollTo, addRow, press } = await mount({ pin: 'end', jump: 'both' });
+
+    scrollTo(800);
+    await press('start');
+    expect(base.scrollTop).toBe(0);
+
+    // Pressing it is a decision to be somewhere else, so an arriving line must not undo it.
+    await addRow();
+    expect(base.scrollTop).toBe(0);
   });
 });
