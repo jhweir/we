@@ -1,4 +1,5 @@
 import type { SchemaNode } from '@we/schema-shared';
+import { sectionLabel } from '@we/template-kit';
 
 /**
  * Which sections a space has, and which of them this agent bothers to see.
@@ -259,11 +260,7 @@ const sectionsCard: SchemaNode = {
           type: 'Column',
           props: { gap: '200', pt: '300', mt: '200', borderTop: '1px solid border' },
           children: [
-            {
-              type: 'we-text',
-              props: { variant: 'footnote', fontWeight: 'semibold', textTransform: 'uppercase', color: 'text-faint' },
-              children: ['Not in this space'],
-            },
+            sectionLabel({ label: 'Not in this space' }),
             {
               type: '$each',
               props: { items: { $: 'filter(space.views, { enabled: false })' }, as: 'view' },

@@ -1,5 +1,6 @@
 import { Column, Combobox, type ComboboxOption, Grid, Row } from '@we/components/solid';
 import { tokenVar } from '@we/design-utils';
+import { PANEL_TITLE_PROPS } from '@we/schema-kit';
 import type { ComponentMeta, PropLayer, PropMeta, SchemaNode, ScopeGroup, TemplateSchema } from '@we/schema-shared';
 import {
   contextData,
@@ -502,17 +503,8 @@ export function InspectorPanel() {
       color="text"
     >
       {/* Header */}
-      <Row
-        ax="between"
-        ay="center"
-        px="400"
-        py="300"
-        borderBottom={`1px solid ${tokenVar('color', 'ui-200')}`}
-        flexShrink="0"
-      >
-        <we-text fontSize="500" fontWeight="600">
-          Visual Inspector
-        </we-text>
+      <Row ax="between" ay="center" px="300" py="300" flexShrink="0">
+        <we-text {...PANEL_TITLE_PROPS}>Visual Inspector</we-text>
       </Row>
 
       {/* Layer tree */}

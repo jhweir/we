@@ -29,6 +29,7 @@
  * which is the shape James asked for, and the right one: a bar that grew a row per concurrent pass
  * would push the whole call's chrome around while somebody was using it.
  */
+import { SECTION_LABEL_PROPS } from '@we/schema-kit';
 import { type SchemaNode, type SchemaProp } from '@we/schema-shared';
 import { expr } from '@we/schema-shared';
 
@@ -176,11 +177,17 @@ const disclosureCaret: SchemaNode = {
   },
 };
 
-/** The small caps heading above each pane. */
+/**
+ * The small caps heading above each pane.
+ *
+ * `SECTION_LABEL_PROPS` rather than its own four props: this was one of the near-misses the shared
+ * recipe exists to absorb — a raw `fontSize` where the others named a variant, and no two of them
+ * agreeing on the tracking.
+ */
 function paneLabel(label: string): SchemaNode {
   return {
     type: 'we-text',
-    props: { fontSize: '200', color: 'text-faint', uppercase: true, letterSpacing: 'wide' },
+    props: { ...SECTION_LABEL_PROPS },
     children: [label],
   };
 }

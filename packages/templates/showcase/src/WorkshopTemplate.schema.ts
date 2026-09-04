@@ -54,7 +54,7 @@
  *   *joins a call* when there is not one. Placed, never opened.
  */
 import type { RouteSchema, SchemaNode, SchemaProp, TemplateSchema } from '@we/schema-shared';
-import { agentByline, emptyState, recordFormModal } from '@we/template-kit';
+import { agentByline, emptyState, panelHeader, recordFormModal, sectionLabel } from '@we/template-kit';
 
 /**
  * What extraction is allowed to make from a transcript — asked, rather than restated.
@@ -329,11 +329,7 @@ const proposalsReview: SchemaNode = {
       type: 'Column',
       props: { gap: '200' },
       children: [
-        {
-          type: 'we-text',
-          props: { variant: 'label', color: 'text-muted', textTransform: 'uppercase', letterSpacing: 'wide' },
-          children: ['Awaiting your call'],
-        },
+        sectionLabel({ label: 'Awaiting your call' }),
         {
           type: '$each',
           props: { items: { $: 'modules.transcribe.proposals' }, as: 'proposal' },
@@ -406,6 +402,15 @@ const extractionPanel: SchemaNode = {
   type: 'Column',
   props: { width: '100%', height: '100%', p: '300', gap: '300', overflow: 'hidden' },
   children: [
+    /*
+      Outside the `capable` gate, deliberately.
+
+      Everything below it is conditional — on this node being able to interpret at all, and then on
+      what is running — and while the only capitalised line in here was "Extracted", four children
+      down, the panel had no name in the state that most needs one: the one where it is explaining
+      that no model is configured.
+    */
+    panelHeader({ title: 'Extraction' }),
     {
       type: '$if',
       props: {
@@ -460,50 +465,38 @@ const extractionPanel: SchemaNode = {
               ],
             },
             proposalsReview,
-            {
-              type: 'Row',
-              props: { width: '100%', ay: 'center', gap: '200' },
-              children: [
-                {
-                  type: 'we-text',
-                  props: {
-                    variant: 'label',
-                    color: 'text-muted',
-                    textTransform: 'uppercase',
-                    letterSpacing: 'wide',
-                    flex: '1',
-                  },
-                  children: ['Extracted'],
-                },
-                /*
-                  Run a pass over the call on screen, rather than over "the call I am in".
+            /*
+              A region inside the panel, not the panel's name — which is what it read as while it
+              was the only capitalised line in here.
 
-                  `extractCollection` takes the record, which is what makes this work on a call
-                  somebody opened from the list — `extract` can only ever mean the live one. Gated on
-                  `canExtract`, which is the module's own answer about models and targets.
-                */
-                {
-                  type: '$if',
-                  props: {
-                    condition: { $: 'modules.transcribe.canExtract' },
-                    then: {
-                      type: 'we-button',
-                      props: {
-                        size: 'sm',
-                        variant: 'ghost',
-                        gap: '200',
-                        loading: { $: "modules.transcribe.extractStatus == 'running'" },
-                        onClick: { $action: 'modules.transcribe.extractCollection', args: [CALL] },
-                      },
-                      children: [
-                        { type: 'we-icon', props: { name: 'sparkle' } },
-                        { type: 'we-text', props: { variant: 'footnote' }, children: ['Extract'] },
-                      ],
+              Run a pass over the call on screen, rather than over "the call I am in":
+              `extractCollection` takes the record, which is what makes this work on a call somebody
+              opened from the list — `extract` can only ever mean the live one. Gated on
+              `canExtract`, which is the module's own answer about models and targets.
+            */
+            sectionLabel({
+              label: 'Extracted',
+              aside: {
+                type: '$if',
+                props: {
+                  condition: { $: 'modules.transcribe.canExtract' },
+                  then: {
+                    type: 'we-button',
+                    props: {
+                      size: 'sm',
+                      variant: 'ghost',
+                      gap: '200',
+                      loading: { $: "modules.transcribe.extractStatus == 'running'" },
+                      onClick: { $action: 'modules.transcribe.extractCollection', args: [CALL] },
                     },
+                    children: [
+                      { type: 'we-icon', props: { name: 'sparkle' } },
+                      { type: 'we-text', props: { variant: 'footnote' }, children: ['Extract'] },
+                    ],
                   },
                 },
-              ],
-            },
+              },
+            }),
             {
               type: 'we-scroll-area',
               props: { flex: '1', minHeight: '0' },
@@ -734,16 +727,7 @@ const inspectorPanel: SchemaNode = {
     },
   },
   children: [
-    {
-      type: 'we-text',
-      props: {
-        variant: 'label',
-        color: 'text-muted',
-        textTransform: 'uppercase',
-        letterSpacing: 'wide',
-      },
-      children: ['Inspector'],
-    },
+    panelHeader({ title: 'Inspector' }),
     {
       type: '$if',
       props: {
@@ -934,24 +918,7 @@ const callsPanel: SchemaNode = {
     calls: { entity: 'CollectionBlock', where: { kind: 'call' }, order: { createdAt: 'desc' }, limit: 30 },
   },
   children: [
-    {
-      type: 'Row',
-      props: { width: '100%', ay: 'center', gap: '200' },
-      children: [
-        {
-          type: 'we-text',
-          props: {
-            variant: 'label',
-            color: 'text-muted',
-            textTransform: 'uppercase',
-            letterSpacing: 'wide',
-            flex: '1',
-          },
-          children: ['Calls'],
-        },
-        startCall,
-      ],
-    },
+    panelHeader({ title: 'Calls', aside: startCall }),
     {
       type: '$if',
       props: {
