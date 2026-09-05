@@ -43,7 +43,7 @@ import type { Artboard, CanvasProps } from './Canvas.types';
  * around it.
  */
 
-/** Where an unmeasured canvas starts: 1, which is `fit: 'none'` and therefore never a lie. */
+/** No box yet. A zero width is what `solve` reads as "not measured", and it draws nothing until it is. */
 const UNMEASURED = { width: 0, height: 0 };
 
 const observable = () => typeof ResizeObserver !== 'undefined';
