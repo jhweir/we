@@ -589,6 +589,154 @@ export const extractionTargets: SchemaNode = {
 };
 
 /**
+ * What has been read on this call, written down rather than remembered.
+ *
+ * The counterpart of `extractionActivity`, which is a live subscription: it starts empty, fills from
+ * the backend as passes run, and is thrown away on every space change. Excellent for watching
+ * something happen and useless the moment you reload — a call read an hour ago looked exactly like
+ * one never read at all, and a pass that *failed* looked exactly like one that found nothing.
+ *
+ * So the durable half is a query, over the `ExtractionPass` records the host writes beside every
+ * pass, scoped to the call on screen like everything else in this panel. Which also settles the
+ * question the live feed could not answer: these rows belong to *this* call, because containment is
+ * what they hang off.
+ *
+ * Collapsed behind a count, the way the live readout collapses its settled passes — a call read
+ * every few minutes for an hour is sixty rows nobody wants open.
+ */
+const extractionHistory: SchemaNode = {
+  type: 'Column',
+  props: { gap: '200', width: '100%' },
+  $localState: { historyOpen: { type: 'boolean', initial: false } },
+  $queries: {
+    passes: {
+      entity: 'ExtractionPass',
+      scope: { anchor: 'CollectionBlock', via: 'extractionPasses', anchorId: EXTRACTION_SUBJECT },
+      order: { createdAt: 'desc' },
+      limit: 50,
+    },
+  },
+  children: [
+    {
+      type: '$if',
+      props: {
+        condition: { $: 'count(local.passes)' },
+        then: {
+          type: 'Column',
+          props: { gap: '200', width: '100%' },
+          children: [
+            {
+              type: 'we-button',
+              props: { variant: 'bare', width: '100%', onClick: { $toggleLocal: 'historyOpen' } },
+              children: [
+                {
+                  type: 'Row',
+                  props: { ay: 'center', gap: '200', width: '100%' },
+                  children: [
+                    { type: 'we-icon', props: { size: 'sm', name: 'sparkle', color: 'text-faint' } },
+                    {
+                      type: 'we-text',
+                      props: { variant: 'footnote', color: 'text-muted', flex: '1', textAlign: 'left' },
+                      children: [
+                        {
+                          $: "`${count(local.passes)} ${plural(count(local.passes), 'reading', 'readings')} of this call`",
+                        },
+                      ],
+                    },
+                    {
+                      type: 'we-icon',
+                      props: {
+                        size: 'xs',
+                        color: 'text-muted',
+                        name: { $: "local.historyOpen ? 'caret-up' : 'caret-down'" },
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              type: '$if',
+              props: {
+                condition: { $: 'local.historyOpen' },
+                enterTransition: { type: 'reveal', duration: 200 },
+                exitTransition: { type: 'reveal', duration: 160 },
+                then: {
+                  type: 'Column',
+                  props: { gap: '200', width: '100%' },
+                  children: [
+                    {
+                      type: '$each',
+                      props: { items: { $: 'local.passes' }, as: 'pass' },
+                      children: [
+                        {
+                          type: 'Row',
+                          props: { gap: '200', ay: 'center', width: '100%' },
+                          children: [
+                            /*
+                              The outcome as a mark, not as a tick on everything.
+
+                              The template's own version of this list drew a green check on every
+                              settled row because it never read the outcome — so a pass that failed
+                              and one that wrote nine records looked identical, which is the whole
+                              reason a failure is worth storing.
+                            */
+                            {
+                              type: 'we-icon',
+                              props: {
+                                size: 'sm',
+                                name: {
+                                  $: "pass.outcome == 'failed' ? 'warning' : pass.outcome == 'skipped' ? 'minus-circle' : 'check-circle'",
+                                },
+                                color: {
+                                  $: "pass.outcome == 'failed' ? 'danger-text' : pass.outcome == 'done' ? 'success-text' : 'text-muted'",
+                                },
+                              },
+                            },
+                            {
+                              type: '$agent',
+                              props: { did: { $: 'pass.author' }, as: 'runner' },
+                              children: [
+                                {
+                                  type: 'we-avatar',
+                                  props: { size: 'xs', image: { $: 'runner.avatar' }, hash: { $: 'runner.did' } },
+                                },
+                              ],
+                            },
+                            {
+                              type: 'we-text',
+                              props: { variant: 'footnote', flex: '1', truncate: true },
+                              children: [
+                                {
+                                  $: "pass.outcome == 'failed' ? pass.error : pass.outcome == 'skipped' ? 'Nothing was being looked for' : `${pass.recordCount ? pass.recordCount : 'No'} ${plural(pass.recordCount, 'record', 'records')}`",
+                                },
+                              ],
+                            },
+                            {
+                              type: 'we-timestamp',
+                              props: {
+                                value: { $: 'pass.createdAt' },
+                                relative: true,
+                                fontSize: '200',
+                                color: 'text-faint',
+                              },
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+        },
+      },
+    },
+  ],
+};
+
+/**
  * What the passes wrote, for the call on screen.
  *
  * One live subscription per target, rather than one query over everything: a record has a type and
@@ -606,49 +754,78 @@ export const extractionTargets: SchemaNode = {
  * than as a gap.
  */
 const extractedRows: SchemaNode = {
-  type: '$each',
-  props: { items: { $: `${EXTRACTION_TARGET_ENTITIES}` }, as: 'target' },
+  type: 'Column',
+  props: { gap: '200', width: '100%' },
+  /*
+    How many of each kind to fetch, and it grows.
+
+    A `limit` is a *fetch* bound, not a display one, so removing it and capping in the scroll region
+    would pay for every record and show a few — and the scrollbar would then promise rows that were
+    never asked for. Raising it on a press is the schema's own paging idiom, and the one shape that
+    cannot lie: "Show more" either shows more or does not, and nothing beside it claims a total.
+
+    No total, because there is not one to have. Each kind is its own subscription and a schema cannot
+    sum a list of queries whose length it does not know, so "12 of 47" is unavailable however much a
+    reader would want it.
+  */
+  $localState: { shown: { type: 'number', initial: 24 } },
   children: [
     {
-      type: 'Column',
-      props: { gap: '200' },
-      $queries: {
-        found: {
-          entity: { $: 'target' },
-          scope: { anchor: 'CollectionBlock', via: 'children', anchorId: EXTRACTION_SUBJECT },
-          order: { createdAt: 'desc' },
-          limit: 12,
-        },
-      },
+      type: '$each',
+      props: { items: { $: `${EXTRACTION_TARGET_ENTITIES}` }, as: 'target' },
       children: [
         {
-          type: '$each',
-          props: { items: { $: 'local.found' }, as: 'item' },
+          type: 'Column',
+          props: { gap: '200' },
+          $queries: {
+            found: {
+              entity: { $: 'target' },
+              scope: { anchor: 'CollectionBlock', via: 'children', anchorId: EXTRACTION_SUBJECT },
+              order: { createdAt: 'desc' },
+              limit: { $: 'local.shown' },
+            },
+          },
           children: [
             {
-              type: 'Row',
-              props: { gap: '200', ay: 'center', bg: 'surface-sunken', r: '300', px: '300', py: '200' },
+              type: '$each',
+              props: { items: { $: 'local.found' }, as: 'item' },
               children: [
                 {
-                  type: '$if',
-                  props: {
-                    condition: { $: 'recordStore.displays[target].icon' },
-                    then: {
-                      type: 'we-icon',
-                      props: { name: { $: 'recordStore.displays[target].icon' }, color: 'accent-text' },
+                  type: 'Row',
+                  props: { gap: '200', ay: 'center', bg: 'surface-sunken', r: '300', px: '300', py: '200' },
+                  children: [
+                    {
+                      type: '$if',
+                      props: {
+                        condition: { $: 'recordStore.displays[target].icon' },
+                        then: {
+                          type: 'we-icon',
+                          props: { name: { $: 'recordStore.displays[target].icon' }, color: 'accent-text' },
+                        },
+                      },
                     },
-                  },
-                },
-                {
-                  type: 'we-text',
-                  props: { variant: 'footnote', flex: '1', truncate: true },
-                  children: [{ $: 'item[recordStore.displays[target].title]' }],
+                    {
+                      type: 'we-text',
+                      props: { variant: 'footnote', flex: '1', truncate: true },
+                      children: [{ $: 'item[recordStore.displays[target].title]' }],
+                    },
+                  ],
                 },
               ],
             },
           ],
         },
       ],
+    },
+    {
+      type: 'we-button',
+      props: {
+        variant: 'ghost',
+        size: 'sm',
+        width: '100%',
+        onClick: { $setLocal: 'shown', value: { $: 'local.shown + 24' } },
+      },
+      children: [{ type: 'we-text', props: { variant: 'footnote', color: 'text-muted' }, children: ['Show more'] }],
     },
   ],
 };
@@ -1239,6 +1416,7 @@ export const extractionPanel: SchemaNode = panelShell({
               could not start one, which is precisely the node whose passes came from a peer.
             */
             extractionActivity,
+            extractionHistory,
             /*
               What the passes actually wrote, for the call on screen.
 

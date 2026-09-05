@@ -93,6 +93,17 @@ export interface EditorStore {
   undo: () => Promise<void>;
   redo: () => Promise<void>;
   pushSnapshot: () => void;
+  /**
+   * Keep the edit just made — persisted where it can be, buffered where it cannot.
+   *
+   * The visual editor and the code panel called `templateStore.persistCurrentTemplate` directly,
+   * which no-ops on a template with no record of its own. So editing a built-in in the visual editor
+   * changed the canvas, wrote nothing, buffered nothing, and lost the lot on the next switch —
+   * silently, since a no-op has nothing to report. `isReadOnly` says those edits should become
+   * pending changes, which the AI path and undo/redo both already do; this is the same branch, in
+   * one place, for the surfaces that were missing it.
+   */
+  commitEdit: () => Promise<void>;
 
   // --- Template actions ---
   startFork: () => void;
@@ -280,6 +291,22 @@ export function EditorStoreProvider(props: ParentProps) {
       return next.length > MAX_UNDO ? next.slice(next.length - MAX_UNDO) : next;
     });
     setRedoStack([]);
+  }
+
+  /**
+   * See `commitEdit` on the interface.
+   *
+   * Deliberately *not* the AI path's shape. That one buffers **instead of** updating, so a proposed
+   * patch does not silently alter what is on screen — but the visual editor's caller has already
+   * applied the edit to the working copy, because direct manipulation that does not move the thing
+   * being manipulated is not an edit at all. So the working copy is what gets buffered.
+   */
+  async function commitEdit() {
+    if (!isReadOnly()) {
+      await templateStore.persistCurrentTemplate();
+      return;
+    }
+    setPendingTemplate(deepClone(templateStore.currentTemplate) as TemplateSchema);
   }
 
   async function undo() {
@@ -1243,7 +1270,7 @@ export function EditorStoreProvider(props: ParentProps) {
       // id is the template identifier, not an internal node id — restore it.
       const schema = { ...stripNodeIds(parsed as SchemaNode), id: templateStore.currentTemplate.id } as TemplateSchema;
       templateStore.updateTemplate(schema);
-      templateStore.persistCurrentTemplate();
+      void commitEdit();
       setMessages((prev) => [...prev, createMessage('assistant', 'Schema updated from JSON editor.')]);
     } catch {
       setMessages((prev) => [...prev, createMessage('assistant', 'Invalid JSON — changes not applied.')]);
@@ -1348,6 +1375,7 @@ export function EditorStoreProvider(props: ParentProps) {
     undo,
     redo,
     pushSnapshot,
+    commitEdit,
 
     // Template actions
     startFork,

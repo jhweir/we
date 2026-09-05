@@ -132,6 +132,16 @@ export interface SessionPort {
   undo: () => Promise<void>;
   redo: () => Promise<void>;
   pushSnapshot: () => void;
+  /**
+   * Keep the edit just made — persisted where it can be, buffered where it cannot.
+   *
+   * Call this rather than `templates.persistCurrentTemplate`, which no-ops on a template with no
+   * record of its own: editing a built-in in the visual editor moved the canvas, wrote nothing,
+   * buffered nothing, and lost it on the next switch. Whether an edit can be saved in place is the
+   * host's question — `isReadOnly` is the host's answer — so the branch belongs there and not in
+   * five call sites here.
+   */
+  commitEdit: () => Promise<void>;
 
   // The template being worked on
   templateName: () => string;

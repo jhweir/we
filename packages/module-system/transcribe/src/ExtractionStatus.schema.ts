@@ -595,8 +595,19 @@ const activityLocalState = {
  */
 export const extractionActivity: SchemaNode = {
   type: '$if',
+  /*
+    The live feed, and so only about the call this agent is in.
+
+    `interpretationStore` is a subscription to what is happening *now* — every pass this agent knows
+    about, its own and its peers', with no call id on a row to scope it by. So on a call somebody
+    opened from a link it listed the live call's passes above that call's records, and nothing said
+    they were about different conversations.
+
+    What a *past* call did is a different question with a different answer: `ExtractionPass` records,
+    which are written down and hang off the collection. See `extractionHistory`.
+  */
   props: {
-    condition: { $: 'interpretationStore.hasActivity' },
+    condition: { $: 'interpretationStore.hasActivity && !routeStore.params.call' },
     then: {
       type: 'Column',
       $localState: activityLocalState,

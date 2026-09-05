@@ -13,6 +13,7 @@ import {
   DividerBlock,
   EmbedBlock,
   EventBlock,
+  ExtractionPass,
   FileBlock,
   ImageBlock,
   LinkBlock,
@@ -482,6 +483,15 @@ export const SPACE_MODELS = [
   // Shared, and it has to be: a standing watch is one registration the whole neighbourhood runs, so
   // two members holding different lists would each re-register over the other's.
   CallExtraction,
+  /*
+    That a call was read, and how it went.
+
+    Shared, because the reading is the community's: a pass any member starts spends the node's
+    budget and writes into everyone's space, so "this was read twice and failed once" is a fact
+    about the call rather than about whoever happened to be watching. Private, it would answer
+    differently for every member, and for most of them not at all.
+  */
+  ExtractionPass,
   Template,
   Theme,
   WeNode,

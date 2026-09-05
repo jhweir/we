@@ -400,24 +400,31 @@ export function InspectorPanel() {
     return findNodeById(templateStore.currentTemplate, id)?.node ?? null;
   });
 
-  // Persisting hits AD4M storage (network/IPC), which is far slower than the in-memory
-  // template update. Controls that fire many changes in quick succession (e.g. the ring
-  // picker's number-input steppers) would otherwise persist on every single click, making
-  // clicks feel laggy. Debounce the persist call; templateStore.updateTemplate above still
-  // runs synchronously every time so the canvas updates instantly.
+  /*
+    Committing hits AD4M storage (network/IPC), which is far slower than the in-memory template
+    update. Controls that fire many changes in quick succession — the ring picker's number-input
+    steppers — would otherwise write on every single click, making clicks feel laggy. So the commit
+    is debounced, and flushed on unmount so the last change is not the one that gets away.
+    `templateStore.updateTemplate` above still runs synchronously every time, so the canvas updates
+    instantly either way.
+
+    `session.commitEdit` rather than `templates.persistCurrentTemplate`: on a template with no record
+    of its own the latter is a no-op, so every edit here moved the canvas and was then lost on the
+    next switch, silently. The host decides whether an edit is saved or buffered — see `commitEdit`.
+  */
   let persistTimer: ReturnType<typeof setTimeout> | undefined;
   function schedulePersist() {
     if (persistTimer) clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
       persistTimer = undefined;
-      templateStore.persistCurrentTemplate();
+      void session.commitEdit();
     }, 400);
   }
   onCleanup(() => {
     if (persistTimer) {
       clearTimeout(persistTimer);
       persistTimer = undefined;
-      templateStore.persistCurrentTemplate();
+      void session.commitEdit();
     }
   });
 

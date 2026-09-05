@@ -13,6 +13,7 @@
 import { evaluateExpression, markReactive, namespace, parseCached } from '@we/schema-shared';
 import { describe, expect, it } from 'vitest';
 
+import { extractionActivity } from './ExtractionStatus.schema';
 import { transcribeModule } from './index';
 import {
   captureMeter,
@@ -291,5 +292,34 @@ describe('the panel’s reads reach the store', () => {
 
     expect(run(forSubject, roots)).toBe(true);
     expect(run(forLive, roots)).toBe(false);
+  });
+});
+
+describe('the history of what was read', () => {
+  const json = JSON.stringify(extractionPanel);
+
+  it('reads passes written down against the call on screen', () => {
+    /*
+      `interpretationStore` is a live subscription: it starts empty, fills as passes run, and is
+      thrown away on every space change. So a call read an hour ago looked exactly like one never
+      read at all, and a failed pass looked exactly like one that found nothing — which are the two
+      things somebody reviewing a meeting most needs told apart.
+    */
+    expect(json).toContain('"entity":"ExtractionPass"');
+    expect(json).toContain('"via":"extractionPasses"');
+    expect(json).toContain(`"anchorId":{"$":"${EXTRACTION_SUBJECT_EXPR}"}`);
+  });
+
+  it('draws the outcome rather than a tick on everything', () => {
+    // The template's own version drew a green check on every settled row because it never read the
+    // outcome, so a pass that failed and one that wrote nine records looked identical.
+    expect(json).toContain("pass.outcome == 'failed'");
+    expect(json).toContain("pass.outcome == 'skipped'");
+    expect(json).toContain('pass.error');
+  });
+
+  it('keeps the live feed to the live call, where its rows belong', () => {
+    // The store's rows carry no call id, so on a past call they described the wrong conversation.
+    expect(JSON.stringify(extractionActivity)).toContain('interpretationStore.hasActivity && !routeStore.params.call');
   });
 });

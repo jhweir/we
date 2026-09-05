@@ -1537,7 +1537,15 @@ export const contextData: ContextData = {
         { name: 'version', type: 'number', predicate: 'we://version', required: false },
         { name: 'textContent', type: 'string', predicate: 'we://text_content', required: false },
       ],
-      relations: [{ name: 'children', kind: 'HasMany', predicate: 'we://children' }],
+      relations: [
+        { name: 'children', kind: 'HasMany', predicate: 'we://children' },
+        {
+          name: 'extractionPasses',
+          kind: 'HasMany',
+          predicate: 'we://extraction_pass_record',
+          target: 'ExtractionPass',
+        },
+      ],
     },
     {
       name: 'DividerBlock',
@@ -1906,6 +1914,18 @@ export const contextData: ContextData = {
         { name: 'overrides', type: 'string', predicate: 'we://token_overrides', required: false, default: 'null' },
       ],
       relations: [{ name: 'screenshots', kind: 'HasMany', predicate: 'we://screenshot', target: 'ImageBlock' }],
+    },
+    {
+      name: 'ExtractionPass',
+      className: 'ExtractionPass',
+      extends: 'Ad4mModel',
+      fields: [
+        { name: 'outcome', type: 'string', predicate: 'we://outcome', required: false, default: "'done'" },
+        { name: 'recordCount', type: 'number', predicate: 'we://record_count', required: false },
+        { name: 'targets', type: 'string', predicate: 'we://extraction_targets', required: false },
+        { name: 'error', type: 'string', predicate: 'we://error', required: false },
+      ],
+      relations: [],
     },
     {
       name: 'TypeStyle',

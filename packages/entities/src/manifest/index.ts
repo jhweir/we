@@ -25,6 +25,7 @@ import { AgentSettings } from './AgentSettings';
 import { CallExtraction } from './CallExtraction';
 import { ChatMessage } from './ChatMessage';
 import { ChatSession } from './ChatSession';
+import { ExtractionPass } from './ExtractionPass';
 import { MutedAgent } from './MutedAgent';
 import { Placement } from './Placement';
 import { ReadMarker } from './ReadMarker';
@@ -82,6 +83,7 @@ export const CORE_DEFS: Record<string, CoreEntityDef> = {
   TextBlock,
   Topic,
   Theme,
+  ExtractionPass,
   TypeStyle,
   VideoBlock,
 };

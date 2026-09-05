@@ -17,6 +17,7 @@ export * from './CollectionBlock';
 export * from './DividerBlock';
 export * from './EmbedBlock';
 export * from './EventBlock';
+export * from './ExtractionPass';
 export * from './FileBlock';
 export * from './ImageBlock';
 export * from './LinkBlock';

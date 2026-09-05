@@ -1984,6 +1984,7 @@ CollectionBlock extends WeNode:
   - textContent: string [we://text_content]
   Relations:
   - children: HasMany [we://children]
+  - extractionPasses: HasMany → ExtractionPass [we://extraction_pass_record]
 
 DividerBlock extends WeNode:
   Fields:
@@ -2222,6 +2223,13 @@ Theme extends WeNode:
   - overrides: string = null [we://token_overrides]
   Relations:
   - screenshots: HasMany → ImageBlock [we://screenshot]
+
+ExtractionPass extends Ad4mModel:
+  Fields:
+  - outcome: string = 'done' [we://outcome]
+  - recordCount: number [we://record_count]
+  - targets: string [we://extraction_targets]
+  - error: string [we://error]
 
 TypeStyle extends Ad4mModel:
   Fields:

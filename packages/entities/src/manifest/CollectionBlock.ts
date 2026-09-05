@@ -84,6 +84,18 @@ export const CollectionBlock: CoreEntityDef = {
     },
     relations: {
       children: { target: '', cardinality: 'many', predicate: 'we://children' },
+      /**
+       * Every time a model was asked to read this collection — see {@link ExtractionPass}.
+       *
+       * Its own relation rather than `children`, which holds a collection's *content*: a pass is a
+       * fact about the collection, not something in it, and in `children` it would be loaded by the
+       * board and drawn as a card.
+       */
+      extractionPasses: {
+        target: 'ExtractionPass',
+        cardinality: 'many',
+        predicate: 'we://extraction_pass_record',
+      },
     },
   },
 };
