@@ -43,6 +43,7 @@ import type { GraphEdge, GraphNode, GraphValue, SeedSource } from '@we/graph-pro
 import { entityAddress } from '@we/graph-protocol';
 
 import { rowToNode } from './nodes';
+import { placementsFor, resolvePlacement } from './placements';
 
 export interface BoardSeedOptions {
   /** Record id of the board. Nothing loads until this is set. */
@@ -232,12 +233,19 @@ export function boardSeed(): SeedSource {
       */
       const positions = new Map<string, Placed>();
       const placedIds = new Map<string, string[]>();
-      for (const row of placements) {
-        const node = typeof row.node === 'string' ? row.node : undefined;
-        const nodeType = typeof row.nodeType === 'string' ? row.nodeType : '';
+      /*
+        Grouped and resolved, rather than `find`-ed.
+
+        A node with one placement is every node today, and this is that answer written the long way
+        round — see `placements.ts` for why it is worth the extra line now. No tier is passed
+        because a seed runs in the data layer and cannot see the box its nodes will be drawn in.
+      */
+      for (const [node, rows] of placementsFor(placements)) {
+        const row = resolvePlacement(rows);
+        const nodeType = typeof row?.nodeType === 'string' ? row.nodeType : '';
         // A placement whose node never linked names a type and points at nothing. Skipped rather
         // than half-drawn, and left for a sweep — the record it meant is not knowable from here.
-        if (!node || !nodeType) continue;
+        if (!row || !nodeType) continue;
         positions.set(node, { x: Number(row.x) || 0, y: Number(row.y) || 0, style: placementStyle(row) });
         placedIds.set(nodeType, [...(placedIds.get(nodeType) ?? []), node]);
       }
