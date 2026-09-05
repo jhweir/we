@@ -298,7 +298,17 @@ export function dockFrame(entry: DockEntry, node: SchemaNode): SchemaNode {
                 reduced-motion setting, still decide — see `parseTransition`.
               */
               transition: {
-                $: "shellStore.dockResizing ? 'none' : 'top 300 ease, right 300 ease, bottom 300 ease, left 300 ease, width 300 ease, height 300 ease'",
+                /*
+                  And a panel that has just joined or left a seat does neither — see `settling`.
+
+                  A drop into a stack changed two things at once: the panel that was showing went
+                  hidden, and the newcomer's box became the seat's. The first is instant and the
+                  second was eased, so the stack emptied and the arriving panel flew in from wherever
+                  it had been dragged, across a gap where the stack used to be. A tab does not travel
+                  when you press it, and one that arrives by drop should not either — the drag was
+                  already the animation.
+                */
+                $: `${dockGeometryPath(entry.id, 'settling')} || shellStore.dockResizing ? 'none' : 'top 300 ease, right 300 ease, bottom 300 ease, left 300 ease, width 300 ease, height 300 ease'`,
               },
               /*
                 The panel's own surface. A module's node fills it and need not paint a background, a
@@ -333,10 +343,19 @@ export function dockFrame(entry: DockEntry, node: SchemaNode): SchemaNode {
                 'backdrop-filter': { $: `${glass} ? '${GLASS_BLUR}' : 'none'` },
                 /*
                   Gone while another tab in its seat is showing — gone, not unmounted. A call in a
-                  background tab keeps its streams; a transcript keeps its scroll. `styles` so it
-                  overrides the Column's own `display: flex`.
+                  background tab keeps its streams; a transcript keeps its scroll.
+
+                  `visibility`, not `display`. A panel carries `backdrop-filter` while it is a card,
+                  and `display: none` tears the backdrop layer down and rebuilds it on the way back —
+                  which the compositor shows as the whole frame, titlebar and tabs included, dissolving
+                  in. Switching tabs is not a transition and should not look like one. `visibility`
+                  keeps the layer, so the swap is a swap.
+                  
+                  It hides as thoroughly: a `visibility: hidden` subtree is unpainted, untabbable and
+                  out of the accessibility tree, which `opacity: 0` would not be. The box it leaves
+                  behind costs nothing, since every frame is `position: fixed`.
                 */
-                display: { $: `${dockGeometryPath(entry.id, 'hidden')} ? 'none' : 'flex'` },
+                visibility: { $: `${dockGeometryPath(entry.id, 'hidden')} ? 'hidden' : 'visible'` },
               },
               border: '1px solid border',
               // Rounded and lifted only while floating. A card over the app should read as being on

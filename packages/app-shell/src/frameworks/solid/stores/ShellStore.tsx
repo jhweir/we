@@ -942,6 +942,19 @@ export function ShellStoreProvider(props: ParentProps) {
    */
   const [placements, setPlacements] = createSignal<Record<string, FloatPlacement>>(loadPlacements());
   const [dockResizing, setDockResizing] = createSignal(false);
+  /**
+   * The panel that has just joined or left a seat — see `settling` on `DockGeometry`.
+   *
+   * Cleared on the next frame rather than by a timer: what it has to outlast is exactly one geometry
+   * recompute, so the panel lands in its new box with no transition and eases normally from there.
+   */
+  const [settling, setSettling] = createSignal('');
+  const landInPlace = (id: string) => {
+    setSettling(id);
+    if (typeof requestAnimationFrame === 'function')
+      requestAnimationFrame(() => setSettling((was) => (was === id ? '' : was)));
+    else setSettling('');
+  };
 
   const [activation, setActivation] = createSignal<Record<string, number>>(loadActivation());
   // Seeded from what was stored, so the first raise after a reload lands above everything that was
@@ -1753,6 +1766,7 @@ export function ShellStoreProvider(props: ParentProps) {
         canCollapse,
         collapsed: canCollapse && folded,
         hidden: hidden[request.id] ?? false,
+        settling: settling() === request.id,
         tabs: tabs[request.id] ?? [],
         // Empty rather than absent, so a schema condition reads a string either way.
         below: below[request.id] ?? '',
@@ -2624,6 +2638,8 @@ export function ShellStoreProvider(props: ParentProps) {
       const request = dockRequests().find((entry) => entry.id === id);
       if (request && !activeInsert() && !activeSnap()) {
         const placement = placementOf(request);
+        // Under the hand, not gliding to it from the seat it left — see `settling`.
+        landInPlace(id);
         writePlacement(id, {
           // `unlaned`, so the tab actually LEAVES. Writing a free position while keeping the seat key
           // only made it the member of that seat which is showing, so the whole stack appeared to
@@ -2768,6 +2784,9 @@ export function ShellStoreProvider(props: ParentProps) {
         // A tab slot naming no edge is a floating panel offered as somewhere to stack: no edge means
         // no lane, and a seat with no lane is the loose kind. Checked before `insertDock`, which has
         // no answer for an empty edge.
+        // Joining a seat is not a journey — see `settling`. Both shapes of it: a loose stack, and a
+        // seat in a lane.
+        if (mode === 'tab') landInPlace(id);
         if (mode === 'tab' && !edge) store.stackDock(id, Number(position));
         else if (mode === 'home') store.insertHome(id, edge, Number(position));
         else

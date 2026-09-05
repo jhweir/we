@@ -941,6 +941,18 @@ export interface DockGeometry {
    */
   laneEdgeLayer?: number;
   /**
+   * Just joined or left a seat, so this panel lands rather than travels. True for one frame.
+   *
+   * A drop into a stack changes two things at once: the panel that was showing goes hidden, and the
+   * newcomer's box becomes the seat's. The first is instant and the second was eased, so the stack
+   * emptied and the arriving panel flew in from wherever it had been dragged, across the gap the
+   * stack had left. Tearing a tab out looked the same in reverse.
+   *
+   * Per panel rather than a flag on the store, because it is the only correct scope: every *other*
+   * panel should still ease into whatever room the change left it.
+   */
+  settling?: boolean;
+  /**
    * The layer the seam's divider paints at: above both panels it divides.
    *
    * It cannot take a layer *name*. A displacing lane has no gap, so the divider straddles the shared
