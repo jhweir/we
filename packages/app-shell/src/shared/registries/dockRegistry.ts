@@ -257,6 +257,7 @@ export function dockFrame(entry: DockEntry, node: SchemaNode): SchemaNode {
       insertLines(entry.id),
       dragGhost(entry.id),
       laneDivider(entry.id),
+      laneOuterEdge(entry.id),
       {
         type: '$if',
         props: {
@@ -1142,15 +1143,34 @@ function grips(id: string): SchemaNode[] {
   // along a horizontal one. The opposite side faces the previous one.
   const trailing = { vertical: 'bottom', horizontal: 'right' } as const;
 
+  /*
+    And the lane's *own* edge is not any one member's either.
+
+    The side facing the content is where a displacing panel's thickness is dragged from, and in a
+    lane that thickness is shared: every member moves. A per-panel grip there lit the height of the
+    panel under the pointer while resizing the whole column, so the feedback and the effect
+    disagreed. `laneOuterEdge` draws one grip spanning the lane, from outside every frame, for the
+    reason the seam is drawn that way — and it is published on the lane's first member, so only that
+    member suppresses its own.
+  */
+  const inLane = `${geo('above')} || ${geo('below')}`;
+
   const edges: SchemaNode[] = (['left', 'right', 'top', 'bottom'] as const).map((side) => {
-    const shown = `(${grippable}) || ${geo(side === 'left' || side === 'right' ? 'handleX' : 'handleY')} == '${side}'`;
+    const facing = geo(side === 'left' || side === 'right' ? 'handleX' : 'handleY');
+    const shown = `(${grippable}) || ${facing} == '${side}'`;
     const axis = side === 'top' || side === 'bottom' ? 'vertical' : 'horizontal';
     // Suppressed only when this side really is a seam — a panel with a lane-mate on the other axis
     // keeps every grip it had.
     const seam = side === trailing[axis] ? geo('below') : geo('above');
+    // The lane's own edge, which the lane draws instead. Only for a displacing lane-mate: a floating
+    // one owns its width, so its grip means what it says.
+    const laneOwned = `!${geo('floating')} && (${inLane}) && ${facing} == '${side}'`;
     return {
       type: '$if',
-      props: { condition: { $: `(${shown}) && !(${seam} && ${alongLane(axis)})` }, then: resizeEdge(id, side) },
+      props: {
+        condition: { $: `(${shown}) && !(${seam} && ${alongLane(axis)}) && !(${laneOwned})` },
+        then: resizeEdge(id, side),
+      },
     };
   });
 
@@ -1245,6 +1265,58 @@ function laneDivider(id: string): SchemaNode {
           height: geo('seam.height'),
           onResizestart: { $action: 'shellStore.beginDockResize', args: [id] },
           onResize: { $action: 'shellStore.resizeColumn', args: [id, { $: 'arg.detail.delta' }] },
+          onResizeend: { $action: 'shellStore.endDockResize' },
+        },
+      },
+    },
+  };
+}
+
+/**
+ * The grip for a whole displacing lane's thickness — its inboard edge, spanning every member.
+ *
+ * The sibling of {@link laneDivider}, drawn the same way and for the same reason: a lane's thickness
+ * belongs to all of its members, so no one of them can draw the boundary. The per-panel grip on that
+ * side resized the whole column already and lit only the panel under the pointer, so the feedback
+ * said "this one" while the effect was "all of them".
+ *
+ * `resizeDock` rather than `resizeColumn`: this is the lane's thickness against the content, not the
+ * boundary between two lane-mates, and it is reported on whichever member the geometry hung the box
+ * on — every member resolves to the same lane thickness, so which one it is does not matter.
+ */
+function laneOuterEdge(id: string): SchemaNode {
+  const geo = (field: string) => ({ $: dockGeometryPath(id, field) });
+  return {
+    type: '$if',
+    props: {
+      condition: geo('laneEdge'),
+      then: {
+        type: 'we-resize-handle',
+        props: {
+          // A lane down a side is dragged left and right, which the primitive calls vertical — it
+          // names the bar, not the drag.
+          orientation: { $: `${dockGeometryPath(id, 'laneAxis')} == 'vertical' ? 'vertical' : 'horizontal'` },
+          align: 'center',
+          line: 'auto',
+          styles: { '--we-resize-handle-thickness': '3px' },
+          position: 'fixed',
+          zIndex: 'sticky',
+          top: geo('laneEdge.top'),
+          left: geo('laneEdge.left'),
+          width: geo('laneEdge.width'),
+          height: geo('laneEdge.height'),
+          onResizestart: { $action: 'shellStore.beginDockResize', args: [id] },
+          onResize: {
+            $action: 'shellStore.resizeDock',
+            args: [
+              id,
+              {
+                $: `${dockGeometryPath(id, 'handleX')} ? ${dockGeometryPath(id, 'handleX')} : ${dockGeometryPath(id, 'handleY')}`,
+              },
+              { $: `${dockGeometryPath(id, 'handleX')} ? arg.detail.delta : 0` },
+              { $: `${dockGeometryPath(id, 'handleX')} ? 0 : arg.detail.delta` },
+            ],
+          },
           onResizeend: { $action: 'shellStore.endDockResize' },
         },
       },

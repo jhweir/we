@@ -43,6 +43,7 @@ import {
   grown,
   homeLaneMembers,
   insertionSlots,
+  laneEdgeBox,
   type LaneMember,
   laneThickness,
   layerOrder,
@@ -1780,6 +1781,46 @@ describe('stacking panels', () => {
  * clips, so the half outside it and the whole of its line were never drawn. The seam is a box the
  * geometry publishes and the frame's wrapper draws from outside both panels.
  */
+/**
+ * A displacing lane has one thickness that every member shares, so dragging any member's inboard
+ * edge moves all of them. The grip was a per-panel one, so it lit the height of the panel under the
+ * pointer while resizing the whole column — the feedback said "this one", the effect was "all of
+ * them". Drawn from outside every frame, like the seam and for the same reason.
+ */
+describe('the grip for a whole lane', () => {
+  const stacked = [
+    { x: 1200, y: 0, w: 320, h: 400 },
+    { x: 1200, y: 400, w: 320, h: 400 },
+  ];
+
+  it('spans every member of the lane, not the one that owns it', () => {
+    const grip = laneEdgeBox(stacked, 'right');
+
+    expect(grip.y).toBe(0);
+    expect(grip.h).toBe(800);
+  });
+
+  it('sits on the side facing the content — the inboard one', () => {
+    // A lane on the right is dragged by its left, and the reverse on the left.
+    expect(laneEdgeBox(stacked, 'right').x + SEAM_PX / 2).toBe(1200);
+    expect(laneEdgeBox([{ x: 0, y: 0, w: 320, h: 800 }], 'left').x + SEAM_PX / 2).toBe(320);
+  });
+
+  it('runs the other way for a lane along the top or the bottom', () => {
+    const sideBySide = [
+      { x: 0, y: 0, w: 400, h: 240 },
+      { x: 400, y: 0, w: 400, h: 240 },
+    ];
+
+    const grip = laneEdgeBox(sideBySide, 'top');
+
+    expect(grip.x).toBe(0);
+    expect(grip.w).toBe(800);
+    expect(grip.y + grip.h / 2).toBe(240);
+    expect(grip.h).toBe(SEAM_PX);
+  });
+});
+
 describe('the seam between two lane-mates', () => {
   it('is centred on the boundary and spans the pair, for a vertical lane', () => {
     const seam = seamBetween({ x: 88, y: 0, w: 320, h: 400 }, { x: 88, y: 408, w: 320, h: 400 }, 'vertical');

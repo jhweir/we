@@ -35,6 +35,7 @@ import {
   grown,
   insertionSlots,
   laneable,
+  laneEdgeBox,
   layerOrder,
   looseSeats,
   NARROW_VIEWPORT_PX,
@@ -1571,6 +1572,8 @@ export function ShellStoreProvider(props: ParentProps) {
     const axis: Record<string, 'vertical' | 'horizontal'> = {};
     const lanes: Record<string, string[]> = {};
     const seams: Record<string, Rect> = {};
+    /** The lane's own inboard edge, on its first member. See `laneEdgeBox`. */
+    const laneEdges: Record<string, Rect> = {};
     const hidden: Record<string, boolean> = {};
     const tabs: Record<string, { id: string; title: string; active: boolean }[]> = {};
     /** Whether this panel's lane has an open seat elsewhere to take a fold's room. */
@@ -1700,6 +1703,18 @@ export function ShellStoreProvider(props: ParentProps) {
           { displacing: group.displacing },
         );
 
+        /*
+          One grip for the lane's own thickness, on its first member.
+
+          A displacing lane has one thickness that every member shares, so dragging any member's
+          inboard edge moves all of them — but the grip was per panel, so it lit the height of the
+          one under the pointer while resizing the column. Drawn from outside all of them, like the
+          seam, and for the same reason: a boundary belonging to several panels is not any one
+          panel's to draw. A floating lane keeps its per-panel grips, where each member really does
+          own its own width.
+        */
+        if (group.displacing) laneEdges[requests[showing[0].index].id] = laneEdgeBox(boxes, edge);
+
         showing.forEach((member, i) => {
           const id = requests[member.index].id;
           for (const mate of seating[i]) seats[requests[mate.index].id] = boxes[i];
@@ -1714,12 +1729,12 @@ export function ShellStoreProvider(props: ParentProps) {
         });
       }
     }
-    return { seats, below, above, axis, lanes, seams, hidden, tabs, laneRoom };
+    return { seats, below, above, axis, lanes, seams, laneEdges, hidden, tabs, laneRoom };
   });
 
   const dockGeometry = createMemo(() => {
     const requests = dockRequests();
-    const { seats, below, above, axis, seams, hidden, tabs, laneRoom } = laneSeating();
+    const { seats, below, above, axis, seams, laneEdges, hidden, tabs, laneRoom } = laneSeating();
     const px = (n: number) => `${Math.round(n)}px`;
     // Activation is keyed the way placements are — by scope — and the layer is asked for by dock id.
     const touched = activation();
@@ -1754,6 +1769,16 @@ export function ShellStoreProvider(props: ParentProps) {
               },
               // Above both panels it divides — see `seamLayer`.
               seamLayer: Math.max(layers[request.id] ?? 0, layers[below[request.id]] ?? 0) + 1,
+            }
+          : {}),
+        ...(laneEdges[request.id]
+          ? {
+              laneEdge: {
+                top: px(laneEdges[request.id].y),
+                left: px(laneEdges[request.id].x),
+                width: px(laneEdges[request.id].w),
+                height: px(laneEdges[request.id].h),
+              },
             }
           : {}),
       };

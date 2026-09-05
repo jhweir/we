@@ -920,6 +920,17 @@ export interface DockGeometry {
    */
   seam?: { top: string; left: string; width: string; height: string };
   /**
+   * The box the grip for the whole lane's thickness sits in — its inboard edge, along its full
+   * length. Present on a displacing lane's **first** member only, and absent everywhere else. See
+   * {@link laneEdgeBox}.
+   *
+   * The seam's sibling, and published for the same reason: a displacing lane has one thickness that
+   * every member shares, so dragging any member's inboard edge moves all of them — but a per-panel
+   * grip lights only the panel under the pointer, so the feedback said "this one" while the effect
+   * was "all of them". A boundary belonging to several panels is not any one panel's to draw.
+   */
+  laneEdge?: { top: string; left: string; width: string; height: string };
+  /**
    * The layer the seam's divider paints at: above both panels it divides.
    *
    * It cannot take a layer *name*. A displacing lane has no gap, so the divider straddles the shared
@@ -1833,6 +1844,35 @@ export function seamBetween(a: Rect, b: Rect, axis: 'vertical' | 'horizontal'): 
   const y = Math.min(a.y, b.y);
   const boundary = (a.x + a.w + b.x) / 2;
   return { x: boundary - SEAM_PX / 2, y, w: SEAM_PX, h: Math.max(a.y + a.h, b.y + b.h) - y };
+}
+
+/**
+ * The box the handle that resizes a whole lane sits in — its inboard side, along its full length.
+ *
+ * The sibling of {@link seamBetween}, and it exists for the same reason: a boundary belonging to
+ * several panels cannot be drawn by any one of them. Dragging the inboard edge of a *displacing*
+ * lane resizes every member — the lane has one thickness and they share it — but the grip was a
+ * per-panel one, so it lit up the height of the panel under the pointer while moving the whole
+ * column. The feedback disagreed with the effect.
+ *
+ * Spanning the lane and centred on its edge, so it reads as the boundary between the lane and the
+ * content it pushed aside rather than as the side of whichever panel you happened to grab.
+ *
+ * `edge` is the screen edge the lane is docked to, so the inboard side is the opposite one: a lane
+ * on the right is dragged by its left.
+ */
+export function laneEdgeBox(boxes: Rect[], edge: Exclude<DockEdge, null>): Rect {
+  const x = Math.min(...boxes.map((box) => box.x));
+  const y = Math.min(...boxes.map((box) => box.y));
+  const right = Math.max(...boxes.map((box) => box.x + box.w));
+  const bottom = Math.max(...boxes.map((box) => box.y + box.h));
+
+  if (edge === 'left' || edge === 'right') {
+    const boundary = edge === 'left' ? right : x;
+    return { x: boundary - SEAM_PX / 2, y, w: SEAM_PX, h: bottom - y };
+  }
+  const boundary = edge === 'top' ? bottom : y;
+  return { x, y: boundary - SEAM_PX / 2, w: right - x, h: SEAM_PX };
 }
 
 /**

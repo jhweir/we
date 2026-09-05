@@ -127,6 +127,8 @@ export default class ScrollArea extends DesignSystemElement {
    * Following animates, so the eye can tell a line arriving below from the view jumping somewhere
    * else. The opening jump does not — there is nothing to have moved from — and neither does a
    * catch-up longer than `SMOOTH_MAX_PX`, nor one for a reader who has asked for reduced motion.
+   * A `jump` press is not subject to that cap: it is a request to travel, and the distance is the
+   * reason it was pressed.
    *
    * It reports nothing. `jump` covers the affordance a reader needs — a way back to the end — but a
    * consumer wanting to say *how much* they missed ("3 new") needs an event, and can have one when
@@ -299,7 +301,7 @@ export default class ScrollArea extends DesignSystemElement {
     this.#syncControls();
   };
 
-  #toEnd(options: { smooth: boolean }): void {
+  #toEnd(options: { smooth: boolean; far?: boolean }): void {
     const base = this.#base;
     if (!base) return;
 
@@ -312,10 +314,20 @@ export default class ScrollArea extends DesignSystemElement {
       return;
     }
 
+    /*
+      `far` is the difference between following and being sent.
+
+      `SMOOTH_MAX_PX` is a rule about *following*: a backlog landing at once is a change of place
+      rather than a movement, and animating across it is a journey nobody watches. It is the wrong
+      rule for a press. Somebody who has pressed "jump to the end" has asked to travel, and the
+      distance is the reason they pressed it — so applying the cap there made the button smooth on a
+      short transcript and instant on a long one, which reads as the animation being broken rather
+      than as a rule being applied.
+    */
     const smooth =
       options.smooth &&
       typeof base.scrollTo === 'function' &&
-      target - base.scrollTop <= SMOOTH_MAX_PX &&
+      (options.far || target - base.scrollTop <= SMOOTH_MAX_PX) &&
       !prefersReducedMotion();
 
     if (smooth) {
@@ -343,7 +355,8 @@ export default class ScrollArea extends DesignSystemElement {
     // should be judged as theirs like any other.
     this.#writtenTop = -1;
 
-    if (typeof base.scrollTo === 'function' && !prefersReducedMotion() && base.scrollTop <= SMOOTH_MAX_PX) {
+    // However far it is: this is a press, not a follow. See `far` in `#toEnd`.
+    if (typeof base.scrollTo === 'function' && !prefersReducedMotion()) {
       base.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       base.scrollTop = 0;
@@ -414,7 +427,7 @@ export default class ScrollArea extends DesignSystemElement {
   #onJumpStart = (): void => this.#toStart();
 
   #onJumpEnd = (): void => {
-    this.#toEnd({ smooth: true });
+    this.#toEnd({ smooth: true, far: true });
     this.#syncControls();
   };
 

@@ -754,62 +754,61 @@ const extractionHistory: SchemaNode = {
  * than as a gap.
  */
 const extractedRows: SchemaNode = {
-  type: 'Column',
-  props: { gap: '200', width: '100%' },
-  /*
-    How many of each kind to fetch, and it grows.
-
-    A `limit` is a *fetch* bound, not a display one, so removing it and capping in the scroll region
-    would pay for every record and show a few — and the scrollbar would then promise rows that were
-    never asked for. Raising it on a press is the schema's own paging idiom, and the one shape that
-    cannot lie: "Show more" either shows more or does not, and nothing beside it claims a total.
-
-    No total, because there is not one to have. Each kind is its own subscription and a schema cannot
-    sum a list of queries whose length it does not know, so "12 of 47" is unavailable however much a
-    reader would want it.
-  */
-  $localState: { shown: { type: 'number', initial: 24 } },
+  type: '$each',
+  props: { items: { $: `${EXTRACTION_TARGET_ENTITIES}` }, as: 'target' },
   children: [
     {
-      type: '$each',
-      props: { items: { $: `${EXTRACTION_TARGET_ENTITIES}` }, as: 'target' },
+      type: 'Column',
+      props: { gap: '200' },
+      /*
+        How many of this kind to fetch, and it grows.
+
+        A `limit` is a *fetch* bound, not a display one, so removing it and capping in the scroll
+        region would pay for every record to show a few — and the scrollbar would then promise rows
+        nobody had asked for. Raising it on a press is the schema's own paging idiom.
+
+        Per kind, because that is the only place the answer is readable. `$localState` on a node
+        inside `$each` is created per row, so each group counts its own — which is what lets the
+        button below know whether *this* kind has more, by asking whether the last fetch came back
+        full. One shared counter could not: `local.found` belongs to the group, so a control outside
+        every group has nothing to test and can only ever offer itself unconditionally, which is
+        what it did.
+
+        Still no total. Each kind is its own subscription and a schema cannot sum a list of queries
+        whose length it does not know, so "24 of 47" is unavailable however much a reader wants it.
+      */
+      $localState: { shown: { type: 'number', initial: 24 } },
+      $queries: {
+        found: {
+          entity: { $: 'target' },
+          scope: { anchor: 'CollectionBlock', via: 'children', anchorId: EXTRACTION_SUBJECT },
+          order: { createdAt: 'desc' },
+          limit: { $: 'local.shown' },
+        },
+      },
       children: [
         {
-          type: 'Column',
-          props: { gap: '200' },
-          $queries: {
-            found: {
-              entity: { $: 'target' },
-              scope: { anchor: 'CollectionBlock', via: 'children', anchorId: EXTRACTION_SUBJECT },
-              order: { createdAt: 'desc' },
-              limit: { $: 'local.shown' },
-            },
-          },
+          type: '$each',
+          props: { items: { $: 'local.found' }, as: 'item' },
           children: [
             {
-              type: '$each',
-              props: { items: { $: 'local.found' }, as: 'item' },
+              type: 'Row',
+              props: { gap: '200', ay: 'center', bg: 'surface-sunken', r: '300', px: '300', py: '200' },
               children: [
                 {
-                  type: 'Row',
-                  props: { gap: '200', ay: 'center', bg: 'surface-sunken', r: '300', px: '300', py: '200' },
-                  children: [
-                    {
-                      type: '$if',
-                      props: {
-                        condition: { $: 'recordStore.displays[target].icon' },
-                        then: {
-                          type: 'we-icon',
-                          props: { name: { $: 'recordStore.displays[target].icon' }, color: 'accent-text' },
-                        },
-                      },
+                  type: '$if',
+                  props: {
+                    condition: { $: 'recordStore.displays[target].icon' },
+                    then: {
+                      type: 'we-icon',
+                      props: { name: { $: 'recordStore.displays[target].icon' }, color: 'accent-text' },
                     },
-                    {
-                      type: 'we-text',
-                      props: { variant: 'footnote', flex: '1', truncate: true },
-                      children: [{ $: 'item[recordStore.displays[target].title]' }],
-                    },
-                  ],
+                  },
+                },
+                {
+                  type: 'we-text',
+                  props: { variant: 'footnote', flex: '1', truncate: true },
+                  children: [{ $: 'item[recordStore.displays[target].title]' }],
                 },
               ],
             },
@@ -817,15 +816,36 @@ const extractedRows: SchemaNode = {
         },
       ],
     },
+    /*
+          Offered only where the last fetch came back full.
+
+          A page short of the limit is the end of that kind, so a button there would show nothing and
+          teach people it does nothing. Full is not proof there is more — a kind with exactly 24
+          records offers one press that reveals none — but that is the one case a query can be wrong
+          about without over-fetching, and it is far better than the button being wrong every time,
+          which is what an unconditional one was.
+        */
     {
-      type: 'we-button',
+      type: '$if',
       props: {
-        variant: 'ghost',
-        size: 'sm',
-        width: '100%',
-        onClick: { $setLocal: 'shown', value: { $: 'local.shown + 24' } },
+        condition: { $: 'count(local.found) >= local.shown' },
+        then: {
+          type: 'we-button',
+          props: {
+            variant: 'ghost',
+            size: 'sm',
+            width: '100%',
+            onClick: { $setLocal: 'shown', value: { $: 'local.shown + 24' } },
+          },
+          children: [
+            {
+              type: 'we-text',
+              props: { variant: 'footnote', color: 'text-muted' },
+              children: [{ $: '`More ${lower(recordStore.displays[target].label)}`' }],
+            },
+          ],
+        },
       },
-      children: [{ type: 'we-text', props: { variant: 'footnote', color: 'text-muted' }, children: ['Show more'] }],
     },
   ],
 };
@@ -1416,7 +1436,14 @@ export const extractionPanel: SchemaNode = panelShell({
               could not start one, which is precisely the node whose passes came from a peer.
             */
             extractionActivity,
-            extractionHistory,
+            /*
+              Nothing to ask about until there is a call to ask about.
+
+              A drill-down whose `anchorId` is empty is not an empty query, it is a malformed one —
+              the backend refused it as invalid SPARQL and the panel opened on a toast. Outside a
+              call there is no record to hang passes off, so there is nothing to read.
+            */
+            { type: '$if', props: { condition: EXTRACTION_SUBJECT, then: extractionHistory } },
             /*
               What the passes actually wrote, for the call on screen.
 
