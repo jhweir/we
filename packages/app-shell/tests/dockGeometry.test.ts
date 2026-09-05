@@ -36,6 +36,7 @@ import {
   EDGE_REACH_PX,
   edgeGroups,
   edgeOfSnap,
+  EDGES,
   edgeZone,
   fitPlacement,
   type FloatPlacement,
@@ -2167,6 +2168,21 @@ describe('reaching an edge', () => {
 
   it('starts the left band at the content, not the sidebar', () => {
     expect(edgeZone('left', desktop, 0).x).toBe(SIDEBAR_PX);
+  });
+
+  it('reaches nothing at all with a box of no area, however well placed', () => {
+    /*
+      Why the box handed to this has to be a real one, in both senses.
+
+      It is an overlap *area*, so a flat box scores zero against every edge — and reaching nothing
+      means an edge offers no lane seams, which is a silent absence rather than a wrong answer: the
+      snap markers and the seat targets are ungated and go on working, so the drag looks fine and
+      simply cannot be dropped between two panels. That is how a hidden tab resolved to a zero-height
+      box came back as "the drop lines don't appear, but only when I drag straight out of a stack".
+    */
+    const flat = { x: SIDEBAR_PX, y: 0, w: 400, h: 0 };
+
+    for (const edge of EDGES) expect(nearEdge(flat, edge, desktop, 400)).toBe(false);
   });
 
   it('grows a box the same amount on every side', () => {

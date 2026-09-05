@@ -989,14 +989,28 @@ export function ShellStoreProvider(props: ParentProps) {
    * every panel's geometry clears it.
    */
   const [movingDock, setMovingDock] = createSignal<string | null>(null);
+  /**
+   * What a tab drag is carrying, since the panel itself stays in its seat. Null for every other
+   * gesture and between drags. See `previewDrop`.
+   *
+   * A rect rather than the CSS the outline is drawn from, because it answers a second question: the
+   * drop targets are offered against what is being carried, and asking that in pixel strings would
+   * mean parsing them back. `dragGhost` derives the CSS from it, so the outline on screen and the
+   * box the targets are measured against cannot drift apart.
+   */
+  const [dragCarry, setDragCarry] = createSignal<{ box: Rect; title: string } | null>(null);
   /** The outline following the cursor, for a drag that cannot carry the panel. See `previewDrop`. */
-  const [dragGhost, setDragGhost] = createSignal<{
-    top: string;
-    left: string;
-    width: string;
-    height: string;
-    title: string;
-  } | null>(null);
+  const dragGhost = createMemo(() => {
+    const carry = dragCarry();
+    if (!carry) return null;
+    return {
+      top: `${Math.round(carry.box.y)}px`,
+      left: `${Math.round(carry.box.x)}px`,
+      width: `${Math.round(carry.box.w)}px`,
+      height: `${Math.round(carry.box.h)}px`,
+      title: carry.title,
+    };
+  });
   const [activeSnap, setActiveSnap] = createSignal<SnapPoint | null>(null);
   const [activeInsert, setActiveInsert] = createSignal<string | null>(null);
   /** The rect a drag started from, so every move is measured against one fixed origin. */
@@ -2162,7 +2176,6 @@ export function ShellStoreProvider(props: ParentProps) {
       w: placement.w,
       h: placement.h,
     };
-    settleTargets(id, pointer, would);
     /*
       What is being carried, since the panel itself is not.
 
@@ -2170,15 +2183,15 @@ export function ShellStoreProvider(props: ParentProps) {
       where it *would* go and nothing says what is going there. Every application that cannot carry
       the real thing carries an outline of it instead, and this is that outline: the box the panel
       would occupy, at the pointer, named.
+
+      Published **before** the targets are settled, because they are offered against it: `insertSlots`
+      asks each edge "has what is being carried reached you", and a tab drag is the one gesture where
+      the panel's own resolved box is not the answer. Set afterwards, every frame would gate on the
+      previous one — a lag nobody would see, and a wrong answer on the first frame of the drag.
     */
     const entry = dockRegistry.get(id);
-    setDragGhost({
-      top: `${Math.round(would.y)}px`,
-      left: `${Math.round(would.x)}px`,
-      width: `${Math.round(would.w)}px`,
-      height: `${Math.round(would.h)}px`,
-      title: entry ? dockTitle(entry) : id,
-    });
+    setDragCarry({ box: would, title: entry ? dockTitle(entry) : id });
+    settleTargets(id, pointer, would);
   };
 
   const store: ShellStore = {
@@ -2856,7 +2869,7 @@ export function ShellStoreProvider(props: ParentProps) {
 
       dragOrigin = null;
       dragPointer = null;
-      setDragGhost(null);
+      setDragCarry(null);
       if (typeof document !== 'undefined') document.documentElement.removeAttribute(DRAGGING_ATTR);
       setMovingDock(null);
       setActiveSnap(null);
@@ -2963,13 +2976,20 @@ export function ShellStoreProvider(props: ParentProps) {
         slot — that is how a lane gets its first section by dragging.
       */
       /*
-        Where the dragged panel is right now — the box the targets are offered against.
+        What is being carried — the box the targets are offered against. `edgeZone` and the outlets
+        both ask "has it reached me", and this is what reaches.
 
-        Its own placement is written every frame of the drag, so the resolved geometry is the box on
-        screen. `edgeZone` and the outlets both ask "has it reached me", and this is what reaches.
+        Two gestures, two answers. Dragging a titlebar writes the panel's own placement every frame,
+        so its resolved geometry *is* the box on screen. Dragging one **tab** out of a seat does not:
+        the tab cannot leave the seat to be carried without taking the strip and the pointer capture
+        with it, so the panel stays exactly where it is and an outline is carried instead. Asking the
+        panel then answers about the seat it is still sitting in, which is a fixed box — so every
+        edge's lane targets were decided by where the stack was docked and not by where the tab was
+        being dragged. Tearing a tab towards any other edge offered no seam to land in, and the
+        stack's own edge offered its seams from the first frame, wherever the pointer was.
       */
       const dragged = requests.find((entry) => entry.id === moving);
-      const carried = dragged ? rectOf(boxes[moving], viewport(), placementOf(dragged)) : null;
+      const carried = dragCarry()?.box ?? (dragged ? rectOf(boxes[moving], viewport(), placementOf(dragged)) : null);
 
       const homeSlots = () => {
         if (!declarationFor()[moving] || !carried) return [];
