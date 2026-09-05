@@ -54,6 +54,26 @@ const SUBJECT = { $: SUBJECT_EXPR };
 const VIEWING_LIVE = { $: 'routeStore.params.call ? false : true' };
 
 /**
+ * Which call the *extraction* surface is about.
+ *
+ * The same shape as `SUBJECT_EXPR`, and a different fallback for a reason worth writing down.
+ * `collectionId` is what the transcriber is writing into and is null until somebody speaks, which is
+ * the honest answer for a transcript — no collection, nothing said. Extraction is asked earlier than
+ * that: choosing what a meeting will look for, before the meeting, is exactly when somebody wants
+ * to, and the call's own record exists from its first second. `callId` is that record.
+ */
+export const EXTRACTION_SUBJECT_EXPR = 'routeStore.params.call ? routeStore.params.call : modules.transcribe.callId';
+const EXTRACTION_SUBJECT = { $: EXTRACTION_SUBJECT_EXPR };
+
+/** The entity names this call may have extracted, ticked or not — what the results list groups by. */
+const EXTRACTION_TARGET_ENTITIES = `modules.transcribe.extractionFor[${EXTRACTION_SUBJECT_EXPR}].targets.map(t, t.entity)`;
+
+/** What the store says can be extracted from that call — see `extractionFor` on the store. */
+const forSubject = (field: 'targets' | 'canChoose' | 'canExtract') => ({
+  $: `modules.transcribe.extractionFor[${EXTRACTION_SUBJECT_EXPR}].${field}`,
+});
+
+/**
  * A message shown for exactly one status.
  *
  * Every reason this module can produce nothing gets its own line, because from the user's side they
@@ -398,7 +418,7 @@ export const extractionTargets: SchemaNode = {
     {
       type: '$if',
       props: {
-        condition: { $: 'count(modules.transcribe.extractionTargets)' },
+        condition: { $: `count(${forSubject('targets').$})` },
         /*
           Which list this is, said out loud, because it is two lists.
 
@@ -412,7 +432,7 @@ export const extractionTargets: SchemaNode = {
           props: { variant: 'footnote', color: 'text-muted' },
           children: [
             {
-              $: "modules.transcribe.canChooseTargets ? 'Look through what was said for:' : \"This space's calls look for:\"",
+              $: `${forSubject('canChoose').$} ? 'Look through what was said for:' : "This space's calls look for:"`,
             },
           ],
         },
@@ -459,9 +479,7 @@ export const extractionTargets: SchemaNode = {
     {
       type: '$if',
       props: {
-        condition: {
-          $: 'count(modules.transcribe.extractionTargets) && !modules.transcribe.canChooseTargets',
-        },
+        condition: { $: `count(${forSubject('targets').$}) && !${forSubject('canChoose').$}` },
         then: {
           type: 'Row',
           props: { gap: '200', ay: 'center', wrap: true },
@@ -503,7 +521,7 @@ export const extractionTargets: SchemaNode = {
       children: [
         {
           type: '$each',
-          props: { items: { $: 'modules.transcribe.extractionTargets' }, as: 'target' },
+          props: { items: forSubject('targets'), as: 'target' },
           children: [
             {
               type: 'we-button',
@@ -523,7 +541,7 @@ export const extractionTargets: SchemaNode = {
                 // the store, where it was refused in silence.
                 // Outside a call there is no conversation to narrow, so these state the space's
                 // default rather than offering a change to it. The link below leads to the change.
-                disabled: { $: '!modules.transcribe.canChooseTargets' },
+                disabled: { $: `!${forSubject('canChoose').$}` },
                 /*
                   One meaning: this call's list, and only this call's.
 
@@ -537,7 +555,7 @@ export const extractionTargets: SchemaNode = {
                 */
                 onClick: {
                   $action: 'modules.transcribe.toggleExtractionTarget',
-                  args: [{ $: 'target.entity' }],
+                  args: [{ $: 'target.entity' }, EXTRACTION_SUBJECT],
                 },
               },
               children: [
@@ -571,52 +589,125 @@ export const extractionTargets: SchemaNode = {
 };
 
 /**
- * Turning what was heard into tasks and events.
+ * What the passes wrote, for the call on screen.
  *
- * Sits below the transcript rather than in the header, because it is a thing you do *to* what is
- * there — and it should not be reachable before there is anything to do it to. The whole block is
- * absent on a node that cannot interpret: unlike a missing transcription model, there is nothing a
- * user can install to fix it from here, so a disabled button explaining itself would be furniture.
+ * One live subscription per target, rather than one query over everything: a record has a type and
+ * `$query` takes one entity name, so a list of mixed kinds is a list of queries. `entity` as an
+ * expression is what lets this show a model the community defined this morning — the cost is that
+ * the validator cannot check a name it only sees at runtime, and a name that has not resolved yet
+ * reads as "not ready" rather than as an error, which is the right way round while a route settles.
  *
- * One press, one pass, and a count afterwards. An LLM call takes seconds, and the gap between press
- * and result is exactly where a feature stops looking like it is working — so `running` says so, and
- * `done` keeps its number until the next press rather than reverting to a blank button.
+ * The *call's* list of targets, not the space's — those differ the moment somebody narrows a call.
+ * Every entity in it, whether or not it is still ticked: a model switched off half way through a
+ * meeting must not take what it already found off the list.
+ *
+ * Drawn from `recordStore.displays`, so a shape a community adopted has an icon and a title here
+ * without anything being written for it, and a model with neither renders as a plain row rather
+ * than as a gap.
  */
-const extract: SchemaNode = {
-  type: '$if',
-  props: {
-    condition: { $: 'modules.transcribe.extractable' },
-    then: {
+const extractedRows: SchemaNode = {
+  type: '$each',
+  props: { items: { $: `${EXTRACTION_TARGET_ENTITIES}` }, as: 'target' },
+  children: [
+    {
       type: 'Column',
-      props: { gap: '200', bg: 'surface-sunken', r: '300', p: '300' },
+      props: { gap: '200' },
+      $queries: {
+        found: {
+          entity: { $: 'target' },
+          scope: { anchor: 'CollectionBlock', via: 'children', anchorId: EXTRACTION_SUBJECT },
+          order: { createdAt: 'desc' },
+          limit: 12,
+        },
+      },
       children: [
         {
-          type: 'Row',
-          props: { ax: 'between', ay: 'center', gap: '300' },
+          type: '$each',
+          props: { items: { $: 'local.found' }, as: 'item' },
           children: [
             {
-              type: 'Column',
-              props: { gap: '050' },
+              type: 'Row',
+              props: { gap: '200', ay: 'center', bg: 'surface-sunken', r: '300', px: '300', py: '200' },
               children: [
-                { type: 'we-text', props: { variant: 'footnote', fontWeight: '600' }, children: ['Extract'] },
-                { type: '$part', props: { id: 'transcribe.extractionTargets' } },
+                {
+                  type: '$if',
+                  props: {
+                    condition: { $: 'recordStore.displays[target].icon' },
+                    then: {
+                      type: 'we-icon',
+                      props: { name: { $: 'recordStore.displays[target].icon' }, color: 'accent-text' },
+                    },
+                  },
+                },
+                {
+                  type: 'we-text',
+                  props: { variant: 'footnote', flex: '1', truncate: true },
+                  children: [{ $: 'item[recordStore.displays[target].title]' }],
+                },
               ],
-            },
-            {
-              type: 'we-button',
-              props: {
-                size: 'sm',
-                variant: 'secondary',
-                // Disabled rather than hidden once the panel is showing the section: the reason is
-                // "nothing has been said yet", which resolves on its own and is worth waiting for.
-                disabled: { $: "!modules.transcribe.canExtract || modules.transcribe.extractStatus == 'running'" },
-                onClick: { $action: 'modules.transcribe.extract' },
-              },
-              children: [{ $: "modules.transcribe.extractStatus == 'running' ? 'Reading…' : 'Extract'" }],
             },
           ],
         },
-        /*
+      ],
+    },
+  ],
+};
+
+/**
+ * Turning what was heard into tasks and events.
+ *
+ * One press, one pass, and a count afterwards. An LLM call takes seconds, and the gap between press
+ * and result is exactly where a feature stops looking like it is working — so `running` says so, and
+ * `done` keeps its number until the next press rather than reverting to a blank button. The count
+ * used to end with "Open the graph to see them", which was an errand rather than an answer; the
+ * records are listed under this now.
+ *
+ * Carries no `extractable` gate of its own. It had one — a fact about the *node*, not about any
+ * call — and the panel above now branches on the same value, so the inner copy only ever asked the
+ * question twice. That nesting is also what used to hide a running pass and a decision waiting on
+ * somebody from a node that could not start one, which is precisely the node whose passes came from
+ * a peer.
+ */
+const extract: SchemaNode = {
+  type: 'Column',
+  props: { gap: '200', bg: 'surface-sunken', r: '300', p: '300' },
+  children: [
+    {
+      type: 'Row',
+      props: { ax: 'between', ay: 'center', gap: '300' },
+      children: [
+        {
+          type: 'Column',
+          props: { gap: '050' },
+          children: [
+            { type: 'we-text', props: { variant: 'footnote', fontWeight: '600' }, children: ['Extract'] },
+            { type: '$part', props: { id: 'transcribe.extractionTargets' } },
+          ],
+        },
+        {
+          type: 'we-button',
+          props: {
+            size: 'sm',
+            variant: 'secondary',
+            // Disabled rather than hidden once the panel is showing the section: the reason is
+            // "nothing has been said yet", which resolves on its own and is worth waiting for.
+            disabled: { $: `!${forSubject('canExtract').$} || modules.transcribe.extractStatus == 'running'` },
+            /*
+                  The call on screen, not "the call I am in".
+
+                  `extractCollection` takes the record, which is what makes this work on one somebody
+                  opened from a link; `extract` can only ever mean the live one. The guard above asks
+                  about the same record, which it did not when a template owned this — the button was
+                  hidden by a `canExtract` about the live call while the action behind it would have
+                  worked on the one being shown.
+                */
+            onClick: { $action: 'modules.transcribe.extractCollection', args: [EXTRACTION_SUBJECT] },
+          },
+          children: [{ $: "modules.transcribe.extractStatus == 'running' ? 'Reading…' : 'Extract'" }],
+        },
+      ],
+    },
+    /*
           The one thing about mid-call changes that is not guessable.
 
           A standing watch keeps a processed-turn cursor, so a model switched on part-way through is
@@ -627,38 +718,36 @@ const extract: SchemaNode = {
 
           Shown only where it applies: a call nobody has changed the list for has nothing to backfill.
         */
-        {
-          type: '$if',
-          props: {
-            condition: { $: 'count(modules.transcribe.extractionTargets)' },
-            then: {
+    {
+      type: '$if',
+      props: {
+        condition: { $: `count(${forSubject('targets').$})` },
+        then: {
+          type: 'we-text',
+          props: { variant: 'footnote', color: 'text-faint' },
+          children: ['A model switched on mid-call applies from here — press Extract to sweep what was said before.'],
+        },
+      },
+    },
+    {
+      type: '$if',
+      props: {
+        condition: { $: "modules.transcribe.extractStatus == 'running'" },
+        then: {
+          type: 'Row',
+          props: { gap: '200', ay: 'center' },
+          children: [
+            { type: 'we-spinner', props: { size: 'sm' } },
+            {
               type: 'we-text',
-              props: { variant: 'footnote', color: 'text-faint' },
-              children: [
-                'A model switched on mid-call applies from here — press Extract to sweep what was said before.',
-              ],
+              props: { variant: 'footnote', color: 'text-muted' },
+              children: ['Reading the transcript…'],
             },
-          },
+          ],
         },
-        {
-          type: '$if',
-          props: {
-            condition: { $: "modules.transcribe.extractStatus == 'running'" },
-            then: {
-              type: 'Row',
-              props: { gap: '200', ay: 'center' },
-              children: [
-                { type: 'we-spinner', props: { size: 'sm' } },
-                {
-                  type: 'we-text',
-                  props: { variant: 'footnote', color: 'text-muted' },
-                  children: ['Reading the transcript…'],
-                },
-              ],
-            },
-          },
-        },
-        /*
+      },
+    },
+    /*
           Why nothing is being extracted on its own.
 
           Reported here rather than nowhere, which is where it went before: the standing watch is
@@ -668,17 +757,17 @@ const extract: SchemaNode = {
           Phrased as a statement about the automatic pass, immediately above a button that still
           works — because that is the actual situation, and "extraction is broken" would be wrong.
         */
-        {
-          type: '$if',
-          props: {
-            condition: { $: 'modules.transcribe.watchProblem' },
-            then: {
-              type: 'Row',
-              props: { gap: '200', ay: 'center' },
-              children: [
-                { type: 'we-icon', props: { name: 'info', color: 'text-faint' } },
-                {
-                  /*
+    {
+      type: '$if',
+      props: {
+        condition: { $: 'modules.transcribe.watchProblem' },
+        then: {
+          type: 'Row',
+          props: { gap: '200', ay: 'center' },
+          children: [
+            { type: 'we-icon', props: { name: 'info', color: 'text-faint' } },
+            {
+              /*
                     The reason, not a guess at it.
 
                     This was one fixed sentence — "not running on this node" — while `watchProblem`
@@ -689,67 +778,50 @@ const extract: SchemaNode = {
                     The store owns the wording because it is the only thing that knows which of four
                     cases happened; this adds the clause that is true in all of them.
                   */
-                  type: 'we-text',
-                  props: { variant: 'footnote', color: 'text-muted' },
-                  children: [{ $: '`${modules.transcribe.watchProblem} Press Extract instead.`' }],
-                },
-              ],
+              type: 'we-text',
+              props: { variant: 'footnote', color: 'text-muted' },
+              children: [{ $: '`${modules.transcribe.watchProblem} Press Extract instead.`' }],
             },
-          },
+          ],
         },
-        {
-          type: '$if',
-          props: {
-            condition: { $: "modules.transcribe.extractStatus == 'done'" },
-            then: {
-              type: 'Row',
-              props: { gap: '200', ay: 'center' },
-              children: [
-                { type: 'we-icon', props: { name: 'check', color: 'success-text' } },
-                {
-                  type: 'we-text',
-                  props: { variant: 'footnote', color: 'text-muted' },
-                  children: [
-                    // Zero is a real and common answer — a conversation with no commitments in it —
-                    // and saying so is the difference between "it worked, there was nothing" and
-                    // "it silently failed".
-                    { $: "modules.transcribe.extractCount ? modules.transcribe.extractCount : 'No'" },
-                    ' records written. Open the graph to see them.',
-                  ],
-                },
-              ],
-            },
-          },
-        },
-        {
-          type: '$if',
-          props: {
-            condition: { $: "modules.transcribe.extractStatus == 'error'" },
-            then: {
-              type: 'we-alert',
-              props: { variant: 'warning' },
-              children: [{ $: 'modules.transcribe.extractError' }],
-            },
-          },
-        },
-        proposals,
-
-        /*
-          What the passes did, in full.
-
-          This used to be the whole of the call bar's readout, and it moved the call's furniture
-          every time somebody opened a row — see `extractionActivity`. It belongs here: this panel is
-          already the surface about extraction, opening something in it costs the call nothing, and
-          there is room for a prompt pane without a floating strip growing to 520px over the controls
-          somebody is reaching for.
-
-          A one-line signal stays in the call chrome so the four people in five who did not start a
-          pass can still see one is running without opening anything.
-        */
-        extractionActivity,
-      ],
+      },
     },
-  },
+    {
+      type: '$if',
+      props: {
+        condition: { $: "modules.transcribe.extractStatus == 'done'" },
+        then: {
+          type: 'Row',
+          props: { gap: '200', ay: 'center' },
+          children: [
+            { type: 'we-icon', props: { name: 'check', color: 'success-text' } },
+            {
+              type: 'we-text',
+              props: { variant: 'footnote', color: 'text-muted' },
+              children: [
+                // Zero is a real and common answer — a conversation with no commitments in it —
+                // and saying so is the difference between "it worked, there was nothing" and
+                // "it silently failed".
+                { $: "modules.transcribe.extractCount ? modules.transcribe.extractCount : 'No'" },
+                ' records written.',
+              ],
+            },
+          ],
+        },
+      },
+    },
+    {
+      type: '$if',
+      props: {
+        condition: { $: "modules.transcribe.extractStatus == 'error'" },
+        then: {
+          type: 'we-alert',
+          props: { variant: 'warning' },
+          children: [{ $: 'modules.transcribe.extractError' }],
+        },
+      },
+    },
+  ],
 };
 
 /**
@@ -1099,54 +1171,130 @@ export const transcriptFeed: SchemaNode = {
  * feature comes to look broken. A pass any member starts opens this for everyone who has the module,
  * which is what the one-line signal in the call bar used to be for.
  */
-export const extractionPanel: SchemaNode = {
-  type: '$if',
-  props: {
-    condition: { $: 'datasetStore.currentDataset && modules.transcribe.extractionOpen' },
-    then: panelShell({
-      title: 'Extraction',
-      /*
-        Whether this conversation is read as it happens, and it is a *call's* switch.
+export const extractionPanel: SchemaNode = panelShell({
+  title: 'Extraction',
+  /*
+    Whether this conversation is read as it happens, and it is a *call's* switch.
 
-        The space has a standing answer and an administrator sets it; this is the people in the room
-        deciding about the room. Disabled where there is no call to record a decision against —
-        `canChooseTargets` asks about the same record, which is why it answers for both — rather
-        than absorbing a press and looking broken.
-      */
-      aside: {
+    The space has a standing answer and an administrator sets it; this is the people in the room
+    deciding about the room. On the live call only: a meeting somebody opened from a link is not
+    happening, so "as it happens" has nothing to be about, and the switch would be asking about a
+    conversation that finished. Everything else here follows the call on screen; this one thing
+    cannot.
+  */
+  aside: {
+    type: '$if',
+    props: {
+      condition: VIEWING_LIVE,
+      then: {
         type: 'we-switch',
         props: {
           size: 'sm',
           label: 'As it happens',
           checked: { $: 'modules.transcribe.autoExtract' },
-          disabled: { $: '!modules.transcribe.canChooseTargets' },
+          // The live call's answer, and the same record `autoExtract` reads.
+          disabled: { $: '!modules.transcribe.extractionFor[modules.transcribe.callId].canChoose' },
           onChange: { $action: 'modules.transcribe.toggleAutoExtract' },
         },
       },
-      children: [
-        /*
-          Absent outside a call rather than disabled, and the sentence says which.
-
-          Every other reason extraction is unavailable is about the node — no model, an executor that
-          cannot interpret — and `extract` says those itself. This one is that there is no
-          conversation yet, which is not a fault and not fixable from here.
-        */
-        {
-          type: '$if',
-          props: {
-            condition: { $: '!modules.transcribe.extractable' },
-            then: {
-              type: 'we-text',
-              props: { variant: 'footnote', color: 'text-muted', italic: true },
-              children: ['Nothing to read yet. What a call produces appears here as it is found.'],
-            },
-          },
-        },
-        extract,
-      ],
-    }),
+    },
   },
-};
+  children: [
+    {
+      type: '$if',
+      /*
+        Can this node interpret at all — which is a different question from whether there is anything
+        to interpret, and the copy here used to answer the wrong one.
+
+        It said "Nothing to read yet. What a call produces appears here as it is found.", which
+        describes an absent conversation. `extractable` is `interpretation.available()`: it says
+        nothing about whether a call exists, only whether this node has a model. A person reading the
+        old sentence waited for a conversation that was never going to help.
+
+        Nothing below it is offered, because nothing below it can be fixed from here.
+      */
+      props: {
+        condition: { $: 'modules.transcribe.extractable' },
+        then: {
+          type: 'Column',
+          props: { width: '100%', flex: '1', minHeight: '0', gap: '300' },
+          children: [
+            extract,
+            proposals,
+            /*
+              What the passes did, in full.
+
+              This used to be the whole of the call bar's readout, and it moved the call's furniture
+              every time somebody opened a row — see `extractionActivity`. It belongs here: this
+              panel is already the surface about extraction, opening something in it costs the call
+              nothing, and there is room for a prompt pane without a floating strip growing to 520px
+              over the controls somebody is reaching for.
+
+              A one-line signal stays in the call chrome so the four people in five who did not start
+              a pass can still see one is running without opening anything.
+
+              A sibling of `extract` rather than a child of it, which is where it and `proposals`
+              both were. Nested, they inherited `extractable` — a fact about the *node* — so a
+              running pass and a decision waiting on somebody were both invisible on a node that
+              could not start one, which is precisely the node whose passes came from a peer.
+            */
+            extractionActivity,
+            /*
+              What the passes actually wrote, for the call on screen.
+
+              The panel used to end at "N records written. Open the graph to see them." — a count
+              and an errand. The records are one query per target away and this is the surface somebody
+              is already looking at while they arrive, so it shows them. The workshop template built
+              this for itself, which is how it came to have the better half of an extraction panel
+              and the worse half of everything else.
+
+              Its own scroll region, and the only one: the header, the chips and the activity above
+              stay put while this grows, which is what makes a long history readable inside a docked
+              panel that clips.
+            */
+            {
+              type: 'we-scroll-area',
+              props: { flex: '1', minHeight: '0' },
+              children: [
+                {
+                  type: '$if',
+                  props: {
+                    condition: EXTRACTION_SUBJECT,
+                    then: extractedRows,
+                    else: {
+                      type: 'Column',
+                      props: { ax: 'center', ay: 'center', gap: '200', p: '500', width: '100%' },
+                      children: [
+                        { type: 'we-icon', props: { name: 'sparkle', size: 'lg', color: 'text-faint' } },
+                        {
+                          type: 'we-text',
+                          props: { variant: 'footnote', color: 'text-faint', textAlign: 'center' },
+                          children: ['Start a call. What the conversation produces appears here.'],
+                        },
+                      ],
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        else: {
+          type: 'Column',
+          props: { ax: 'center', ay: 'center', gap: '200', p: '500', width: '100%', flex: '1' },
+          children: [
+            { type: 'we-icon', props: { name: 'plugs', size: 'lg', color: 'text-faint' } },
+            {
+              type: 'we-text',
+              props: { variant: 'footnote', color: 'text-faint', textAlign: 'center' },
+              children: ['This node has no model configured, so nothing can be extracted from a call.'],
+            },
+          ],
+        },
+      },
+    },
+  ],
+});
 
 /*
   Fills the box the host gave it, and names itself the way every panel does.

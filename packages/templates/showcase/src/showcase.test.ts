@@ -21,6 +21,9 @@ import { describe, expect, it } from 'vitest';
 
 import * as showcase from './index.ts';
 
+/** The workshop's own name for the call on screen — see `CALL_EXPR` in its schema. */
+const CALL_EXPR = 'routeStore.params.call ? routeStore.params.call : modules.call.callRecordId';
+
 type Route = { path: string; redirect?: string; routes?: Route[] };
 type Schema = {
   meta?: { name?: string; description?: string; icon?: string; role?: string };
@@ -327,21 +330,21 @@ describe('the workshop template’s call selection', () => {
     expect(json).toContain('"id":"reject"');
   });
 
-  it('says what is being extracted, and draws the board and the readout off that same list', () => {
+  it('draws the board off the call’s own list of what is being extracted', () => {
     /*
-      What a space extracts is a community decision, changeable mid-call from the chips this panel
-      places. Everything downstream that named the kinds itself was therefore a bug waiting on one
-      click: `['TaskBlock', 'EventBlock']` was written into the board's `contains` and into the
-      readout's two queries, so turning a third model on produced records in the collection, nothing
-      on the board, and nothing in the readout — with no sign of why in any of the three.
+      What a space extracts is a community decision, changeable mid-call from the chips the
+      extraction panel draws. Anything downstream that named the kinds itself was therefore a bug
+      waiting on one click: `['TaskBlock', 'EventBlock']` was written into the board's `contains`,
+      so turning a third model on produced records in the collection and nothing on the board, with
+      no sign of why.
 
-      One list now, read from the call's own targets rather than the space's: those differ the moment
-      somebody narrows a call, and the call is what these surfaces are about.
+      Read per call rather than for the live one. Those differ the moment somebody narrows a call,
+      and the board is about whichever call the address names — which is exactly the mismatch that
+      made this template's own extraction panel wrong before the module's absorbed it.
     */
     const json = JSON.stringify(workshop);
 
-    expect(json).toContain('transcribe.extractionTargets');
-    expect(json).toContain('modules.transcribe.extractionTargets.map(t, t.entity)');
+    expect(json).toContain(`modules.transcribe.extractionFor[${CALL_EXPR}].targets.map(t, t.entity)`);
     expect(json).not.toContain('"TaskBlock","EventBlock"');
   });
 

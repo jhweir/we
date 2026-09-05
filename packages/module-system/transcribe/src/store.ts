@@ -742,6 +742,22 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
   const hasTargets = (collection: string): boolean => targetsFor(collection).some((t) => t.selected);
 
   /**
+   * Whether anything has been written into this record that a pass could read.
+   *
+   * The one record we know is empty is the *live* call's, before the transcriber has adopted it —
+   * `startCall` writes the record from the first second and nobody has said anything into it yet, so
+   * offering Extract there spends an LLM call on an empty transcript. Any other id was named by
+   * somebody who had it, which means it exists and has children.
+   *
+   * Kept apart from `targetCollection`, which deliberately answers for that same empty record:
+   * choosing what a meeting will look for, before the meeting, is exactly when somebody wants to.
+   * The two questions had one answer between them until extraction became per-call, and collapsing
+   * them would have put the Extract button on an empty call.
+   */
+  const hasTranscript = (collection: string): boolean =>
+    Boolean(collection) && (collection !== myCall()?.recordId || collectionId() === collection);
+
+  /**
    * The record a decision about what to extract is written against.
    *
    * `collectionId` is what this agent is *writing into*, and it is null until somebody speaks — the
@@ -1636,33 +1652,74 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     extractedId,
     extractTurns,
     /**
-     * Whether there is anything to extract *from* and anything to extract *with*.
+     * The record this call's extraction decisions are written against.
      *
-     * Both halves matter and they fail differently: no collection means nothing has been said yet,
-     * no port means this node has no LLM. The panel tells those apart; this is the guard that stops
-     * the button being offered when neither can be fixed by pressing it.
+     * `collectionId` is what the transcriber is *writing into*, and it is null until somebody
+     * speaks; the call's own record exists from the first second. Choosing what a meeting looks for,
+     * before the meeting, is exactly when somebody wants to — so this is the id an extraction
+     * surface names, and the one a `subject` expression falls back to.
      */
-    canExtract: () =>
-      Boolean(collectionId()) && (interpretation?.available() ?? false) && hasTargets(collectionId() ?? ''),
+    callId: () => targetCollection(),
 
     /**
-     * What this call can have extracted, and whether each is on — `{ entity, label, selected }`.
+     * What can be extracted from **one named call**, indexed by its record id.
      *
-     * One list rather than two, because a schema renders it as a row of toggles and cannot join two
-     * lists to decide which are ticked. Empty in a space that has marked no models for extraction,
-     * which is a real state worth saying rather than an error.
-     */
-    extractionTargets: () =>
-      targetsFor(targetCollection()).map((target) => ({ ...target, label: humanise(target.entity) })),
-    /**
-     * Whether a press on one of those would actually record anything.
+     * `modules.transcribe.extractionFor[<id>].canExtract`, and the same for `targets` and
+     * `canChoose`. Keyed rather than three accessors about the live call, because the panel that
+     * reads them is about whichever call is *on screen* — which is the live one most of the time and
+     * a past one whenever somebody opened it from a link, and there is no way for an expression to
+     * pass an argument to a store member. Same shape as `recordStore.displays[row.type]`.
      *
-     * Both halves fail silently and differently: no call means there is nothing to record a choice
-     * against, and a host with no `setTarget` cannot record one at all. Published so a surface can
-     * say which rather than offering chips that absorb the click — which is what they did, and what
-     * made this look broken rather than unavailable.
+     * That gap is not hypothetical: the workshop template's own extraction panel asked these three
+     * about the live call and drew the results of the addressed one, so the chips said what one call
+     * was looking for above a list of what a different call had found — and its Extract button was
+     * hidden by a `canExtract` about the wrong record even though the action it guards takes an id
+     * and would have worked.
+     *
+     * The three answers travel together because they fail differently and a surface has to tell them
+     * apart. `canExtract` false with `targets` empty is a space that has marked no models; with
+     * `canChoose` false it is a call nothing has been said in yet; with both true it is a node with
+     * no model at all, which `extractable` answers.
      */
-    canChooseTargets: () => Boolean(targetCollection()) && typeof interpretation?.setTarget === 'function',
+    extractionFor: () =>
+      new Proxy(
+        {},
+        {
+          get: (_target, key: string | symbol) => {
+            if (typeof key !== 'string') return undefined;
+            const collection = key;
+            return {
+              /**
+               * What this call can have extracted, and whether each is on —
+               * `{ entity, label, selected }`.
+               *
+               * One list rather than two, because a schema renders it as a row of toggles and cannot
+               * join two lists to decide which are ticked. Empty in a space that has marked no models
+               * for extraction, which is a real state worth saying rather than an error.
+               */
+              targets: targetsFor(collection).map((target) => ({ ...target, label: humanise(target.entity) })),
+              /**
+               * Whether a press on one of those would actually record anything.
+               *
+               * Both halves fail silently and differently: no call means there is nothing to record a
+               * choice against, and a host with no `setTarget` cannot record one at all. Published so
+               * a surface can say which rather than offering chips that absorb the click — which is
+               * what they did, and what made this look broken rather than unavailable.
+               */
+              canChoose: Boolean(collection) && typeof interpretation?.setTarget === 'function',
+              /**
+               * Whether there is anything to extract *from* and anything to extract *with*.
+               *
+               * Both halves matter and they fail differently: no collection means nothing has been
+               * said yet, no port means this node has no LLM. The panel tells those apart; this is
+               * the guard that stops the button being offered when neither can be fixed by pressing
+               * it.
+               */
+              canExtract: hasTranscript(collection) && (interpretation?.available() ?? false) && hasTargets(collection),
+            };
+          },
+        },
+      ),
     /**
      * Include or exclude one model from what **this call** extracts, for everyone in it.
      *
@@ -1675,12 +1732,14 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
      * button carries none, so pressing Extract is how the rest of the conversation gets swept with
      * the new list.
      */
-    toggleExtractionTarget: async (entity: string) => {
-      const live = targetCollection();
-      if (!live || typeof interpretation?.setTarget !== 'function') return;
-      const current = targetsFor(live).find((target) => target.entity === entity);
+    toggleExtractionTarget: async (entity: string, collection?: string) => {
+      // Named, or the one this agent is in — the same pair `extractCollection` and `extract` are,
+      // so a panel about a call somebody opened from a link changes *that* call's list.
+      const target = collection || targetCollection();
+      if (!target || typeof interpretation?.setTarget !== 'function') return;
+      const current = targetsFor(target).find((entry) => entry.entity === entity);
       try {
-        await interpretation.setTarget(live, entity, !current?.selected);
+        await interpretation.setTarget(target, entity, !current?.selected);
       } catch (error) {
         console.warn('[transcribe] could not change what this call extracts', error);
       }

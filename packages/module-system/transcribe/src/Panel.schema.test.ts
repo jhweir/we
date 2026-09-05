@@ -13,7 +13,16 @@
 import { describe, expect, it } from 'vitest';
 
 import { transcribeModule } from './index';
-import { captureMeter, panel, pendingUtterance, SUBJECT_EXPR, transcriptFeed } from './Panel.schema';
+import {
+  captureMeter,
+  EXTRACTION_SUBJECT_EXPR,
+  extractionPanel,
+  extractionTargets,
+  panel,
+  pendingUtterance,
+  SUBJECT_EXPR,
+  transcriptFeed,
+} from './Panel.schema';
 
 const panelJson = JSON.stringify(panel);
 const feedJson = JSON.stringify(transcriptFeed);
@@ -125,5 +134,92 @@ describe('the recording indicator', () => {
     expect(panelJson).not.toContain('danger-text');
     expect(JSON.stringify(captureMeter)).not.toContain('danger-text');
     expect(panelJson).toContain("modules.transcribe.listening ? 'danger' : ''");
+  });
+});
+
+describe('the extraction panel', () => {
+  const json = JSON.stringify(extractionPanel);
+
+  it('asks about the call on screen, in every one of the three answers', () => {
+    /*
+      The gap that made the workshop's own copy wrong in two directions at once. It asked these about
+      the *live* call and drew the results of the addressed one, so the chips said what one call was
+      looking for above a list of what a different call had found — and the Extract button was hidden
+      by a guard about the wrong record even though the action behind it takes an id.
+
+      Keyed rather than three accessors, because an expression cannot pass an argument to a store
+      member. Same shape as `recordStore.displays[row.type]`.
+    */
+    for (const field of ['targets', 'canExtract']) {
+      expect(json).toContain(`modules.transcribe.extractionFor[${EXTRACTION_SUBJECT_EXPR}].${field}`);
+    }
+
+    // The chips are a `$part`, so the third answer is asked in the fragment rather than here.
+    const chips = JSON.stringify(extractionTargets);
+    expect(chips).toContain(`modules.transcribe.extractionFor[${EXTRACTION_SUBJECT_EXPR}].canChoose`);
+    expect(chips).toContain(`modules.transcribe.extractionFor[${EXTRACTION_SUBJECT_EXPR}].targets`);
+  });
+
+  it('changes the list of the call it is showing, not the one this agent is in', () => {
+    const chips = JSON.stringify(extractionTargets);
+
+    expect(chips).toContain('"$action":"modules.transcribe.toggleExtractionTarget"');
+    expect(chips).toContain(`{"$":"target.entity"},{"$":"${EXTRACTION_SUBJECT_EXPR}"}`);
+  });
+
+  it('falls back to the call’s own record rather than the transcript’s', () => {
+    /*
+      A different fallback from the transcript's, and the difference is the point. `collectionId` is
+      null until somebody speaks, which is the honest answer for a transcript; extraction is asked
+      earlier than that, because choosing what a meeting will look for — before the meeting — is
+      exactly when somebody wants to.
+    */
+    expect(EXTRACTION_SUBJECT_EXPR).toContain('routeStore.params.call');
+    expect(EXTRACTION_SUBJECT_EXPR).toContain('modules.transcribe.callId');
+    expect(EXTRACTION_SUBJECT_EXPR).not.toContain('collectionId');
+  });
+
+  it('runs a pass over that call rather than over the one this agent is in', () => {
+    expect(json).toContain('modules.transcribe.extractCollection');
+    expect(json).not.toContain('"$action":"modules.transcribe.extract"');
+  });
+
+  it('keeps "as it happens" to the live call, where it is the only thing that means anything', () => {
+    // A meeting somebody opened from a link is not happening. Everything else here follows the call
+    // on screen; this one cannot.
+    const live = '{"$":"routeStore.params.call ? false : true"}';
+    expect(json.indexOf(live)).toBeLessThan(json.indexOf('As it happens'));
+  });
+
+  it('says the node has no model, rather than that nothing has been said', () => {
+    /*
+      `extractable` is `interpretation.available()` — a fact about the node, saying nothing about
+      whether a call exists. The copy answered the other question ("Nothing to read yet. What a call
+      produces appears here as it is found."), so somebody on a node with no model waited for a
+      conversation that was never going to help.
+    */
+    expect(json).toContain('This node has no model configured');
+    expect(json).not.toContain('Nothing to read yet');
+  });
+
+  it('shows what the passes wrote, rather than counting them and pointing elsewhere', () => {
+    // It ended at "N records written. Open the graph to see them." — a count and an errand, while
+    // the records were one query per target away from the surface already being looked at.
+    expect(json).toContain('"anchorId":{"$":"' + EXTRACTION_SUBJECT_EXPR + '"}');
+    expect(json).toContain('recordStore.displays[target].title');
+  });
+
+  it('scrolls the results and nothing above them', () => {
+    // `panelShell` clips, so without this an open history plus a 240px code pane is cut off by the
+    // dock box. The header, the chips and the activity stay put; the list moves.
+    expect(json).toContain('"we-scroll-area"');
+    expect(json.indexOf('"we-scroll-area"')).toBeGreaterThan(json.indexOf('transcribe.extractionTargets'));
+  });
+
+  it('leaves the panel’s own openness to the host', () => {
+    // The dock's `edge` returns null while closed and the host gates on the space, so the
+    // `$if datasetStore.currentDataset && extractionOpen` this carried was a second copy of both.
+    expect(json).not.toContain('modules.transcribe.extractionOpen');
+    expect(json).not.toContain('datasetStore.currentDataset');
   });
 });

@@ -113,6 +113,27 @@ function harness(peers: Peer[] = [], extraDeps: Record<string, unknown> = {}) {
   };
 }
 
+/**
+ * What the store says can be extracted from the call this agent is in.
+ *
+ * The store answers per call now — a panel is about whichever call is on screen, which is the live
+ * one most of the time and a past one whenever somebody opened it from a link — so the live answer
+ * is the keyed one looked up by `callId`, exactly as a schema writes it.
+ */
+function liveExtraction(store: { extractionFor: () => unknown; callId: () => string }) {
+  const byId = store.extractionFor() as Record<
+    string,
+    { targets: TargetView[]; canChoose: boolean; canExtract: boolean }
+  >;
+  return byId[store.callId()];
+}
+
+interface TargetView {
+  entity: string;
+  label: string;
+  selected: boolean;
+}
+
 describe('the call record', () => {
   let inCall: Peer[];
 
@@ -770,7 +791,7 @@ describe('extraction', () => {
       expect(i.watches[0]).toBeTruthy();
       // The same collection the one-shot path would read: `canExtract` gates on there being one,
       // and both go through `collectionId`.
-      expect(h.store.canExtract()).toBe(true);
+      expect(liveExtraction(h.store).canExtract).toBe(true);
     });
 
     it('stops the watch when the call ends', async () => {
@@ -844,7 +865,7 @@ describe('extraction', () => {
     const i = interpreter();
     const h = harness(inCall, { interpretation: i.port });
 
-    expect(h.store.canExtract()).toBe(false);
+    expect(liveExtraction(h.store).canExtract).toBe(false);
     expect(h.store.extractable()).toBe(true);
   });
 
@@ -853,7 +874,7 @@ describe('extraction', () => {
     const h = harness(inCall, { interpretation: i.port });
     await h.say('hello');
 
-    expect(h.store.canExtract()).toBe(false);
+    expect(liveExtraction(h.store).canExtract).toBe(false);
     // Distinguishable from the case above, because the two need different sentences: one is "say
     // something first", the other is "this node cannot do that at all".
     expect(h.store.extractable()).toBe(false);
@@ -887,7 +908,7 @@ describe('extraction', () => {
       // WE's own naming and would read as jargon on a row of toggles beside a community's own
       // model, so it is dropped: "Task", "Event", "Sighting".
       await h.say('we should ship the docs on friday');
-      expect(h.store.extractionTargets()).toEqual([
+      expect(liveExtraction(h.store).targets).toEqual([
         { entity: 'EventBlock', label: 'Event', selected: true },
         { entity: 'Sighting', label: 'Sighting', selected: true },
         { entity: 'TaskBlock', label: 'Task', selected: true },
@@ -910,9 +931,8 @@ describe('extraction', () => {
       await h.store.toggleExtractionTarget('TaskBlock');
 
       expect(
-        h.store
-          .extractionTargets()
-          .filter((t) => t.selected)
+        liveExtraction(h.store)
+          .targets.filter((t) => t.selected)
           .map((t) => t.entity),
       ).toEqual(['EventBlock', 'Sighting']);
       expect(i.watchTargetsOf(collection)).toEqual(['EventBlock', 'Sighting']);
@@ -922,11 +942,11 @@ describe('extraction', () => {
       const i = interpreter(undefined, true, ['TaskBlock']);
       const h = harness(inCall, { interpretation: i.port });
       await h.say('we should ship the docs on friday');
-      expect(h.store.canExtract()).toBe(true);
+      expect(liveExtraction(h.store).canExtract).toBe(true);
 
       await h.store.toggleExtractionTarget('TaskBlock');
 
-      expect(h.store.canExtract()).toBe(false);
+      expect(liveExtraction(h.store).canExtract).toBe(false);
     });
 
     it('has nothing to offer, and no watch to run, in a space that marks no models', async () => {
@@ -934,8 +954,8 @@ describe('extraction', () => {
       const h = harness(inCall, { interpretation: i.port });
       await h.say('we should ship the docs on friday');
 
-      expect(h.store.extractionTargets()).toEqual([]);
-      expect(h.store.canExtract()).toBe(false);
+      expect(liveExtraction(h.store).targets).toEqual([]);
+      expect(liveExtraction(h.store).canExtract).toBe(false);
       // Registering a watch with an empty class list is refused by the executor, and the reason is
       // one a person can act on — so it is reported rather than attempted.
       expect(i.watches).toEqual([]);
@@ -1403,14 +1423,38 @@ describe('what a call extracts, before anybody has spoken', () => {
   it('records a choice against the call’s own record, with no transcript yet', async () => {
     const { h, set } = withInterpretation([peer(ME, { type: 'call', id: CALL, record: RECORD })]);
 
-    expect(h.store.canChooseTargets()).toBe(true);
-    expect(h.store.extractionTargets()).toHaveLength(2);
+    expect(liveExtraction(h.store).canChoose).toBe(true);
+    expect(liveExtraction(h.store).targets).toHaveLength(2);
 
     await h.store.toggleExtractionTarget('EventBlock');
 
     // The call's record, which presence has carried since the call started — not the collection the
     // transcriber has not adopted yet.
     expect(set).toEqual([{ collection: RECORD, entity: 'EventBlock', on: true }]);
+  });
+
+  it('answers about the call it is asked about, not the one this agent is in', async () => {
+    /*
+      The gap that made the workshop's own extraction panel wrong in two directions at once.
+
+      It asked these three about the *live* call while drawing the results of the one in the address,
+      so the chips said what one call was looking for above a list of what a different call had
+      found — and its Extract button was hidden by a `canExtract` about the wrong record, even though
+      the action behind it takes an id and would have worked.
+    */
+    const { h, set } = withInterpretation([peer(ME, { type: 'call', id: CALL, record: RECORD })]);
+    const past = 'we://a-call-from-last-month';
+    const byId = h.store.extractionFor() as Record<string, { canChoose: boolean; canExtract: boolean }>;
+
+    expect(byId[past].canChoose).toBe(true);
+    // A record somebody named is one they had, so it exists and has been spoken into — unlike the
+    // live call's own, which is written before anybody says anything.
+    expect(byId[past].canExtract).toBe(true);
+    expect(liveExtraction(h.store).canExtract).toBe(false);
+
+    await h.store.toggleExtractionTarget('EventBlock', past);
+
+    expect(set).toEqual([{ collection: past, entity: 'EventBlock', on: true }]);
   });
 
   it('still lists the space’s own defaults outside a call, and says it cannot narrow them', () => {
@@ -1422,8 +1466,8 @@ describe('what a call extracts, before anybody has spoken', () => {
     */
     const { h } = withInterpretation([]);
 
-    expect(h.store.canChooseTargets()).toBe(false);
-    expect(h.store.extractionTargets()).toEqual([]);
+    expect(liveExtraction(h.store).canChoose).toBe(false);
+    expect(liveExtraction(h.store).targets).toEqual([]);
   });
 
   it('says it cannot on a host that has no way to store one', async () => {
@@ -1431,7 +1475,7 @@ describe('what a call extracts, before anybody has spoken', () => {
       interpretation: { available: () => true, targets: () => targets },
     });
 
-    expect(h.store.canChooseTargets()).toBe(false);
+    expect(liveExtraction(h.store).canChoose).toBe(false);
     // And the action stays safe to call: a surface that offers it anyway does nothing, rather than
     // throwing on a missing method.
     await expect(h.store.toggleExtractionTarget('EventBlock')).resolves.toBeUndefined();

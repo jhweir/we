@@ -477,6 +477,39 @@ const settledSection: SchemaNode = {
             },
           ],
         },
+        /*
+          A way to forget what has finished.
+
+          The store has published `dismissSettled` since the readout existed and nothing called it,
+          so a history could only ever grow — and this is a list somebody watches for minutes at a
+          time, so "everything that has ever happened" is the state it spends most of its life in.
+          Only what has settled: a running pass is not this agent's to dismiss, which is why the
+          store's action leaves those alone rather than taking a filter.
+
+          Beside the count rather than on each row, because the decision is about the list. Offered
+          only while the list is open, so the collapsed line stays a summary and not a control strip.
+        */
+        {
+          type: '$if',
+          props: {
+            condition: { $: 'local.historyOpen' },
+            then: {
+              type: 'Row',
+              props: { width: '100%', ax: 'end' },
+              children: [
+                {
+                  type: 'we-button',
+                  props: {
+                    variant: 'ghost',
+                    size: 'xs',
+                    onClick: { $action: 'interpretationStore.dismissSettled' },
+                  },
+                  children: [{ type: 'we-text', props: { variant: 'footnote' }, children: ['Clear'] }],
+                },
+              ],
+            },
+          },
+        },
         {
           type: '$if',
           props: {
@@ -505,7 +538,7 @@ const settledSection: SchemaNode = {
  * The disclosures a pass carries, and the state that opens them.
  *
  * Split out from the chrome node because the two now live in different places — see
- * {@link extractionActivity} and {@link extractionSignal} below.
+ * {@link extractionActivity} and {@link extractionControl} below.
  */
 const activityLocalState = {
   /**
@@ -557,7 +590,7 @@ const activityLocalState = {
  *
  * The original argument for the chrome — that a pass outlives the panel that started it, and that
  * the four people who did *not* start it are the ones most likely to want the readout — is what
- * {@link extractionSignal} still satisfies. It says who and how long, for everybody, without
+ * {@link extractionControl} still satisfies. It says who and how long, for everybody, without
  * needing the panel open.
  */
 export const extractionActivity: SchemaNode = {
@@ -639,7 +672,14 @@ export const extractionActivity: SchemaNode = {
 export const extractionControl: SchemaNode = {
   type: '$if',
   props: {
-    condition: { $: 'modules.transcribe.canChooseTargets' },
+    /*
+      The live call's answer, named as such.
+
+      Extraction is asked per call now — a panel can be about one somebody opened from a link — so
+      the store answers by record id. This control is in the *call bar*, which only ever exists
+      during a call, so the record it means is always `callId`.
+    */
+    condition: { $: 'modules.transcribe.extractionFor[modules.transcribe.callId].canChoose' },
     then: {
       type: 'we-tooltip',
       props: {
