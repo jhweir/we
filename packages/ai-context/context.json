@@ -3115,6 +3115,28 @@
       "source": "components"
     },
     {
+      "name": "Canvas",
+      "superclass": "DesignSystemElement",
+      "props": [
+        {
+          "name": "artboard",
+          "type": "{ width: number; height: number; }",
+          "optional": false
+        },
+        {
+          "name": "fit",
+          "type": "\"contain\" | \"none\" | \"stretch\" | \"scale\"",
+          "optional": true
+        },
+        {
+          "name": "onMeasure",
+          "type": "((box: { width: number; height: number; scale: number; }) => void)",
+          "optional": true
+        }
+      ],
+      "source": "components"
+    },
+    {
       "name": "Card",
       "superclass": "DesignSystemElement",
       "props": [],

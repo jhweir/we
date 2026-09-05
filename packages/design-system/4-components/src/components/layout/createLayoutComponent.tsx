@@ -27,7 +27,7 @@ import { createMemo, type JSX, splitProps } from 'solid-js';
  */
 const LAYOUT_DEFAULTS: Partial<LayoutProps> = { overflowWrap: 'anywhere' };
 
-export interface LayoutComponentConfig<P extends LayoutProps> {
+export interface LayoutComponentConfig<P extends LayoutProps, H = unknown> {
   /**
    * The theme family this component belongs to — the layer-4 counterpart of `COMPONENT_CASCADE`.
    *
@@ -62,7 +62,29 @@ export interface LayoutComponentConfig<P extends LayoutProps> {
    * from the box it ends up occupying, and no amount of prop inspection can answer that. Runs in the
    * component body, so it may hold signals and register cleanup like any other Solid code.
    */
-  hook?: (props: P) => { ref?: (el: HTMLElement) => void; style?: () => JSX.CSSProperties };
+  hook?: (props: P) => {
+    ref?: (el: HTMLElement) => void;
+    style?: () => JSX.CSSProperties;
+    /** Anything else the hook computed, handed on to {@link wrapChildren}. */
+    extra?: H;
+  };
+  /**
+   * A layer of the component's own between the box and its children.
+   *
+   * `Canvas` needs one and nothing else does: a scaled artboard is two elements, because a
+   * transform does not change the box a parent lays out against — so the outer element is what
+   * gets measured and takes the DS props, and the inner one is the coordinate space, sized in the
+   * author's units and scaled to fit. Squeezing both onto one element is not a matter of taste; it
+   * cannot be done.
+   *
+   * Handed the hook's `extra`, because the layer is usually a function of the same measurement the
+   * hook is making and calling the hook a second time would observe a second element — which is to
+   * say, none.
+   *
+   * `children` arrives as an accessor rather than as a value, and must be read inside JSX. Reading
+   * it eagerly here would resolve a `$each` once and leave it resolved.
+   */
+  wrapChildren?: (children: () => JSX.Element, props: P, extra: H | undefined) => JSX.Element;
 }
 
 /**
@@ -81,8 +103,8 @@ function familyDefaults(family: ThemeFamily | undefined): Record<string, string>
   );
 }
 
-export function createLayoutComponent<P extends LayoutProps>(
-  config: LayoutComponentConfig<P>,
+export function createLayoutComponent<P extends LayoutProps, H = unknown>(
+  config: LayoutComponentConfig<P, H>,
 ): (allProps: P) => JSX.Element {
   const ownKeys = config.ownKeys ?? [];
   const family = familyDefaults(config.family);
@@ -132,7 +154,9 @@ export function createLayoutComponent<P extends LayoutProps>(
         {...(hasVariantProps() ? attrs : {})}
         ref={composedRef}
       >
-        {designSystemProps.children}
+        {config.wrapChildren
+          ? config.wrapChildren(() => designSystemProps.children, designSystemProps as P, extras?.extra)
+          : designSystemProps.children}
       </div>
     );
   };

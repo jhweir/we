@@ -484,6 +484,48 @@ everything below it down a second time.
 Two Columns, because centring and constraining are different jobs: the outer spans the viewport so
 the route's background reaches the edges, the inner holds the measure.
 
+### A composition placed by hand — Canvas and an artboard
+
+For anything where the author means a specific geometry: a scrapbook, a poster, a diagram, a title
+card. \`Canvas\` declares the coordinate space its children's \`x\` / \`y\` are in, and scales that
+space to whatever box it lands in — so one authored layout is never *broken*, only smaller.
+
+\`\`\`json
+{
+  "type": "Canvas",
+  "props": { "artboard": { "width": 1200, "height": 1600 } },
+  "children": [
+    {
+      "type": "we-image",
+      "props": { "src": "…", "x": 90, "y": 120, "rotate": -4, "width": "420px", "shadow": "lg", "r": "200" }
+    },
+    {
+      "type": "we-text",
+      "props": { "x": 560, "y": 320, "rotate": 2, "variant": "heading-lg", "maxWidth": "380px" },
+      "children": ["The summer we moved"]
+    }
+  ]
+}
+\`\`\`
+
+- **\`artboard\` is the point.** Without it a pixel resolves against whatever positioned ancestor
+  happens to be there — a docked panel, an editor preview pane, a phone — and nothing downstream can
+  scale it. \`{ "width": 1200, "height": 1600 }\` says what those numbers *mean*.
+- **Place with \`x\` / \`y\` / \`rotate\`, never \`top\` / \`left\`.** Offsets do not respond to a
+  breakpoint (see the Layout props) and do not compose with rotation; these do both.
+- **Stack with \`zIndex\`.** A raw number is legal there, not only the named layers — overlap is the
+  entire point of a scrapbook, and on a canvas it should be chosen rather than inherited from
+  document order.
+- **A tall artboard scrolls like a page.** At the default \`fit: "scale"\` the canvas takes the
+  height the scaled artboard needs, so a composition several screens long behaves like ordinary
+  content. Pair sections of it with \`$animate\` and \`scrollReveal\` to bring them in as they arrive.
+- **Reach for \`fit: "contain"\` only where the canvas has a height of its own** — a fixed panel, a
+  slide. In document flow there is no second axis to fit against and it scales by width anyway.
+
+**Do not use a Canvas for a layout that is merely arranged.** A dashboard of cards is a \`Grid\`, and
+a page is a \`Column\`. The test is whether the coordinates carry meaning the author chose: two
+photos overlapping at an angle, yes; three cards in a row, no.
+
 ### Titled section on a card
 
 \`\`\`json

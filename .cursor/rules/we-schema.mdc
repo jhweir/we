@@ -1329,6 +1329,8 @@ when `relative` is enabled.
   Props: avatars: AvatarInfo[], max?: number, size?: "xs" | "sm" | "md" | "lg" | "xl" | "xxs" | "xxl", overlap?: number, ring?: string, styles?: Record<string, string | number>
 - Calendar
   Props: value?: string, events?: CalendarEvent[], onSelect?: ((date: string) => void), styles?: Record<string, string | number>
+- Canvas (DesignSystemElement)
+  Props: artboard: { width: number; height: number; }, fit?: "contain" | "none" | "stretch" | "scale", onMeasure?: ((box: { width: number; height: number; scale: number; }) => void)
 - Card (DesignSystemElement)
 - CodeEditor
   Props: code: string, language?: CodeEditorLanguage, readOnly?: boolean, onChange?: ((code: string) => void), onSave?: ((code: string) => void), maxHeight?: string, styles?: Record<string, string | number>
@@ -1845,13 +1847,14 @@ States and tiers do not cross — there is no `mdUpHoverProps`. A tier sets base
 
 ### Which mechanism to reach for
 
-Three ways to respond to size, and they are not interchangeable:
+Four ways to respond to size, and they are not interchangeable:
 
 | Need | Use | Why |
 |---|---|---|
 | Different **values** — padding, gap, width, font size | `*UpProps` | Pure CSS. Nothing remounts. |
 | A different **tree** — a pane becomes a drawer, two panes become one | `$surface` + `$if` on `surface.tier` | Only a branch can swap DOM. |
 | Same-shaped things **filling a box** — video tiles, a photo wall | `Grid` with `childAspect` | Needs both axes and an argmax; CSS cannot express it. |
+| A **composition the author placed by hand** — a scrapbook, a poster, a diagram | `Canvas` with an `artboard` | The coordinates mean something; declaring the space is what lets them be scaled rather than guessed. |
 
 **Prefer `*UpProps` for anything that is a value.** `$if` on the tier works and is tempting, because
 branching is the familiar tool — but it **unmounts and rebuilds the subtree** every time the surface
@@ -3694,6 +3697,48 @@ everything below it down a second time.
 
 Two Columns, because centring and constraining are different jobs: the outer spans the viewport so
 the route's background reaches the edges, the inner holds the measure.
+
+### A composition placed by hand — Canvas and an artboard
+
+For anything where the author means a specific geometry: a scrapbook, a poster, a diagram, a title
+card. `Canvas` declares the coordinate space its children's `x` / `y` are in, and scales that
+space to whatever box it lands in — so one authored layout is never *broken*, only smaller.
+
+```json
+{
+  "type": "Canvas",
+  "props": { "artboard": { "width": 1200, "height": 1600 } },
+  "children": [
+    {
+      "type": "we-image",
+      "props": { "src": "…", "x": 90, "y": 120, "rotate": -4, "width": "420px", "shadow": "lg", "r": "200" }
+    },
+    {
+      "type": "we-text",
+      "props": { "x": 560, "y": 320, "rotate": 2, "variant": "heading-lg", "maxWidth": "380px" },
+      "children": ["The summer we moved"]
+    }
+  ]
+}
+```
+
+- **`artboard` is the point.** Without it a pixel resolves against whatever positioned ancestor
+  happens to be there — a docked panel, an editor preview pane, a phone — and nothing downstream can
+  scale it. `{ "width": 1200, "height": 1600 }` says what those numbers *mean*.
+- **Place with `x` / `y` / `rotate`, never `top` / `left`.** Offsets do not respond to a
+  breakpoint (see the Layout props) and do not compose with rotation; these do both.
+- **Stack with `zIndex`.** A raw number is legal there, not only the named layers — overlap is the
+  entire point of a scrapbook, and on a canvas it should be chosen rather than inherited from
+  document order.
+- **A tall artboard scrolls like a page.** At the default `fit: "scale"` the canvas takes the
+  height the scaled artboard needs, so a composition several screens long behaves like ordinary
+  content. Pair sections of it with `$animate` and `scrollReveal` to bring them in as they arrive.
+- **Reach for `fit: "contain"` only where the canvas has a height of its own** — a fixed panel, a
+  slide. In document flow there is no second axis to fit against and it scales by width anyway.
+
+**Do not use a Canvas for a layout that is merely arranged.** A dashboard of cards is a `Grid`, and
+a page is a `Column`. The test is whether the coordinates carry meaning the author chose: two
+photos overlapping at an angle, yes; three cards in a row, no.
 
 ### Titled section on a card
 

@@ -331,13 +331,14 @@ States and tiers do not cross — there is no \`mdUpHoverProps\`. A tier sets ba
 
 ### Which mechanism to reach for
 
-Three ways to respond to size, and they are not interchangeable:
+Four ways to respond to size, and they are not interchangeable:
 
 | Need | Use | Why |
 |---|---|---|
 | Different **values** — padding, gap, width, font size | \`*UpProps\` | Pure CSS. Nothing remounts. |
 | A different **tree** — a pane becomes a drawer, two panes become one | \`$surface\` + \`$if\` on \`surface.tier\` | Only a branch can swap DOM. |
 | Same-shaped things **filling a box** — video tiles, a photo wall | \`Grid\` with \`childAspect\` | Needs both axes and an argmax; CSS cannot express it. |
+| A **composition the author placed by hand** — a scrapbook, a poster, a diagram | \`Canvas\` with an \`artboard\` | The coordinates mean something; declaring the space is what lets them be scaled rather than guessed. |
 
 **Prefer \`*UpProps\` for anything that is a value.** \`$if\` on the tier works and is tempting, because
 branching is the familiar tool — but it **unmounts and rebuilds the subtree** every time the surface
