@@ -29,6 +29,7 @@ import {
   coveredInset,
   displaces,
   DOCK_GAP_PX,
+  type DockGeometry,
   type DockRequest,
   dockThickness,
   type DropTarget,
@@ -69,6 +70,7 @@ import {
   seatOrder,
   seatSize,
   seedPlacement,
+  shareSeatBox,
   SIDEBAR_PX,
   snapBeatsSlot,
   snapCandidate,
@@ -2697,5 +2699,110 @@ describe('the floor a seat has to clear', () => {
     // The host's own default applies then, and `floorOf` is what knows it.
     expect(widestMin([undefined, undefined])).toBeUndefined();
     expect(widestMin([])).toBeUndefined();
+  });
+});
+
+describe('every member of a seat resolves to one box', () => {
+  /*
+    The regression this exists for.
+
+    A seat's box is solved by `columnLayout` and handed to every member — but a lane holding a single
+    seat is not divided, so there is no solve, and the members that are not showing used to be given
+    `{ x: 0, y: 0, w: 0, h: 0 }` instead. `resolveDock` uses a supplied seat rect directly, so a
+    hidden tab resolved to a 0×0 box in the corner of the screen.
+
+    Nothing revealed that while a background tab was `display: none` and had no box at all. It became
+    visible the moment that became `visibility: hidden` — so a tab switch stops tearing down the
+    card's backdrop layer — because the box was then real, and the panel brought forward animated
+    itself in from the corner. Reported as "the newly selected panel jumps to an earlier position and
+    glides back, particularly when the stack is docked": docked is the tell, since a floating stack's
+    members are placed by `followSeat` and never reach that branch.
+  */
+  const seated = (over: Partial<DockGeometry> = {}): DockGeometry => ({
+    edge: 'left',
+    floating: false,
+    handleX: 'right',
+    top: '0px',
+    left: '0px',
+    width: '440px',
+    height: '900px',
+    ...over,
+  });
+
+  it('gives a hidden tab the box the showing member resolved to', () => {
+    const resolved: Record<string, DockGeometry> = {
+      'transcribe:transcript': seated(),
+      'notes:panel': seated({ edge: null, floating: true, top: '420px', left: '900px', width: '300px' }),
+    };
+
+    shareSeatBox(resolved, { 'notes:panel': 'transcribe:transcript' });
+
+    expect(resolved['notes:panel']).toMatchObject({ top: '0px', left: '0px', width: '440px', height: '900px' });
+  });
+
+  it('copies the whole answer, not only the rectangle', () => {
+    /*
+      Where the panel is decides the rest of it: `floating` is what makes the frame glass, and
+      `handleX`/`handleY` which sides carry its grips. A tab answering those from its own stored
+      placement swaps all three on the frame that brings it forward — a docked stack whose newly
+      selected tab arrives translucent, with its resize grip on the wrong side.
+    */
+    const resolved: Record<string, DockGeometry> = {
+      front: seated(),
+      back: seated({ floating: true, handleX: 'left', handleY: 'top', padTop: '56px' }),
+    };
+
+    shareSeatBox(resolved, { back: 'front' });
+
+    expect(resolved.back.floating).toBe(false);
+    expect(resolved.back.handleX).toBe('right');
+    expect(resolved.back.handleY).toBeUndefined();
+    expect(resolved.back.padTop).toBeUndefined();
+  });
+
+  it('leaves what belongs to the tab itself alone', () => {
+    // Hidden, its place in the strip and its layer are per panel — the *box* is what is shared.
+    const strip = [{ id: 'front', title: 'Transcript', active: true }];
+    const resolved: Record<string, DockGeometry> = {
+      front: seated({ tabs: strip }),
+      back: seated({ hidden: true, layer: 204, left: '900px' }),
+    };
+
+    shareSeatBox(resolved, { back: 'front' });
+
+    expect(resolved.back).toMatchObject({ hidden: true, layer: 204, left: '0px' });
+    expect(resolved.back.tabs).toBeUndefined();
+  });
+
+  it('does nothing for a front that is not resolved', () => {
+    // A panel can leave the docks between the seating pass and this one — a module turned off in
+    // this space, a route change. Following a missing front must leave the box it has, not clear it.
+    const resolved: Record<string, DockGeometry> = { back: seated({ left: '900px' }) };
+
+    shareSeatBox(resolved, { back: 'gone' });
+
+    expect(resolved.back.left).toBe('900px');
+  });
+
+  it('resolves a degenerate seat rect to a degenerate box, which is why the above is needed', () => {
+    /*
+      The premise: `resolveDock` takes a supplied seat at face value. It is right to — a seat rect is
+      an answer somebody has already solved against the lane-mates, which this function cannot see —
+      and that is what made a zero rect fatal rather than inert.
+
+      The length is taken raw, so a full-height sidebar came out as a zero-height line at the top of
+      the screen. Only the *thickness* is clamped, by the floor every dock has, which is why the
+      symptom was "resizes from its old dimensions" rather than a panel that simply was not there.
+    */
+    const box = resolveDock(dock({ placement: placement() }), desktop, undefined, undefined, {
+      x: 0,
+      y: 0,
+      w: 0,
+      h: 0,
+    });
+
+    expect(px(box.height)).toBe(0);
+    expect(px(box.top)).toBe(0);
+    expect(px(box.width)).toBe(MIN_DOCK_PX);
   });
 });

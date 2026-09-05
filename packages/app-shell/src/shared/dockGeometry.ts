@@ -1898,6 +1898,58 @@ export function laneEdgeBox(boxes: Rect[], edge: Exclude<DockEdge, null>): Rect 
 }
 
 /**
+ * Give every member of a seat the box the member that is showing resolved to. Mutates `resolved`.
+ *
+ * A seat has one size, so a tab brought forward appears exactly where the seat is. Most seats get
+ * that from `columnLayout`, which solves one box per seat and hands it to every member — but a lane
+ * holding a *single* seat is not divided, so there is no solve, and the members that are not showing
+ * have nothing to be given. They resolve from their own stored placements instead, which is what
+ * this corrects.
+ *
+ * ## Why it is a correction rather than a seat rect
+ *
+ * The box to share is the front's *resolved* one, and resolving it needs the same walk that resolves
+ * everything else. So `follows` records who copies whom and this runs afterwards, rather than the
+ * seating pass computing a rect it has no way to know.
+ *
+ * The alternative was a zero rect, which is what was there: `resolveDock` uses a supplied seat
+ * directly, so `{ x: 0, y: 0, w: 0, h: 0 }` resolved to a 0×0 box in the corner of the screen.
+ * Nothing showed that while a background tab was `display: none` and had no box at all — the moment
+ * it became `visibility: hidden`, so a tab switch stops tearing down the card's backdrop layer, the
+ * box was real and bringing the tab forward animated it in from the corner.
+ *
+ * It copies the whole answer and not just the rectangle, because the rest of it follows from where
+ * the panel is: `floating` decides whether the frame is glass, `handleX`/`handleY` which sides carry
+ * its grips, and `padTop`/`padBottom` what its content keeps clear of. A tab that answered those
+ * from its own placement would have swapped them all on the frame that brought it forward.
+ */
+export function shareSeatBox(resolved: Record<string, DockGeometry>, follows: Record<string, string>): void {
+  for (const [id, frontId] of Object.entries(follows)) {
+    const front = resolved[frontId];
+    const own = resolved[id];
+    if (!front || !own) continue;
+    const { edge, floating, maximised, handleX, handleY } = front;
+    const { top, right, bottom, left, width, height, padTop, padBottom } = front;
+    resolved[id] = {
+      ...own,
+      edge,
+      floating,
+      maximised,
+      handleX,
+      handleY,
+      top,
+      right,
+      bottom,
+      left,
+      width,
+      height,
+      padTop,
+      padBottom,
+    };
+  }
+}
+
+/**
  * The floating panels sharing one edge, in the order they sit along it — one lane, the one that
  * covers rather than displaces.
  *

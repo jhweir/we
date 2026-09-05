@@ -54,6 +54,7 @@ import {
   seatOrder,
   seatSize,
   seedPlacement,
+  shareSeatBox,
   SIDEBAR_PX,
   snapBeatsSlot,
   snapCandidate,
@@ -1588,6 +1589,11 @@ export function ShellStoreProvider(props: ParentProps) {
     /** The lane's own inboard edge, on its first member. See `laneEdgeBox`. */
     const laneEdges: Record<string, Rect> = {};
     const hidden: Record<string, boolean> = {};
+    /**
+     * A hidden seat-mate, and the front whose resolved box it takes. Only for a seat whose lane
+     * holds nothing else, where there is no `columnLayout` pass to hand every member one box.
+     */
+    const follows: Record<string, string> = {};
     const tabs: Record<string, { id: string; title: string; active: boolean }[]> = {};
     /** Whether this panel's lane has an open seat elsewhere to take a fold's room. */
     const laneRoom: Record<string, boolean> = {};
@@ -1695,10 +1701,24 @@ export function ShellStoreProvider(props: ParentProps) {
         });
 
         if (showing.length < 2) {
-          // A lane of one seat is not divided — but a seat of several still shares one box.
+          /*
+            A lane of one seat is not divided, so there is no box to solve — but a seat of several
+            still shares one box, and the members that are not showing have to hold it too.
+
+            They were handed a zero rect, which `resolveDock` takes at face value: a hidden tab
+            resolved to a 0×0 box in the corner of the screen. Nothing revealed that while a
+            background tab was `display: none` and had no box at all; the moment it became
+            `visibility: hidden` — so a tab switch stops tearing down the card's backdrop layer —
+            the box was real, and bringing that tab forward animated it in from the corner. Which
+            is why this only showed on a *docked* stack: a floating one is its own lane of one
+            seat too, but its members are laid out by `followSeat` and never reach this branch.
+
+            Recorded rather than assigned, because the box to copy is the front's *resolved* one
+            and this runs before `resolveDock`. See `follows`.
+          */
           const front = requests[showing[0].index].id;
           for (const member of seating[0])
-            if (requests[member.index].id !== front) seats[requests[member.index].id] = { x: 0, y: 0, w: 0, h: 0 };
+            if (requests[member.index].id !== front) follows[requests[member.index].id] = front;
           continue;
         }
 
@@ -1742,12 +1762,12 @@ export function ShellStoreProvider(props: ParentProps) {
         });
       }
     }
-    return { seats, below, above, axis, lanes, seams, laneEdges, hidden, tabs, laneRoom };
+    return { seats, below, above, axis, lanes, seams, laneEdges, hidden, follows, tabs, laneRoom };
   });
 
   const dockGeometry = createMemo(() => {
     const requests = dockRequests();
-    const { seats, below, above, axis, lanes, seams, laneEdges, hidden, tabs, laneRoom } = laneSeating();
+    const { seats, below, above, axis, lanes, seams, laneEdges, hidden, follows, tabs, laneRoom } = laneSeating();
     const px = (n: number) => `${Math.round(n)}px`;
     // Activation is keyed the way placements are — by scope — and the layer is asked for by dock id.
     const touched = activation();
@@ -1799,6 +1819,10 @@ export function ShellStoreProvider(props: ParentProps) {
           : {}),
       };
     });
+
+    // A hidden tab of an undivided seat takes the front's box. After the walk rather than inside it,
+    // because the front is resolved by the same walk. See `shareSeatBox`.
+    shareSeatBox(resolved, follows);
     return resolved;
   });
 
