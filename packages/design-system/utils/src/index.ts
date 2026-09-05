@@ -76,6 +76,21 @@ export const visualKeys = [
   'pointerEvents',
   'visibility',
   'transform',
+  /*
+    Placement, in the visual layer rather than the layout one — because that is where `transform`
+    is, and these are `transform`.
+
+    The pull is the other way: `x`/`y`/`rotate` read as positioning, and the layout layer is the
+    one every component has. But layer membership decides which components *declare* the property
+    in their generated stylesheet, and a layout-only element (`we-icon`, `we-divider`) declares no
+    `transform` at all. Putting these there would write a variable nothing reads — the prop would
+    typecheck, validate, and do nothing, which is the failure this whole area already has one of.
+    Beside `transform`, a component that can be turned accepts all four and one that cannot accepts
+    none, which is a rule somebody can hold in their head.
+  */
+  'x',
+  'y',
+  'rotate',
   'transition',
   ...borderKeys,
   ...radiusKeys,
@@ -446,6 +461,56 @@ const TRANSITION_DURATION_TOKENS = new Set(['0', '100', '200', '300', '400', '50
  * Only exact token names are substituted, and only where they stand alone as a segment. There is no
  * other numeric slot in the shorthand — the two that exist, duration and delay, are both durations.
  */
+/** A coordinate as a CSS length: a bare number is px, a string carries its own unit. */
+function cssLength(value: number | string | undefined): string | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value === 'number') return Number.isFinite(value) ? `${value}px` : undefined;
+  // A primitive set from an *attribute* arrives as a string, so a numeric one is a number that
+  // took the long way round — `<we-image x="40">` means 40px, not the invalid length `40`.
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && value.trim() !== '' ? `${numeric}px` : value;
+}
+
+/** The same, for an angle: a bare number is degrees. */
+function cssAngle(value: number | string | undefined): string | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value === 'number') return Number.isFinite(value) ? `${value}deg` : undefined;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && value.trim() !== '' ? `${numeric}deg` : value;
+}
+
+/**
+ * `x` / `y` / `rotate`, and any explicit `transform`, as one CSS value.
+ *
+ * The single place the four compose, so the Lit primitives and the Solid layout components cannot
+ * disagree about the order they compose in — which matters, because composing a translate and a
+ * rotate the other way round is a different result rather than a different spelling, and "compose
+ * in the wrong order and get a shear" is the sort of bug that gets written twice and fixed once.
+ *
+ * Placement first, then the caller's own transform: the element is put where it goes and turned,
+ * and anything else it asked for happens in that frame. The other order would rotate the
+ * coordinate system the offsets are measured in, so a card's `x` would mean something different
+ * for every angle it happened to be at.
+ *
+ * Returns `undefined` when there is nothing to say, so callers can keep emitting on presence.
+ */
+export function composeTransform(
+  props: Pick<DesignSystemProps, 'x' | 'y' | 'rotate' | 'transform'>,
+): string | undefined {
+  const x = cssLength(props.x);
+  const y = cssLength(props.y);
+  const rotate = cssAngle(props.rotate);
+  if (x === undefined && y === undefined && rotate === undefined) return props.transform || undefined;
+
+  const parts: string[] = [];
+  // One `translate` even when only one axis was given: two would be valid and longer, and the
+  // absent axis is zero either way.
+  if (x !== undefined || y !== undefined) parts.push(`translate(${x ?? '0'}, ${y ?? '0'})`);
+  if (rotate !== undefined) parts.push(`rotate(${rotate})`);
+  if (props.transform) parts.push(props.transform);
+  return parts.join(' ');
+}
+
 export function parseTransition(value?: string): string | undefined {
   if (!value) return undefined;
   return value
@@ -1021,7 +1086,9 @@ export function buildLayoutStyles(props: LayoutStyleProps, direction: 'row' | 'c
     const parts = [props.ring, props.shadow].filter(Boolean).join(', ');
     style['box-shadow'] = parts;
   }
-  if (props.transform) style.transform = props.transform;
+  // `x`/`y`/`rotate` compose into this, in front of whatever the caller wrote — see composeTransform.
+  const transform = composeTransform(props);
+  if (transform) style.transform = transform;
   if (props.transition) style.transition = parseTransition(props.transition)!;
 
   // Typography

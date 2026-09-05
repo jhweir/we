@@ -1673,6 +1673,11 @@ we-divider, we-icon, we-menu-group, we-popover, we-spinner, we-tooltip
 | mb | SpaceValue | Margin bottom |
 | ml | SpaceValue | Margin left |
 
+**`position`, `top`, `right`, `bottom` and `left` do not respond to a breakpoint.** They are
+excluded from the tier and state pipelines, so `mdUpProps: { left: '300px' }` validates and does
+nothing at all. To move something at a breakpoint, use `x` / `y` / `rotate` (see Visual), which
+compose into `transform` and do tier — as do `width`, `height` and `zIndex`.
+
 **A row that overflows is a row where nobody said who gives up space.** Inside a `Row`, a child's
 `maxWidth` is not a promise: a flex item's automatic minimum size is its *content*, so an item whose
 content cannot narrow — a strip of `we-button`s, which set `white-space: nowrap` — refuses every
@@ -1717,6 +1722,9 @@ the item is never asked to be narrower than its content in the first place.
 | cursor | "pointer" \| "default" \| "text" \| "not-allowed" | Cursor style |
 | pointerEvents | "none" \| "auto" | Pointer events |
 | transform | string | CSS transform |
+| x | number \| string | Horizontal offset from where the element would otherwise sit. A bare number is px; a string carries its own unit. Composes into `transform` |
+| y | number \| string | Vertical offset, same rules |
+| rotate | number \| string | Degrees clockwise about the element's own centre. A bare number is degrees |
 | transition | string | CSS transition. Durations may be animation tokens (`'0'`–`'500'`): `'width 300 ease-in-out'`. Prefer the token — a theme's animationSpeed preset overrides those, so `300` respects a reduced-motion setting where `300ms` overrides it. Use for a property whose *value* changes in place (a width bound to a local); for something appearing and disappearing use `$if`/`$animate` transitions instead |
 | r | RadiusValue | Border radius (all corners) |
 | rt | RadiusValue | Border radius top |
@@ -1727,6 +1735,27 @@ the item is never asked to be narrower than its content in the first place.
 | rtr | RadiusValue | Border radius top-right |
 | rbr | RadiusValue | Border radius bottom-right |
 | rbl | RadiusValue | Border radius bottom-left |
+
+**Placing something: `x` / `y` / `rotate`, never `top` / `left`.** All three compose into one
+`transform`, in front of any `transform` you also write — so the element is put where it goes and
+turned, and anything else happens in that frame.
+
+```json
+{ "type": "Column", "props": { "x": 40, "y": 120, "rotate": -3, "mdUpProps": { "x": 300, "y": 80 } } }
+```
+
+They are the placement spelling for four reasons, any one of which decides it: the offsets are the
+only ones that respond to a breakpoint at all; they compose with rotation and scale in one property
+instead of fighting them; they move on the compositor, so a drag costs no layout; and they stay
+correct inside a scaled surface, where a pixel offset would be measured in the wrong units.
+
+Two things to know. A **percentage resolves against the element's own size**, not its parent's —
+that is what `translate` does, and rarely what `x: '50%'` means, so give a coordinate a length.
+And setting any of them makes the element a **containing block** for absolutely positioned
+descendants, as any transform does.
+
+They are meaningful anywhere, and they are *coordinates* inside a `Canvas`, whose `artboard`
+declares what space those numbers are in.
 
 ### Flex (Container)
 
@@ -2060,6 +2089,8 @@ Placement extends Ad4mModel:
   - width: number [we://width]
   - height: number [we://height]
   - contentScale: number [we://content_scale]
+  - rotation: number [we://rotation]
+  - z: number [we://z]
   - color: string [we://color]
   - cardShape: string [we://card_shape]
   Relations:
@@ -2441,7 +2472,7 @@ RecordStore:
   - placeOnBoard(board: string, nodeId: string, nodeType: string, x: number, y: number): puts a record at a position on a board, or moves one already there. An upsert, so dragging twice leaves one coordinate. Pair with the graph’s onNodeDragEnd
   - removeFromBoard(board: string, nodeId: string): takes a record off a board, leaving the record itself alone. A card the board owns survives as an unplaced one in the tray
   - resizeOnBoard(board: string, payload): resizes a card on a board. Takes the graph's onNodeResize payload as it arrives; the size lives on the placement, so the same post on another board is unaffected
-  - setCardStyle(board: string, nodeId: string, field: string, value): sets one presentation property of one card on one board — 'color', 'cardShape', 'contentScale'. Takes the field name so one action serves a swatch, a picker and a slider. Undone by taking the card off the board
+  - setCardStyle(board: string, nodeId: string, field: string, value): sets one presentation property of one card on one board — 'color', 'cardShape', 'contentScale', 'rotation' (degrees clockwise) and 'z' (stacking order). Takes the field name so one action serves a swatch, a picker and a slider. 0 is unset for the numbers, so a card is un-rotated by writing 0. Undone by taking the card off the board
   - previewCardStyle(nodeId: string, field: string, value): shows a presentation change without writing it — for a slider that reports while it moves. Pair with setCardStyle on release; both go through the same pending map so the card never jumps
   - setTypeColor(board: string, nodeType: string, color): sets the colour every card of one type is drawn in, on one board — the board's key, made writable. An empty colour clears it
   - createOnBoard(board: string, x?: number, y?: number): opens the create form and places whatever it makes onto that board, at the point given. Pair with the graph’s onCanvasDoubleClick

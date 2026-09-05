@@ -1656,6 +1656,8 @@ export const contextData: ContextData = {
         { name: 'width', type: 'number', predicate: 'we://width', required: false },
         { name: 'height', type: 'number', predicate: 'we://height', required: false },
         { name: 'contentScale', type: 'number', predicate: 'we://content_scale', required: false },
+        { name: 'rotation', type: 'number', predicate: 'we://rotation', required: false },
+        { name: 'z', type: 'number', predicate: 'we://z', required: false },
         { name: 'color', type: 'string', predicate: 'we://color', required: false },
         { name: 'cardShape', type: 'string', predicate: 'we://card_shape', required: false },
       ],
