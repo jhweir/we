@@ -275,6 +275,20 @@ export interface DesignSystemProps {
    * prefixes of generated CSS on every component, to serve a case that is rare enough that nobody
    * here has wanted it yet. `*UpProps` sets base values at that width; `hoverProps` applies at all
    * widths.
+   *
+   * ### What a tier bag does *not* cover
+   *
+   * **`position`, `top`, `right`, `bottom` and `left` do not tier.** They typecheck here — the bag
+   * is `Partial<DesignSystemProps>`, so it accepts every prop — and they are filtered out before
+   * any variable is written, on both component families. `mdUpProps: { left: '300px' }` therefore
+   * validates, renders, and does nothing at all.
+   *
+   * The exclusion is deliberate and shared with the state bags; see `POSITIONING_VAR_SUFFIXES` in
+   * `@we/design-utils` for why. It is recorded here because that is a fact about the tier axis a
+   * caller has no other way to learn: the type cannot express it, and the failure is silent.
+   *
+   * **Move something at a breakpoint with `x` / `y` / `rotate` instead.** They compose into
+   * `transform`, which does tier — as do `width`, `height` and `zIndex`.
    */
   smUpProps?: Partial<DesignSystemProps>;
   mdUpProps?: Partial<DesignSystemProps>;

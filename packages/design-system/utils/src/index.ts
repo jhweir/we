@@ -1124,12 +1124,30 @@ export function getBgImageAttrs(
 // separately by the bg-image composite mechanism, not state-variance.
 // ────────────────────────────────────────────
 
-// position/top/right/bottom/left are deliberately excluded: bgImage's overlay depends
-// on `position: relative` being stable on the host, and an unset --we-ds-position would
-// resolve to `static` (position isn't inherited), which could win the cascade over the
-// bg-image rule's own position:relative depending on stylesheet order when both
-// bgImage and hoverProps are set on the same element. Varying position by hover/active/
-// focus state is a rare enough pattern that excluding it is the safer default.
+/*
+  position/top/right/bottom/left are deliberately excluded: bgImage's overlay depends
+  on `position: relative` being stable on the host, and an unset --we-ds-position would
+  resolve to `static` (position isn't inherited), which could win the cascade over the
+  bg-image rule's own position:relative depending on stylesheet order when both
+  bgImage and hoverProps are set on the same element. Varying position by hover/active/
+  focus state is a rare enough pattern that excluding it is the safer default.
+
+  **This applies to the tier axis too**, because the tier bags go through the same
+  `toInteractiveVars` + `buildStateFragmentStyles` pipeline the state bags do — so
+  `mdUpProps: { left: '300px' }` typechecks and does nothing, exactly as `hoverProps: { top }`
+  does. The rarity argument above is about states and does not obviously transfer: moving a
+  thing at a breakpoint is the ordinary case, not a rare one.
+
+  It stays excluded on both axes anyway, because the alternative is worse than the gap. Letting
+  positioning into the tier vars and not the state vars means one list becoming two, a second
+  `@container` arm per component, and the bg-image hazard re-opened for any element that sets a
+  background image and a tier — to serve a case that already has a spelling that works on both
+  axes and composes with rotation and scale: `x` / `y` / `rotate`, which are emitted as `transform`
+  and so tier and state for free.
+
+  What the exclusion must not do is stay unwritten. See `DesignSystemProps.mdUpProps`, which says
+  so where somebody reaching for `mdUpProps: { left }` will read it.
+*/
 const POSITIONING_VAR_SUFFIXES = new Set(['position', 'top', 'right', 'bottom', 'left']);
 
 // Exported so the generated dsInterop stylesheet (app-framework bootstrap) can declare

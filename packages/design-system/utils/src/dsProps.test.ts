@@ -20,6 +20,7 @@ import {
   declCSS,
   designSystemKeys,
   filterProps,
+  INTERACTIVE_SPECS,
   mapFlexAxes,
   mergeProps,
   parseBorder,
@@ -260,5 +261,37 @@ describe('overflow on [part="base"]', () => {
     expect(stateDeclCSS('--we-modal-hover-', '--we-modal-', spec)).toBe(
       'overflow-x: var(--we-modal-hover-overflow-x, var(--we-modal-overflow-x, var(--we-modal-overflow)));',
     );
+  });
+});
+
+describe('what the state and tier axes cover', () => {
+  /*
+    `INTERACTIVE_SPECS` is the surface both varying axes share — the state bags and the tier bags go
+    through the same `toInteractiveVars` pipeline over it. So this table is the answer to "does
+    `mdUpProps: { left: '300px' }` do anything", and the answer is no.
+
+    Locked down rather than merely commented because the failure is silent in every direction: the
+    bag is `Partial<DesignSystemProps>` so it typechecks, the validator accepts any DS prop in a
+    tier bag, and an unwritten variable renders as the base value — which looks exactly like a
+    breakpoint that has not been crossed yet.
+  */
+  const covered = new Set(INTERACTIVE_SPECS.map(([cssProp]) => cssProp));
+
+  it('excludes positioning, on both axes', () => {
+    for (const cssProp of ['position', 'top', 'right', 'bottom', 'left']) {
+      expect(covered.has(cssProp)).toBe(false);
+    }
+  });
+
+  it('covers transform, which is how a tier moves something instead', () => {
+    // The `x`/`y`/`rotate` props compose into this one, so they tier and state for free — and are
+    // the only spelling of "put it there" that does.
+    expect(covered.has('transform')).toBe(true);
+  });
+
+  it('covers the rest of the box a breakpoint usually changes', () => {
+    for (const cssProp of ['width', 'height', 'z-index', 'padding', 'gap', 'font-size']) {
+      expect(covered.has(cssProp)).toBe(true);
+    }
   });
 });
