@@ -1734,7 +1734,7 @@ export function ShellStoreProvider(props: ParentProps) {
 
   const dockGeometry = createMemo(() => {
     const requests = dockRequests();
-    const { seats, below, above, axis, seams, laneEdges, hidden, tabs, laneRoom } = laneSeating();
+    const { seats, below, above, axis, lanes, seams, laneEdges, hidden, tabs, laneRoom } = laneSeating();
     const px = (n: number) => `${Math.round(n)}px`;
     // Activation is keyed the way placements are — by scope — and the layer is asked for by dock id.
     const touched = activation();
@@ -1779,6 +1779,8 @@ export function ShellStoreProvider(props: ParentProps) {
                 width: px(laneEdges[request.id].w),
                 height: px(laneEdges[request.id].h),
               },
+              // Above every panel in the lane it edges — see `laneEdgeLayer`.
+              laneEdgeLayer: Math.max(...(lanes[request.id] ?? [request.id]).map((member) => layers[member] ?? 0)) + 1,
             }
           : {}),
       };

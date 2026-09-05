@@ -931,6 +931,16 @@ export interface DockGeometry {
    */
   laneEdge?: { top: string; left: string; width: string; height: string };
   /**
+   * The layer the lane's own grip paints at: above every panel in the lane.
+   *
+   * A layer *name* is wrong here for the reason it is wrong for {@link seamLayer}, and this is where
+   * that lesson was learned twice. The grip straddles the lane's edge, so half of it lies over the
+   * lane's own panels — and `sticky` is `200`, which is exactly `PANEL_LAYER_BASE`, so it fell under
+   * every panel that had ever been raised. The inboard half was painted over and the line read as
+   * about half the thickness of every other grip in the app, which is how it was noticed.
+   */
+  laneEdgeLayer?: number;
+  /**
    * The layer the seam's divider paints at: above both panels it divides.
    *
    * It cannot take a layer *name*. A displacing lane has no gap, so the divider straddles the shared

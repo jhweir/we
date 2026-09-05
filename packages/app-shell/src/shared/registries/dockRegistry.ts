@@ -1300,7 +1300,11 @@ function laneOuterEdge(id: string): SchemaNode {
           line: 'auto',
           styles: { '--we-resize-handle-thickness': '3px' },
           position: 'fixed',
-          zIndex: 'sticky',
+          // Above every panel in the lane — see `laneEdgeLayer`. A layer name cannot do it: the grip
+          // straddles the lane's edge, so half of it lies over the lane's own panels, and `sticky`
+          // is `PANEL_LAYER_BASE` exactly. Under it, the inboard half was painted over and the line
+          // came out half the thickness of every other grip.
+          zIndex: geo('laneEdgeLayer'),
           top: geo('laneEdge.top'),
           left: geo('laneEdge.left'),
           width: geo('laneEdge.width'),
