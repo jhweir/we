@@ -511,6 +511,9 @@ space to whatever box it lands in — so one authored layout is never *broken*, 
 - **\`artboard\` is the point.** Without it a pixel resolves against whatever positioned ancestor
   happens to be there — a docked panel, an editor preview pane, a phone — and nothing downstream can
   scale it. \`{ "width": 1200, "height": 1600 }\` says what those numbers *mean*.
+- **Children are placed, not flowed.** Every direct child starts at the artboard's origin, so
+  \`x\`/\`y\` are coordinates and not offsets from whatever precedes them. Content that should flow
+  goes inside a placed \`Column\`, not loose on the canvas.
 - **Place with \`x\` / \`y\` / \`rotate\`, never \`top\` / \`left\`.** Offsets do not respond to a
   breakpoint (see the Layout props) and do not compose with rotation; these do both.
 - **Stack with \`zIndex\`.** A raw number is legal there, not only the named layers — overlap is the

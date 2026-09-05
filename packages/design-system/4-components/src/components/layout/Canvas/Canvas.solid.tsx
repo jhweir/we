@@ -41,6 +41,14 @@ import type { Artboard, CanvasProps } from './Canvas.types';
  * for 1200×3000 however small it was drawn. So the outer element is measured and laid out, and the
  * inner one is the coordinate space — sized in the author's units, scaled, and clipped by the box
  * around it.
+ *
+ * ## What is inside is placed, not flowed
+ *
+ * Every direct child of the artboard starts at its origin, so `x`/`y` are coordinates rather than
+ * deltas from whatever preceded them. That is one CSS rule and it is in `Canvas.scss`, with the
+ * reasoning; the component's part of it is the `data-we-artboard` marker the rule keys off — which
+ * is also how anything above finds this element, a manipulation layer converting a pointer position
+ * into artboard coordinates being the case in view.
  */
 
 /** No box yet. A zero width is what `solve` reads as "not measured", and it draws nothing until it is. */

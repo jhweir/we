@@ -1109,6 +1109,23 @@ than once about every row inside it.
 Use this instead of `we-text` when content is stored as HTML (e.g. rich-text
 editor output such as Flux messages). The `content` prop accepts any HTML
 fragment; it is sanitized before rendering so XSS payloads are stripped.
+
+#### SVG animation: CSS keyframes, not SMIL
+
+Inline SVG passes through, and so does animation written as CSS — a `<style>` block with
+`@keyframes` inside the SVG, or a `<animateMotion>` following a path. **A SMIL `<animate>` or
+`<set>` element does not**: DOMPurify's default allowlist excludes them, so they are removed and
+the drawing renders static.
+
+That exclusion is deliberate and stays. `<set attributeName="href" to="javascript:…">` is a real
+XSS vector against an `<a>`, which is precisely the shape of payload this element exists to
+strip — and SMIL is a dead end besides, deprecated in spirit and unevenly implemented, where CSS
+animation is neither.
+
+What was wrong was not the policy but the silence: an author wrote something reasonable, it
+typechecked, it validated, and it did nothing, with no diagnostic anywhere. warnAboutSmil
+is the diagnostic. It says what was dropped and what to write instead, once per element, in
+development only.
   Props: content: string = ''
 - we-icon (LayoutElement)
   Props: name: string = '', color: string = '', size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '{css-length}' = '', weight: 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone' = 'regular', gradient: string = ''
@@ -3725,6 +3742,9 @@ space to whatever box it lands in — so one authored layout is never *broken*, 
 - **`artboard` is the point.** Without it a pixel resolves against whatever positioned ancestor
   happens to be there — a docked panel, an editor preview pane, a phone — and nothing downstream can
   scale it. `{ "width": 1200, "height": 1600 }` says what those numbers *mean*.
+- **Children are placed, not flowed.** Every direct child starts at the artboard's origin, so
+  `x`/`y` are coordinates and not offsets from whatever precedes them. Content that should flow
+  goes inside a placed `Column`, not loose on the canvas.
 - **Place with `x` / `y` / `rotate`, never `top` / `left`.** Offsets do not respond to a
   breakpoint (see the Layout props) and do not compose with rotation; these do both.
 - **Stack with `zIndex`.** A raw number is legal there, not only the named layers — overlap is the

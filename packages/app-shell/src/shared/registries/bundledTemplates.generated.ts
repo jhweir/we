@@ -15,6 +15,7 @@ import {
   eventsTemplate,
   instagramTemplate,
   kanbanTemplate,
+  scrapbookTemplate,
   twitterTemplate,
   workshopTemplate,
   youtubeTemplate,
@@ -29,4 +30,5 @@ export const bundledTemplates: Record<string, TemplateSchema> = {
   youtube: youtubeTemplate,
   kanban: kanbanTemplate,
   events: eventsTemplate,
+  scrapbook: scrapbookTemplate,
 };
