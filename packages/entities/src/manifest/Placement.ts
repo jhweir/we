@@ -73,6 +73,22 @@ export const Placement: CoreEntityDef = {
       height: { type: 'number', predicate: 'we://height', default: 0 },
       /** Multiplier on the content drawn inside the card. 0 is unset; see `NodeStyle.contentScale`. */
       contentScale: { type: 'number', predicate: 'we://content_scale', default: 0 },
+      /*
+        Degrees clockwise, and where in the stack it sits.
+
+        The same "fact about a pair" argument as everything above, and the one that most obviously
+        needed making: a photo is rotated *on this board*, and rotating it here must not rotate it
+        on somebody else's. Neither existed anywhere in the model — a board could not express a
+        tilted card at all, and overlap was an accident of load order rather than something anybody
+        chose, which is fine on a knowledge map and the entire point of a scrapbook.
+
+        `0` is unset for both, consistent with the sizes above, and it costs nothing to read that
+        way: an unrotated card and one nobody has rotated are the same card, and a stacking order
+        of zero is the auto the renderer would pick anyway. Rotation is signed, so the drop rule
+        for these is "zero" rather than "not positive".
+      */
+      rotation: { type: 'number', predicate: 'we://rotation', default: 0 },
+      z: { type: 'number', predicate: 'we://z', default: 0 },
       /** Design token or CSS colour. Empty is unset, so the board's own rules decide. */
       color: { type: 'string', predicate: 'we://color', default: '' },
       /** `note`, `square` or `round`. Empty is unset; anything else is ignored by the renderer. */

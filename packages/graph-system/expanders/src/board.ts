@@ -152,6 +152,17 @@ export function placementStyle(row: Record<string, unknown>): Record<string, Gra
     const value = Number(row[key]);
     if (Number.isFinite(value) && value > 0) style[as] = value;
   };
+  /*
+    The same "0 is unset" rule for a value that may legitimately be negative.
+
+    A card tilted -3° is the ordinary case, and one stacked behind the surface is a real answer too,
+    so `> 0` would silently drop half the range of both. Zero still means unset, and costs nothing:
+    an unrotated card and one nobody has rotated are the same card.
+  */
+  const signed = (key: string, as: string) => {
+    const value = Number(row[key]);
+    if (Number.isFinite(value) && value !== 0) style[as] = value;
+  };
   const text = (key: string, as: string) => {
     // The sentinel is dropped exactly as an empty value is — that is what makes it mean "unset".
     if (typeof row[key] === 'string' && row[key] && row[key] !== PLACEMENT_UNSET) style[as] = row[key] as string;
@@ -159,6 +170,8 @@ export function placementStyle(row: Record<string, unknown>): Record<string, Gra
   number('width', 'boardWidth');
   number('height', 'boardHeight');
   number('contentScale', 'boardContentScale');
+  signed('rotation', 'boardRotation');
+  signed('z', 'boardZ');
   text('color', 'boardColor');
   text('cardShape', 'boardCardShape');
   return style;

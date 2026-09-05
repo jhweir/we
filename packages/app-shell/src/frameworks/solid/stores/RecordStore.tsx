@@ -205,7 +205,8 @@ export interface RecordStore {
    */
   resizeOnBoard: (board: string, payload: unknown) => Promise<void>;
   /**
-   * Set one presentation property of one card on one board — colour, shape, content scale.
+   * Set one presentation property of one card on one board — colour, shape, content scale,
+   * rotation, stacking.
    *
    * Takes the property name, so one action serves every control, which is the only shape that works
    * when a swatch, a picker and a slider all write to the same record. Nothing here touches the
@@ -571,7 +572,7 @@ export function RecordStoreProvider(props: ParentProps) {
   }
 
   /** The presentation a placement may carry, and the only keys `setCardStyle` will write. */
-  const CARD_STYLE_FIELDS = ['width', 'height', 'contentScale', 'color', 'cardShape'] as const;
+  const CARD_STYLE_FIELDS = ['width', 'height', 'contentScale', 'rotation', 'z', 'color', 'cardShape'] as const;
 
   const [pendingCardStyle, setPendingCardStyle] = createSignal<PendingWrites>({});
 
