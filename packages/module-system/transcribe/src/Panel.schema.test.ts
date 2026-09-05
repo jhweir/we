@@ -10,6 +10,7 @@
  * Serialised and searched rather than walked, the same way the showcase templates are tested. A
  * schema is data; what matters is whether the token is in the tree, not the path it sits at.
  */
+import { evaluateExpression, markReactive, namespace, parseCached } from '@we/schema-shared';
 import { describe, expect, it } from 'vitest';
 
 import { transcribeModule } from './index';
@@ -221,5 +222,74 @@ describe('the extraction panel', () => {
     // `$if datasetStore.currentDataset && extractionOpen` this carried was a second copy of both.
     expect(json).not.toContain('modules.transcribe.extractionOpen');
     expect(json).not.toContain('datasetStore.currentDataset');
+  });
+});
+
+/**
+ * The expressions the panel is built from, actually evaluated.
+ *
+ * Every other assertion in this file reads the serialised schema — does the token appear — and that
+ * is the right test for an arrangement. It is the wrong test for a *shape*: `extractionFor` was a
+ * `Proxy` first, every string assertion passed, and the panel rendered "No models are set up for AI
+ * extraction here" against a space that had several. The expression resolved to `undefined`, and a
+ * missing path is undefined by design, so nothing anywhere said a word.
+ *
+ * So the store's shape is checked through the evaluator that has to read it, against the expression
+ * the panel actually carries.
+ */
+describe('the panel’s reads reach the store', () => {
+  const CALL = 'we://a-call-from-last-month';
+
+  /** The extraction half of a transcribe store, in the shape the module publishes it. */
+  const storeBag = (targets: string[]) => ({
+    modules: namespace((id) =>
+      id === 'transcribe'
+        ? namespace((member) =>
+            member === 'callId'
+              ? markReactive(() => 'we://the-live-call')
+              : member === 'extractionFor'
+                ? markReactive(() =>
+                    namespace((collection: string) => ({
+                      targets: targets.map((entity) => ({ entity, label: entity, selected: true })),
+                      canChoose: true,
+                      canExtract: collection === CALL,
+                    })),
+                  )
+                : undefined,
+          )
+        : undefined,
+    ),
+    routeStore: namespace((member) => (member === 'params' ? markReactive(() => ({ call: CALL })) : undefined)),
+  });
+
+  // `markReactive` is the host's own — the tag is a unique symbol, so a hand-rolled stand-in with
+  // `Symbol.for` matches nothing and every read below would come back undefined, which is the exact
+  // failure this file exists to catch.
+
+  const run = (source: string, roots: Record<string, unknown>) =>
+    evaluateExpression(parseCached(source), {
+      root: (name) => (name in roots ? { bound: true, value: roots[name] } : { bound: false, value: undefined }),
+      call: (name, args) => (name === 'count' ? (Array.isArray(args[0]) ? args[0].length : 0) : undefined),
+    });
+
+  it('resolves the subject to the call in the address', () => {
+    expect(run(EXTRACTION_SUBJECT_EXPR, storeBag(['TaskBlock']))).toBe(CALL);
+  });
+
+  it('finds that call’s targets, which is what the chips count', () => {
+    const roots = storeBag(['TaskBlock', 'EventBlock']);
+    const targets = `modules.transcribe.extractionFor[${EXTRACTION_SUBJECT_EXPR}].targets`;
+
+    expect(run(`count(${targets})`, roots)).toBe(2);
+    expect(run(`${targets}.map(t, t.entity)`, roots)).toEqual(['TaskBlock', 'EventBlock']);
+  });
+
+  it('finds that call’s answer, not the live call’s', () => {
+    const roots = storeBag(['TaskBlock']);
+    const forSubject = `modules.transcribe.extractionFor[${EXTRACTION_SUBJECT_EXPR}].canExtract`;
+    const forLive = 'modules.transcribe.extractionFor[modules.transcribe.callId].canExtract';
+
+    expect(run(forSubject, roots)).toBe(true);
+    expect(run(forLive, roots)).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 import { activitiesOfType } from '@we/backend-shared';
 import type { ModuleStoreDeps } from '@we/module-shared';
+import { namespace } from '@we/schema-shared';
 
 import { WORKLET_NAME, WORKLET_SOURCE } from './workletSource';
 
@@ -1682,11 +1683,19 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
      * no model at all, which `extractable` answers.
      */
     extractionFor: () =>
-      new Proxy(
-        {},
+      /*
+        A `namespace`, not a plain object and not a `Proxy`.
+
+        A plain object cannot hold an entry per call — the ids are not enumerable from here, and a
+        past call's is whatever the address names. A `Proxy` looks like the answer and is not: the
+        evaluator guards every property read with `property in base` for prototype safety, and a
+        proxy over an empty target answers `false` to that for every key, so the whole lookup came
+        back `undefined` with nothing said. `namespace` is the mechanism the expression layer
+        already provides for a keyed lookup, and `readProperty` reaches it before that guard.
+      */
+      namespace((key: string) => {
         {
-          get: (_target, key: string | symbol) => {
-            if (typeof key !== 'string') return undefined;
+          {
             const collection = key;
             return {
               /**
@@ -1717,9 +1726,9 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
                */
               canExtract: hasTranscript(collection) && (interpretation?.available() ?? false) && hasTargets(collection),
             };
-          },
-        },
-      ),
+          }
+        }
+      }),
     /**
      * Include or exclude one model from what **this call** extracts, for everyone in it.
      *

@@ -121,11 +121,26 @@ function harness(peers: Peer[] = [], extraDeps: Record<string, unknown> = {}) {
  * is the keyed one looked up by `callId`, exactly as a schema writes it.
  */
 function liveExtraction(store: { extractionFor: () => unknown; callId: () => string }) {
-  const byId = store.extractionFor() as Record<
-    string,
-    { targets: TargetView[]; canChoose: boolean; canExtract: boolean }
-  >;
-  return byId[store.callId()];
+  return extractionOf(store, store.callId());
+}
+
+/**
+ * What the store says about one named call, read the way an expression reads it.
+ *
+ * A `namespace` rather than an object, because the ids are not enumerable from the store — see
+ * `extractionFor`. `.get` is the same door `readProperty` goes through, so a test indexing a plain
+ * object would pass against a shape the evaluator cannot reach. That is not hypothetical: this was
+ * a `Proxy` first, every assertion here passed, and the panel showed nothing at all.
+ */
+function extractionOf(store: { extractionFor: () => unknown }, collection: string): ExtractionView {
+  const byId = store.extractionFor() as { get: (key: string) => ExtractionView };
+  return byId.get(collection);
+}
+
+interface ExtractionView {
+  targets: TargetView[];
+  canChoose: boolean;
+  canExtract: boolean;
 }
 
 interface TargetView {
@@ -1444,12 +1459,11 @@ describe('what a call extracts, before anybody has spoken', () => {
     */
     const { h, set } = withInterpretation([peer(ME, { type: 'call', id: CALL, record: RECORD })]);
     const past = 'we://a-call-from-last-month';
-    const byId = h.store.extractionFor() as Record<string, { canChoose: boolean; canExtract: boolean }>;
 
-    expect(byId[past].canChoose).toBe(true);
+    expect(extractionOf(h.store, past).canChoose).toBe(true);
     // A record somebody named is one they had, so it exists and has been spoken into — unlike the
     // live call's own, which is written before anybody says anything.
-    expect(byId[past].canExtract).toBe(true);
+    expect(extractionOf(h.store, past).canExtract).toBe(true);
     expect(liveExtraction(h.store).canExtract).toBe(false);
 
     await h.store.toggleExtractionTarget('EventBlock', past);
