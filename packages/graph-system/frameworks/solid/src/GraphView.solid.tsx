@@ -34,6 +34,7 @@ import {
   dispatchPointer,
   distanceToEdge,
   edgeVisual,
+  endOf,
   GraphEngine,
   matches,
   nodeVisual,
@@ -1270,12 +1271,18 @@ export function GraphView(props: GraphViewProps) {
     event.preventDefault();
     const edge = engine.store.edge(edgeId);
     if (!edge) return;
-    const from = engine.getPositions().get(edge.source);
-    const to = engine.getPositions().get(edge.target);
+    const patch = engine.edgeOverlayFor(edgeId);
+    // The frame a point is stored in, resolved the way the router resolves it — an end whose
+    // re-attachment has not come back from the data layer yet is where the overlay says, not where
+    // the store does, and reading past that would place the point against the wrong two ends.
+    const source = endOf(patch, 'source', edge.source);
+    const target = endOf(patch, 'target', edge.target);
+    const from = source.loose ?? engine.getPositions().get(source.node);
+    const to = target.loose ?? engine.getPositions().get(target.node);
     if (!from || !to) return;
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
 
-    const stored = waypointsOf({ ...edge.data, ...engine.edgeOverlayFor(edgeId) });
+    const stored = waypointsOf({ ...edge.data, ...patch });
     const at = (moved: PointerEvent) => {
       const surfaceBox = surface?.getBoundingClientRect();
       return engine.viewport.toWorld({
@@ -1343,10 +1350,22 @@ export function GraphView(props: GraphViewProps) {
    */
   function waypointHandles(edgeId: string, route: EdgeGeometry): { index: number; at: Point; insert: boolean }[] {
     const edge = engine.store.edge(edgeId);
-    const from = edge && engine.getPositions().get(edge.source);
-    const to = edge && engine.getPositions().get(edge.target);
-    if (!edge || !from || !to) return [];
-    const points = waypointsOf({ ...edge.data, ...engine.edgeOverlayFor(edgeId) });
+    if (!edge) return [];
+    /*
+      Resolved through `endOf`, exactly as the router resolves them.
+
+      A waypoint is stored in the edge's own frame, so placing one means knowing where that frame's
+      two ends are — and while an end is being dragged, they are not where the store says. Reading
+      the settled positions left the grips frozen at the old endpoints while the line they belong to
+      moved with the pointer, which is the whole reason this resolution lives in the core.
+    */
+    const patch = engine.edgeOverlayFor(edgeId);
+    const source = endOf(patch, 'source', edge.source);
+    const target = endOf(patch, 'target', edge.target);
+    const from = source.loose ?? engine.getPositions().get(source.node);
+    const to = target.loose ?? engine.getPositions().get(target.node);
+    if (!from || !to) return [];
+    const points = waypointsOf({ ...edge.data, ...patch });
     const world = points.map((point) => waypointToWorld(point, { x: from.x, y: from.y }, { x: to.x, y: to.y }));
     const handles = world.map((at, index) => ({ index, at, insert: false }));
     // One gap per leg — before the first point, between each pair, and after the last.

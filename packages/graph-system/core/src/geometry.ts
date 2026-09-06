@@ -78,6 +78,34 @@ export function anchorsOf(data: Record<string, unknown> | undefined): EdgeAnchor
 }
 
 /**
+ * Where one end of an edge routes to, honouring an overlay that has taken hold of it.
+ *
+ * Two reserved shapes in an edge overlay, and this is the only place that knows them: `source` and
+ * `target` name a different node — a re-attachment being previewed — and `sourceX`/`sourceY`,
+ * `targetX`/`targetY` hold a bare point, which is what a dragged end follows so it moves with the
+ * pointer rather than jumping between a card's four sides.
+ *
+ * Here rather than inline in the router because two things need the answer and they must not be able
+ * to disagree: the router draws the line, and the renderer places the grips along it. A copy of the
+ * rule in the renderer is exactly what left the waypoint handles frozen at the old endpoints while
+ * the line they belong to moved.
+ */
+export function endOf(
+  patch: Record<string, unknown> | undefined,
+  end: 'source' | 'target',
+  stored: string,
+): { node: string; loose: Point | null } {
+  const name = patch?.[end];
+  const x = patch?.[`${end}X`];
+  const y = patch?.[`${end}Y`];
+  return {
+    node: typeof name === 'string' && name ? name : stored,
+    // Both halves, since half a point is not one.
+    loose: typeof x === 'number' && typeof y === 'number' ? { x, y } : null,
+  };
+}
+
+/**
  * The waypoints an edge is carrying, in its own frame — see {@link EdgeWaypoint}.
  *
  * Stored as JSON on the record and passed through the data bag as the same string: a bag holds

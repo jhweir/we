@@ -37,6 +37,7 @@ export {
   bowOffsets,
   distanceToEdge,
   edgeBounds,
+  endOf,
   groupByEndpoints,
   orthogonalThrough,
   polyline,

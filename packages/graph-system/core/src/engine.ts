@@ -34,6 +34,7 @@ import {
   bowOffsets,
   distanceToEdge,
   edgeBounds,
+  endOf,
   groupByEndpoints,
   normaliseCurve,
   routeEdge,
@@ -1121,25 +1122,16 @@ export class GraphEngine {
           the store still says what it said, and a released drag whose write fails leaves nothing
           behind to undo.
         */
-        const sourceId = typeof patch?.source === 'string' && patch.source ? patch.source : edge.source;
-        const targetId = typeof patch?.target === 'string' && patch.target ? patch.target : edge.target;
         /*
-          An end held at a bare point, which is what makes dragging one *smooth*.
+          Where each end routes to, which an overlay may have taken hold of — see `endOf`.
 
-          A card has four sides and a board has however many cards, so an end that could only ever be
-          on one of those moves in jumps however finely the pointer moves — which is what dragging an
-          endpoint looked like, against a waypoint drag beside it that follows the cursor exactly.
-          So the gesture puts the end wherever the pointer is and resolves it to a side on release.
-
-          `sourceX`/`sourceY` and `targetX`/`targetY`, both required, since half a point is not one.
+          A re-attachment being dragged moves the end to another node; a drag in open canvas holds it
+          at a bare point, which is what makes dragging one *smooth*. A card has four sides and a
+          board has however many cards, so an end that could only ever be on one of those moves in
+          jumps however finely the pointer moves.
         */
-        const loose = (end: 'source' | 'target'): Point | null => {
-          const x = patch?.[`${end}X`];
-          const y = patch?.[`${end}Y`];
-          return typeof x === 'number' && typeof y === 'number' ? { x, y } : null;
-        };
-        const looseFrom = loose('source');
-        const looseTo = loose('target');
+        const { node: sourceId, loose: looseFrom } = endOf(patch, 'source', edge.source);
+        const { node: targetId, loose: looseTo } = endOf(patch, 'target', edge.target);
         const from = looseFrom ?? this.positions.get(sourceId);
         const to = looseTo ?? this.positions.get(targetId);
         if (!from || !to) return;

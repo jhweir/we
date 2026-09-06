@@ -11,6 +11,7 @@ import {
   anchorsOf,
   bowOffsets,
   distanceToEdge,
+  endOf,
   groupByEndpoints,
   normaliseCurve,
   routeEdge,
@@ -481,6 +482,43 @@ describe('anchors', () => {
  * wrote the record, and a value the router took at face value would land an endpoint at `NaN` — a
  * line that draws nothing and reports nothing.
  */
+/*
+  Where an end routes to while something has hold of it.
+
+  One rule, in the core, because two things read it: the router draws the line and the renderer
+  places the grips along it. They used to answer separately, and the grips froze at the settled
+  endpoints while the line they belong to followed the pointer.
+*/
+describe('endOf', () => {
+  it('falls back to the edge\u2019s own end when nothing is overlaid', () => {
+    expect(endOf(undefined, 'source', 'a')).toEqual({ node: 'a', loose: null });
+    expect(endOf({ targetAnchor: 'n' }, 'target', 'b')).toEqual({ node: 'b', loose: null });
+  });
+
+  it('takes the node an overlay names \u2014 a re-attachment being previewed', () => {
+    expect(endOf({ target: 'c' }, 'target', 'b')).toEqual({ node: 'c', loose: null });
+  });
+
+  it('treats an empty name as no name, which is how a landing is withdrawn', () => {
+    expect(endOf({ target: '' }, 'target', 'b')).toEqual({ node: 'b', loose: null });
+  });
+
+  it('takes a bare point, which is what a dragged end follows', () => {
+    expect(endOf({ targetX: 12, targetY: 34 }, 'target', 'b')).toEqual({ node: 'b', loose: { x: 12, y: 34 } });
+  });
+
+  it('needs both halves, since half a point is not one', () => {
+    expect(endOf({ targetX: 12 }, 'target', 'b').loose).toBeNull();
+    expect(endOf({ targetY: 34 }, 'target', 'b').loose).toBeNull();
+  });
+
+  it('reads each end separately', () => {
+    const patch = { source: 'c', targetX: 12, targetY: 34 };
+    expect(endOf(patch, 'source', 'a')).toEqual({ node: 'c', loose: null });
+    expect(endOf(patch, 'target', 'b')).toEqual({ node: 'b', loose: { x: 12, y: 34 } });
+  });
+});
+
 describe('anchorsOf', () => {
   it('reads the four sides', () => {
     expect(anchorsOf({ sourceAnchor: 'n', targetAnchor: 'w' })).toEqual({ source: 'n', target: 'w' });
