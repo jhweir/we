@@ -503,6 +503,7 @@ export const contextData: ContextData = {
         { name: 'maxHeight', type: 'string', optional: false, default: "''" },
         { name: 'maxWidth', type: 'string', optional: false, default: "''" },
         { name: 'pin', type: "'' | 'end'", optional: false, default: "''" },
+        { name: 'jump', type: "'' | 'start' | 'end' | 'both'", optional: false, default: "''" },
       ],
     },
     {
@@ -1365,6 +1366,21 @@ export const contextData: ContextData = {
           optional: true,
         },
         {
+          name: 'onEdgeRetarget',
+          type: '((payload: { id: string; end: "source" | "target"; nodeId: string; nodeType: string; recordId?: string; recordType?: string; }) => void)',
+          optional: true,
+        },
+        {
+          name: 'onEdgeReroute',
+          type: '((payload: { id: string; points: EdgeWaypoint[]; recordId?: string; recordType?: string; }) => void)',
+          optional: true,
+        },
+        {
+          name: 'onEdgeAnchor',
+          type: '((payload: { id: string; end: "source" | "target"; side: "" | "n" | "e" | "s" | "w"; recordId?: string; recordType?: string; }) => void)',
+          optional: true,
+        },
+        {
           name: 'onEdgeCreate',
           type: '((payload: { source: GraphNode; target: GraphNode; sourceId: string; sourceType: string; targetId: string; targetType: string; sourceLabel: string; targetLabel: string; }) => void)',
           optional: true,
@@ -1550,7 +1566,15 @@ export const contextData: ContextData = {
         { name: 'version', type: 'number', predicate: 'we://version', required: false },
         { name: 'textContent', type: 'string', predicate: 'we://text_content', required: false },
       ],
-      relations: [{ name: 'children', kind: 'HasMany', predicate: 'we://children' }],
+      relations: [
+        { name: 'children', kind: 'HasMany', predicate: 'we://children' },
+        {
+          name: 'extractionPasses',
+          kind: 'HasMany',
+          predicate: 'we://extraction_pass_record',
+          target: 'ExtractionPass',
+        },
+      ],
     },
     {
       name: 'DividerBlock',
@@ -1561,6 +1585,17 @@ export const contextData: ContextData = {
         { name: 'version', type: 'number', predicate: 'we://version', required: false },
       ],
       relations: [],
+    },
+    {
+      name: 'EdgeRoute',
+      className: 'EdgeRoute',
+      extends: 'Ad4mModel',
+      fields: [
+        { name: 'sourceAnchor', type: 'string', predicate: 'we://source_anchor', required: false },
+        { name: 'targetAnchor', type: 'string', predicate: 'we://target_anchor', required: false },
+        { name: 'points', type: 'json', predicate: 'we://route_points', required: false },
+      ],
+      relations: [{ name: 'connection', kind: 'HasOne', predicate: 'we://routed_connection' }],
     },
     {
       name: 'EmbedBlock',
@@ -1921,6 +1956,18 @@ export const contextData: ContextData = {
         { name: 'overrides', type: 'string', predicate: 'we://token_overrides', required: false, default: 'null' },
       ],
       relations: [{ name: 'screenshots', kind: 'HasMany', predicate: 'we://screenshot', target: 'ImageBlock' }],
+    },
+    {
+      name: 'ExtractionPass',
+      className: 'ExtractionPass',
+      extends: 'Ad4mModel',
+      fields: [
+        { name: 'outcome', type: 'string', predicate: 'we://outcome', required: false, default: "'done'" },
+        { name: 'recordCount', type: 'number', predicate: 'we://record_count', required: false },
+        { name: 'targets', type: 'string', predicate: 'we://extraction_targets', required: false },
+        { name: 'error', type: 'string', predicate: 'we://error', required: false },
+      ],
+      relations: [],
     },
     {
       name: 'TypeStyle',
@@ -2379,6 +2426,9 @@ export const contextData: ContextData = {
         'placeOnBoard',
         'removeFromBoard',
         'resizeOnBoard',
+        'anchorOnBoard',
+        'rerouteOnBoard',
+        'retargetOnBoard',
         'setCardStyle',
         'previewCardStyle',
         'setTypeColor',

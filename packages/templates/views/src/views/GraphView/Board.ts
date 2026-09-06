@@ -48,7 +48,12 @@ const boardCards: SchemaNode = {
     // from the query that found them.
     // `typeStyles` is the board's key, read back: a colour per kind of thing, which every card of
     // that kind is drawn in unless it carries one of its own.
-    seeds: { source: 'board', options: { board: BOARD, connections: 'Relationship', typeStyles: 'TypeStyle' } },
+    // `routes` is the same idea for the lines: which side of a card each connection leaves and
+    // arrives on, where somebody has pinned it rather than letting the geometry decide.
+    seeds: {
+      source: 'board',
+      options: { board: BOARD, connections: 'Relationship', typeStyles: 'TypeStyle', routes: 'EdgeRoute' },
+    },
     // Nothing opens automatically: a board shows what is on it, and drilling into a card's own
     // blocks would turn a wall of notes into a tree of fragments.
     expansion: { defaultDepth: 0 },
@@ -195,6 +200,34 @@ const boardCards: SchemaNode = {
       the same post on somebody else's board must not change size because of it.
     */
     onNodeResize: { $action: 'recordStore.resizeOnBoard', args: [BOARD, { $: 'event' }] },
+    /*
+      Which side a connection attaches to, written back — and binding this is what puts the grips on
+      the ends of a hovered line.
+
+      Onto an `EdgeRoute` parented to this board rather than onto the `Relationship`, for the reason
+      a position goes on a placement: how a connection is *drawn* is a fact about a view. The same
+      claim shown on another board is tidied there on its own terms, and the claim itself never
+      learns it was ever bent around anything.
+    */
+    onEdgeAnchor: { $action: 'recordStore.anchorOnBoard', args: [BOARD, { $: 'event' }] },
+    /*
+      The shape of a line, written back — and binding this is what puts the grips on a selected one.
+
+      Points a route is bent through, so a connection can be taken round a card that sits between its
+      two ends. Stored in the edge's own frame rather than in world coordinates, which is what makes
+      a bend survive somebody tidying the board: move either card and the shape follows them, where
+      absolute points would leave the line doglegging through empty space.
+    */
+    onEdgeReroute: { $action: 'recordStore.rerouteOnBoard', args: [BOARD, { $: 'event' }] },
+    /*
+      And the same handle dropped on a *different* card, which re-attaches the connection.
+
+      The one gesture here that edits the claim rather than the view: an anchor and a bend are how
+      this board draws the line, and this is what the line *says* — so it changes wherever the
+      relationship is shown. That end's anchor is cleared with it, a side pinned against the card
+      that used to be there deciding nothing about the one that arrived.
+    */
+    onEdgeRetarget: { $action: 'recordStore.retargetOnBoard', args: [BOARD, { $: 'event' }] },
   },
 };
 

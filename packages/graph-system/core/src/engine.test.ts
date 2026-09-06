@@ -904,6 +904,99 @@ describe('edge picking', () => {
     // Target sits at x=300; the route must end before it.
     expect(engine.getEdgeGeometry().get('a-b')!.to.x).toBeLessThan(300 - 30);
   });
+
+  /*
+    Dragging one end of a connection onto another card.
+
+    The overlay is how that gesture is *seen*: the write goes round a peer-to-peer data layer and
+    comes back through a re-seed, so without this the endpoint stays pinned to the card it came from
+    for the whole drag and the gesture looks like it only ever offered that card's own four sides —
+    which is exactly how it was reported.
+  */
+  function threeSeed(): SeedSource {
+    return {
+      id: 'linked',
+      async seed() {
+        return {
+          nodes: ['a', 'b', 'c'].map((id) => ({ id, kind: 'entity' as const, type: 'Thing', label: id })),
+          edges: [{ id: 'a-b', source: 'a', target: 'b', type: 'rel' }],
+        };
+      },
+    };
+  }
+
+  async function threeNodeEngine() {
+    const registry = new PluginRegistry({ seeds: [threeSeed()], layouts: placed });
+    const engine = engineWith(
+      { seeds: { source: 'linked' }, layout: { type: 'grid' }, edgeStyle: [{ style: { curve: 'straight' } }] },
+      registry,
+    );
+    await engine.start();
+    engine.resize(800, 600);
+    return engine;
+  }
+
+  it('routes to the endpoint an overlay names, so a re-attachment can be previewed', async () => {
+    const engine = await threeNodeEngine();
+    // b sits at x=300, c at x=600.
+    const before = engine.getEdgeGeometry().get('a-b')!.to.x;
+
+    engine.setEdgeOverlay(new Map([['a-b', { target: 'c' }]]));
+
+    expect(engine.getEdgeGeometry().get('a-b')!.to.x).toBeGreaterThan(before);
+    // The claim itself is untouched — a released drag whose write fails leaves nothing to undo.
+    expect(engine.store.edge('a-b')?.target).toBe('b');
+  });
+
+  it('keeps the stored endpoint when the overlay names an empty one', async () => {
+    // How the anchor half of the same gesture says "not over another card": the field is present and
+    // empty rather than absent, so merging one patch into the next cannot resurrect a stale landing.
+    const engine = await threeNodeEngine();
+    const before = engine.getEdgeGeometry().get('a-b')!.to;
+
+    engine.setEdgeOverlay(new Map([['a-b', { target: '', targetAnchor: '' }]]));
+
+    expect(engine.getEdgeGeometry().get('a-b')!.to).toEqual(before);
+  });
+
+  it('draws an end to a loose point, so dragging one is smooth rather than stepped', async () => {
+    // A card has four sides and a board has however many cards, so an end that can only ever be on
+    // one of those moves in jumps however finely the pointer does. The point IS the end here — no
+    // clearance, or the line would trail the cursor by a gap that reads as lag.
+    const engine = await threeNodeEngine();
+
+    engine.setEdgeOverlay(new Map([['a-b', { targetX: 137, targetY: 42 }]]));
+
+    expect(engine.getEdgeGeometry().get('a-b')!.to).toEqual({ x: 137, y: 42 });
+  });
+
+  it('ignores a pinned side at a loose end', async () => {
+    // The fields still say `targetAnchor` while the drag is under way; honouring it would send the
+    // line off north from wherever the cursor happens to be.
+    const engine = await threeNodeEngine();
+
+    engine.setEdgeOverlay(new Map([['a-b', { targetAnchor: 'n', targetX: 137, targetY: 42 }]]));
+
+    expect(engine.getEdgeGeometry().get('a-b')!.to).toEqual({ x: 137, y: 42 });
+  });
+
+  it('needs both halves of a point before it treats an end as loose', async () => {
+    const engine = await threeNodeEngine();
+    const before = engine.getEdgeGeometry().get('a-b')!.to;
+
+    engine.setEdgeOverlay(new Map([['a-b', { targetX: 137 }]]));
+
+    expect(engine.getEdgeGeometry().get('a-b')!.to).toEqual(before);
+  });
+
+  it('honours an overlaid source as well as a target', async () => {
+    const engine = await threeNodeEngine();
+    const before = engine.getEdgeGeometry().get('a-b')!.from.x;
+
+    engine.setEdgeOverlay(new Map([['a-b', { source: 'c' }]]));
+
+    expect(engine.getEdgeGeometry().get('a-b')!.from.x).toBeGreaterThan(before);
+  });
 });
 
 describe('re-tuning a layout', () => {
@@ -1213,5 +1306,237 @@ describe('data overlay', () => {
     expect(engine.hasDataOverlay()).toBe(false);
     const at = engine.getPositions().get('a')!;
     expect(engine.index.hitTest({ x: at.x + 120, y: at.y })).not.toContain('a');
+  });
+});
+
+/**
+ * The connect gesture's preview is the edge it is proposing.
+ *
+ * It was two raw points drawn as a straight segment, so the line changed shape at the exact moment
+ * of commitment: a straight line became an S-curve leaving a different side of the card, at the one
+ * instant somebody is deciding whether the gesture did what they meant. Routed through the same
+ * `routeEdge` a real edge goes through, there is nothing left to change.
+ *
+ * Not in the store, still: nothing here lays it out, hit-tests it or counts it against a budget.
+ */
+describe('the pending connection', () => {
+  async function connecting(spec?: { edgeStyle?: unknown }) {
+    const registry = new PluginRegistry({ seeds: [seedOf(1)], expanders: [fanoutExpander(0)], layouts });
+    const engine = engineWith(
+      { seeds: { source: 'test' }, layout: { type: 'grid' }, expansion: { defaultDepth: 0 }, ...spec } as Parameters<
+        typeof GraphEngine.prototype.setSpec
+      >[0],
+      registry,
+    );
+    await engine.start();
+    return engine;
+  }
+
+  /**
+   * Two seeds, so there is something to land on, and far enough apart to mean it.
+   *
+   * The shared `grid` stub spaces nodes ten apart, which is inside their own clearance — every
+   * attachment then lands behind the node it belongs to, and an assertion that the endpoint moved
+   * off the centre passes on nonsense. Its own layout rather than a wider shared one, so no other
+   * test's positions move.
+   */
+  async function connectingTwo() {
+    const spread = {
+      grid: () => ({
+        id: 'grid',
+        init(input: { nodes: { id: string }[] }) {
+          return { positions: new Map(input.nodes.map((node, index) => [node.id, { x: index * 400, y: 0 }])) };
+        },
+      }),
+    };
+    const registry = new PluginRegistry({ seeds: [seedOf(2)], expanders: [fanoutExpander(0)], layouts: spread });
+    const engine = engineWith(
+      { seeds: { source: 'test' }, layout: { type: 'grid' }, expansion: { defaultDepth: 0 } },
+      registry,
+    );
+    await engine.start();
+    return engine;
+  }
+
+  it('is nothing at all until a gesture is running', async () => {
+    const engine = await connecting();
+
+    expect(engine.getPendingConnection()).toBeNull();
+  });
+
+  it('starts on the source rather than under it', async () => {
+    // The reported symptom: the line came out of the middle of the card it was dragged from, because
+    // the source's own clearance was never applied. `seed-0` is at the origin under the grid layout.
+    const engine = await connecting();
+    engine.behaviourContext().drawConnection('seed-0', { x: 400, y: 0 });
+
+    const route = engine.getPendingConnection()!;
+
+    expect(route.from.x).toBeGreaterThan(0);
+    expect(route.from.x).toBeLessThan(400);
+  });
+
+  it('ends exactly at the pointer over empty canvas, which is not a node', async () => {
+    // The asymmetry that is deliberate: there is no shape at the far end to stop short of, so a
+    // target clearance there would leave the arrowhead hanging a node's width from the cursor.
+    const engine = await connecting();
+    engine.behaviourContext().drawConnection('seed-0', { x: 400, y: 120 });
+
+    expect(engine.getPendingConnection()!.to).toEqual({ x: 400, y: 120 });
+  });
+
+  it('ends on a card it is over, not at the point inside it', async () => {
+    /*
+      The far end stops being the pointer once the drag is over something it could connect to, and
+      becomes the target's own edge — exactly what a real edge does, so what is drawn and what lands
+      are the same. Without it the arrowhead sat wherever the cursor was, which for anyone aiming at
+      a card is somewhere in its middle.
+
+      `seed-0` sits at the origin and `seed-1` well to its right, so the pointer is put on the second
+      one's centre — the worst case, and the one somebody aiming at a card actually produces.
+    */
+    const engine = await connectingTwo();
+    const landing = engine.getPositions().get('seed-1')!;
+    engine.behaviourContext().drawConnection('seed-0', { x: landing.x, y: landing.y });
+
+    const route = engine.getPendingConnection()!;
+
+    // Short of the centre it was given, and still beyond the source: on the near side of the card,
+    // which is where the arrowhead belongs. Approaching horizontally, it keeps the target's own y.
+    expect(route.to.x).toBeLessThan(landing.x);
+    expect(route.to.x).toBeGreaterThan(route.from.x);
+    expect(route.to.y).toBe(landing.y);
+  });
+
+  it('follows the pointer again over the card it came from', async () => {
+    // Dragging out of an edge and back is how the gesture is cancelled by hand, so there is nothing
+    // to snap to — `connectionTarget` refuses the source, and the same refusal decides the drop.
+    const engine = await connectingTwo();
+    const source = engine.getPositions().get('seed-0')!;
+
+    engine.behaviourContext().drawConnection('seed-0', { x: source.x, y: source.y });
+
+    expect(engine.getPendingConnection()!.to).toEqual({ x: source.x, y: source.y });
+  });
+
+  it('is drawn with the shape the graph draws its edges with', async () => {
+    // What stops it changing shape on the drop. A rule with no `when` applies to the placeholder the
+    // style is resolved against, which is the right answer: what an edge with nothing said about it
+    // yet would look like.
+    const engine = await connecting({ edgeStyle: [{ style: { curve: 'step' } }] });
+    engine.behaviourContext().drawConnection('seed-0', { x: 400, y: 120 });
+
+    const route = engine.getPendingConnection()!;
+
+    expect(route.curve).toBe('step');
+    expect(route.elbows).toBeDefined();
+  });
+
+  it('goes away when the gesture does', async () => {
+    const engine = await connecting();
+    engine.behaviourContext().drawConnection('seed-0', { x: 400, y: 0 });
+
+    engine.behaviourContext().drawConnection(null);
+
+    expect(engine.getPendingConnection()).toBeNull();
+  });
+});
+
+/**
+ * Opening an edge's route for editing, and what that does to the node selection.
+ *
+ * The two are alternatives rather than layers: a board showing a selected card's connect dots *and*
+ * a selected line's waypoint grips at once is two sets of handles a few pixels apart, with a press
+ * that could plausibly mean either.
+ */
+describe('selecting an edge', () => {
+  async function board() {
+    const registry = new PluginRegistry({ seeds: [seedOf(2)], expanders: [fanoutExpander(0)], layouts });
+    const engine = engineWith(
+      { seeds: { source: 'test' }, layout: { type: 'grid' }, expansion: { defaultDepth: 0 } },
+      registry,
+    );
+    await engine.start();
+    return engine;
+  }
+
+  it('opens one route and closes it again', async () => {
+    const engine = await board();
+
+    engine.selectEdge('some-edge');
+    expect(engine.getSelectedEdge()).toBe('some-edge');
+
+    engine.selectEdge(null);
+    expect(engine.getSelectedEdge()).toBeNull();
+  });
+
+  it('closes an open route when a node is selected', async () => {
+    const engine = await board();
+    engine.selectEdge('some-edge');
+
+    engine.select(['seed-0']);
+
+    expect(engine.getSelectedEdge()).toBeNull();
+  });
+
+  it('closes it on a background click, which selects nothing', async () => {
+    // `select([])` is what a click on empty canvas does, and "nothing is selected" has to include
+    // the line — otherwise its grips outlive the click that was meant to put them away.
+    const engine = await board();
+    engine.selectEdge('some-edge');
+
+    engine.select([]);
+
+    expect(engine.getSelectedEdge()).toBeNull();
+  });
+
+  it('clears a selected card', async () => {
+    const engine = await board();
+    engine.select(['seed-0']);
+
+    engine.selectEdge('some-edge');
+
+    expect(engine.getSelection()).toEqual([]);
+  });
+
+  it('says nothing about nodes when no node was selected', async () => {
+    /*
+      The bug this exists for. `selectionChange` means "these nodes are selected now", and firing it
+      because an *edge* was clicked says something untrue: a host reading an empty list as "nothing
+      is selected, clear the panel" is right to, and would be acting on a change that never
+      happened. The workshop board does exactly that, which is how it was found.
+    */
+    const events: string[] = [];
+    const registry = new PluginRegistry({ seeds: [seedOf(2)], expanders: [fanoutExpander(0)], layouts });
+    const engine = new GraphEngine({
+      spec: { seeds: { source: 'test' }, layout: { type: 'grid' }, expansion: { defaultDepth: 0 } },
+      registry,
+      context,
+      onEvent: (event) => events.push(event.type),
+    });
+    await engine.start();
+    events.length = 0;
+
+    engine.selectEdge('some-edge');
+
+    expect(events).not.toContain('selectionChange');
+  });
+
+  it('does say so when a card really was deselected by it', async () => {
+    const events: { type: string; ids?: string[] }[] = [];
+    const registry = new PluginRegistry({ seeds: [seedOf(2)], expanders: [fanoutExpander(0)], layouts });
+    const engine = new GraphEngine({
+      spec: { seeds: { source: 'test' }, layout: { type: 'grid' }, expansion: { defaultDepth: 0 } },
+      registry,
+      context,
+      onEvent: (event) => events.push(event as { type: string; ids?: string[] }),
+    });
+    await engine.start();
+    engine.select(['seed-0']);
+    events.length = 0;
+
+    engine.selectEdge('some-edge');
+
+    expect(events).toEqual([{ type: 'selectionChange', ids: [] }]);
   });
 });

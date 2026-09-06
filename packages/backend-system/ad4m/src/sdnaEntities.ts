@@ -11,8 +11,10 @@ import {
   CodeBlock,
   CollectionBlock,
   DividerBlock,
+  EdgeRoute,
   EmbedBlock,
   EventBlock,
+  ExtractionPass,
   FileBlock,
   ImageBlock,
   LinkBlock,
@@ -478,10 +480,23 @@ export const SPACE_MODELS = [
   // And how a board draws each kind of thing — the board's own vocabulary of colour, which is
   // shared for exactly the reason its arrangement is.
   TypeStyle,
+  // How a board draws its connections. Shared with the arrangement it is part of: a line somebody
+  // routed clear of the cards is tidying everyone can see, and a board where each member's
+  // connectors take a different path is the same non-board as one where the cards move per member.
+  EdgeRoute,
   // What one call extracts, where its participants wanted something other than the space default.
   // Shared, and it has to be: a standing watch is one registration the whole neighbourhood runs, so
   // two members holding different lists would each re-register over the other's.
   CallExtraction,
+  /*
+    That a call was read, and how it went.
+
+    Shared, because the reading is the community's: a pass any member starts spends the node's
+    budget and writes into everyone's space, so "this was read twice and failed once" is a fact
+    about the call rather than about whoever happened to be watching. Private, it would answer
+    differently for every member, and for most of them not at all.
+  */
+  ExtractionPass,
   Template,
   Theme,
   WeNode,

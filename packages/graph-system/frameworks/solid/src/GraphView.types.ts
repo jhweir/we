@@ -9,6 +9,7 @@
  * The plugin contracts — expanders, layouts, renderers, behaviours, metrics — live in
  * `@we/graph-protocol` and are named here by id, never passed as objects.
  */
+import type { EdgeWaypoint } from '@we/graph-core';
 import type {
   BehaviourSpec,
   EdgeStyleRules,
@@ -163,6 +164,59 @@ export interface GraphViewProps {
    * record and show its comments.
    */
   onEdgeClick?: (edge: GraphEdge & { recordId?: string; recordType?: string }) => void;
+  /**
+   * Somebody dragged one end of a connection around a node's rim, pinning the **side** it leaves or
+   * arrives on. `side` is empty when they dragged it back to the middle, which clears the anchor.
+   *
+   * Intent, not a mutation, exactly as `onEdgeCreate` is: where a connection attaches is a fact
+   * about a *view*, and only the template knows which view it is looking at. On a board it belongs
+   * on an `EdgeRoute` parented to that board, so the same connection shown elsewhere is unaffected —
+   * see `recordStore.anchorOnBoard`.
+   *
+   * Binding this is also what makes the handles appear. Nothing draws an affordance for a gesture
+   * that would end in nothing, which is the same rule the connect dots and the resize grips follow.
+   */
+  /**
+   * Somebody dragged one end of a connection onto a **different** node, re-attaching it.
+   *
+   * The other half of `onEdgeAnchor`, and the same gesture: which of the two fires is decided by
+   * where the drag was let go. Worth knowing that they write at different scopes — an anchor is how
+   * *one view* draws the connection, and this is what the connection **is**, so it changes on every
+   * board and for everyone. That is the right answer for "this actually goes there", but it is not
+   * the same kind of edit.
+   *
+   * `nodeId`/`nodeType` are the new endpoint's record; `recordId`/`recordType` are the connection's,
+   * where it stands for one. Intent, not a mutation, exactly as every other event here — the graph
+   * has no write path and what re-attaching means is the template's to decide.
+   */
+  onEdgeRetarget?: (payload: {
+    id: string;
+    end: 'source' | 'target';
+    nodeId: string;
+    nodeType: string;
+    recordId?: string;
+    recordType?: string;
+  }) => void;
+  onEdgeReroute?: (payload: {
+    id: string;
+    /**
+     * The whole list, in order, in the edge's own frame — see `EdgeWaypoint`.
+     *
+     * The list rather than the one that moved, because a route is one shape: written per point, two
+     * people bending the same line would each overwrite half of the other's, and the shape that came
+     * out would be neither of theirs. Empty means the route has been straightened.
+     */
+    points: EdgeWaypoint[];
+    recordId?: string;
+    recordType?: string;
+  }) => void;
+  onEdgeAnchor?: (payload: {
+    id: string;
+    end: 'source' | 'target';
+    side: '' | 'n' | 'e' | 's' | 'w';
+    recordId?: string;
+    recordType?: string;
+  }) => void;
   /**
    * The user dragged a line from one node to another, with the `connect-nodes` behaviour armed.
    *

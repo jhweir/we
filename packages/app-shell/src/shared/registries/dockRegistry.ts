@@ -257,6 +257,7 @@ export function dockFrame(entry: DockEntry, node: SchemaNode): SchemaNode {
       insertLines(entry.id),
       dragGhost(entry.id),
       laneDivider(entry.id),
+      laneOuterEdge(entry.id),
       {
         type: '$if',
         props: {
@@ -297,7 +298,17 @@ export function dockFrame(entry: DockEntry, node: SchemaNode): SchemaNode {
                 reduced-motion setting, still decide — see `parseTransition`.
               */
               transition: {
-                $: "shellStore.dockResizing ? 'none' : 'top 300 ease, right 300 ease, bottom 300 ease, left 300 ease, width 300 ease, height 300 ease'",
+                /*
+                  And a panel that has just joined or left a seat does neither — see `settling`.
+
+                  A drop into a stack changed two things at once: the panel that was showing went
+                  hidden, and the newcomer's box became the seat's. The first is instant and the
+                  second was eased, so the stack emptied and the arriving panel flew in from wherever
+                  it had been dragged, across a gap where the stack used to be. A tab does not travel
+                  when you press it, and one that arrives by drop should not either — the drag was
+                  already the animation.
+                */
+                $: `${dockGeometryPath(entry.id, 'settling')} || shellStore.dockResizing ? 'none' : 'top 300 ease, right 300 ease, bottom 300 ease, left 300 ease, width 300 ease, height 300 ease'`,
               },
               /*
                 The panel's own surface. A module's node fills it and need not paint a background, a
@@ -332,10 +343,19 @@ export function dockFrame(entry: DockEntry, node: SchemaNode): SchemaNode {
                 'backdrop-filter': { $: `${glass} ? '${GLASS_BLUR}' : 'none'` },
                 /*
                   Gone while another tab in its seat is showing — gone, not unmounted. A call in a
-                  background tab keeps its streams; a transcript keeps its scroll. `styles` so it
-                  overrides the Column's own `display: flex`.
+                  background tab keeps its streams; a transcript keeps its scroll.
+
+                  `visibility`, not `display`. A panel carries `backdrop-filter` while it is a card,
+                  and `display: none` tears the backdrop layer down and rebuilds it on the way back —
+                  which the compositor shows as the whole frame, titlebar and tabs included, dissolving
+                  in. Switching tabs is not a transition and should not look like one. `visibility`
+                  keeps the layer, so the swap is a swap.
+                  
+                  It hides as thoroughly: a `visibility: hidden` subtree is unpainted, untabbable and
+                  out of the accessibility tree, which `opacity: 0` would not be. The box it leaves
+                  behind costs nothing, since every frame is `position: fixed`.
                 */
-                display: { $: `${dockGeometryPath(entry.id, 'hidden')} ? 'none' : 'flex'` },
+                visibility: { $: `${dockGeometryPath(entry.id, 'hidden')} ? 'hidden' : 'visible'` },
               },
               border: '1px solid border',
               // Rounded and lifted only while floating. A card over the app should read as being on
@@ -1142,15 +1162,34 @@ function grips(id: string): SchemaNode[] {
   // along a horizontal one. The opposite side faces the previous one.
   const trailing = { vertical: 'bottom', horizontal: 'right' } as const;
 
+  /*
+    And the lane's *own* edge is not any one member's either.
+
+    The side facing the content is where a displacing panel's thickness is dragged from, and in a
+    lane that thickness is shared: every member moves. A per-panel grip there lit the height of the
+    panel under the pointer while resizing the whole column, so the feedback and the effect
+    disagreed. `laneOuterEdge` draws one grip spanning the lane, from outside every frame, for the
+    reason the seam is drawn that way — and it is published on the lane's first member, so only that
+    member suppresses its own.
+  */
+  const inLane = `${geo('above')} || ${geo('below')}`;
+
   const edges: SchemaNode[] = (['left', 'right', 'top', 'bottom'] as const).map((side) => {
-    const shown = `(${grippable}) || ${geo(side === 'left' || side === 'right' ? 'handleX' : 'handleY')} == '${side}'`;
+    const facing = geo(side === 'left' || side === 'right' ? 'handleX' : 'handleY');
+    const shown = `(${grippable}) || ${facing} == '${side}'`;
     const axis = side === 'top' || side === 'bottom' ? 'vertical' : 'horizontal';
     // Suppressed only when this side really is a seam — a panel with a lane-mate on the other axis
     // keeps every grip it had.
     const seam = side === trailing[axis] ? geo('below') : geo('above');
+    // The lane's own edge, which the lane draws instead. Only for a displacing lane-mate: a floating
+    // one owns its width, so its grip means what it says.
+    const laneOwned = `!${geo('floating')} && (${inLane}) && ${facing} == '${side}'`;
     return {
       type: '$if',
-      props: { condition: { $: `(${shown}) && !(${seam} && ${alongLane(axis)})` }, then: resizeEdge(id, side) },
+      props: {
+        condition: { $: `(${shown}) && !(${seam} && ${alongLane(axis)}) && !(${laneOwned})` },
+        then: resizeEdge(id, side),
+      },
     };
   });
 
@@ -1245,6 +1284,62 @@ function laneDivider(id: string): SchemaNode {
           height: geo('seam.height'),
           onResizestart: { $action: 'shellStore.beginDockResize', args: [id] },
           onResize: { $action: 'shellStore.resizeColumn', args: [id, { $: 'arg.detail.delta' }] },
+          onResizeend: { $action: 'shellStore.endDockResize' },
+        },
+      },
+    },
+  };
+}
+
+/**
+ * The grip for a whole displacing lane's thickness — its inboard edge, spanning every member.
+ *
+ * The sibling of {@link laneDivider}, drawn the same way and for the same reason: a lane's thickness
+ * belongs to all of its members, so no one of them can draw the boundary. The per-panel grip on that
+ * side resized the whole column already and lit only the panel under the pointer, so the feedback
+ * said "this one" while the effect was "all of them".
+ *
+ * `resizeDock` rather than `resizeColumn`: this is the lane's thickness against the content, not the
+ * boundary between two lane-mates, and it is reported on whichever member the geometry hung the box
+ * on — every member resolves to the same lane thickness, so which one it is does not matter.
+ */
+function laneOuterEdge(id: string): SchemaNode {
+  const geo = (field: string) => ({ $: dockGeometryPath(id, field) });
+  return {
+    type: '$if',
+    props: {
+      condition: geo('laneEdge'),
+      then: {
+        type: 'we-resize-handle',
+        props: {
+          // A lane down a side is dragged left and right, which the primitive calls vertical — it
+          // names the bar, not the drag.
+          orientation: { $: `${dockGeometryPath(id, 'laneAxis')} == 'vertical' ? 'vertical' : 'horizontal'` },
+          align: 'center',
+          line: 'auto',
+          styles: { '--we-resize-handle-thickness': '3px' },
+          position: 'fixed',
+          // Above every panel in the lane — see `laneEdgeLayer`. A layer name cannot do it: the grip
+          // straddles the lane's edge, so half of it lies over the lane's own panels, and `sticky`
+          // is `PANEL_LAYER_BASE` exactly. Under it, the inboard half was painted over and the line
+          // came out half the thickness of every other grip.
+          zIndex: geo('laneEdgeLayer'),
+          top: geo('laneEdge.top'),
+          left: geo('laneEdge.left'),
+          width: geo('laneEdge.width'),
+          height: geo('laneEdge.height'),
+          onResizestart: { $action: 'shellStore.beginDockResize', args: [id] },
+          onResize: {
+            $action: 'shellStore.resizeDock',
+            args: [
+              id,
+              {
+                $: `${dockGeometryPath(id, 'handleX')} ? ${dockGeometryPath(id, 'handleX')} : ${dockGeometryPath(id, 'handleY')}`,
+              },
+              { $: `${dockGeometryPath(id, 'handleX')} ? arg.detail.delta : 0` },
+              { $: `${dockGeometryPath(id, 'handleX')} ? 0 : arg.detail.delta` },
+            ],
+          },
           onResizeend: { $action: 'shellStore.endDockResize' },
         },
       },

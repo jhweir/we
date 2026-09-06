@@ -23,10 +23,13 @@ import { moduleRegistry } from '@shared/registries/moduleRegistry';
 import { getSeed } from '@shared/seedRegistry';
 import { datasetKey, type DatasetRef, type EntityManifestEntry, trace } from '@we/backend-shared';
 import { toastService } from '@we/components/solid';
-import { AgentSettings, type DatasetProxy, getEntitiesForPerspective } from '@we/entities';
+import { AgentSettings, type DatasetProxy, ExtractionPass, getEntitiesForPerspective } from '@we/entities';
 import { Accessor, batch, createContext, createMemo, createSignal, onCleanup, ParentProps, useContext } from 'solid-js';
 
 import { useSessionStore } from './SessionStore';
+
+/** Where a pass hangs off the collection it read — `CollectionBlock.extractionPasses`. */
+const EXTRACTION_PASS_PREDICATE = 'we://extraction_pass_record';
 
 export type { EntityManifestEntry, EntityManifestProperty } from '@we/backend-shared';
 
@@ -233,6 +236,38 @@ export function DatasetStoreProvider(props: ParentProps) {
    * a model since deleted, or a call list naming one whose `extractable` was withdrawn, has to
    * narrow the request rather than break it.
    */
+  /**
+   * Write down that a pass happened — see {@link ExtractionPass}.
+   *
+   * Best effort, and deliberately so: the pass is the thing that mattered and it has already run,
+   * so a failed *note* about it must not turn a successful extraction into a rejected one. Logged
+   * rather than swallowed, because a note that never lands is a history that quietly stays empty.
+   *
+   * Written by the host rather than by the module for the same reason `interpretCollection` is: the
+   * containment predicate is resolved from the dataset's own models, which a module has no read for
+   * and must never learn.
+   */
+  async function recordPass(
+    handle: DatasetProxy,
+    collectionId: string,
+    pass: { outcome: string; recordCount: number; targets: string[]; error?: string },
+  ): Promise<void> {
+    try {
+      await ExtractionPass.create(
+        handle as never,
+        {
+          outcome: pass.outcome,
+          recordCount: pass.recordCount,
+          targets: JSON.stringify(pass.targets),
+          error: pass.error ?? '',
+        } as never,
+        { parent: { id: collectionId, predicate: EXTRACTION_PASS_PREDICATE } } as never,
+      );
+    } catch (error) {
+      console.warn('[interpretation] could not record that a pass ran', error);
+    }
+  }
+
   const targetsForCollection = (collectionId: string): string[] => {
     const candidates = extractionCandidatesGate.get()?.() ?? [];
     const chosen = callExtraction.get()?.forCall(collectionId);
@@ -337,10 +372,38 @@ export function DatasetStoreProvider(props: ParentProps) {
         // The host resolves the class list, because the three layers that decide it — candidacy, the
         // space's default, this call's own — are all host state. A module names a collection and
         // nothing else, exactly as it does for the watch id and the containment predicate.
-        return port.interpret(dataset.handle, turns, {
-          classes: targetsForCollection(collectionId),
-          parent: { id: collectionId, predicate },
-        });
+        const classes = targetsForCollection(collectionId);
+        try {
+          const result = await port.interpret(dataset.handle, turns, {
+            classes,
+            parent: { id: collectionId, predicate },
+          });
+          await recordPass(dataset.handle, collectionId, {
+            // Nothing to look for is not a failure and not a quiet meeting — it is a call whose
+            // targets are all switched off, which reads as "0 records" and blames the conversation
+            // unless it is said.
+            outcome: classes.length === 0 ? 'skipped' : 'done',
+            recordCount: result.ids.length,
+            targets: classes,
+          });
+          return result;
+        } catch (error) {
+          /*
+            Written before rethrowing, because a failure is the pass most worth having a record of.
+
+            Live, a failure is reported by the readout and then lost with it: reload, and a call that
+            could not be read is indistinguishable from one that was read and found nothing. That is
+            the pair somebody reviewing a meeting most needs told apart, and it is the one the live
+            feed cannot keep.
+          */
+          await recordPass(dataset.handle, collectionId, {
+            outcome: 'failed',
+            recordCount: 0,
+            targets: classes,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          throw error;
+        }
       },
 
       /*

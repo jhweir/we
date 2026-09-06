@@ -1,5 +1,5 @@
 import { Column, Row } from '@we/components/solid';
-import { tokenVar } from '@we/design-utils';
+import { PANEL_TITLE_PROPS } from '@we/schema-kit';
 
 import { useEditorHost } from '../host';
 import { CodeViewer } from './CodeViewer';
@@ -30,17 +30,8 @@ export function CodePanel() {
       tabIndex={0}
     >
       {/* Header */}
-      <Row
-        ax="between"
-        ay="center"
-        px="400"
-        py="300"
-        borderBottom={`1px solid ${tokenVar('color', 'ui-200')}`}
-        flexShrink="0"
-      >
-        <we-text fontSize="500" fontWeight="600">
-          Code Editor
-        </we-text>
+      <Row ax="between" ay="center" px="300" py="300" flexShrink="0">
+        <we-text {...PANEL_TITLE_PROPS}>Code Editor</we-text>
       </Row>
 
       {/* Code viewer */}

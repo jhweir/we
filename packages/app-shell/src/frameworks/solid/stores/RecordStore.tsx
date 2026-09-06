@@ -25,11 +25,12 @@
 import type { EntitySchema } from '@we/backend-shared';
 import { createBlocks } from '@we/block-shared';
 import { toastService } from '@we/components/solid';
-import { getEntity, Placement, PREDICATES, runEntityTransaction, TypeStyle } from '@we/entities';
+import { EdgeRoute, getEntity, Placement, PREDICATES, runEntityTransaction, TypeStyle } from '@we/entities';
 import { CORE_MANIFEST } from '@we/entities/manifest';
 import { PLACEMENT_UNSET } from '@we/graph-expanders';
 import { Accessor, batch, createContext, createMemo, createSignal, ParentProps, useContext } from 'solid-js';
 
+import { routeWrite } from '../../../shared/edgeRoute';
 import { dropAllPending, dropPending, holdPending, type PendingWrites } from '../../../shared/shapes/pendingWrites';
 import { displayFor, type RecordDisplay } from '../../../shared/shapes/recordDisplay';
 import {
@@ -205,6 +206,35 @@ export interface RecordStore {
    */
   resizeOnBoard: (board: string, payload: unknown) => Promise<void>;
   /**
+   * Pin which side of a card a connection leaves or arrives on, for this board. Takes the graph's
+   * `onEdgeAnchor` payload as it arrives.
+   *
+   * An empty `side` clears that end, and a route with neither end pinned and no bends is deleted — so
+   * the way back out leaves nothing behind. The bends survive a clear either way: one record holds
+   * both, and letting go of a side says nothing about the shape somebody drew. Per board, like a
+   * placement: how a connection is drawn is a fact about a view, and the same connection on somebody
+   * else's board is unaffected.
+   */
+  anchorOnBoard: (board: string, payload: unknown) => Promise<void>;
+  /**
+   * Write the shape of one connection's route on this board. Takes the graph's `onEdgeReroute`
+   * payload as it arrives.
+   *
+   * The whole list of points, in the edge's own frame, so a bend keeps its proportions when either
+   * card moves. An empty list straightens the line, and a route with no points and no anchors left
+   * is deleted.
+   */
+  rerouteOnBoard: (board: string, payload: unknown) => Promise<void>;
+  /**
+   * Move one end of a connection onto a different record. Takes the graph's `onEdgeRetarget` payload.
+   *
+   * Unlike the two above, this changes the **claim** rather than how one board draws it: the
+   * relationship now says something different, everywhere it is shown. That end's anchor is cleared,
+   * since a side pinned against the card that used to be there decides nothing about the one that
+   * arrived; the waypoints stay, being stored in the connection's own frame.
+   */
+  retargetOnBoard: (board: string, payload: unknown) => Promise<void>;
+  /**
    * Set one presentation property of one card on one board — colour, shape, content scale,
    * rotation, stacking.
    *
@@ -351,9 +381,33 @@ export function RecordStoreProvider(props: ParentProps) {
     indexes it by each row's type — and `$action` cannot return a value. Recomputed when the
     space's shapes change, so a model defined a moment ago has a display a moment later.
   */
+  /**
+   * Every model that can be *shown*, which is not the same set as every model that can be *made*.
+   *
+   * `Relationship` is the case that separates them, and the reason this exists. It is excluded from
+   * `creatableEntities` on purpose — a connection is drawn between two things rather than filled in
+   * from a picker, so offering it in the "new record" list would be offering a form with two
+   * endpoints nobody had chosen. But it is a `WeNode` with a label, a description, comments and
+   * signals, and clicking the line that stands for it is exactly the moment somebody wants to read
+   * all of that.
+   *
+   * Deriving one list from the other quietly made "cannot be created here" mean "cannot be
+   * displayed", so the inspector showed an empty panel for a connector whose name was drawn on the
+   * line beside it. Two questions, two lists.
+   */
+  const displayableEntities = createMemo<CreatableEntity[]>(() => {
+    const named = new Set(creatableEntities().map((entity) => entity.value));
+    const relationship = CORE_MANIFEST.entities[RELATIONSHIP];
+    if (named.has(RELATIONSHIP) || !relationship) return creatableEntities();
+    return [
+      ...creatableEntities(),
+      { label: RELATIONSHIP, value: RELATIONSHIP, icon: BLOCK_ICONS[RELATIONSHIP] ?? 'cube', group: 'Built in' },
+    ];
+  });
+
   const displays = createMemo<Record<string, RecordDisplay>>(() => {
     const out: Record<string, RecordDisplay> = {};
-    for (const entity of creatableEntities()) {
+    for (const entity of displayableEntities()) {
       const found = schemaFor(entity.value);
       if (!found) continue;
       out[entity.value] = displayFor({
@@ -616,6 +670,178 @@ export function RecordStoreProvider(props: ParentProps) {
     }
   }
 
+  /**
+   * Pin which side of a card a connection leaves or arrives on, for this board.
+   *
+   * Takes the graph's `onEdgeAnchor` payload as it arrives, the way `resizeOnBoard` takes
+   * `onNodeResize`'s. An empty `side` clears that end, and a route with neither end pinned and no
+   * bends is deleted rather than left as a record saying nothing — the way back has to leave nothing
+   * behind, or a board accumulates a route per connection anybody ever touched. A route still holding
+   * bends is not saying nothing, which is why the test asks about all three.
+   *
+   * Per board, on an `EdgeRoute` parented to it, for the reason a placement is: how a connection is
+   * drawn is a fact about a *view*. Putting it on the `Relationship` would make one board's tidying
+   * follow the connection into every other board it appears on.
+   */
+  async function anchorOnBoard(board: string, payload: unknown): Promise<void> {
+    const event = (payload ?? {}) as { recordId?: string; end?: 'source' | 'target'; side?: string };
+    const dataset = datasetStore.currentDataset();
+    if (!dataset || !board || !event.recordId || !event.end) return;
+    const side = typeof event.side === 'string' ? event.side : '';
+    const parent = { id: board, predicate: PREDICATES.CHILDREN };
+
+    try {
+      const existing = (await EdgeRoute.findAll(dataset.handle, { parent } as Record<string, unknown>)) as {
+        id: string;
+        connection?: string;
+        sourceAnchor?: string;
+        targetAnchor?: string;
+        points?: string;
+      }[];
+      const already = existing.find((row) => row.connection === event.recordId);
+      // The rule itself lives in `routeWrite`, where it can be tested — every branch of it is a
+      // quiet refusal or a rewrite, which is precisely the kind of thing that stops working without
+      // anything failing. Discarding somebody's bends is how it stopped working the first time.
+      const write = routeWrite(already, event.end, side);
+
+      if (write.action === 'none') return;
+      if (write.action === 'update') {
+        await EdgeRoute.update(dataset.handle, already!.id, write.fields);
+        return;
+      }
+      if (write.action === 'replace' || write.action === 'delete') {
+        await EdgeRoute.delete(dataset.handle, already!.id);
+      }
+      if (write.action === 'delete') return;
+      await EdgeRoute.create(
+        dataset.handle as never,
+        { ...write.fields, connection: [event.recordId] } as never,
+        { parent } as never,
+      );
+    } catch (error) {
+      console.error('RecordStore: anchoring a connection on a board failed', error);
+      toastService.error('Could not save that.');
+    }
+  }
+
+  /**
+   * Write the whole shape of one connection's route on this board.
+   *
+   * The whole list rather than the point that moved, because a route is one shape: written per point,
+   * two people bending the same line would each overwrite half of the other's and what came out would
+   * be neither of theirs. Last-write-wins on a shape is a shape somebody chose; last-write-wins on
+   * each point is a shape nobody did.
+   *
+   * An empty list is a straightened route, and a route with nothing left to say — no points and no
+   * anchors — is deleted, so the way back leaves nothing behind. See {@link anchorOnBoard}, which is
+   * the other half of the same record.
+   */
+  /**
+   * Move one end of a connection onto a different record.
+   *
+   * The *claim* changes here, not the view. `anchorOnBoard` and `rerouteOnBoard` write to an
+   * `EdgeRoute` parented to one board, so the same connection shown elsewhere is untouched; this
+   * rewrites the `Relationship` itself, so it changes on every board, in the knowledge map, and for
+   * every member. That is the right answer for "this actually goes there" and it is a different kind
+   * of edit from the two beside it — which is why it is its own action rather than a branch inside
+   * one of them.
+   *
+   * The endpoint and its type are two different writes. `sourceType` is an ordinary property; the
+   * endpoint is a relation, and `innerUpdate` skips a relation field holding a plain value — so
+   * `update(p, id, { source: uri })` typechecks, runs, and moves nothing. The generated accessor is
+   * the documented path, and the same trap `saveRecord` documents at the other end of this record's
+   * life.
+   *
+   * That end's **anchor is cleared**, and the waypoints are left alone. A side pinned against the
+   * card that used to be there is a decision about something no longer in the picture, and applying
+   * it to whatever arrived would be somebody's choice used for a thing they never chose it for. The
+   * points are stored in the connection's own frame, so they follow the new geometry rather than
+   * becoming litter — see `EdgeWaypoint`.
+   */
+  async function retargetOnBoard(board: string, payload: unknown): Promise<void> {
+    const event = (payload ?? {}) as {
+      recordId?: string;
+      recordType?: string;
+      end?: 'source' | 'target';
+      nodeId?: string;
+      nodeType?: string;
+    };
+    const dataset = datasetStore.currentDataset();
+    if (!dataset || !event.recordId || !event.end || !event.nodeId || !event.nodeType) return;
+
+    try {
+      const Model = getEntity(event.recordType || RELATIONSHIP);
+      const record = (await Model.findOne(dataset.handle, { where: { id: event.recordId } })) as Record<
+        string,
+        unknown
+      > | null;
+      if (!record) return;
+
+      await Model.update(dataset.handle, event.recordId, {
+        [event.end === 'source' ? 'sourceType' : 'targetType']: event.nodeType,
+      });
+      /*
+        Called, not optional-chained.
+
+        `setSource`/`setTarget` are generated from the model's declaration, so their absence means
+        the record did not come back as a live instance — which is a thing to hear about rather than
+        a reason to write nothing. Optional-chained, that case left the type written, the anchor
+        cleared and the endpoint exactly where it was: a gesture that reported success and moved
+        nothing, which is the hardest kind of failure to find.
+      */
+      const move = record[event.end === 'source' ? 'setSource' : 'setTarget'];
+      if (typeof move !== 'function') {
+        throw new Error(`${event.recordType || RELATIONSHIP} has no ${event.end} accessor to move`);
+      }
+      await (move as (value: string) => Promise<unknown>).call(record, event.nodeId);
+
+      // The anchor for the end that moved, dropped — see the note above. Reusing the same action a
+      // person's own clear goes through, so there is one path that knows how to unset one.
+      if (board) await anchorOnBoard(board, { recordId: event.recordId, end: event.end, side: '' });
+    } catch (error) {
+      console.error('RecordStore: re-attaching a connection failed', error);
+      toastService.error('Could not move that connection.');
+    }
+  }
+
+  async function rerouteOnBoard(board: string, payload: unknown): Promise<void> {
+    const event = (payload ?? {}) as { recordId?: string; points?: unknown };
+    const dataset = datasetStore.currentDataset();
+    if (!dataset || !board || !event.recordId || !Array.isArray(event.points)) return;
+    const parent = { id: board, predicate: PREDICATES.CHILDREN };
+    const points = JSON.stringify(event.points);
+
+    try {
+      const existing = (await EdgeRoute.findAll(dataset.handle, { parent } as Record<string, unknown>)) as {
+        id: string;
+        connection?: string;
+        sourceAnchor?: string;
+        targetAnchor?: string;
+      }[];
+      const already = existing.find((row) => row.connection === event.recordId);
+
+      if (!already) {
+        if (!event.points.length) return;
+        await EdgeRoute.create(
+          dataset.handle as never,
+          { points, connection: [event.recordId] } as never,
+          { parent } as never,
+        );
+        return;
+      }
+      if (!event.points.length && !already.sourceAnchor && !already.targetAnchor) {
+        await EdgeRoute.delete(dataset.handle, already.id);
+        return;
+      }
+      // `[]` rather than `''`: an update skips an empty string, so a straightened route would keep
+      // its old bends. A two-character JSON array is a value, and `waypointsOf` reads it as none.
+      await EdgeRoute.update(dataset.handle, already.id, { points });
+    } catch (error) {
+      console.error('RecordStore: rerouting a connection on a board failed', error);
+      toastService.error('Could not save that.');
+    }
+  }
+
   async function resizeOnBoard(board: string, payload: unknown): Promise<void> {
     const event = (payload ?? {}) as { recordId?: string; width?: number; height?: number; x?: number; y?: number };
     if (!event.recordId || !event.width || !event.height) return;
@@ -823,6 +1049,9 @@ export function RecordStoreProvider(props: ParentProps) {
     confirmPending,
     previewCardStyle,
     resizeOnBoard,
+    anchorOnBoard,
+    rerouteOnBoard,
+    retargetOnBoard,
     setCardStyle,
     setTypeColor,
     setRecordEntity,

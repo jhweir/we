@@ -169,6 +169,9 @@ export function selectBehaviour(rawOptions?: Record<string, unknown>): Behaviour
         // win by asking first: an edge passing behind a node is not what you meant to click.
         const edge = ctx.hitTestEdge(ctx.toWorld(input.at));
         if (edge) {
+          // Selected as well as reported. Clicking a line is how its route is opened for editing,
+          // and a click that only emitted would leave the handles unreachable by any gesture.
+          ctx.selectEdge(edge);
           ctx.emit({ type: 'edgeClick', edge: { id: edge, source: '', target: '', type: '' } });
           return true;
         }

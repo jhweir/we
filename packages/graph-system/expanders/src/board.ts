@@ -79,6 +79,15 @@ export interface BoardSeedOptions {
    */
   typeStyles?: string;
   /**
+   * Entity holding how this board draws its connections, if any — WE passes `EdgeRoute`.
+   *
+   * Read onto each edge's data as `sourceAnchor` / `targetAnchor`, which is what the router reads
+   * (see `anchorsOf`). Per board for the reason a placement is: the same connection shown on two
+   * boards is tidied differently on each, and the route that keeps it clear of one board's cards
+   * says nothing about the other.
+   */
+  routes?: string;
+  /**
    * Record ids whose card stands for something **not yet agreed** — a suggestion awaiting a person.
    *
    * Read onto the matching node's data as `pending: true`, for a style rule to pick up. Ids rather
@@ -224,9 +233,10 @@ export function boardSeed(): SeedSource {
         placed, then the records it names, then the connections between them, each genuinely waiting
         on the one before.
       */
-      const [placements, styles] = await Promise.all([
+      const [placements, styles, routes] = await Promise.all([
         declared(placementEntity) ? read(placementEntity) : [],
         declared(options.typeStyles) ? read(options.typeStyles as string) : [],
+        declared(options.routes) ? read(options.routes as string) : [],
       ]);
 
       /*
@@ -276,6 +286,29 @@ export function boardSeed(): SeedSource {
         if (typeof row.nodeType === 'string' && row.nodeType && color && color !== PLACEMENT_UNSET) {
           typeColors.set(row.nodeType, color);
         }
+      }
+
+      /*
+        How each connection is drawn here, by the connection's own id.
+
+        Loaded in round one with the placements, because it needs nothing they need: it is keyed by a
+        record id, so it can be built long before the connections themselves are read. What decides
+        how long a board takes to appear is the number of *sequential* rounds, and this adds none.
+      */
+      const routeFor = new Map<string, Record<string, GraphValue>>();
+      for (const row of routes) {
+        const connection = typeof row.connection === 'string' ? row.connection : undefined;
+        if (!connection) continue;
+        const anchors: Record<string, GraphValue> = {};
+        // Empty is unset, exactly as it is on a placement's colour: a route with one end pinned and
+        // the other free is the ordinary case, and passing `''` on would be a side nobody named.
+        if (typeof row.sourceAnchor === 'string' && row.sourceAnchor) anchors.sourceAnchor = row.sourceAnchor;
+        if (typeof row.targetAnchor === 'string' && row.targetAnchor) anchors.targetAnchor = row.targetAnchor;
+        // The waypoints travel as the stored blob. A data bag holds scalars, and parsing here to
+        // re-serialise for the edge would be work done twice — `waypointsOf` does it once, where the
+        // router needs them.
+        if (typeof row.points === 'string' && row.points) anchors.waypoints = row.points;
+        if (Object.keys(anchors).length) routeFor.set(connection, anchors);
       }
 
       const nodes: GraphNode[] = [];
@@ -393,7 +426,10 @@ export function boardSeed(): SeedSource {
             target: to,
             type: 'relates',
             ...(typeof row.label === 'string' && row.label ? { label: row.label } : {}),
-            data: scalarsOf(row),
+            // The connection's own scalars, then how this board draws it. Second, so a board's
+            // routing wins over a like-named field on the connection — the same order a card's own
+            // colour takes over its type's.
+            data: { ...scalarsOf(row), ...(routeFor.get(String(row.id)) ?? {}) },
             // Keeps the record reachable, exactly as the reified expander does: clicking the line
             // should be able to open the claim it stands for rather than dead-ending.
             reifiedAs: entityAddress(dataset, connections, String(row.id)),
@@ -407,6 +443,7 @@ export function boardSeed(): SeedSource {
         rows: Object.fromEntries(wanted.map((pass, index) => [pass.entity, results[index].length])),
         nodes: nodes.length,
         edges: edges.length,
+        routes: routeFor.size,
         dropped,
       });
 

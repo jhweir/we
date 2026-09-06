@@ -651,6 +651,9 @@ export const TEMPLATE_SURFACE: Record<string, Record<string, Classification>> = 
     placeOnBoard: action('content'),
     removeFromBoard: action('content'),
     resizeOnBoard: action('content'),
+    anchorOnBoard: action('content'),
+    rerouteOnBoard: action('content'),
+    retargetOnBoard: action('content'),
     // Host wiring, both halves of one mechanism: the graph host reads what is pending and reports
     // the rows it read back. A template has no use for either — it writes through the actions above
     // and the optimism is applied for it.
@@ -792,7 +795,7 @@ export const TEMPLATE_SURFACE: Record<string, Record<string, Classification>> = 
     publishToMarketplace: action('library'),
     // Queries that answer with a value, which $action cannot read: templateManagementList carries
     // isBuiltIn and isInstalled per row, which is the form a template can use.
-    isBuiltInTemplate: WIRING,
+    isBuiltInTemplateId: WIRING,
     isInstalled: WIRING,
 
     /*
@@ -1105,6 +1108,8 @@ export const TEMPLATE_SURFACE: Record<string, Record<string, Classification>> = 
     setApiKey: WIRING,
     onSchemaEdit: WIRING,
     pushSnapshot: WIRING,
+    // The editor's own save path. A template rendering itself has no edit to commit.
+    commitEdit: WIRING,
   },
 
   /**

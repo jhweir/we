@@ -74,6 +74,13 @@ export interface BehaviourContext {
    */
   hitTestEdge(at: Point, tolerance?: number): string | null;
   select(ids: string[], mode?: 'replace' | 'add' | 'toggle'): void;
+  /**
+   * Open one edge's route for editing, or close whichever is open.
+   *
+   * Separate from {@link select}, which is about nodes: the two are alternatives, and selecting
+   * either closes the other. See `GraphEngine.selectEdge`.
+   */
+  selectEdge(id: string | null): void;
   selection(): string[];
   /** Ask the engine to expand a node — the click-to-explore behaviour's whole job. */
   expand(id: string, direction?: 'in' | 'out' | 'both'): void;

@@ -24,18 +24,29 @@
  */
 import { Column, Row } from '@we/components/solid';
 import { ROLE_NAMES } from '@we/design-utils';
+import type { EdgeWaypoint } from '@we/graph-core';
 import {
+  bendPoints,
+  connectionTarget,
   DEFAULT_CONTROLS,
   defaultBehaviours,
   defaultControls,
   defaultMetrics,
   dispatchPointer,
+  distanceToEdge,
   edgeVisual,
+  endOf,
   GraphEngine,
   matches,
   nodeVisual,
   PluginRegistry,
+  polyline,
   resolveStyle,
+  routesAlike,
+  splineThrough,
+  waypointFromWorld,
+  waypointsOf,
+  waypointToWorld,
 } from '@we/graph-core';
 import { DEFAULT_REIFIED_EDGES, defaultExpanders } from '@we/graph-expanders';
 import { defaultLayouts } from '@we/graph-layouts';
@@ -43,6 +54,7 @@ import type {
   Behaviour,
   ControlContext,
   EdgeGeometry,
+  EdgeSide,
   GraphNode,
   GraphValue,
   Point,
@@ -52,7 +64,6 @@ import { parseAddress } from '@we/graph-protocol';
 import { batch, createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, untrack } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 
-import { connectionTarget } from './connect';
 import type { GraphViewProps, NodeContent } from './GraphView.types';
 import { isSettled, patched } from './pending';
 import { type Grip, HANDLES, resizeBox } from './resize';
@@ -76,8 +87,23 @@ const DEFAULT_BEHAVIOURS = ['pan-zoom', 'select', 'expand-on-double-click'];
  * without re-deriving anything.
  */
 export function pathFrom(route: EdgeGeometry, endGap = 0): string {
-  const { from, control, control2, elbows } = route;
+  const { from, control, control2, elbows, segments } = route;
   const to = endGap > 0 ? backOff(route, endGap) : route.to;
+  /*
+    A hand-shaped route: one command per segment, and the last one ends where the arrowhead does.
+
+    First, because a route with segments carries none of the other three fields — they describe one
+    span between two nodes and this is several.
+  */
+  if (segments) {
+    const drawn = segments.map((segment, index) => {
+      const end = index === segments.length - 1 ? to : segment.to;
+      return segment.control && segment.control2
+        ? `C ${segment.control.x} ${segment.control.y} ${segment.control2.x} ${segment.control2.y} ${end.x} ${end.y}`
+        : `L ${end.x} ${end.y}`;
+    });
+    return `M ${from.x} ${from.y} ` + drawn.join(' ');
+  }
   if (elbows) return `M ${from.x} ${from.y} ` + [...elbows, to].map((p) => `L ${p.x} ${p.y}`).join(' ');
   // The second control is what makes it cubic — a renderer needs no other signal to pick its command.
   if (control && control2) {
@@ -106,8 +132,16 @@ export function pathFrom(route: EdgeGeometry, endGap = 0): string {
  * splitting a cubic at an arc length nobody can see.
  */
 function backOff(route: EdgeGeometry, gap: number): Point {
-  const { to, control, control2, elbows } = route;
-  const previous = elbows?.[elbows.length - 1] ?? control2 ?? control ?? route.from;
+  const { to, control, control2, elbows, segments } = route;
+  // The closing tangent of whichever shape this is. For a hand-shaped route that is the last
+  // segment's second control, or the point before it when the leg is straight.
+  const last = segments?.[segments.length - 1];
+  const previous =
+    (last && (last.control2 ?? (segments!.length > 1 ? segments![segments!.length - 2].to : route.from))) ??
+    elbows?.[elbows.length - 1] ??
+    control2 ??
+    control ??
+    route.from;
   const dx = to.x - previous.x;
   const dy = to.y - previous.y;
   const length = Math.hypot(dx, dy);
@@ -123,6 +157,75 @@ function backOff(route: EdgeGeometry, gap: number): Point {
  * head and the gap it needs cannot drift apart.
  */
 const ARROW_LENGTH = 6;
+
+/**
+ * Stroke width of the connect gesture's preview.
+ *
+ * Named because it is used twice and the two have to agree: `markerUnits` defaults to `strokeWidth`,
+ * so the arrowhead is `ARROW_LENGTH` multiples of it, and the stroke is shortened by exactly that
+ * much so the line meets the head instead of running under it. See `backOff`.
+ */
+const PENDING_WIDTH = 2;
+
+/**
+ * How near a node's centre an anchor drag counts as "no side at all", as a fraction of its half-size.
+ *
+ * The way back out. An anchor overrules the geometry for as long as it exists, so there has to be a
+ * gesture that removes one, and dragging the end back onto the card it belongs to is the one nobody
+ * has to be taught. Well inside the rim, so aiming at a side is never accidentally a clear.
+ */
+const CLEAR_ANCHOR_WITHIN = 0.45;
+
+/** Radius of an edge's endpoint grip, in screen pixels. Divided by the camera where it is drawn. */
+const ANCHOR_HANDLE_R = 5;
+
+/**
+ * Radius of the invisible circle that actually takes the press, in screen pixels.
+ *
+ * The same split the connect dots make, and for the same reason said differently: the dot is a
+ * *hint* and the target is what a mouse has to land on. Painted at five pixels they were smaller
+ * than the cursor covering them, so aiming at one was guesswork and a miss grabbed the card behind
+ * it or panned the board — which reads as the handle not working rather than as having been missed.
+ *
+ * Twelve rather than the connect dots' fifteen: several of these can sit along one line, and a
+ * target greedy enough to swallow the presses meant for its neighbours trades one aiming problem
+ * for another.
+ */
+const HANDLE_HIT_R = 12;
+
+/** How far a card's connect dot sits off its edge, in screen pixels — `--reach` in the stylesheet. */
+const CONNECT_DOT_REACH = 20;
+
+/**
+ * How far outside a card a dragged endpoint still snaps to it, in screen pixels.
+ *
+ * The sides a drag is aiming at sit *outside* the box — an anchor stands off the rim so an arrowhead
+ * lands on the card rather than inside it — so a snap armed only over the card body would arm past
+ * the thing it is aiming for. Roughly the standoff plus a thumb's worth of slack.
+ */
+const ANCHOR_SNAP_REACH = 24;
+
+/**
+ * How far above the handle a tooltip is anchored, in screen pixels.
+ *
+ * Enough for the plate to clear the grip rather than rest on it. Not a fix for the flicker — that
+ * was the tooltip taking the pointer, and is answered in the stylesheet — but a plate touching the
+ * dot it describes reads as part of it.
+ */
+const TOOLTIP_LIFT = 6;
+
+/**
+ * How near its own route a dragged waypoint has to be dropped to be removed, in screen pixels.
+ *
+ * Generous, because this is the way back from a bend somebody did not mean to add, and a gesture
+ * that has to be aimed is one people stop trusting. Nothing is lost by being wrong in this direction:
+ * a point removed by accident is one drag from existing again.
+ */
+const REMOVE_WAYPOINT_WITHIN = 10;
+
+/** A waypoint's grip, and the hollow one that stands for a gap. Screen pixels; divided by the camera. */
+const WAYPOINT_HANDLE_R = 5;
+const WAYPOINT_GHOST_R = 4;
 
 /**
  * How much of a value is worth carrying to a panel.
@@ -182,6 +285,34 @@ export function GraphView(props: GraphViewProps) {
   const [connectionVersion, setConnectionVersion] = createSignal(0);
   const [hovered, setHovered] = createSignal<string | null>(null);
   const [hoveredEdge, setHoveredEdge] = createSignal<string | null>(null);
+  /**
+   * The anchor being dragged, and then the one just written — held until the data says the same.
+   *
+   * One draft rather than a map: an anchor drag is a pointer gesture, and there is exactly one
+   * pointer. It outlives the gesture on purpose — see `setEdgeOverlay` for why letting go at the
+   * release would snap the line back for a round trip and then move it again.
+   */
+  const [anchorDraft, setAnchorDraft] = createSignal<{ id: string; patch: Record<string, GraphValue> } | null>(null);
+  /**
+   * What the handle under the pointer does, and where it is — for the tooltip that says so.
+   *
+   * Both gestures a handle carries are invisible: dragging an end onto another card re-attaches the
+   * connection, and double-clicking a point removes it. Neither is guessable, and a gesture nobody
+   * can find is one that may as well not exist.
+   */
+  const [handleHint, setHandleHint] = createSignal<{ at: Point; text: string } | null>(null);
+  /**
+   * The connection a handle gesture is under way on — its edge id, or `connect` for a new line.
+   *
+   * Two jobs, both of which need the gesture to outlive the pointer's whereabouts. The hint is
+   * raised by the pointer entering a handle, and a dragged end now *follows* the pointer — so the
+   * handle arrives back under the cursor on every frame and re-raises the plate it was dismissed
+   * with, leaving a tooltip parked over the drag for the whole of it; a gesture being performed has
+   * nothing left to explain. And the grips are shown while the edge is hovered or has a draft
+   * pending, neither of which is reliably true mid-drag: a snap that happens to match what is stored
+   * settles the draft on the spot, and the handles would vanish from under the finger holding them.
+   */
+  const [gesturing, setGesturing] = createSignal<string | null>(null);
 
   // Read once: expanders are constructed with their options, so changing `reified` needs a remount —
   // which is what a template does anyway when it swaps one graph for another.
@@ -314,6 +445,23 @@ export function GraphView(props: GraphViewProps) {
       else if (reason === 'connection') setConnectionVersion((n) => n + 1);
       else setVersion((n) => n + 1);
     });
+  });
+
+  /**
+   * The edge whose route is open for editing.
+   *
+   * Declared **after** the engine, like every other memo that reads it. `createMemo` runs its body
+   * eagerly, so one written up beside the signals it looks like — `hovered`, `hoveredEdge` — reaches
+   * a `const` that is not initialised yet and takes the whole app down with a `ReferenceError`
+   * before anything renders. The signals can sit there because they read nothing.
+   *
+   * On the general version rather than a channel of its own: `selection` is one of the reasons that
+   * falls through to it, and a fourth signal would be a fourth thing to keep in step for a value
+   * that changes on a click.
+   */
+  const selectedEdge = createMemo(() => {
+    version();
+    return engine.getSelectedEdge();
   });
 
   const behaviours = createMemo<Behaviour[]>(() => {
@@ -539,6 +687,60 @@ export function GraphView(props: GraphViewProps) {
     if (settled.length) props.host?.confirmPending?.(settled);
   });
 
+  /*
+    The anchor draft, handed to the engine so the line follows it, and dropped once it is redundant.
+
+    The same shape as the node overlay above and settled by the same question — asked of the edge's
+    *seeded* data, since the one the renderer draws already carries the draft and would report every
+    anchor confirmed the instant it was applied.
+  */
+  createEffect(() => {
+    version();
+    const draft = anchorDraft();
+    if (!draft) return;
+    const raw = engine.store.edge(draft.id);
+    /*
+      Settled means the stored data already *routes* the same, not that the fields are spelled the
+      same — which is why this asks `routesAlike` rather than `isSettled`. Clearing an anchor writes
+      `''` and the seed answers by omitting the field altogether, so compared literally a clear could
+      never settle and the overlay would outlive the graph.
+    */
+    /*
+      An endpoint the draft has moved is settled when the edge itself says so.
+
+      `routesAlike` asks about the fields one board draws with, and a re-attachment is not one of
+      them — the claim changed, so the edge comes back from the seed attached somewhere else. Asking
+      only the data would call the move settled on the frame it was made, drop the overlay, and snap
+      the end back to the card it came from until the write returned.
+    */
+    const endsArrived = (['source', 'target'] as const).every((end) => {
+      const wanted = draft.patch[end];
+      return typeof wanted !== 'string' || !wanted || raw?.[end] === wanted;
+    });
+    /*
+      A draft holding a loose end is never settled — the pointer is still down.
+
+      Nothing stored can agree with a point that is wherever the cursor is, and the fields *beside*
+      it can: dragging an end back to the side it was already on writes an anchor identical to the
+      stored one, which without this reads as "nothing left to preview", drops the overlay, and
+      leaves the line frozen for the rest of the gesture.
+    */
+    const loose = ['sourceX', 'sourceY', 'targetX', 'targetY'].some((key) => key in draft.patch);
+    if (raw && !loose && endsArrived && routesAlike(raw.data, { ...raw.data, ...draft.patch })) {
+      setAnchorDraft(null);
+      engine.setEdgeOverlay(new Map());
+      return;
+    }
+    // Only when it would change something. `setEdgeOverlay` notifies, which re-runs this — so an
+    // unconditional call is an infinite loop rather than a redundant one.
+    const applied = engine.edgeOverlayFor(draft.id);
+    const same =
+      applied &&
+      Object.entries(draft.patch).every(([field, value]) => applied[field] === value) &&
+      Object.keys(applied).length === Object.keys(draft.patch).length;
+    if (!same) engine.setEdgeOverlay(new Map([[draft.id, draft.patch]]));
+  });
+
   const edges = createMemo(() => {
     version();
     // Geometry comes from the engine, which routed these when it placed the nodes. Deriving it again
@@ -726,13 +928,25 @@ export function GraphView(props: GraphViewProps) {
    * edge moves one. Zero on an axis is what makes an edge handle leave the other dimension alone.
    */
   /**
-   * The four edges a connection can be drawn from, as the DOM knows them.
+   * The four edges a connection can be drawn from, as the DOM knows them, and the arrow each shows.
    *
    * Midpoints rather than corners, because the corners are the resize grips — an affordance for
    * "make this bigger" and one for "join this to something" sharing a pixel is a coin toss every
    * time somebody reaches for either.
+   *
+   * A named arrow per edge rather than one glyph turned four ways. It was a CSS chevron — two
+   * borders on a rotated square — with a one-pixel nudge per edge to correct for its mass sitting on
+   * two sides rather than in the middle. A `translate` after a `rotate` applies in the *rotated*
+   * frame, so all four nudges came out as the same 1.4px sideways shove in screen space: right for
+   * the east arrow by luck, and visibly off-centre on the other three. An arrow that is centred in
+   * its own box needs no correction, and four names cost less than the arithmetic that was wrong.
    */
-  const CONNECT_EDGES = ['n', 'e', 's', 'w'] as const;
+  const CONNECT_EDGES = [
+    { edge: 'n', icon: 'arrow-up' },
+    { edge: 'e', icon: 'arrow-right' },
+    { edge: 's', icon: 'arrow-down' },
+    { edge: 'w', icon: 'arrow-left' },
+  ] as const;
 
   /**
    * Drag a connection out of one edge of a card.
@@ -749,6 +963,8 @@ export function GraphView(props: GraphViewProps) {
    * indistinguishable downstream from one drawn any other, and a template needs no second handler.
    */
   function beginConnect(event: PointerEvent, entry: { node: GraphNode }) {
+    setHandleHint(null);
+    setGesturing('connect');
     // Never reaches the canvas dispatcher: the node under the handle is the node being connected
     // *from*, so a press that fell through would also start dragging it across the board.
     event.stopPropagation();
@@ -770,17 +986,38 @@ export function GraphView(props: GraphViewProps) {
       // following the cursor around the canvas with no way to put it down.
       if (moved.buttons === 0) {
         ctx.drawConnection(null);
+        setHovered(null);
         return;
       }
-      ctx.drawConnection(source, ctx.toWorld(at(moved)));
+      const world = ctx.toWorld(at(moved));
+      ctx.drawConnection(source, world);
+      /*
+        Marking the card under the line, here, because nothing else can while this gesture runs.
+
+        `onPointerMove` is the only writer of `hovered` and it is bound to `.we-graph__surface`,
+        which is a *sibling* of the layer holding the cards and these handles. The press sets pointer
+        capture on the handle, so every move that follows is retargeted into that subtree and reaches
+        the surface's listener never — the highlight froze wherever it was when the drag began, and
+        came back only once the gesture was over and the pointer moved again. Which reads as a drag
+        that is not working, since the line is the half that never broke.
+
+        Through `connectionTarget`, so what lights up is what a release would actually connect to:
+        the source card is refused, and so is empty canvas. A mark that promised a connection the
+        drop then declines is worse than no mark.
+      */
+      setHovered(connectionTarget(ctx.hitTest(world)[0], source));
     };
 
     const end = (ended: PointerEvent) => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
       window.removeEventListener('pointercancel', end);
+      setGesturing(null);
       const [hit] = ctx.hitTest(ctx.toWorld(at(ended)));
       ctx.drawConnection(null);
+      // The gesture owned the mark; it does not own what happens next. The surface re-establishes it
+      // on the next move, and a drop that opens a dialog leaves no card lit behind it.
+      setHovered(null);
       const target = connectionTarget(hit, source);
       if (!target) return;
       ctx.emit({
@@ -807,6 +1044,384 @@ export function GraphView(props: GraphViewProps) {
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', end);
     window.addEventListener('pointercancel', end);
+  }
+
+  /**
+   * Which side of a box a point is on, by the direction from its centre.
+   *
+   * The diagonals divide it, so a card is four triangles rather than four bands — which is what makes
+   * a corner unambiguous, and what makes the answer change where the pointer visibly crosses. Scaled
+   * by the box's own half-extents first, so a wide card's top is reached by going *up* rather than by
+   * getting past its length: unscaled, the north triangle of a 400×100 card is a sliver nobody can
+   * aim at.
+   *
+   * Inside a small middle the answer is nothing, which is how an anchor is cleared: drag the end back
+   * onto the card and let go. There has to be some way back, and a fifth region beats a fifth control.
+   */
+  function sideOf(at: Point, centre: Point, halfWidth: number, halfHeight: number): EdgeSide | '' {
+    const dx = (at.x - centre.x) / Math.max(halfWidth, 1);
+    const dy = (at.y - centre.y) / Math.max(halfHeight, 1);
+    if (Math.hypot(dx, dy) < CLEAR_ANCHOR_WITHIN) return '';
+    return Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'e' : 'w') : dy >= 0 ? 's' : 'n';
+  }
+
+  /**
+   * Drag one end of a connection around a node's rim, pinning the side it attaches to.
+   *
+   * A handle on the line's own endpoint rather than something on the card, because the question is
+   * about *this* connection: a card with four connections leaving it has four answers, and a control
+   * on the card could only ask one of them.
+   *
+   * Deliberately not set by which of the four connect dots a connection was dragged out of. Today you
+   * grab whichever is nearest and the edge still routes sensibly; pinning that silently would hand
+   * people connectors leaving the top of a card and looping around, for having picked the closest
+   * handle. Anchoring is its own act, and the dots stay hints.
+   *
+   * Previewed through the engine's edge overlay rather than by drawing something beside the line, so
+   * what moves under the pointer is the connection itself — and the same overlay then holds the
+   * answer while the write goes round the data layer and comes back. See `setEdgeOverlay`.
+   */
+  function beginAnchor(event: PointerEvent, edgeId: string, end: 'source' | 'target') {
+    // Nothing to explain once the gesture is under way, and a plate over the drag is in the way.
+    setHandleHint(null);
+    setGesturing(edgeId);
+    // Never reaches the canvas dispatcher: a press here would otherwise also be a press on whatever
+    // is under it, which for an endpoint is the node this edge attaches to.
+    event.stopPropagation();
+    event.preventDefault();
+    const edge = engine.store.edge(edgeId);
+    if (!edge) return;
+    const nodeId = end === 'source' ? edge.source : edge.target;
+    // The box the renderer is drawing, not one derived again — a card being dragged carries a live
+    // position, and asking the engine's settled one would measure the sides against where it was.
+    const entry = nodes().find((row) => row.node.id === nodeId);
+    if (!entry) return;
+    const box = boxOf(entry);
+    const centre = { x: box.x, y: box.y };
+    const halfWidth = (box.width ?? entry.visual.size * 2) / 2;
+    const halfHeight = (box.height ?? entry.visual.size * 2) / 2;
+    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+
+    const field = end === 'source' ? 'sourceAnchor' : 'targetAnchor';
+    // The end that is staying put: what a re-attachment must not land on, since a connection from a
+    // card to itself is not a thing the graph can draw or the data can hold. `connectionTarget`'s rule.
+    const opposite = end === 'source' ? edge.target : edge.source;
+    const at = (moved: PointerEvent) => {
+      const surfaceBox = surface?.getBoundingClientRect();
+      return engine.viewport.toWorld({
+        x: moved.clientX - (surfaceBox?.left ?? 0),
+        y: moved.clientY - (surfaceBox?.top ?? 0),
+      });
+    };
+    let side: EdgeSide | '' = '';
+    let landing: string | null = null;
+    /** Whether the pointer is somewhere a release would attach to — see the note in `move`. */
+    let armed = false;
+
+    /*
+      Merge into whatever the draft already holds, and drop the loose point.
+
+      Merged rather than replaced so pinning one end and then the other does not lose the first end's
+      preview while its write is still in flight; and the loose point is cleared in the same write,
+      because it only ever describes a pointer that is still down. Left behind, it would outrank the
+      side that was just chosen and hold the end at the last place the cursor was.
+    */
+    const draft = (patch: Record<string, GraphValue>) => {
+      setAnchorDraft((previous) => {
+        const held = previous?.id === edgeId ? { ...previous.patch } : {};
+        delete held[`${end}X`];
+        delete held[`${end}Y`];
+        return { id: edgeId, patch: { ...held, ...patch } };
+      });
+    };
+
+    const move = (moved: PointerEvent) => {
+      if (moved.buttons === 0) return;
+      const world = at(moved);
+      /*
+        Over another card, this stops being an anchor drag and becomes a re-attachment.
+
+        The standard behaviour everywhere connectors exist, and the handle was already tracking the
+        pointer — it simply ignored everything outside its own card. Back over its own card, or over
+        nothing, it is an anchor drag again.
+      */
+      const over = connectionTarget(engine.index.hitTest(world)[0], opposite);
+      landing = over && over !== nodeId ? over : null;
+      // The candidate says so by lighting up — the mark a card already carries for being under the
+      // pointer, so there is nothing new to learn and nothing new to draw.
+      setHovered(landing);
+      side = sideOf(world, centre, halfWidth, halfHeight);
+      /*
+        Loose between the cards, snapped once it is over one — and that is the whole gesture.
+
+        Free movement is what makes a drag feel like a drag rather than a five-way switch, and it is
+        also what leaves somebody guessing: a line ending under the cursor says nothing about where
+        it would attach if they let go. So the two are split by where the pointer is. Over open
+        canvas the end follows it exactly. Over a card — its own or another — it jumps to where a
+        release would actually put it and stays there while the pointer moves around inside, which is
+        the answer to "is it safe to drop here", drawn as the thing itself rather than as a marker
+        beside it.
+
+        Its own card gets a margin, because the sides are *outside* the box: without one the snap
+        would only arm once the cursor was over the card body, past the anchors it is aiming at.
+        Another card does not, since being over it is what a re-attachment already means on release —
+        one rule, so the preview cannot promise what the drop refuses.
+      */
+      const margin = ANCHOR_SNAP_REACH / engine.viewport.get().zoom;
+      const onOwn =
+        Math.abs(world.x - centre.x) <= halfWidth + margin && Math.abs(world.y - centre.y) <= halfHeight + margin;
+      armed = Boolean(landing) || onOwn;
+      const snapped = landing ? { [end]: landing, [field]: '' } : onOwn ? { [end]: '', [field]: side } : null;
+      /*
+        Off every card the end is held loose and nothing is pinned yet — including the anchor, which
+        is why the previous field is left alone rather than written from `side`. `sideOf` answers for
+        any point on the board, so writing it here would pin a side from a cursor nowhere near the
+        card and undo the snap the moment the pointer left it.
+      */
+      draft(snapped ?? { [end]: '', [`${end}X`]: world.x, [`${end}Y`]: world.y });
+    };
+
+    const finish = () => {
+      // On `window` for the reason `beginConnect`'s listeners are: capture is released outright if
+      // the element goes away, and this one is inside a list the renderer rebuilds on every reroute —
+      // which this gesture causes on every frame of itself.
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      setGesturing(null);
+      setHovered(null);
+      const behind = edge.reifiedAs ? parseAddress(edge.reifiedAs) : null;
+      const connection = behind?.kind === 'entity' ? { recordId: behind.id, recordType: behind.type } : {};
+      const arrived = landing ? parseAddress(landing) : null;
+      /*
+        A re-attachment rewrites the *claim*; an anchor rewrites how one board draws it.
+
+        Two scopes on one gesture, decided by where it was let go, and worth being explicit about:
+        "this connection actually goes there" is an edit to what the relationship asserts, so it
+        changes on every board and for everyone. Where it *attaches* is this board's business alone.
+      */
+      if (landing && arrived?.kind === 'entity' && arrived.id && props.onEdgeRetarget) {
+        // The end settles onto the card it was dropped on, and the preview holds it there until the
+        // write comes back round the data layer as an edge attached somewhere else.
+        draft({ [end]: landing, [field]: '' });
+        props.onEdgeRetarget({
+          id: edgeId,
+          end,
+          ...connection,
+          nodeId: arrived.id,
+          // Empty rather than absent for an address that named no type — the store needs a type to
+          // write beside the endpoint, and a missing one is a refusal it can make for itself.
+          nodeType: arrived.type ?? '',
+        });
+        return;
+      }
+      /*
+        Let go where nothing was offered, and nothing happens.
+
+        The release has to agree with what the drag was showing. Off every card the end was drawn
+        loose under the cursor, promising nothing — and `sideOf` answers for any point on the board,
+        so anchoring anyway would pin a side chosen by a cursor nowhere near the card, which is a
+        decision nobody made. So the preview is dropped and the line goes back to what is stored.
+
+        This is also the exit from the gesture: pull the end off into open space and let go.
+      */
+      if (!armed) {
+        setAnchorDraft((previous) => {
+          if (previous?.id !== edgeId) return previous;
+          const held = { ...previous.patch };
+          for (const key of [end, field, `${end}X`, `${end}Y`]) delete held[key];
+          return { id: edgeId, patch: held };
+        });
+        return;
+      }
+      /*
+        Otherwise it was an anchor drag — including a drop on another card that nothing is listening
+        for. A board that has not wired re-attachment would otherwise swallow the gesture whole,
+        leaving the end previewed on a card it never moved to, so the preview is withdrawn here
+        rather than left for a write that is not coming.
+      */
+      draft({ [end]: '', [field]: side });
+      props.onEdgeAnchor?.({ id: edgeId, end, side, ...connection });
+    };
+
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+  }
+
+  /**
+   * Drag a point on a connection, adding one where there was none.
+   *
+   * `index` is where the point sits in the stored list; `insert` says whether the press was on an
+   * existing point or on the line between two, which is how a route grows without a separate "add a
+   * point" mode. Miro's gesture, and the reason it needs no instruction: the line is the control.
+   *
+   * Previewed through the same edge overlay the anchors use, so what moves under the pointer is the
+   * connection itself and the shape holds while the write goes round the data layer.
+   *
+   * **Dropped back onto the line it came from, a point is removed.** An added bend has to be
+   * removable by the gesture that made it, or the only way back from a mis-click is a menu; and
+   * "this point is doing nothing" is a thing the shape already says, which is why the test is
+   * geometric rather than a modifier key. Double-clicking one removes it too — see the markup.
+   */
+  function beginWaypoint(event: PointerEvent, edgeId: string, index: number, insert: boolean) {
+    // Nothing to explain once the gesture is under way, and a plate over the drag is in the way.
+    setHandleHint(null);
+    setGesturing(edgeId);
+    event.stopPropagation();
+    event.preventDefault();
+    const edge = engine.store.edge(edgeId);
+    if (!edge) return;
+    const patch = engine.edgeOverlayFor(edgeId);
+    // The frame a point is stored in, resolved the way the router resolves it — an end whose
+    // re-attachment has not come back from the data layer yet is where the overlay says, not where
+    // the store does, and reading past that would place the point against the wrong two ends.
+    const source = endOf(patch, 'source', edge.source);
+    const target = endOf(patch, 'target', edge.target);
+    const from = source.loose ?? engine.getPositions().get(source.node);
+    const to = target.loose ?? engine.getPositions().get(target.node);
+    if (!from || !to) return;
+    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+
+    const stored = waypointsOf({ ...edge.data, ...patch });
+    const at = (moved: PointerEvent) => {
+      const surfaceBox = surface?.getBoundingClientRect();
+      return engine.viewport.toWorld({
+        x: moved.clientX - (surfaceBox?.left ?? 0),
+        y: moved.clientY - (surfaceBox?.top ?? 0),
+      });
+    };
+    let points = stored;
+    let removing = false;
+
+    const move = (moved: PointerEvent) => {
+      if (moved.buttons === 0) return;
+      const world = at(moved);
+      const next = [...stored];
+      const point = waypointFromWorld(world, { x: from.x, y: from.y }, { x: to.x, y: to.y });
+      if (insert) next.splice(index, 0, point);
+      else next[index] = point;
+      /*
+        Back on the line, and it goes.
+
+        Measured against the shape the remaining points make, rather than against the straight chord:
+        on a line already bent twice, "on the line" means on the curve its neighbours draw, which is
+        nowhere near the chord. With no points left it *is* the chord — an approximation of the
+        derived curve, which is close enough for a ten-pixel tolerance and is exact at both ends.
+
+        Only for a point that already existed: an insert that never left the line simply never
+        becomes one, so there is nothing to undo.
+      */
+      removing = !insert && nearRoute(next, index, world, { x: from.x, y: from.y }, { x: to.x, y: to.y });
+      points = removing ? next.filter((_, at) => at !== index) : next;
+      setAnchorDraft({ id: edgeId, patch: { waypoints: JSON.stringify(points) } });
+    };
+
+    const finish = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      setGesturing(null);
+      // A press that never moved is not an edit. Without this, clicking a handle to look at it
+      // would write the route back unchanged and cost a round trip for nothing.
+      if (points === stored) return;
+      const behind = edge.reifiedAs ? parseAddress(edge.reifiedAs) : null;
+      props.onEdgeReroute?.({
+        id: edgeId,
+        points,
+        ...(behind?.kind === 'entity' && { recordId: behind.id, recordType: behind.type }),
+      });
+    };
+
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+  }
+
+  /**
+   * The grips on one route: a filled one per waypoint, a hollow one in each gap between them.
+   *
+   * `index` is where a drag would write into the stored list, which is the same number for both
+   * kinds — a point at index *i* is replaced, and a gap at index *i* is inserted before it. That is
+   * what lets one gesture serve moving and adding.
+   *
+   * The gaps are placed on the drawn route rather than half-way between the points, so a hollow grip
+   * sits on the line somebody is looking at. `polyline` samples whatever shape this is, so the same
+   * arithmetic serves a spline, a polyline and an orthogonal route.
+   */
+  function waypointHandles(edgeId: string, route: EdgeGeometry): { index: number; at: Point; insert: boolean }[] {
+    const edge = engine.store.edge(edgeId);
+    if (!edge) return [];
+    /*
+      Resolved through `endOf`, exactly as the router resolves them.
+
+      A waypoint is stored in the edge's own frame, so placing one means knowing where that frame's
+      two ends are — and while an end is being dragged, they are not where the store says. Reading
+      the settled positions left the grips frozen at the old endpoints while the line they belong to
+      moved with the pointer, which is the whole reason this resolution lives in the core.
+    */
+    const patch = engine.edgeOverlayFor(edgeId);
+    const source = endOf(patch, 'source', edge.source);
+    const target = endOf(patch, 'target', edge.target);
+    const from = source.loose ?? engine.getPositions().get(source.node);
+    const to = target.loose ?? engine.getPositions().get(target.node);
+    if (!from || !to) return [];
+    const points = waypointsOf({ ...edge.data, ...patch });
+    const world = points.map((point) => waypointToWorld(point, { x: from.x, y: from.y }, { x: to.x, y: to.y }));
+    const handles = world.map((at, index) => ({ index, at, insert: false }));
+    /*
+      One offer per gap — before the first point, between each pair, and after the last — placed by
+      measuring where the existing points fall along the drawn line rather than by dividing it into
+      equal lengths. `bendPoints` carries the reasoning; the short of it is that a point sits
+      wherever somebody put it, so the k-th equal division is not the k-th gap, and an offer drawn in
+      the wrong gap splices its new point at an index the pointer was never near.
+    */
+    const gaps = bendPoints(polyline(route), world).map((at, index) => ({ index, at, insert: true }));
+    return [...handles, ...gaps];
+  }
+
+  /** Take one point out of a route — the double-click path. See `beginWaypoint` for the other. */
+  function removeWaypoint(edgeId: string, index: number) {
+    const edge = engine.store.edge(edgeId);
+    if (!edge) return;
+    const points = waypointsOf({ ...edge.data, ...engine.edgeOverlayFor(edgeId) }).filter((_, at) => at !== index);
+    setAnchorDraft({ id: edgeId, patch: { waypoints: JSON.stringify(points) } });
+    const behind = edge.reifiedAs ? parseAddress(edge.reifiedAs) : null;
+    props.onEdgeReroute?.({
+      id: edgeId,
+      points,
+      ...(behind?.kind === 'entity' && { recordId: behind.id, recordType: behind.type }),
+    });
+  }
+
+  /**
+   * Where a card's connect dot sits in the world, for the tooltip to point at.
+   *
+   * Derived here rather than measured, because the dot is placed by CSS — `left`/`top` off the
+   * node's own box plus a reach in screen pixels — and asking the DOM for it would mean reading a
+   * layout back out of the thing that just wrote it. The same two numbers, said once more.
+   */
+  function connectDotAt(entry: { node: GraphNode }, edge: 'n' | 'e' | 's' | 'w'): Point {
+    const row = nodes().find((candidate) => candidate.node.id === entry.node.id);
+    const box = row ? boxOf(row) : { x: 0, y: 0, width: 0, height: 0 };
+    const half = { x: (box.width ?? 0) / 2, y: (box.height ?? 0) / 2 };
+    // `--reach` in the stylesheet, in screen pixels, so it is divided by the camera exactly as the
+    // dot itself is. One number in two places is a drift waiting to happen; it is small enough that
+    // a tooltip a few pixels out is invisible, and naming it here is what makes that a decision.
+    const reach = CONNECT_DOT_REACH / zoom();
+    return {
+      x: box.x + (edge === 'e' ? half.x + reach : edge === 'w' ? -(half.x + reach) : 0),
+      y: box.y + (edge === 's' ? half.y + reach : edge === 'n' ? -(half.y + reach) : 0),
+    };
+  }
+
+  /** Whether a point has been dropped back onto the route its neighbours would draw without it. */
+  function nearRoute(points: EdgeWaypoint[], index: number, world: Point, from: Point, to: Point): boolean {
+    const without = points.filter((_, at) => at !== index);
+    const through = [from, ...without.map((point) => waypointToWorld(point, from, to)), to];
+    const route = { id: '', from: through[0], to: through[through.length - 1], curve: 'smooth' as const, mid: world };
+    const shape = without.length ? { ...route, segments: splineThrough(through) } : route;
+    return distanceToEdge(world, shape) <= REMOVE_WAYPOINT_WITHIN / engine.viewport.get().zoom;
   }
 
   function beginResize(
@@ -1001,28 +1616,148 @@ export function GraphView(props: GraphViewProps) {
                   marker-start={entry.visual.arrow === 'both' ? 'url(#we-graph-arrow)' : undefined}
                   marker-end={entry.visual.arrow === 'none' ? undefined : 'url(#we-graph-arrow)'}
                 />
+                {/*
+                  A grip on each end, for dragging the attachment around the node's rim.
+
+                  Only where the template is listening, like the connect dots and the resize handles:
+                  a gesture that ends in nothing is worse than an affordance that was never offered.
+                  On hover rather than always, for the reason the dots are on the selection — a grip
+                  at both ends of every line would speckle a board with furniture over the cards it is
+                  there to show.
+
+                  And on the edge being dragged whatever the pointer is over, because the pointer
+                  leaves the line immediately: that is the gesture.
+                */}
+                {/*
+                  The points this route is bent through, and the gaps between them.
+
+                  A filled handle is a point that exists; a hollow one is the middle of a leg, which
+                  becomes a point the moment it is dragged. That is what lets a route grow with no
+                  "add a point" mode — the line is the control, which needs no instruction.
+
+                  On the **selected** edge rather than the hovered one, unlike the anchors: reshaping
+                  is sustained work where anchoring is a flick, and grips that vanished the moment the
+                  pointer left the line would be unusable for the first. Which is also why clicking a
+                  line selects it — see `selectBehaviour`.
+                */}
+                <Show when={props.onEdgeReroute && (selectedEdge() === entry.edge.id || gesturing() === entry.edge.id)}>
+                  <For each={waypointHandles(entry.edge.id, entry.route)}>
+                    {(handle) => (
+                      <g
+                        class="we-graph__handle we-graph__handle--waypoint"
+                        classList={{ 'we-graph__handle--ghost': handle.insert }}
+                        onPointerDown={(event) => beginWaypoint(event, entry.edge.id, handle.index, handle.insert)}
+                        // The other way to remove one, for a point somebody would rather not have to
+                        // land back on the line. Both exist because they suit different moments.
+                        onDblClick={(event) => {
+                          if (handle.insert) return;
+                          event.stopPropagation();
+                          removeWaypoint(entry.edge.id, handle.index);
+                        }}
+                        onPointerEnter={() =>
+                          setHandleHint({
+                            at: handle.at,
+                            text: handle.insert
+                              ? 'Drag to bend the line here'
+                              : 'Drag to move · double-click to remove',
+                          })
+                        }
+                        onPointerLeave={() => setHandleHint(null)}
+                      >
+                        <circle
+                          class="we-graph__handle-hit"
+                          cx={handle.at.x}
+                          cy={handle.at.y}
+                          r={HANDLE_HIT_R / zoom()}
+                        />
+                        <circle
+                          class="we-graph__handle-dot"
+                          cx={handle.at.x}
+                          cy={handle.at.y}
+                          r={(handle.insert ? WAYPOINT_GHOST_R : WAYPOINT_HANDLE_R) / zoom()}
+                          stroke-width={1.5 / zoom()}
+                        />
+                      </g>
+                    )}
+                  </For>
+                </Show>
+                <Show
+                  when={
+                    props.onEdgeAnchor &&
+                    (hoveredEdge() === entry.edge.id ||
+                      anchorDraft()?.id === entry.edge.id ||
+                      // Held open for the whole gesture: a snap onto the side an edge is already
+                      // anchored to settles the draft on the spot, and without this the grips would
+                      // vanish from under the finger holding one.
+                      gesturing() === entry.edge.id)
+                  }
+                >
+                  <For each={['source', 'target'] as const}>
+                    {(end) => (
+                      <g
+                        class="we-graph__handle we-graph__handle--anchor"
+                        onPointerDown={(event) => beginAnchor(event, entry.edge.id, end)}
+                        onPointerEnter={() =>
+                          setHandleHint({
+                            at: end === 'source' ? entry.route.from : entry.route.to,
+                            text: 'Drag around the card to pin a side · onto another card to reconnect',
+                          })
+                        }
+                        onPointerLeave={() => setHandleHint(null)}
+                      >
+                        {/*
+                          The target, and then the dot. Two circles because they answer different
+                          questions — see `HANDLE_HIT_R`; the first is invisible and takes the press,
+                          the second is painted and takes none, so the paint can stay small.
+                        */}
+                        <circle
+                          class="we-graph__handle-hit"
+                          cx={end === 'source' ? entry.route.from.x : entry.route.to.x}
+                          cy={end === 'source' ? entry.route.from.y : entry.route.to.y}
+                          r={HANDLE_HIT_R / zoom()}
+                        />
+                        <circle
+                          class="we-graph__handle-dot"
+                          cx={end === 'source' ? entry.route.from.x : entry.route.to.x}
+                          cy={end === 'source' ? entry.route.from.y : entry.route.to.y}
+                          // World units over zoom, so the grip is one size on screen at every camera
+                          // — the same arithmetic every other handle in here does.
+                          r={ANCHOR_HANDLE_R / zoom()}
+                          stroke-width={1.5 / zoom()}
+                        />
+                      </g>
+                    )}
+                  </For>
+                </Show>
               </g>
             )}
           </For>
           {/*
             The line being drawn during a connect gesture.
 
-            Dashed, so it reads as a proposal rather than as an edge that already exists, and drawn
-            straight rather than through the curve machinery: it has no endpoints to bow apart from
-            and no direction worth stating until it lands somewhere. It is not in the store — see
-            `getPendingConnection` — so nothing lays it out, routes it, or counts it.
+            Routed exactly as the edge it is proposing — see `getPendingConnection` — so nothing about
+            the drawing changes at the moment of commitment. It was a straight segment between two raw
+            points, which became an S-curve leaving a different side of the card the instant it landed:
+            a jump at the one moment somebody is deciding whether the gesture did what they meant.
+
+            Dashed, and that is the only difference kept on purpose: it says proposal. It is still not
+            in the store, so nothing lays it out, hit-tests it or counts it.
+
+            The arrowhead says which way round the connection will be, which nothing else does — the
+            highlight under the pointer names the card and not the direction. Its own marker rather
+            than the edges', because that one is filled `neutral-400` and this line is not; `context-
+            stroke` would say it once, and Safari does not support it.
           */}
           <Show when={pending()}>
-            {(line) => (
-              <line
-                x1={line().from.x}
-                y1={line().from.y}
-                x2={line().to.x}
-                y2={line().to.y}
+            {(route) => (
+              <path
+                d={pathFrom(route(), ARROW_LENGTH * PENDING_WIDTH)}
+                fill="none"
                 stroke="var(--we-color-primary-500)"
-                stroke-width="2"
+                stroke-width={PENDING_WIDTH}
                 stroke-dasharray="6 4"
                 vector-effect="non-scaling-stroke"
+                marker-end="url(#we-graph-arrow-pending)"
               />
             )}
           </Show>
@@ -1039,6 +1774,22 @@ export function GraphView(props: GraphViewProps) {
               orient="auto-start-reverse"
             >
               <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--we-color-neutral-400)" />
+            </marker>
+            {/*
+              The same head in the proposal's colour. A marker paints in its own right rather than
+              inheriting from the path that references it, and the one way to say it once —
+              `context-stroke` — is SVG 2 and unsupported in Safari, so this is a copy on purpose.
+            */}
+            <marker
+              id="we-graph-arrow-pending"
+              viewBox="0 0 10 10"
+              refX="0"
+              refY="5"
+              markerWidth={ARROW_LENGTH}
+              markerHeight={ARROW_LENGTH}
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--we-color-primary-500)" />
             </marker>
           </defs>
         </svg>
@@ -1223,12 +1974,31 @@ export function GraphView(props: GraphViewProps) {
               */}
               <Show when={props.onEdgeCreate && entry.selected && entry.visual.shape === 'card'}>
                 <For each={CONNECT_EDGES}>
-                  {(edge) => (
+                  {(handle) => (
                     <div
-                      class={`we-graph__connect we-graph__connect--${edge}`}
-                      title="Drag to connect"
+                      class={`we-graph__connect we-graph__connect--${handle.edge}`}
                       onPointerDown={(event) => beginConnect(event, entry)}
-                    />
+                      /*
+                        The same tooltip the route handles use, rather than the `title` attribute
+                        this carried. A native tooltip is the browser's: it ignores the theme
+                        outright — a blue plate with a white outline over a board that is neither —
+                        and there is no way to style one.
+                      */
+                      onPointerEnter={() =>
+                        setHandleHint({ at: connectDotAt(entry, handle.edge), text: 'Drag to connect' })
+                      }
+                      onPointerLeave={() => setHandleHint(null)}
+                    >
+                      {/*
+                        A plain screen-pixel length: the handle is laid out at its real size and
+                        counter-scaled by the camera, so nothing in here divides by the zoom. See the
+                        stylesheet for why that is not the same as dividing — an arrow asked for at
+                        3.75px lands wherever sub-pixel snapping puts it, which is what made it drift
+                        off centre the further in you zoomed. `size` takes a length as well as a
+                        token, and the element writes it to its own `--icon-size`.
+                      */}
+                      <we-icon name={handle.icon} size="17px" />
+                    </div>
                   )}
                 </For>
               </Show>
@@ -1322,6 +2092,39 @@ export function GraphView(props: GraphViewProps) {
             }}
           </For>
         </Column>
+      </Show>
+
+      {/*
+        What the handle under the pointer does.
+
+        `we-tooltip` rather than a `title` attribute or a box of our own: the native tooltip is the
+        browser's, so it ignores the theme entirely — a blue plate with a white outline over a board
+        that is neither — and a box built here would be a copy of the primitive's look that stops
+        matching the first time the design system moves.
+
+        The primitive wraps its own trigger and positions against it, so the trigger is a zero-size
+        div put where the handle is. Outside the scaled layer and placed in *screen* coordinates,
+        which is what keeps the tooltip one size at every zoom without any counter-scaling: it is
+        chrome, and chrome is not part of the drawing.
+      */}
+      <Show when={!gesturing() && handleHint()}>
+        {(hint) => (
+          <we-tooltip
+            open
+            title={hint().text}
+            placement="top"
+            style={{
+              position: 'absolute',
+              left: `${engine.viewport.toScreen(hint().at).x}px`,
+              // Lifted clear of the handle: the plate is placed above its trigger, and a trigger
+              // sitting exactly on the dot leaves the two touching.
+              top: `${engine.viewport.toScreen(hint().at).y - TOOLTIP_LIFT}px`,
+              'pointer-events': 'none',
+            }}
+          >
+            <div style={{ width: '0px', height: '0px' }} />
+          </we-tooltip>
+        )}
       </Show>
 
       <Show

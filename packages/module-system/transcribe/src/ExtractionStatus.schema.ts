@@ -29,6 +29,7 @@
  * which is the shape James asked for, and the right one: a bar that grew a row per concurrent pass
  * would push the whole call's chrome around while somebody was using it.
  */
+import { SECTION_LABEL_PROPS } from '@we/schema-kit';
 import { type SchemaNode, type SchemaProp } from '@we/schema-shared';
 import { expr } from '@we/schema-shared';
 
@@ -176,11 +177,17 @@ const disclosureCaret: SchemaNode = {
   },
 };
 
-/** The small caps heading above each pane. */
+/**
+ * The small caps heading above each pane.
+ *
+ * `SECTION_LABEL_PROPS` rather than its own four props: this was one of the near-misses the shared
+ * recipe exists to absorb — a raw `fontSize` where the others named a variant, and no two of them
+ * agreeing on the tracking.
+ */
 function paneLabel(label: string): SchemaNode {
   return {
     type: 'we-text',
-    props: { fontSize: '200', color: 'text-faint', uppercase: true, letterSpacing: 'wide' },
+    props: { ...SECTION_LABEL_PROPS },
     children: [label],
   };
 }
@@ -470,6 +477,39 @@ const settledSection: SchemaNode = {
             },
           ],
         },
+        /*
+          A way to forget what has finished.
+
+          The store has published `dismissSettled` since the readout existed and nothing called it,
+          so a history could only ever grow — and this is a list somebody watches for minutes at a
+          time, so "everything that has ever happened" is the state it spends most of its life in.
+          Only what has settled: a running pass is not this agent's to dismiss, which is why the
+          store's action leaves those alone rather than taking a filter.
+
+          Beside the count rather than on each row, because the decision is about the list. Offered
+          only while the list is open, so the collapsed line stays a summary and not a control strip.
+        */
+        {
+          type: '$if',
+          props: {
+            condition: { $: 'local.historyOpen' },
+            then: {
+              type: 'Row',
+              props: { width: '100%', ax: 'end' },
+              children: [
+                {
+                  type: 'we-button',
+                  props: {
+                    variant: 'ghost',
+                    size: 'xs',
+                    onClick: { $action: 'interpretationStore.dismissSettled' },
+                  },
+                  children: [{ type: 'we-text', props: { variant: 'footnote' }, children: ['Clear'] }],
+                },
+              ],
+            },
+          },
+        },
         {
           type: '$if',
           props: {
@@ -498,7 +538,7 @@ const settledSection: SchemaNode = {
  * The disclosures a pass carries, and the state that opens them.
  *
  * Split out from the chrome node because the two now live in different places — see
- * {@link extractionActivity} and {@link extractionSignal} below.
+ * {@link extractionActivity} and {@link extractionControl} below.
  */
 const activityLocalState = {
   /**
@@ -550,13 +590,24 @@ const activityLocalState = {
  *
  * The original argument for the chrome — that a pass outlives the panel that started it, and that
  * the four people who did *not* start it are the ones most likely to want the readout — is what
- * {@link extractionSignal} still satisfies. It says who and how long, for everybody, without
+ * {@link extractionControl} still satisfies. It says who and how long, for everybody, without
  * needing the panel open.
  */
 export const extractionActivity: SchemaNode = {
   type: '$if',
+  /*
+    The live feed, and so only about the call this agent is in.
+
+    `interpretationStore` is a subscription to what is happening *now* — every pass this agent knows
+    about, its own and its peers', with no call id on a row to scope it by. So on a call somebody
+    opened from a link it listed the live call's passes above that call's records, and nothing said
+    they were about different conversations.
+
+    What a *past* call did is a different question with a different answer: `ExtractionPass` records,
+    which are written down and hang off the collection. See `extractionHistory`.
+  */
   props: {
-    condition: { $: 'interpretationStore.hasActivity' },
+    condition: { $: 'interpretationStore.hasActivity && !routeStore.params.call' },
     then: {
       type: 'Column',
       $localState: activityLocalState,
@@ -632,7 +683,14 @@ export const extractionActivity: SchemaNode = {
 export const extractionControl: SchemaNode = {
   type: '$if',
   props: {
-    condition: { $: 'modules.transcribe.canChooseTargets' },
+    /*
+      The live call's answer, named as such.
+
+      Extraction is asked per call now — a panel can be about one somebody opened from a link — so
+      the store answers by record id. This control is in the *call bar*, which only ever exists
+      during a call, so the record it means is always `callId`.
+    */
+    condition: { $: 'modules.transcribe.extractionFor[modules.transcribe.callId].canChoose' },
     then: {
       type: 'we-tooltip',
       props: {

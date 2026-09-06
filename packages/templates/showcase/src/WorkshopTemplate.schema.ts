@@ -36,12 +36,16 @@
  *
  * `meta.panels`, and three of the four kinds of entry it can carry:
  *
- * - **`node`** for the transcript, the extraction readout and the calls list — this template's own
- *   schema. The transcript was `module: 'transcribe'` and is not any more: that panel reads the call
- *   being *recorded into*, and everything here is about the call *on screen*, so placing it would
- *   put one surface about a different meeting beside three about this one. The module still owns the
- *   microphone and every write; what moved is arrangement, which is what a template is made of.
- * - **`module`** for the call itself, which is a video stage no schema could express.
+ * - **`node`** for the extraction readout and the calls list — this template's own schema.
+ * - **`module`** for the call stage, which no schema could express, and for the transcript, which
+ *   one could and should not. The transcript was a `node` here for one real reason: the module's
+ *   panel read the call being *recorded into*, and everything here is about the call *on screen*.
+ *   Writing a body bought that and a second copy of the header, the feed and the gating, which
+ *   promptly drifted — the copy never gained the module's coverage readout or its capture status,
+ *   so the interface built around recording a meeting said less about a failing microphone than the
+ *   default one did. Following the address is what any transcript panel should do, so it lives in
+ *   the module now and this places it. A body is for an arrangement the module genuinely cannot
+ *   express, not for a difference it should have absorbed.
  * - **no `route` on any of them.** The key exists for a shell that routes itself and wants a panel on
  *   one page only — but scoping these to the board meant crossing to the tasks list *unregistered*
  *   them, throwing away their scroll position, their subscriptions and wherever they had been
@@ -50,23 +54,7 @@
  *   *joins a call* when there is not one. Placed, never opened.
  */
 import type { RouteSchema, SchemaNode, SchemaProp, TemplateSchema } from '@we/schema-shared';
-import { agentByline, emptyState, recordFormModal } from '@we/template-kit';
-
-/**
- * What extraction is allowed to make from a transcript — asked, rather than restated.
- *
- * This was `['TaskBlock', 'EventBlock']`, a copy of the two classes the module used to compile in,
- * with a comment admitting that the board would silently stop showing a new kind if that list ever
- * grew. It grew: what a space extracts is a community decision now, and the extraction panel offers
- * it as chips somebody can change mid-call. So the constant went from a maintenance note to a bug
- * one click away — turn on `Sighting`, extract, and the records land in the collection while the
- * board shows nothing and says nothing.
- *
- * The call's own list, not the space's: those differ the moment somebody narrows a call, and it is
- * the call that this board is about. Every entity in it, whether or not it is currently ticked — a
- * model switched off half way through a meeting must not take what it already found off the board.
- */
-const EXTRACTED = { $: 'modules.transcribe.extractionTargets.map(t, t.entity)' };
+import { agentByline, emptyState, panelHeader, recordFormModal } from '@we/template-kit';
 
 /**
  * The call on screen — **named in the address**, or the one being recorded when it names none.
@@ -100,8 +88,21 @@ const EXTRACTED = { $: 'modules.transcribe.extractionTargets.map(t, t.entity)' }
 const CALL_EXPR = 'routeStore.params.call ? routeStore.params.call : modules.call.callRecordId';
 const CALL = { $: CALL_EXPR };
 
-/** Whether the call on screen is the one being recorded, as opposed to one being looked back at. */
-const VIEWING_LIVE = { $: 'routeStore.params.call ? false : true' };
+/**
+ * What extraction is allowed to make from a transcript — asked, rather than restated.
+ *
+ * This was `['TaskBlock', 'EventBlock']`, a copy of the two classes the module used to compile in,
+ * with a comment admitting that the board would silently stop showing a new kind if that list ever
+ * grew. It grew: what a space extracts is a community decision now, and the extraction panel offers
+ * it as chips somebody can change mid-call. So the constant went from a maintenance note to a bug
+ * one click away — turn on `Sighting`, extract, and the records land in the collection while the
+ * board shows nothing and says nothing.
+ *
+ * The call's own list, not the space's: those differ the moment somebody narrows a call, and it is
+ * the call that this board is about. Every entity in it, whether or not it is currently ticked — a
+ * model switched off half way through a meeting must not take what it already found off the board.
+ */
+const EXTRACTED = { $: `modules.transcribe.extractionFor[${CALL_EXPR}].targets.map(t, t.entity)` };
 
 /**
  * The page on screen, as a segment — or the board, before the redirect has landed on one.
@@ -243,318 +244,6 @@ const switcher: SchemaNode = {
  * happened" readout rather than a record — the board and the calendar are where they are kept.
  */
 /**
- * What the pass made, whatever kind it is.
- *
- * It was two calls with `'TaskBlock'` and `'EventBlock'` written into them, matching the constant the
- * board used to carry — so a community that adopted its own model and switched it on for extraction
- * got records in the collection, cards on the board, and a readout that quietly listed neither. The
- * comment above the two calls already said this list and the board's should be the same one; they
- * were the same *literal*, which is not the same thing.
-
- * One group per target, each with its own subscription: a schema cannot sum a list of queries whose
- * length it does not know, so there is no total here, and none is wanted — the interesting number is
- * per kind. `entity` as an expression means the validator cannot check the name, which is the trade
- * this pattern makes and the reason the list comes from a store rather than from anything typed here.
- *
- * The icon and the title property come from the model's own declaration through
- * `recordStore.displays`, exactly as a card of any type reads them. A community that gives its model
- * an icon gets it here, and one that does not gets the row without a glyph rather than a wrong one.
- */
-const extractedRows: SchemaNode = {
-  type: '$each',
-  props: { items: EXTRACTED, as: 'target' },
-  children: [
-    {
-      type: 'Column',
-      props: { gap: '200' },
-      $queries: {
-        found: {
-          entity: { $: 'target' },
-          scope: { anchor: 'CollectionBlock', via: 'children', anchorId: CALL },
-          order: { createdAt: 'desc' },
-          limit: 12,
-        },
-      },
-      children: [
-        {
-          type: '$each',
-          props: { items: { $: 'local.found' }, as: 'item' },
-          children: [
-            {
-              type: 'Row',
-              props: { gap: '200', ay: 'center', bg: 'surface-sunken', r: '300', px: '300', py: '200' },
-              children: [
-                {
-                  type: '$if',
-                  props: {
-                    condition: { $: 'recordStore.displays[target].icon' },
-                    then: {
-                      type: 'we-icon',
-                      props: { name: { $: 'recordStore.displays[target].icon' }, color: 'accent-text' },
-                    },
-                  },
-                },
-                {
-                  type: 'we-text',
-                  props: { variant: 'footnote', flex: '1', truncate: true },
-                  children: [{ $: 'item[recordStore.displays[target].title]' }],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  ],
-};
-
-/**
- * Suggestions the backend staged rather than wrote, and the two buttons that resolve them.
- *
- * Carried here because this template supplies its own panels rather than placing the module's, and
- * accept/reject is not decoration: a staged value is not committed until somebody says so, so a
- * template that showed extraction activity and no way to resolve it would leave records permanently
- * half-made with no sign of why.
- *
- * Absent in the ordinary case. A value is staged only where a human already owns one, so a first
- * pass over a fresh transcript stages nothing — and a permanently empty "0 pending" box teaches
- * people to stop looking at the one place their attention is eventually needed.
- */
-const proposalsReview: SchemaNode = {
-  type: '$if',
-  props: {
-    condition: { $: 'count(modules.transcribe.proposals)' },
-    then: {
-      type: 'Column',
-      props: { gap: '200' },
-      children: [
-        {
-          type: 'we-text',
-          props: { variant: 'label', color: 'text-muted', textTransform: 'uppercase', letterSpacing: 'wide' },
-          children: ['Awaiting your call'],
-        },
-        {
-          type: '$each',
-          props: { items: { $: 'modules.transcribe.proposals' }, as: 'proposal' },
-          children: [
-            {
-              /*
-                `appearance: 'accent'` — a thick warning edge rather than a filled warning panel.
-
-                The module's own panel arrived at this and wrote down why: these come as a *column*,
-                and a run of filled warning boxes is a stack of competing rectangles that in a dark
-                theme reads as brown before it reads as a warning. The edge says the same thing at
-                the volume a list can carry. Same shape here, because it is the same list.
-              */
-              type: 'we-alert',
-              props: { variant: 'warning', appearance: 'accent', r: '300', px: '300', py: '300', gap: '300' },
-              children: [
-                {
-                  type: 'Column',
-                  props: { gap: '200' },
-                  children: [
-                    { type: 'we-text', props: { variant: 'footnote' }, children: [{ $: 'proposal.summary' }] },
-                    {
-                      type: 'Row',
-                      props: { gap: '200' },
-                      children: [
-                        {
-                          type: 'we-button',
-                          props: {
-                            size: 'sm',
-                            variant: 'secondary',
-                            onClick: { $action: 'modules.transcribe.acceptProposal', args: [{ $: 'proposal.id' }] },
-                          },
-                          children: ['Keep'],
-                        },
-                        {
-                          type: 'we-button',
-                          props: {
-                            size: 'sm',
-                            variant: 'ghost',
-                            onClick: { $action: 'modules.transcribe.rejectProposal', args: [{ $: 'proposal.id' }] },
-                          },
-                          children: ['Discard'],
-                        },
-                      ],
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  },
-};
-
-/**
- * The extraction readout — this template's own panel, supplied as a `node`.
- *
- * Two questions, and they are different: what is the model *doing*, and what has it *made*. The
- * first comes from `interpretationStore.activity`, which already carries display-ready strings and
- * covers peers' passes as well as this agent's — extraction runs on whoever's node it runs on, and a
- * readout that showed only your own would be quietly wrong in a meeting. The second is an ordinary
- * query against the call.
- *
- * Gated on `capable`, which answers "can this node interpret at all". False means no fix exists from
- * inside the app, so the panel says so rather than offering a control that cannot work.
- */
-const extractionPanel: SchemaNode = {
-  type: 'Column',
-  props: { width: '100%', height: '100%', p: '300', gap: '300', overflow: 'hidden' },
-  children: [
-    {
-      type: '$if',
-      props: {
-        condition: { $: 'interpretationStore.capable' },
-        then: {
-          type: 'Column',
-          props: { width: '100%', flex: '1', minHeight: '0', gap: '300' },
-          children: [
-            /*
-              What is being looked for, and the switch for each.
-
-              The module's own chips, placed rather than re-made. Without them this panel reported
-              what extraction had *done* and never what it was *for*, so the one question it could
-              not answer was the one somebody watching it asks first — and the answer already
-              existed, in a part the module publishes.
-
-              A group decision about this call, not a change to the space's own list, and it applies
-              to what is said from here on. Both of those are said where the chips are.
-            */
-            { type: '$part', props: { id: 'transcribe.extractionTargets' } },
-            // What is running, if anything. `activity` is empty in the ordinary case, which means
-            // "nothing is happening" rather than "not supported" — hence the separate `capable` gate
-            // above, and no empty state here.
-            {
-              type: '$each',
-              props: { items: { $: 'interpretationStore.activity' }, as: 'pass' },
-              children: [
-                {
-                  type: 'Row',
-                  props: { gap: '200', ay: 'center', bg: 'surface-sunken', r: '300', px: '300', py: '200' },
-                  children: [
-                    {
-                      type: '$if',
-                      props: {
-                        condition: { $: 'pass.running' },
-                        then: { type: 'we-spinner', props: { size: 'xs' } },
-                        else: { type: 'we-icon', props: { name: 'check', color: 'success-text' } },
-                      },
-                    },
-                    {
-                      type: 'we-text',
-                      props: { variant: 'footnote', flex: '1', truncate: true },
-                      children: [{ $: 'pass.label' }],
-                    },
-                    {
-                      type: 'we-text',
-                      props: { variant: 'footnote', color: 'text-faint' },
-                      children: [{ $: 'pass.elapsed' }],
-                    },
-                  ],
-                },
-              ],
-            },
-            proposalsReview,
-            {
-              type: 'Row',
-              props: { width: '100%', ay: 'center', gap: '200' },
-              children: [
-                {
-                  type: 'we-text',
-                  props: {
-                    variant: 'label',
-                    color: 'text-muted',
-                    textTransform: 'uppercase',
-                    letterSpacing: 'wide',
-                    flex: '1',
-                  },
-                  children: ['Extracted'],
-                },
-                /*
-                  Run a pass over the call on screen, rather than over "the call I am in".
-
-                  `extractCollection` takes the record, which is what makes this work on a call
-                  somebody opened from the list — `extract` can only ever mean the live one. Gated on
-                  `canExtract`, which is the module's own answer about models and targets.
-                */
-                {
-                  type: '$if',
-                  props: {
-                    condition: { $: 'modules.transcribe.canExtract' },
-                    then: {
-                      type: 'we-button',
-                      props: {
-                        size: 'sm',
-                        variant: 'ghost',
-                        gap: '200',
-                        loading: { $: "modules.transcribe.extractStatus == 'running'" },
-                        onClick: { $action: 'modules.transcribe.extractCollection', args: [CALL] },
-                      },
-                      children: [
-                        { type: 'we-icon', props: { name: 'sparkle' } },
-                        { type: 'we-text', props: { variant: 'footnote' }, children: ['Extract'] },
-                      ],
-                    },
-                  },
-                },
-              ],
-            },
-            {
-              type: 'we-scroll-area',
-              props: { flex: '1', minHeight: '0' },
-              children: [
-                {
-                  type: '$if',
-                  props: {
-                    condition: CALL,
-                    then: {
-                      type: 'Column',
-                      props: { gap: '200' },
-                      children: [
-                        /*
-                          Every kind a pass may write, off the same list the board draws from.
-
-                          It queried `TaskBlock` alone once, so an extracted event was invisible here
-                          while sitting on the board beside it — the readout that exists to say "here
-                          is what the model just made" quietly saying half of it. Naming the two
-                          fixed that instance and left the shape: the moment a community switched a
-                          third model on, this said two thirds of it instead.
-                        */
-                        extractedRows,
-                      ],
-                    },
-                    else: emptyState({ icon: 'sparkle', label: 'extracted records' }),
-                  },
-                },
-              ],
-            },
-          ],
-        },
-        else: {
-          // A property of the node rather than a failure, so it says so plainly instead of offering
-          // a control that cannot work from here. Not `emptyState`, which describes an empty list —
-          // this list is not empty, it is unavailable.
-          type: 'Column',
-          props: { ax: 'center', ay: 'center', gap: '200', p: '400', flex: '1' },
-          children: [
-            { type: 'we-icon', props: { name: 'plugs', size: 'lg', color: 'text-faint' } },
-            {
-              type: 'we-text',
-              props: { variant: 'footnote', color: 'text-faint', textAlign: 'center' },
-              children: ['This node has no model configured, so nothing can be extracted from a call.'],
-            },
-          ],
-        },
-      },
-    },
-  ],
-};
-
-/**
  * The way into a call: start one, or go to the one already running.
  *
  * `goToCall` is the call module's own verb and does both — it joins when there is no call and moves
@@ -597,194 +286,6 @@ const startCall: SchemaNode = {
       ],
     },
   },
-};
-
-/**
- * The transcript of the call on screen — this template's own, not the module's.
- *
- * `@we/module-transcribe` has a perfectly good transcript panel and this template used to place it.
- * It reads `modules.transcribe.collectionId`, which is the call being *recorded into* — so once the
- * call on screen became something the path could name, the module's panel and every other surface
- * here would have been about different calls whenever somebody opened a past one. A panel that
- * disagrees with the board beside it is worse than one more `$query`.
- *
- * So the arrangement is the template's, which is the whole thesis of this package: the pieces are
- * the module's own published parts, the record button is `modules.transcribe.toggle`, and the module
- * still owns everything that is not arrangement — the microphone, the buffering, the writes, and
- * whether this surface is up at all.
- *
- * That last one is why the module's own panel is **not** one click away in the chrome rail, as this
- * used to claim. Supplying a body replaces what is inside the module's dock rather than adding a
- * second panel beside it, so the rail's launcher opens *this* while the workshop is the interface on
- * screen. That is the intended behaviour — two transcripts of one call is the failure this replaced
- * — but it means an interface supplying a body has taken on saying anything the module's panel would
- * have said, and there is no fallback that says it instead.
- */
-const transcriptPanel: SchemaNode = {
-  type: 'Column',
-  props: { width: '100%', height: '100%', p: '300', gap: '300', overflow: 'hidden' },
-  children: [
-    {
-      type: 'Row',
-      props: { width: '100%', ay: 'center', gap: '200' },
-      children: [
-        {
-          type: 'we-text',
-          props: {
-            variant: 'label',
-            color: 'text-muted',
-            textTransform: 'uppercase',
-            letterSpacing: 'wide',
-            flex: '1',
-          },
-          children: [{ $: "routeStore.templateSegments[1] ? 'Past call' : 'Transcript'" }],
-        },
-        /*
-          Recording is about the call you are *in*, so the control is only offered there.
-
-          On a past call the honest offer is to pick it back up — `continueCall` to start a call on
-          the record already on screen, then `resume` to point the recorder at it without waiting for
-          a presence round trip. Gated exactly as the calls list gates the same pair: mid-call, on
-          some other call's board, `resume` would re-point every peer's live transcript at this one,
-          since peers adopt an announced record over their own.
-        */
-        {
-          type: '$if',
-          props: {
-            condition: VIEWING_LIVE,
-            then: {
-              type: '$if',
-              props: {
-                condition: { $: 'modules.call.active' },
-                then: {
-                  type: 'we-button',
-                  props: {
-                    size: 'sm',
-                    gap: '200',
-                    variant: { $: "modules.transcribe.enabled ? 'secondary' : 'ghost'" },
-                    onClick: { $action: 'modules.transcribe.toggle' },
-                  },
-                  children: [
-                    {
-                      type: 'we-icon',
-                      props: {
-                        name: 'microphone',
-                        weight: { $: "modules.transcribe.listening ? 'fill' : 'regular'" },
-                        /*
-                          The `danger` FILL, not `danger-text`.
-
-                          `dangerText` is a derived foreground: its lightness is moved until it is
-                          legible against a card, which in a dark theme means lifting it into a pale
-                          pink. That is right for an error sentence somebody has to read, and wrong
-                          here — this is not text, it is an indicator that something is being
-                          recorded, and it has to read as an alarm at a glance. The fill role holds
-                          a pinned lightness and full chroma, so it is the same saturated red in
-                          either polarity.
-                        */
-                        color: { $: "modules.transcribe.listening ? 'danger' : 'text-muted'" },
-                      },
-                    },
-                    {
-                      type: 'we-text',
-                      props: { variant: 'footnote' },
-                      children: [{ $: "modules.transcribe.enabled ? 'Recording' : 'Record'" }],
-                    },
-                  ],
-                },
-              },
-            },
-            else: {
-              type: '$if',
-              props: {
-                condition: { $: 'modules.call.canCall && !modules.call.active' },
-                then: {
-                  type: 'we-button',
-                  props: {
-                    size: 'sm',
-                    gap: '200',
-                    variant: 'ghost',
-                    onClick: [
-                      // The record on screen, not a new one — see `continueCall` in the calls panel.
-                      { $action: 'modules.call.continueCall', args: [{ $: 'routeStore.params.call' }] },
-                      { $action: 'modules.transcribe.resume', args: [{ $: 'routeStore.params.call' }] },
-                      // And stop naming it: the recorder has just adopted this record, so it is the
-                      // live call now, and an address still pinning to it would say the opposite for
-                      // the rest of the meeting.
-                      openLiveCall,
-                    ],
-                  },
-                  children: [
-                    { type: 'we-icon', props: { name: 'phone-call' } },
-                    { type: 'we-text', props: { variant: 'footnote' }, children: ['Continue'] },
-                  ],
-                },
-              },
-            },
-          },
-        },
-      ],
-    },
-    /*
-      Is it hearing me?
-
-      The feed below cannot answer that, and the gap is bigger than it looks: an utterance is only a
-      row once the speaker has stopped, the audio has reached the model and the block has been
-      written, so for those seconds a transcript of saved lines is indistinguishable from a dead
-      microphone. Long enough that the honest reading of the panel is "this isn't working".
-
-      Only on the live call. The meter is about the microphone *this agent* is running now, which
-      has nothing to do with a past call somebody opened from a link — a bar moving beside last
-      month's meeting would be measuring the wrong thing and saying so confidently. It gates itself
-      on recording as well, so this adds the second condition rather than the first.
-    */
-    {
-      type: '$if',
-      props: { condition: VIEWING_LIVE, then: { type: '$part', props: { id: 'transcribe.captureMeter' } } },
-    },
-    {
-      type: '$if',
-      props: {
-        condition: CALL,
-        /*
-          The module's rows and its unsaved line, in a scroll area this template owns.
-
-          `transcriptLines` rather than `transcriptFeed`, and the scroll area written out here, for
-          one reason: the unsaved line has to be *inside* the scrolling region — immediately after
-          the last saved row, so a sentence does not appear to leap a gap of empty panel when it is
-          written — and it has to be absent on a past call, because that buffer is this agent's live
-          microphone and last month's meeting is not what it is saying. Placing the module's whole
-          feed would give the right position and the wrong call; placing the line beneath the feed
-          gave the right call and the wrong position. Owning the box is what allows both.
-
-          The rows themselves are still the module's, pointed at the call on screen — the query, the
-          attribution and every later fix to them arrive from there rather than being re-made here.
-        */
-        then: {
-          type: 'we-scroll-area',
-          // Follows the tail while somebody is at the tail, and holds still while they read further
-          // up — the module's own feed does the same, for the same reason.
-          props: { pin: 'end', flex: '1', minHeight: '0' },
-          children: [
-            {
-              type: 'Column',
-              props: { gap: '300' },
-              children: [
-                { type: '$part', props: { id: 'transcribe.transcriptLines', subject: CALL } },
-                {
-                  type: '$if',
-                  props: {
-                    condition: VIEWING_LIVE,
-                    then: { type: '$part', props: { id: 'transcribe.pendingUtterance' } },
-                  },
-                },
-              ],
-            },
-          ],
-        },
-        else: emptyState({ icon: 'microphone', label: 'a transcript' }),
-      },
-    },
-  ],
 };
 
 /**
@@ -921,16 +422,7 @@ const inspectorPanel: SchemaNode = {
     },
   },
   children: [
-    {
-      type: 'we-text',
-      props: {
-        variant: 'label',
-        color: 'text-muted',
-        textTransform: 'uppercase',
-        letterSpacing: 'wide',
-      },
-      children: ['Inspector'],
-    },
+    panelHeader({ title: 'Inspector' }),
     {
       type: '$if',
       props: {
@@ -1121,24 +613,7 @@ const callsPanel: SchemaNode = {
     calls: { entity: 'CollectionBlock', where: { kind: 'call' }, order: { createdAt: 'desc' }, limit: 30 },
   },
   children: [
-    {
-      type: 'Row',
-      props: { width: '100%', ay: 'center', gap: '200' },
-      children: [
-        {
-          type: 'we-text',
-          props: {
-            variant: 'label',
-            color: 'text-muted',
-            textTransform: 'uppercase',
-            letterSpacing: 'wide',
-            flex: '1',
-          },
-          children: ['Calls'],
-        },
-        startCall,
-      ],
-    },
+    panelHeader({ title: 'Calls', aside: startCall }),
     {
       type: '$if',
       props: {
@@ -1279,6 +754,10 @@ const board: SchemaNode = {
         board: CALL,
         contains: EXTRACTED,
         connections: 'Relationship',
+        // How this board draws those connections: which side of a card each line attaches to, and
+        // any points somebody bent it through. Per board, like a placement — the same claim shown
+        // elsewhere keeps its own shape there.
+        routes: 'EdgeRoute',
         pending: { $: 'modules.transcribe.proposals.map(p, p.id)' },
       },
     },
@@ -1390,6 +869,26 @@ const board: SchemaNode = {
       args: [CALL, { $: 'event.recordId' }, { $: 'event.recordType' }, { $: 'event.x' }, { $: 'event.y' }],
     },
     onNodeResize: { $action: 'recordStore.resizeOnBoard', args: [CALL, { $: 'event' }] },
+    /*
+      Routing a line by hand, written back — and binding these is what puts the handles on one.
+
+      Two gestures over one record: `onEdgeAnchor` pins which side of a card an end attaches to,
+      dragged around the card's rim; `onEdgeReroute` carries the points the line is bent through, so
+      a connection can be taken round a card sitting between its two ends. Both land on an
+      `EdgeRoute` parented to this board rather than on the `Relationship` — how a claim is *drawn*
+      is a fact about a view, and the same claim on another board is untouched.
+    */
+    onEdgeAnchor: { $action: 'recordStore.anchorOnBoard', args: [CALL, { $: 'event' }] },
+    onEdgeReroute: { $action: 'recordStore.rerouteOnBoard', args: [CALL, { $: 'event' }] },
+    /*
+      And the same handle dropped on a *different* card, which re-attaches the connection.
+
+      The one gesture here that edits the claim rather than the view: an anchor and a bend are how
+      this board draws the line, and this is what the line *says* — so it changes wherever the
+      relationship is shown. That end's anchor is cleared with it, a side pinned against the card
+      that used to be there deciding nothing about the one that arrived.
+    */
+    onEdgeRetarget: { $action: 'recordStore.retargetOnBoard', args: [CALL, { $: 'event' }] },
     /*
       What is selected, in the address — because the inspector is a *panel*.
 
@@ -2081,36 +1580,30 @@ export const workshopTemplate: TemplateSchema = {
     */
     panels: [
       /*
-        The transcript is this template's own node, where it used to be `module: 'transcribe'`.
+        The transcribe module's panel, placed. Nothing else — no body of our own.
 
-        The module's panel reads `modules.transcribe.collectionId` — the call being recorded into —
-        and the call *on screen* is now whatever the path names. Placing the module's panel would put
-        one surface about a different call beside three about this one, which is worse than either
-        answer on its own. What the module owns is unchanged: the microphone, the buffering and every
-        write. This is arrangement, which is the layer templates are made of.
-      */
-      /*
-        The transcribe module's panel, arranged here.
+        There was one, for one reason: the module's panel read `modules.transcribe.collectionId`,
+        the call being *recorded into*, and the call on screen here is whatever the path names, so
+        placing it would have put one surface about a different call beside three about this one.
+        Supplying a body bought that at the price of a second copy of the header, the feed and the
+        gating — and the copy drifted exactly as a copy does. It never gained the module's coverage
+        readout or its capture status, so this template silently said less about a failing
+        microphone than the default one did, and a fix to the transcript's scrolling landed on one
+        of the two.
 
-        `module` *and* `node` together: the module goes on owning whether the surface is up — press
-        record anywhere and it opens — and this owns what is inside it. Declared as a panel of its
-        own instead, as it was, the module's panel opened beside this one on the first press and the
-        screen carried two transcripts of the same call.
+        The answer was never a second panel. "Show the call the address names, else the live one" is
+        what a transcript panel should do everywhere, so it moved into the module — see `SUBJECT` in
+        its `Panel.schema.ts` — and this went back to being what a template's panel entry is for:
+        where the thing goes.
+
+        `dock` still names which of the module's two panels this is. It is no longer load-bearing —
+        without a `node` there is nothing to supply — but it is what says the entry means the
+        transcript rather than the extraction readout, and the entry below is its pair.
       */
       {
         id: 'transcript',
         module: 'transcribe',
-        /*
-          Named, now that the module contributes two panels.
-
-          Without it the host cannot tell which body this is, and refuses to supply either rather
-          than guessing — a transcript inside an extraction panel is a silent wrong answer. The two
-          entries below line up one-to-one with the module's two docks, which is what stops this
-          template showing a second copy of anything the module also draws.
-        */
         dock: 'transcript',
-        node: transcriptPanel,
-        title: 'Transcript',
         snap: 'left',
         /*
           One sidebar cut in two, rather than two cards over the board.
@@ -2140,12 +1633,24 @@ export const workshopTemplate: TemplateSchema = {
       },
       {
         id: 'extraction',
-        // The module's own extraction panel, arranged here — see `transcript` above. It was a
-        // panel of this template's own, so the module's opened beside it the moment a pass ran.
+        /*
+          The module's extraction panel, placed — the twin of `transcript` above, and gone the same
+          way for the same reasons.
+
+          There was a body here too, and its own list of what a pass had found was the half of it
+          worth keeping; the module's panel draws that now. What it did not have was the module's
+          collapsing history, its per-pass prompt and response, the record button's three status
+          lines or the watch's failure — so a failed pass was silent here and a settled one showed a
+          green tick whether it had succeeded, found nothing or failed.
+
+          It was also wrong in a way nothing surfaced: the chips and the Extract button asked about
+          the *live* call while the results below them were the addressed one's, so a past call's
+          list sat under another call's targets and the button that would have worked on it was
+          hidden by a guard about the wrong record. The store answers per call now — see
+          `extractionFor` — which is what let the panel move.
+        */
         module: 'transcribe',
         dock: 'extraction',
-        node: extractionPanel,
-        title: 'Extraction',
         snap: 'left',
         // The same lane as the transcript — see there.
         displace: true,

@@ -1,4 +1,5 @@
 import type { EntitySchema } from '@we/backend-shared';
+import { CORE_MANIFEST } from '@we/entities/manifest';
 import { describe, expect, it } from 'vitest';
 
 import { displayFor, kindFor } from '../src/shared/shapes/recordDisplay';
@@ -92,5 +93,45 @@ describe('kindFor', () => {
     ['name', { type: 'string' }, 'text'],
   ] as const)('%s → %s', (name, property, kind) => {
     expect(kindFor(name, property as never)).toBe(kind);
+  });
+});
+
+/**
+ * A connection is shown even though it cannot be created from the picker.
+ *
+ * These are two questions and the store answered them with one list. `Relationship` is excluded from
+ * `creatableEntities` on purpose — a connection is *drawn* between two things rather than filled in
+ * from a form, so offering it there would offer two endpoints nobody had chosen — and `displays` was
+ * derived from that list, which quietly made "cannot be created here" mean "cannot be displayed".
+ *
+ * The symptom was an empty inspector for a connector whose own name was drawn on the line beside it.
+ * Nothing failed: the record was found, the panel mounted, and every field read off a display that
+ * was `undefined`.
+ *
+ * Asserted against the manifest rather than against the store, which needs a live space — what is
+ * being pinned is that the declaration a display is built from is there and says something useful.
+ */
+describe('a connection is displayable', () => {
+  const relationship = CORE_MANIFEST.entities.Relationship;
+
+  it('is declared, and declares the fields somebody fills in', () => {
+    // The premise. Without an `authoring` declaration there would be nothing to derive a display
+    // from, and excluding it from the picker would be the whole story rather than half of it.
+    expect(relationship).toBeDefined();
+    expect(relationship.authoring?.fields).toContain('label');
+  });
+
+  it('derives a display with something to read on it', () => {
+    const display = displayFor({
+      entity: 'Relationship',
+      schema: relationship,
+      authorable: false,
+      icon: 'arrow-right',
+    });
+
+    // A title is what the inspector leads with; without one the panel is blank whatever else is on
+    // the record. `label` is the connection's own name — the string already drawn on the line.
+    expect(display.title).toBe('label');
+    expect(display.fields.length).toBeGreaterThan(0);
   });
 });

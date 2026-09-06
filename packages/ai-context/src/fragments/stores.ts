@@ -1118,6 +1118,12 @@ export function generateStoresText(entries: StoreEntry[]): string {
           '(board: string, nodeId: string): takes a record off a board, leaving the record itself alone. A card the board owns survives as an unplaced one in the tray',
         resizeOnBoard:
           "(board: string, payload): resizes a card on a board. Takes the graph's onNodeResize payload as it arrives; the size lives on the placement, so the same post on another board is unaffected",
+        anchorOnBoard:
+          "(board: string, payload): pins which SIDE of a card a connection leaves or arrives on, for this board. Takes the graph's onEdgeAnchor payload as it arrives; an empty side clears that end, and a route with neither end pinned and no bends is deleted. Bends survive a clear — one record holds both, and letting go of a side says nothing about the shape somebody drew. Per board, like a placement — the same connection on somebody else's board is unaffected",
+        rerouteOnBoard:
+          "(board: string, payload): writes the shape of one connection's route on this board — the points it is bent through. Takes the graph's onEdgeReroute payload as it arrives; the whole list, in the edge's own frame, so a bend keeps its proportions when either card moves. An empty list straightens it, and a route with no points and no anchors is deleted",
+        retargetOnBoard:
+          "(board: string, payload): moves one end of a connection onto a different record. Takes the graph's onEdgeRetarget payload as it arrives. Unlike anchorOnBoard and rerouteOnBoard this changes the CLAIM rather than how one board draws it — the relationship now says something different everywhere it is shown. That end's anchor is cleared; its waypoints stay",
         setCardStyle:
           "(board: string, nodeId: string, field: string, value): sets one presentation property of one card on one board — 'color', 'cardShape', 'contentScale', 'rotation' (degrees clockwise) and 'z' (stacking order). Takes the field name so one action serves a swatch, a picker and a slider. 0 is unset for the numbers, so a card is un-rotated by writing 0. Undone by taking the card off the board",
         previewCardStyle:

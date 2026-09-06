@@ -1,7 +1,7 @@
 {
   "name": "@we/module-notes",
   "version": "0.1.0",
-  "description": "Notes feature module \u2014 a per-space scratchpad panel",
+  "description": "Notes feature module — a per-space scratchpad panel",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -23,7 +23,8 @@
     "dist"
   ],
   "dependencies": {
-    "@we/backend-shared": "workspace:*"
+    "@we/backend-shared": "workspace:*",
+    "@we/schema-kit": "workspace:*"
   },
   "peerDependencies": {
     "@we/schema-shared": "workspace:*",
