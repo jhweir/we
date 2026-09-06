@@ -959,6 +959,36 @@ describe('edge picking', () => {
     expect(engine.getEdgeGeometry().get('a-b')!.to).toEqual(before);
   });
 
+  it('draws an end to a loose point, so dragging one is smooth rather than stepped', async () => {
+    // A card has four sides and a board has however many cards, so an end that can only ever be on
+    // one of those moves in jumps however finely the pointer does. The point IS the end here — no
+    // clearance, or the line would trail the cursor by a gap that reads as lag.
+    const engine = await threeNodeEngine();
+
+    engine.setEdgeOverlay(new Map([['a-b', { targetX: 137, targetY: 42 }]]));
+
+    expect(engine.getEdgeGeometry().get('a-b')!.to).toEqual({ x: 137, y: 42 });
+  });
+
+  it('ignores a pinned side at a loose end', async () => {
+    // The fields still say `targetAnchor` while the drag is under way; honouring it would send the
+    // line off north from wherever the cursor happens to be.
+    const engine = await threeNodeEngine();
+
+    engine.setEdgeOverlay(new Map([['a-b', { targetAnchor: 'n', targetX: 137, targetY: 42 }]]));
+
+    expect(engine.getEdgeGeometry().get('a-b')!.to).toEqual({ x: 137, y: 42 });
+  });
+
+  it('needs both halves of a point before it treats an end as loose', async () => {
+    const engine = await threeNodeEngine();
+    const before = engine.getEdgeGeometry().get('a-b')!.to;
+
+    engine.setEdgeOverlay(new Map([['a-b', { targetX: 137 }]]));
+
+    expect(engine.getEdgeGeometry().get('a-b')!.to).toEqual(before);
+  });
+
   it('honours an overlaid source as well as a target', async () => {
     const engine = await threeNodeEngine();
     const before = engine.getEdgeGeometry().get('a-b')!.from.x;

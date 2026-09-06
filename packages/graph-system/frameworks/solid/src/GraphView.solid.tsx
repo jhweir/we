@@ -694,7 +694,16 @@ export function GraphView(props: GraphViewProps) {
       const wanted = draft.patch[end];
       return typeof wanted !== 'string' || !wanted || raw?.[end] === wanted;
     });
-    if (raw && endsArrived && routesAlike(raw.data, { ...raw.data, ...draft.patch })) {
+    /*
+      A draft holding a loose end is never settled — the pointer is still down.
+
+      Nothing stored can agree with a point that is wherever the cursor is, and the fields *beside*
+      it can: dragging an end back to the side it was already on writes an anchor identical to the
+      stored one, which without this reads as "nothing left to preview", drops the overlay, and
+      leaves the line frozen for the rest of the gesture.
+    */
+    const loose = ['sourceX', 'sourceY', 'targetX', 'targetY'].some((key) => key in draft.patch);
+    if (raw && !loose && endsArrived && routesAlike(raw.data, { ...raw.data, ...draft.patch })) {
       setAnchorDraft(null);
       engine.setEdgeOverlay(new Map());
       return;
@@ -1081,6 +1090,23 @@ export function GraphView(props: GraphViewProps) {
     let side: EdgeSide | '' = '';
     let landing: string | null = null;
 
+    /*
+      Merge into whatever the draft already holds, and drop the loose point.
+
+      Merged rather than replaced so pinning one end and then the other does not lose the first end's
+      preview while its write is still in flight; and the loose point is cleared in the same write,
+      because it only ever describes a pointer that is still down. Left behind, it would outrank the
+      side that was just chosen and hold the end at the last place the cursor was.
+    */
+    const draft = (patch: Record<string, GraphValue>) => {
+      setAnchorDraft((previous) => {
+        const held = previous?.id === edgeId ? { ...previous.patch } : {};
+        delete held[`${end}X`];
+        delete held[`${end}Y`];
+        return { id: edgeId, patch: { ...held, ...patch } };
+      });
+    };
+
     const move = (moved: PointerEvent) => {
       if (moved.buttons === 0) return;
       const world = at(moved);
@@ -1098,25 +1124,24 @@ export function GraphView(props: GraphViewProps) {
       setHovered(landing);
       side = sideOf(world, centre, halfWidth, halfHeight);
       /*
-        The line follows either way, and this is the half that was missing.
+        The end goes wherever the pointer is, and is resolved to a side on release.
 
-        Over another card the whole end moves there, previewed through the same overlay the anchor
-        drag uses — `source`/`target` in a patch mean "route as though it attached here". Without it
-        the endpoint stayed pinned to its own card's rim for the whole drag, so the gesture looked
-        like it only ever offered the four sides of the card it started on, whatever the drop then
-        did. The anchor goes with it: which side of a card you left is not an answer about a
-        different card, so it is cleared and the geometry decides again.
+        Both halves of what a drag is for. A card has four sides and a board has however many cards,
+        so an end that could only ever be *on* one of those moves in jumps however finely the pointer
+        moves — which is what this looked like beside the waypoint drag, where the point follows the
+        cursor exactly. So the line is drawn to the cursor while the button is down; where it will
+        land is carried in `side` and `landing` and applied when it comes up.
 
-        Merged rather than replaced, so pinning one end and then the other does not drop the first
-        end's preview while its write is still in flight.
+        The landing is still written, because the other end of the line has to know: routing to a
+        loose point beside a card the end is about to join is what makes the shape change as the
+        pointer crosses onto it. And the anchor goes with the move — which side of a card you left is
+        not an answer about a different card.
       */
-      setAnchorDraft((previous) => ({
-        id: edgeId,
-        patch: {
-          ...(previous?.id === edgeId ? previous.patch : {}),
-          ...(landing ? { [end]: landing, [field]: '' } : { [end]: '', [field]: side }),
-        },
-      }));
+      draft({
+        ...(landing ? { [end]: landing, [field]: '' } : { [end]: '', [field]: side }),
+        [`${end}X`]: world.x,
+        [`${end}Y`]: world.y,
+      });
     };
 
     const finish = () => {
@@ -1138,6 +1163,9 @@ export function GraphView(props: GraphViewProps) {
         changes on every board and for everyone. Where it *attaches* is this board's business alone.
       */
       if (landing && arrived?.kind === 'entity' && arrived.id && props.onEdgeRetarget) {
+        // The end settles onto the card it was dropped on, and the preview holds it there until the
+        // write comes back round the data layer as an edge attached somewhere else.
+        draft({ [end]: landing, [field]: '' });
         props.onEdgeRetarget({
           id: edgeId,
           end,
@@ -1155,10 +1183,7 @@ export function GraphView(props: GraphViewProps) {
         whole, leaving the end previewed on a card it never moved to, so the preview is withdrawn
         here rather than left for a write that is not coming.
       */
-      setAnchorDraft((previous) => ({
-        id: edgeId,
-        patch: { ...(previous?.id === edgeId ? previous.patch : {}), [end]: '', [field]: side },
-      }));
+      draft({ [end]: '', [field]: side });
       props.onEdgeAnchor?.({ id: edgeId, end, side, ...connection });
     };
 

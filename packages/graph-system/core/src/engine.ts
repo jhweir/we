@@ -1123,12 +1123,34 @@ export class GraphEngine {
         */
         const sourceId = typeof patch?.source === 'string' && patch.source ? patch.source : edge.source;
         const targetId = typeof patch?.target === 'string' && patch.target ? patch.target : edge.target;
-        const from = this.positions.get(sourceId);
-        const to = this.positions.get(targetId);
+        /*
+          An end held at a bare point, which is what makes dragging one *smooth*.
+
+          A card has four sides and a board has however many cards, so an end that could only ever be
+          on one of those moves in jumps however finely the pointer moves — which is what dragging an
+          endpoint looked like, against a waypoint drag beside it that follows the cursor exactly.
+          So the gesture puts the end wherever the pointer is and resolves it to a side on release.
+
+          `sourceX`/`sourceY` and `targetX`/`targetY`, both required, since half a point is not one.
+        */
+        const loose = (end: 'source' | 'target'): Point | null => {
+          const x = patch?.[`${end}X`];
+          const y = patch?.[`${end}Y`];
+          return typeof x === 'number' && typeof y === 'number' ? { x, y } : null;
+        };
+        const looseFrom = loose('source');
+        const looseTo = loose('target');
+        const from = looseFrom ?? this.positions.get(sourceId);
+        const to = looseTo ?? this.positions.get(targetId);
         if (!from || !to) return;
         const style = resolveStyle(edge, this.spec.edgeStyle);
-        const targetNode = this.store.node(targetId);
-        const sourceNode = this.store.node(sourceId);
+        // Where a connection leaves and arrives, when somebody has said. Off the edge's own data, so
+        // whatever loaded it decides — the board seed reads them from an `EdgeRoute` — with any
+        // overlay in front, which is how a drag previews and how a write holds until it lands.
+        const anchors = anchorsOf({ ...edge.data, ...patch });
+        // No node at a loose end, so nothing to stand off from: the line reaches the pointer itself.
+        const targetNode = looseTo ? undefined : this.store.node(targetId);
+        const sourceNode = looseFrom ? undefined : this.store.node(sourceId);
         /*
           Stop short of the node's *edge*, so an arrowhead lands on it rather than inside it or short
           of it. Measured from the same place the renderer gets its size, so the two cannot disagree.
@@ -1152,12 +1174,13 @@ export class GraphEngine {
           to,
           normaliseCurve(style.curve),
           offsets[index],
-          this.clearanceFor(targetNode),
-          this.clearanceFor(sourceNode),
-          // Where a connection leaves and arrives, when somebody has said. Off the edge's own data,
-          // so whatever loaded it decides — the board seed reads them from an `EdgeRoute` — with any
-          // overlay in front, which is how a drag previews and how a write holds until it lands.
-          anchorsOf({ ...edge.data, ...patch }),
+          // A loose end stands off nothing — the point IS the end, so any clearance would leave the
+          // line trailing the cursor by a gap that reads as lag.
+          looseTo ? 0 : this.clearanceFor(targetNode),
+          looseFrom ? 0 : this.clearanceFor(sourceNode),
+          // A loose end has no side, whatever the fields still say: the end is a point, and pinning
+          // it to an axis would send the line off north from wherever the cursor happens to be.
+          { source: looseFrom ? undefined : anchors.source, target: looseTo ? undefined : anchors.target },
           // Stored in the edge's own frame, so a bend keeps its proportions when either card moves —
           // see `EdgeWaypoint`. Converted here, where both centres are in hand.
           waypointsOf({ ...edge.data, ...patch }).map((point) => waypointToWorld(point, from, to)),
