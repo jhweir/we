@@ -25,6 +25,7 @@ import { AgentSettings } from './AgentSettings';
 import { CallExtraction } from './CallExtraction';
 import { ChatMessage } from './ChatMessage';
 import { ChatSession } from './ChatSession';
+import { EdgeRoute } from './EdgeRoute';
 import { ExtractionPass } from './ExtractionPass';
 import { MutedAgent } from './MutedAgent';
 import { Placement } from './Placement';
@@ -60,6 +61,7 @@ export const CORE_DEFS: Record<string, CoreEntityDef> = {
   CodeBlock,
   CollectionBlock,
   DividerBlock,
+  EdgeRoute,
   EmbedBlock,
   EventBlock,
   FileBlock,

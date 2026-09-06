@@ -112,6 +112,12 @@ export interface DividerBlockRecord extends WeNodeRecord {
   version: number;
 }
 
+export interface EdgeRouteRecord extends RecordInstance {
+  sourceAnchor: string;
+  targetAnchor: string;
+  connection?: string;
+}
+
 export interface EmbedBlockRecord extends WeNodeRecord {
   url: string;
   target: string;

@@ -7,7 +7,15 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { bowOffsets, distanceToEdge, groupByEndpoints, normaliseCurve, routeEdge, trimToRadius } from './geometry';
+import {
+  anchorsOf,
+  bowOffsets,
+  distanceToEdge,
+  groupByEndpoints,
+  normaliseCurve,
+  routeEdge,
+  trimToRadius,
+} from './geometry';
 
 describe('trimToRadius', () => {
   it('stops the segment at the node edge, not its centre', () => {
@@ -390,5 +398,99 @@ describe('clearance at the source end', () => {
 
     expect(trimmed.from).toEqual({ x: 0, y: 0 });
     expect(explicit.from).toEqual(trimmed.from);
+  });
+});
+
+/**
+ * An anchor pins which side of a node one end of an edge attaches to.
+ *
+ * Where a connection leaves and arrives is normally derived from where the two nodes are, which is
+ * right until somebody wants it otherwise — a line that would run straight through a third card, or
+ * a flow whose steps should leave rightwards whatever the layout did with them. An anchor is that
+ * decision, and it has to beat every rule the geometry would otherwise apply.
+ */
+describe('anchors', () => {
+  const box = { halfWidth: 100, halfHeight: 40 };
+
+  it('leaves the side it is told to, not the side it is facing', () => {
+    // Mostly horizontal, so an unanchored smooth curve would leave the source's east side. Pinned
+    // north, it leaves the top — which is the whole of what an anchor is for.
+    const route = routeEdge('e', { x: 0, y: 0 }, { x: 400, y: 0 }, 'smooth', 0, 0, box, { source: 'n' });
+
+    expect(route.from).toEqual({ x: 0, y: -40 });
+  });
+
+  it('arrives on the side it is told to', () => {
+    const route = routeEdge('e', { x: 0, y: 0 }, { x: 400, y: 0 }, 'smooth', 0, box, 0, { target: 's' });
+
+    expect(route.to).toEqual({ x: 400, y: 40 });
+  });
+
+  it('sets off the way that side faces, not along the edge', () => {
+    /*
+      The half that makes an anchor look like one. Moving only the attachment leaves the tangent on
+      the dominant axis, so a curve pinned to a card's top leaves the top and immediately sets off
+      sideways — which on screen reads as the anchor having been ignored, since the line still runs
+      the way it always did and merely starts a few pixels elsewhere.
+    */
+    const route = routeEdge('e', { x: 0, y: 0 }, { x: 400, y: 0 }, 'smooth', 0, 0, box, { source: 'n' });
+
+    // Departing north: the first control point is directly above the start, never beside it.
+    expect(route.control!.x).toBeCloseTo(route.from.x, 5);
+    expect(route.control!.y).toBeLessThan(route.from.y);
+  });
+
+  it('beats a chord trim, which would otherwise decide the side for itself', () => {
+    // `straight` and `arc` meet a node wherever the ray crosses it. An anchor is not a hint about
+    // which crossing to prefer — it names the side, and a straight edge told to leave the north one
+    // leaves the middle of the top.
+    const route = routeEdge('e', { x: 0, y: 0 }, { x: 400, y: 0 }, 'straight', 0, 0, box, { source: 'n' });
+
+    expect(route.from).toEqual({ x: 0, y: -40 });
+  });
+
+  it('pins one end without touching the other', () => {
+    // The ordinary case: somebody fixes the end that was wrong and leaves the rest alone.
+    const anchored = routeEdge('e', { x: 0, y: 0 }, { x: 400, y: 0 }, 'smooth', 0, box, box, { source: 'n' });
+    const derived = routeEdge('e', { x: 0, y: 0 }, { x: 400, y: 0 }, 'smooth', 0, box, box);
+
+    expect(anchored.to).toEqual(derived.to);
+    expect(anchored.from).not.toEqual(derived.from);
+  });
+
+  it('routes an unanchored edge exactly as it always did', () => {
+    // The property that makes this safe to add: every edge on every existing graph is unanchored, so
+    // passing no anchors has to be indistinguishable from the code that had no idea they existed.
+    for (const curve of ['straight', 'smooth', 'step', 'arc'] as const) {
+      const before = routeEdge('e', { x: 0, y: 0 }, { x: 300, y: 90 }, curve, 20, box, box);
+      const after = routeEdge('e', { x: 0, y: 0 }, { x: 300, y: 90 }, curve, 20, box, box, {});
+
+      expect(after).toEqual(before);
+    }
+  });
+});
+
+/**
+ * What the router reads an anchor out of, and what it refuses.
+ *
+ * The data bag is shared, writable and peer-to-peer: what is in it was put there by whoever last
+ * wrote the record, and a value the router took at face value would land an endpoint at `NaN` — a
+ * line that draws nothing and reports nothing.
+ */
+describe('anchorsOf', () => {
+  it('reads the four sides', () => {
+    expect(anchorsOf({ sourceAnchor: 'n', targetAnchor: 'w' })).toEqual({ source: 'n', target: 'w' });
+  });
+
+  it('treats an empty string as no anchor, which is how one is cleared', () => {
+    expect(anchorsOf({ sourceAnchor: '', targetAnchor: 'e' })).toEqual({ source: undefined, target: 'e' });
+  });
+
+  it('drops anything that is not a side', () => {
+    expect(anchorsOf({ sourceAnchor: 'north', targetAnchor: 7 })).toEqual({ source: undefined, target: undefined });
+  });
+
+  it('answers for an edge carrying no data at all', () => {
+    expect(anchorsOf(undefined)).toEqual({ source: undefined, target: undefined });
   });
 });

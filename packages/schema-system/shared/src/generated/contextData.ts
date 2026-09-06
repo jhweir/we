@@ -1352,6 +1352,11 @@ export const contextData: ContextData = {
           optional: true,
         },
         {
+          name: 'onEdgeAnchor',
+          type: '((payload: { id: string; end: "source" | "target"; side: "" | "n" | "e" | "s" | "w"; recordId?: string; recordType?: string; }) => void)',
+          optional: true,
+        },
+        {
           name: 'onEdgeCreate',
           type: '((payload: { source: GraphNode; target: GraphNode; sourceId: string; sourceType: string; targetId: string; targetType: string; sourceLabel: string; targetLabel: string; }) => void)',
           optional: true,
@@ -1556,6 +1561,16 @@ export const contextData: ContextData = {
         { name: 'version', type: 'number', predicate: 'we://version', required: false },
       ],
       relations: [],
+    },
+    {
+      name: 'EdgeRoute',
+      className: 'EdgeRoute',
+      extends: 'Ad4mModel',
+      fields: [
+        { name: 'sourceAnchor', type: 'string', predicate: 'we://source_anchor', required: false },
+        { name: 'targetAnchor', type: 'string', predicate: 'we://target_anchor', required: false },
+      ],
+      relations: [{ name: 'connection', kind: 'HasOne', predicate: 'we://routed_connection' }],
     },
     {
       name: 'EmbedBlock',
@@ -2384,6 +2399,7 @@ export const contextData: ContextData = {
         'placeOnBoard',
         'removeFromBoard',
         'resizeOnBoard',
+        'anchorOnBoard',
         'setCardStyle',
         'previewCardStyle',
         'setTypeColor',

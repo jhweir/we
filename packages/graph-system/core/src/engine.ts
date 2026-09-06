@@ -29,7 +29,15 @@ import { addressKind } from '@we/graph-protocol';
 import { connectionTarget } from './connect';
 import { ExpansionState, SEED_OPENER } from './expansion';
 import type { EdgeClearance } from './geometry';
-import { bowOffsets, distanceToEdge, edgeBounds, groupByEndpoints, normaliseCurve, routeEdge } from './geometry';
+import {
+  anchorsOf,
+  bowOffsets,
+  distanceToEdge,
+  edgeBounds,
+  groupByEndpoints,
+  normaliseCurve,
+  routeEdge,
+} from './geometry';
 import { PluginRegistry } from './registry';
 import { SpatialIndex } from './spatial';
 import { GraphStore } from './store';
@@ -976,6 +984,32 @@ export class GraphEngine {
     return this.overlay.size > 0;
   }
 
+  /**
+   * The same, for edges — fields drawn over a connection's own, by edge id.
+   *
+   * Its own map rather than a second use of the node one: they are keyed in different namespaces and
+   * a collision would be silent. Routing is all it can affect, which is why this re-routes and does
+   * not re-index — an edge is not in the spatial index; `hitTestEdge` measures the geometry.
+   *
+   * Two jobs, and they are the same job at different moments. While somebody drags an anchor around
+   * a card's rim, the line has to follow the pointer — a preview that only appeared on release would
+   * be asking people to guess. And after they let go, the write goes to a peer-to-peer data layer and
+   * comes back through a subscription and a re-seed: without this the edge would snap to its derived
+   * side for that whole round trip and then move again, which reads as the gesture having failed.
+   */
+  private edgeOverlay: ReadonlyMap<string, Record<string, GraphValue>> = new Map();
+
+  setEdgeOverlay(overlay: ReadonlyMap<string, Record<string, GraphValue>>): void {
+    this.edgeOverlay = overlay;
+    this.routeEdges();
+    this.notify('graph');
+  }
+
+  /** The fields laid over this edge, if any. Read by a renderer so it draws from the same values. */
+  edgeOverlayFor(id: string): Record<string, GraphValue> | undefined {
+    return this.edgeOverlay.get(id);
+  }
+
   /** The fields laid over this node, if any. Read by a renderer so it draws from the same values. */
   overlayFor(id: string): Record<string, GraphValue> | undefined {
     return this.overlay.get(id);
@@ -1064,6 +1098,10 @@ export class GraphEngine {
           offsets[index],
           this.clearanceFor(targetNode),
           this.clearanceFor(sourceNode),
+          // Where a connection leaves and arrives, when somebody has said. Off the edge's own data,
+          // so whatever loaded it decides — the board seed reads them from an `EdgeRoute` — with any
+          // overlay in front, which is how a drag previews and how a write holds until it lands.
+          anchorsOf({ ...edge.data, ...this.edgeOverlay.get(edge.id) }),
         );
         this.edgeGeometry.set(edge.id, geometry);
         this.edgeBoxes.set(edge.id, edgeBounds(geometry));

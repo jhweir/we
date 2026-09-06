@@ -123,6 +123,22 @@ export type LayoutFactory<TOptions = unknown> = (options?: TOptions) => Layout;
 export type EdgeCurve = 'straight' | 'arc' | 'smooth' | 'step';
 
 /**
+ * A side of a node, as an edge's anchor names it.
+ *
+ * Which side a connection leaves or arrives on is normally derived from where the two nodes are —
+ * see `attachPoint` — and an anchor is somebody overruling that for one end of one edge. A side
+ * rather than a point along it: a side survives the node being resized, and it is the same four the
+ * connect handles already offer.
+ */
+export type EdgeSide = 'n' | 'e' | 's' | 'w';
+
+/** Which side each end of an edge is pinned to, where either has been. Absent means derived. */
+export interface EdgeAnchors {
+  source?: EdgeSide;
+  target?: EdgeSide;
+}
+
+/**
  * Where an edge actually runs, in world units.
  *
  * Geometry, not drawing instructions: control points rather than an SVG path string, so the engine can

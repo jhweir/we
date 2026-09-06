@@ -10,7 +10,7 @@
  * path string. A renderer turns that into whatever it strokes with, and the core can measure the same
  * curve without knowing anything about either.
  */
-import type { EdgeCurve, EdgeGeometry, Point } from '@we/graph-protocol';
+import type { EdgeAnchors, EdgeCurve, EdgeGeometry, EdgeSide, Point } from '@we/graph-protocol';
 
 /**
  * Canonical curve name for whatever a style asked for.
@@ -49,6 +49,32 @@ export interface EdgeClearance {
 /** Half-extents on each axis. A circle's are equal, which is all the axis-aligned cases need. */
 function clearanceOf(clearance: number | EdgeClearance): EdgeClearance {
   return typeof clearance === 'number' ? { halfWidth: clearance, halfHeight: clearance } : clearance;
+}
+
+/** Which way a side faces, as a unit vector out of the node. See {@link EdgeSide}. */
+const OUTWARD: Record<EdgeSide, readonly [number, number]> = {
+  n: [0, -1],
+  e: [1, 0],
+  s: [0, 1],
+  w: [-1, 0],
+};
+
+/**
+ * The anchors an edge is carrying in its data bag, if any.
+ *
+ * Read by those names rather than under a `board`-ish prefix, for the reason the `manual` layout
+ * reads `x`/`y` by theirs: an anchor is a fact about a graph edge and not about boards, so anything
+ * that knows which side a connection should leave from can say so and the engine will honour it.
+ * The board seed is simply the first thing that does.
+ *
+ * Anything that is not one of the four sides is dropped rather than passed on. A stored value can be
+ * whatever a peer wrote — this is a shared, writable data layer — and a bad one reaching the router
+ * would land the edge at `NaN`, which draws nothing and reports nothing.
+ */
+export function anchorsOf(data: Record<string, unknown> | undefined): EdgeAnchors {
+  const side = (value: unknown): EdgeSide | undefined =>
+    value === 'n' || value === 'e' || value === 's' || value === 'w' ? value : undefined;
+  return { source: side(data?.sourceAnchor), target: side(data?.targetAnchor) };
 }
 
 /**
@@ -143,6 +169,28 @@ function shiftLane(point: Point, lane: number, horizontal: boolean): Point {
 }
 
 /**
+ * Which way one end of a smooth curve sets off, as a unit vector.
+ *
+ * Anchored, it is the way that side faces — the curve leaves the north side upwards. Unanchored, it
+ * is the dominant axis signed by which way the edge runs, which is what the tangents were computed
+ * from before anchors existed and is why an edge with neither end pinned is routed identically.
+ *
+ * `arriving` flips it, because the second control point is measured *back* from the target: an edge
+ * arriving at a west side approaches from the west, so its tangent points that way out of the node.
+ */
+function departure(
+  from: Point,
+  to: Point,
+  horizontal: boolean,
+  side: EdgeSide | undefined,
+  arriving: boolean,
+): readonly [number, number] {
+  if (side) return OUTWARD[side];
+  const sign = Math.sign((horizontal ? to.x - from.x : to.y - from.y) || 1) * (arriving ? -1 : 1);
+  return horizontal ? [sign, 0] : [0, sign];
+}
+
+/**
  * Route one edge.
  *
  * `offset` bows the curve to one side. Two nodes related in both directions produce two edges with
@@ -162,6 +210,10 @@ function shiftLane(point: Point, lane: number, horizontal: boolean): Point {
  * attachment jumps from a side to an underside as a node crosses the diagonal: that is the same
  * moment the curve itself changes which axis it travels along. One visible change rather than two
  * disagreeing ones.
+ *
+ * `side` is somebody overruling all of that for this end of this edge — an anchor. It wins over
+ * every shape, including the two that trim along the chord: an anchored `straight` edge leaves the
+ * middle of the side it was told to, which is the point of saying so.
  */
 function attachPoint(
   from: Point,
@@ -169,9 +221,14 @@ function attachPoint(
   curve: EdgeCurve,
   clearance: number | EdgeClearance,
   horizontal: boolean,
+  side?: EdgeSide,
 ): Point {
   const { halfWidth, halfHeight } = clearanceOf(clearance);
   if (halfWidth <= 0 && halfHeight <= 0) return to;
+  if (side) {
+    const [ax, ay] = OUTWARD[side];
+    return { x: to.x + ax * halfWidth, y: to.y + ay * halfHeight };
+  }
   if (curve === 'smooth' || curve === 'step') {
     // The axis it arrives on is the axis to measure: a curve arriving horizontally meets the left or
     // right side, and how tall the node happens to be says nothing about where that side is.
@@ -223,6 +280,16 @@ function trimToBox(from: Point, to: Point, halfWidth: number, halfHeight: number
  * `attachPoint` works from either end unchanged: asked about `from` with the roles swapped, it gives
  * the point on the source facing the target. `horizontal` is not swapped with it — the axis is a
  * property of the edge, decided once from the centres.
+ *
+ * `anchors` pin which **side** of a node each end leaves or arrives on, where somebody has said. It
+ * overrules the derived side, and for a shape with a tangent it overrules the direction of travel
+ * too: an edge told to leave the north side departs *upwards*, or the curve would leave the top of a
+ * card and immediately set off sideways, which reads as the anchor having been ignored.
+ *
+ * `step` is the exception and knowingly so: an anchor moves where it attaches, and its corners are
+ * still derived from the axis the edge mostly runs along. Cross-axis anchors on an orthogonal route
+ * want a router that solves the whole path, which is a different piece of work; the shape a board
+ * uses is `smooth`.
  */
 export function routeEdge(
   id: string,
@@ -232,6 +299,7 @@ export function routeEdge(
   offset = 0,
   clearance: number | EdgeClearance = 0,
   sourceClearance: number | EdgeClearance = 0,
+  anchors: EdgeAnchors = {},
 ): EdgeGeometry {
   if (from.x === to.x && from.y === to.y) {
     // A self-loop has no direction to bow along, so it gets a fixed teardrop above the node.
@@ -253,9 +321,9 @@ export function routeEdge(
   const horizontal = Math.abs(to.x - from.x) >= Math.abs(to.y - from.y);
   // Computed from the centres, then held: deriving it again from the attachment point would let a
   // short edge flip axis purely because the clearance shortened it.
-  const end = attachPoint(from, to, curve, clearance, horizontal);
+  const end = attachPoint(from, to, curve, clearance, horizontal, anchors.target);
   // The same question at the other end — see `sourceClearance`. Roles swapped, axis not.
-  const begin = attachPoint(to, from, curve, sourceClearance, horizontal);
+  const begin = attachPoint(to, from, curve, sourceClearance, horizontal, anchors.source);
 
   if (curve === 'step') {
     // Two separations, at right angles to each other so they compose rather than compete: the lane
@@ -300,9 +368,20 @@ export function routeEdge(
     const lane = laneWidth(offset, clearance, horizontal);
     const start = shiftLane(begin, lane, horizontal);
     const finish = shiftLane(end, lane, horizontal);
-    const reach = (horizontal ? finish.x - start.x : finish.y - start.y) / 2;
-    const control = horizontal ? { x: start.x + reach, y: start.y } : { x: start.x, y: start.y + reach };
-    const control2 = horizontal ? { x: finish.x - reach, y: finish.y } : { x: finish.x, y: finish.y - reach };
+    /*
+      Each end departs along the way its own side faces.
+
+      Unanchored that is the dominant axis, signed by which way the edge runs, which is exactly what
+      the two expressions here used to say in longhand. Anchored it is the side somebody pinned, and
+      the two ends no longer have to agree: an edge leaving a card's top and arriving at another's
+      left is a curve that departs upward and arrives from the left, which is the shape an anchor is
+      asking for and the reason it cannot be one shared axis any more.
+    */
+    const reach = Math.abs(horizontal ? finish.x - start.x : finish.y - start.y) / 2;
+    const out = departure(from, to, horizontal, anchors.source, false);
+    const back = departure(from, to, horizontal, anchors.target, true);
+    const control = { x: start.x + out[0] * reach, y: start.y + out[1] * reach };
+    const control2 = { x: finish.x + back[0] * reach, y: finish.y + back[1] * reach };
     return {
       id,
       from: start,

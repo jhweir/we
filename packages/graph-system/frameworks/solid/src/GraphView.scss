@@ -778,3 +778,22 @@
   left: calc(var(--half-w) + var(--reach));
   top: 0;
 }
+
+/**
+ * The grip on each end of a hovered connection — drag it round a card's rim to pin the side.
+ *
+ * In the edges SVG, which is inert so the canvas can hit-test in world space, so this takes its own
+ * presses. Its hit area is the circle itself, which is small; `stroke` is what makes it reachable —
+ * a stroked circle is hit over its whole painted width, so the ring doubles as the target.
+ */
+.we-graph__anchor {
+  fill: var(--we-role-accent);
+  stroke: var(--we-color-neutral-0);
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+}
+
+.we-graph__anchor:active {
+  cursor: grabbing;
+}

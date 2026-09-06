@@ -48,7 +48,12 @@ const boardCards: SchemaNode = {
     // from the query that found them.
     // `typeStyles` is the board's key, read back: a colour per kind of thing, which every card of
     // that kind is drawn in unless it carries one of its own.
-    seeds: { source: 'board', options: { board: BOARD, connections: 'Relationship', typeStyles: 'TypeStyle' } },
+    // `routes` is the same idea for the lines: which side of a card each connection leaves and
+    // arrives on, where somebody has pinned it rather than letting the geometry decide.
+    seeds: {
+      source: 'board',
+      options: { board: BOARD, connections: 'Relationship', typeStyles: 'TypeStyle', routes: 'EdgeRoute' },
+    },
     // Nothing opens automatically: a board shows what is on it, and drilling into a card's own
     // blocks would turn a wall of notes into a tree of fragments.
     expansion: { defaultDepth: 0 },
@@ -195,6 +200,16 @@ const boardCards: SchemaNode = {
       the same post on somebody else's board must not change size because of it.
     */
     onNodeResize: { $action: 'recordStore.resizeOnBoard', args: [BOARD, { $: 'event' }] },
+    /*
+      Which side a connection attaches to, written back — and binding this is what puts the grips on
+      the ends of a hovered line.
+
+      Onto an `EdgeRoute` parented to this board rather than onto the `Relationship`, for the reason
+      a position goes on a placement: how a connection is *drawn* is a fact about a view. The same
+      claim shown on another board is tidied there on its own terms, and the claim itself never
+      learns it was ever bent around anything.
+    */
+    onEdgeAnchor: { $action: 'recordStore.anchorOnBoard', args: [BOARD, { $: 'event' }] },
   },
 };
 

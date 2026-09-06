@@ -25,7 +25,7 @@
 import type { EntitySchema } from '@we/backend-shared';
 import { createBlocks } from '@we/block-shared';
 import { toastService } from '@we/components/solid';
-import { getEntity, Placement, PREDICATES, runEntityTransaction, TypeStyle } from '@we/entities';
+import { EdgeRoute, getEntity, Placement, PREDICATES, runEntityTransaction, TypeStyle } from '@we/entities';
 import { CORE_MANIFEST } from '@we/entities/manifest';
 import { PLACEMENT_UNSET } from '@we/graph-expanders';
 import { Accessor, batch, createContext, createMemo, createSignal, ParentProps, useContext } from 'solid-js';
@@ -204,6 +204,15 @@ export interface RecordStore {
    * the same post on somebody else's board must not change size because of it.
    */
   resizeOnBoard: (board: string, payload: unknown) => Promise<void>;
+  /**
+   * Pin which side of a card a connection leaves or arrives on, for this board. Takes the graph's
+   * `onEdgeAnchor` payload as it arrives.
+   *
+   * An empty `side` clears that end, and a route with neither end pinned is deleted — so the way back
+   * out leaves nothing behind. Per board, like a placement: how a connection is drawn is a fact about
+   * a view, and the same connection on somebody else's board is unaffected.
+   */
+  anchorOnBoard: (board: string, payload: unknown) => Promise<void>;
   /**
    * Set one presentation property of one card on one board — colour, shape, content scale.
    *
@@ -615,6 +624,77 @@ export function RecordStoreProvider(props: ParentProps) {
     }
   }
 
+  /**
+   * Pin which side of a card a connection leaves or arrives on, for this board.
+   *
+   * Takes the graph's `onEdgeAnchor` payload as it arrives, the way `resizeOnBoard` takes
+   * `onNodeResize`'s. An empty `side` clears that end, and a route with neither end pinned is deleted
+   * rather than left as a record saying nothing — the way back has to leave nothing behind, or a
+   * board accumulates a route per connection anybody ever touched.
+   *
+   * Per board, on an `EdgeRoute` parented to it, for the reason a placement is: how a connection is
+   * drawn is a fact about a *view*. Putting it on the `Relationship` would make one board's tidying
+   * follow the connection into every other board it appears on.
+   */
+  async function anchorOnBoard(board: string, payload: unknown): Promise<void> {
+    const event = (payload ?? {}) as { recordId?: string; end?: 'source' | 'target'; side?: string };
+    const dataset = datasetStore.currentDataset();
+    if (!dataset || !board || !event.recordId || !event.end) return;
+    const field = event.end === 'source' ? 'sourceAnchor' : 'targetAnchor';
+    const side = typeof event.side === 'string' ? event.side : '';
+    const parent = { id: board, predicate: PREDICATES.CHILDREN };
+
+    try {
+      const existing = (await EdgeRoute.findAll(dataset.handle, { parent } as Record<string, unknown>)) as {
+        id: string;
+        connection?: string;
+        sourceAnchor?: string;
+        targetAnchor?: string;
+      }[];
+      const already = existing.find((row) => row.connection === event.recordId);
+
+      if (!already) {
+        // Nothing to clear, and nothing worth storing: a route recording "no anchors" is a record
+        // that changes nothing and would have to be swept up later.
+        if (!side) return;
+        await EdgeRoute.create(
+          dataset.handle as never,
+          { [field]: side, connection: [event.recordId] } as never,
+          { parent } as never,
+        );
+        return;
+      }
+
+      const other = event.end === 'source' ? already.targetAnchor : already.sourceAnchor;
+      if (!side && !other) {
+        await EdgeRoute.delete(dataset.handle, already.id);
+        return;
+      }
+      /*
+        A cleared anchor is a delete-and-recreate, not an update.
+
+        `Ad4mModel`'s update skips `''` exactly as it skips `undefined`, so writing an empty string
+        leaves the old side stored and the line does not move — the same trap `PLACEMENT_UNSET` exists
+        for. There is no sentinel to reach for here because the field is one of four sides and a fifth
+        value would have to be understood by the router; recreating the record without that field is
+        the honest way to say it has none.
+      */
+      if (!side) {
+        await EdgeRoute.delete(dataset.handle, already.id);
+        await EdgeRoute.create(
+          dataset.handle as never,
+          { [event.end === 'source' ? 'targetAnchor' : 'sourceAnchor']: other, connection: [event.recordId] } as never,
+          { parent } as never,
+        );
+        return;
+      }
+      await EdgeRoute.update(dataset.handle, already.id, { [field]: side });
+    } catch (error) {
+      console.error('RecordStore: anchoring a connection on a board failed', error);
+      toastService.error('Could not save that.');
+    }
+  }
+
   async function resizeOnBoard(board: string, payload: unknown): Promise<void> {
     const event = (payload ?? {}) as { recordId?: string; width?: number; height?: number; x?: number; y?: number };
     if (!event.recordId || !event.width || !event.height) return;
@@ -822,6 +902,7 @@ export function RecordStoreProvider(props: ParentProps) {
     confirmPending,
     previewCardStyle,
     resizeOnBoard,
+    anchorOnBoard,
     setCardStyle,
     setTypeColor,
     setRecordEntity,

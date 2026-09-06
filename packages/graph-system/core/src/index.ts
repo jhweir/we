@@ -33,6 +33,7 @@ export {
 export { connectionTarget } from './connect';
 export { GraphEngine, kindOf } from './engine';
 export {
+  anchorsOf,
   bowOffsets,
   distanceToEdge,
   edgeBounds,

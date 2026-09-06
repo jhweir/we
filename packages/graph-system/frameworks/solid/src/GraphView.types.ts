@@ -164,6 +164,25 @@ export interface GraphViewProps {
    */
   onEdgeClick?: (edge: GraphEdge & { recordId?: string; recordType?: string }) => void;
   /**
+   * Somebody dragged one end of a connection around a node's rim, pinning the **side** it leaves or
+   * arrives on. `side` is empty when they dragged it back to the middle, which clears the anchor.
+   *
+   * Intent, not a mutation, exactly as `onEdgeCreate` is: where a connection attaches is a fact
+   * about a *view*, and only the template knows which view it is looking at. On a board it belongs
+   * on an `EdgeRoute` parented to that board, so the same connection shown elsewhere is unaffected —
+   * see `recordStore.anchorOnBoard`.
+   *
+   * Binding this is also what makes the handles appear. Nothing draws an affordance for a gesture
+   * that would end in nothing, which is the same rule the connect dots and the resize grips follow.
+   */
+  onEdgeAnchor?: (payload: {
+    id: string;
+    end: 'source' | 'target';
+    side: '' | 'n' | 'e' | 's' | 'w';
+    recordId?: string;
+    recordType?: string;
+  }) => void;
+  /**
    * The user dragged a line from one node to another, with the `connect-nodes` behaviour armed.
    *
    * Intent, not a mutation: the graph has no write path, and what connecting two things means

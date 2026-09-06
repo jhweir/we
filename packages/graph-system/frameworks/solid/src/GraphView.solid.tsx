@@ -25,6 +25,7 @@
 import { Column, Row } from '@we/components/solid';
 import { ROLE_NAMES } from '@we/design-utils';
 import {
+  anchorsOf,
   connectionTarget,
   DEFAULT_CONTROLS,
   defaultBehaviours,
@@ -44,6 +45,7 @@ import type {
   Behaviour,
   ControlContext,
   EdgeGeometry,
+  EdgeSide,
   GraphNode,
   GraphValue,
   Point,
@@ -134,6 +136,18 @@ const ARROW_LENGTH = 6;
 const PENDING_WIDTH = 2;
 
 /**
+ * How near a node's centre an anchor drag counts as "no side at all", as a fraction of its half-size.
+ *
+ * The way back out. An anchor overrules the geometry for as long as it exists, so there has to be a
+ * gesture that removes one, and dragging the end back onto the card it belongs to is the one nobody
+ * has to be taught. Well inside the rim, so aiming at a side is never accidentally a clear.
+ */
+const CLEAR_ANCHOR_WITHIN = 0.45;
+
+/** Radius of an edge's endpoint grip, in screen pixels. Divided by the camera where it is drawn. */
+const ANCHOR_HANDLE_R = 5;
+
+/**
  * How much of a value is worth carrying to a panel.
  *
  * Long enough for a sentence, short enough that one field cannot become the whole panel.
@@ -191,6 +205,14 @@ export function GraphView(props: GraphViewProps) {
   const [connectionVersion, setConnectionVersion] = createSignal(0);
   const [hovered, setHovered] = createSignal<string | null>(null);
   const [hoveredEdge, setHoveredEdge] = createSignal<string | null>(null);
+  /**
+   * The anchor being dragged, and then the one just written — held until the data says the same.
+   *
+   * One draft rather than a map: an anchor drag is a pointer gesture, and there is exactly one
+   * pointer. It outlives the gesture on purpose — see `setEdgeOverlay` for why letting go at the
+   * release would snap the line back for a round trip and then move it again.
+   */
+  const [anchorDraft, setAnchorDraft] = createSignal<{ id: string; patch: Record<string, GraphValue> } | null>(null);
 
   // Read once: expanders are constructed with their options, so changing `reified` needs a remount —
   // which is what a template does anyway when it swaps one graph for another.
@@ -548,6 +570,43 @@ export function GraphView(props: GraphViewProps) {
     if (settled.length) props.host?.confirmPending?.(settled);
   });
 
+  /*
+    The anchor draft, handed to the engine so the line follows it, and dropped once it is redundant.
+
+    The same shape as the node overlay above and settled by the same question — asked of the edge's
+    *seeded* data, since the one the renderer draws already carries the draft and would report every
+    anchor confirmed the instant it was applied.
+  */
+  createEffect(() => {
+    version();
+    const draft = anchorDraft();
+    if (!draft) return;
+    const raw = engine.store.edge(draft.id);
+    /*
+      Settled means the stored data already *routes* the same, not that the fields are spelled the
+      same — which is why this asks `anchorsOf` rather than `isSettled`. Clearing an anchor writes
+      `''` and the seed answers by omitting the field altogether, so compared literally a clear could
+      never settle and the overlay would outlive the graph.
+    */
+    if (raw) {
+      const stored = anchorsOf(raw.data);
+      const wanted = anchorsOf({ ...raw.data, ...draft.patch });
+      if (stored.source === wanted.source && stored.target === wanted.target) {
+        setAnchorDraft(null);
+        engine.setEdgeOverlay(new Map());
+        return;
+      }
+    }
+    // Only when it would change something. `setEdgeOverlay` notifies, which re-runs this — so an
+    // unconditional call is an infinite loop rather than a redundant one.
+    const applied = engine.edgeOverlayFor(draft.id);
+    const same =
+      applied &&
+      Object.entries(draft.patch).every(([field, value]) => applied[field] === value) &&
+      Object.keys(applied).length === Object.keys(draft.patch).length;
+    if (!same) engine.setEdgeOverlay(new Map([[draft.id, draft.patch]]));
+  });
+
   const edges = createMemo(() => {
     version();
     // Geometry comes from the engine, which routed these when it placed the nodes. Deriving it again
@@ -850,6 +909,101 @@ export function GraphView(props: GraphViewProps) {
     window.addEventListener('pointercancel', end);
   }
 
+  /**
+   * Which side of a box a point is on, by the direction from its centre.
+   *
+   * The diagonals divide it, so a card is four triangles rather than four bands — which is what makes
+   * a corner unambiguous, and what makes the answer change where the pointer visibly crosses. Scaled
+   * by the box's own half-extents first, so a wide card's top is reached by going *up* rather than by
+   * getting past its length: unscaled, the north triangle of a 400×100 card is a sliver nobody can
+   * aim at.
+   *
+   * Inside a small middle the answer is nothing, which is how an anchor is cleared: drag the end back
+   * onto the card and let go. There has to be some way back, and a fifth region beats a fifth control.
+   */
+  function sideOf(at: Point, centre: Point, halfWidth: number, halfHeight: number): EdgeSide | '' {
+    const dx = (at.x - centre.x) / Math.max(halfWidth, 1);
+    const dy = (at.y - centre.y) / Math.max(halfHeight, 1);
+    if (Math.hypot(dx, dy) < CLEAR_ANCHOR_WITHIN) return '';
+    return Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'e' : 'w') : dy >= 0 ? 's' : 'n';
+  }
+
+  /**
+   * Drag one end of a connection around a node's rim, pinning the side it attaches to.
+   *
+   * A handle on the line's own endpoint rather than something on the card, because the question is
+   * about *this* connection: a card with four connections leaving it has four answers, and a control
+   * on the card could only ask one of them.
+   *
+   * Deliberately not set by which of the four connect dots a connection was dragged out of. Today you
+   * grab whichever is nearest and the edge still routes sensibly; pinning that silently would hand
+   * people connectors leaving the top of a card and looping around, for having picked the closest
+   * handle. Anchoring is its own act, and the dots stay hints.
+   *
+   * Previewed through the engine's edge overlay rather than by drawing something beside the line, so
+   * what moves under the pointer is the connection itself — and the same overlay then holds the
+   * answer while the write goes round the data layer and comes back. See `setEdgeOverlay`.
+   */
+  function beginAnchor(event: PointerEvent, edgeId: string, end: 'source' | 'target') {
+    // Never reaches the canvas dispatcher: a press here would otherwise also be a press on whatever
+    // is under it, which for an endpoint is the node this edge attaches to.
+    event.stopPropagation();
+    event.preventDefault();
+    const edge = engine.store.edge(edgeId);
+    if (!edge) return;
+    const nodeId = end === 'source' ? edge.source : edge.target;
+    // The box the renderer is drawing, not one derived again — a card being dragged carries a live
+    // position, and asking the engine's settled one would measure the sides against where it was.
+    const entry = nodes().find((row) => row.node.id === nodeId);
+    if (!entry) return;
+    const box = boxOf(entry);
+    const centre = { x: box.x, y: box.y };
+    const halfWidth = (box.width ?? entry.visual.size * 2) / 2;
+    const halfHeight = (box.height ?? entry.visual.size * 2) / 2;
+    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+
+    const field = end === 'source' ? 'sourceAnchor' : 'targetAnchor';
+    const at = (moved: PointerEvent) => {
+      const surfaceBox = surface?.getBoundingClientRect();
+      return engine.viewport.toWorld({
+        x: moved.clientX - (surfaceBox?.left ?? 0),
+        y: moved.clientY - (surfaceBox?.top ?? 0),
+      });
+    };
+    let side: EdgeSide | '' = '';
+
+    const move = (moved: PointerEvent) => {
+      if (moved.buttons === 0) return;
+      side = sideOf(at(moved), centre, halfWidth, halfHeight);
+      // Merged rather than replaced, so pinning one end and then the other does not drop the first
+      // end's preview while its write is still in flight.
+      setAnchorDraft((previous) => ({
+        id: edgeId,
+        patch: { ...(previous?.id === edgeId ? previous.patch : {}), [field]: side },
+      }));
+    };
+
+    const finish = () => {
+      // On `window` for the reason `beginConnect`'s listeners are: capture is released outright if
+      // the element goes away, and this one is inside a list the renderer rebuilds on every reroute —
+      // which this gesture causes on every frame of itself.
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      const behind = edge.reifiedAs ? parseAddress(edge.reifiedAs) : null;
+      props.onEdgeAnchor?.({
+        id: edgeId,
+        end,
+        side,
+        ...(behind?.kind === 'entity' && { recordId: behind.id, recordType: behind.type }),
+      });
+    };
+
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+  }
+
   function beginResize(
     event: PointerEvent,
     entry: { node: GraphNode; at: { x: number; y: number }; visual: { width?: number; height?: number } },
@@ -1042,6 +1196,36 @@ export function GraphView(props: GraphViewProps) {
                   marker-start={entry.visual.arrow === 'both' ? 'url(#we-graph-arrow)' : undefined}
                   marker-end={entry.visual.arrow === 'none' ? undefined : 'url(#we-graph-arrow)'}
                 />
+                {/*
+                  A grip on each end, for dragging the attachment around the node's rim.
+
+                  Only where the template is listening, like the connect dots and the resize handles:
+                  a gesture that ends in nothing is worse than an affordance that was never offered.
+                  On hover rather than always, for the reason the dots are on the selection — a grip
+                  at both ends of every line would speckle a board with furniture over the cards it is
+                  there to show.
+
+                  And on the edge being dragged whatever the pointer is over, because the pointer
+                  leaves the line immediately: that is the gesture.
+                */}
+                <Show
+                  when={props.onEdgeAnchor && (hoveredEdge() === entry.edge.id || anchorDraft()?.id === entry.edge.id)}
+                >
+                  <For each={['source', 'target'] as const}>
+                    {(end) => (
+                      <circle
+                        class="we-graph__anchor"
+                        cx={end === 'source' ? entry.route.from.x : entry.route.to.x}
+                        cy={end === 'source' ? entry.route.from.y : entry.route.to.y}
+                        // World units over zoom, so the grip is one size on screen at every camera —
+                        // the same arithmetic every other handle in here does.
+                        r={ANCHOR_HANDLE_R / zoom()}
+                        stroke-width={1.5 / zoom()}
+                        onPointerDown={(event) => beginAnchor(event, entry.edge.id, end)}
+                      />
+                    )}
+                  </For>
+                </Show>
               </g>
             )}
           </For>

@@ -15,6 +15,7 @@ export * from './ChatSession';
 export * from './CodeBlock';
 export * from './CollectionBlock';
 export * from './DividerBlock';
+export * from './EdgeRoute';
 export * from './EmbedBlock';
 export * from './EventBlock';
 export * from './ExtractionPass';
