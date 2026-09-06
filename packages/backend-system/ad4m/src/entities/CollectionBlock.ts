@@ -7,6 +7,7 @@
 import { Flag, HasMany, HasManyMethods, Model, Property } from '@coasys/ad4m';
 import { FILE_STORAGE_LANGUAGE } from '@we/entities';
 
+import { ExtractionPass } from './ExtractionPass';
 import { WeNode } from './WeNode';
 
 @Model({ name: 'CollectionBlock' })
@@ -106,6 +107,16 @@ export class CollectionBlock extends WeNode {
 
   @HasMany({ through: 'we://children' })
   children: string[] = [];
+
+  /**
+   * Every time a model was asked to read this collection — see {@link ExtractionPass}.
+   *
+   * Its own relation rather than `children`, which holds a collection's *content*: a pass is a
+   * fact about the collection, not something in it, and in `children` it would be loaded by the
+   * board and drawn as a card.
+   */
+  @HasMany(() => ExtractionPass, { through: 'we://extraction_pass_record' })
+  extractionPasses: string[] = [];
 }
 
 export interface CollectionBlock extends HasManyMethods<'children'> {}

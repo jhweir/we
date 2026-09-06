@@ -14,7 +14,7 @@ the app — a panel that floats and a panel that displaces look identical until 
 | **Call bar**       | The bar centred at the **top**, contributed by `@we/module-call`, present only during a call or when one is running to join.                                                                 |
 | **Chrome**         | All of the above, plus the editor's editing bar: app furniture that persists across spaces and templates, positions itself, and is never part of a template.                                 |
 | **Panel**          | A surface a module opens — the call's video stage, notes, the transcript, the editor's four panels. Also called a **dock** in the code, which is the registry's word for the same thing.     |
-| **Lane**           | A band across one edge, at a given distance inboard. The panels sharing one divide it along the edge's length. `band` says which, `order` says where in it — see below. |
+| **Lane**           | A band across one edge, at a given distance inboard. The panels sharing one divide it along the edge's length. `band` says which, `order` says where in it — see below.                      |
 | **Content region** | The window, minus the sidebar, minus every **displacing** panel. What a template is laid out inside.                                                                                         |
 | **Inset**          | How much one edge of the content region has given up, in pixels. Published as `--we-chrome-<edge>`.                                                                                          |
 | **Band**           | How far the module rail has dropped to clear something. Published as `--we-panel-chrome-top`.                                                                                                |
@@ -27,12 +27,12 @@ Reserve **rail** for the right-hand one and **sidebar** for the left, as the cod
 **Where** it is and **whether it takes room** are separate questions — they used to be one enum of
 six placements, which meant a call among three people cost a full-height column of the window.
 
-| State          | What it means                                                                                                                                          |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Floating**   | A card over the content. Takes no room; the content is whole underneath it.                                                                            |
-| **Snapped**    | Floating, parked at one of eight positions (four corners, four edge centres).                                                                          |
+| State          | What it means                                                                                                                                                  |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Floating**   | A card over the content. Takes no room; the content is whole underneath it.                                                                                    |
+| **Snapped**    | Floating, parked at one of eight positions (four corners, four edge centres).                                                                                  |
 | **Displacing** | Spans its lane and insets the content by that lane's thickness. Offered on the four edge-centre snaps only — a rectangular layout cannot flow around a corner. |
-| **Maximised**  | Fills the content region. Floats, so it takes no room from anything.                                                                                   |
+| **Maximised**  | Fills the content region. Floats, so it takes no room from anything.                                                                                           |
 
 Below `NARROW_VIEWPORT_PX` (900px of window width) displacing is switched off entirely and every
 panel floats. A 440px panel beside a 400px viewport is not two usable things.
@@ -43,10 +43,10 @@ Where a panel sits on an edge is two questions — **how far inboard** and **whe
 each has its own coordinate on the placement. A **lane** is a band across the edge; the panels
 sharing one divide it along its length.
 
-| Coordinate | What it means                                                                              |
-| ---------- | ------------------------------------------------------------------------------------------ |
+| Coordinate | What it means                                                                                      |
+| ---------- | -------------------------------------------------------------------------------------------------- |
 | `band`     | Which lane, counting inward from the edge. Displacing panels only. Absent means a lane of its own. |
-| `order`    | Where along the edge, among the panels sharing that lane.                                  |
+| `order`    | Where along the edge, among the panels sharing that lane.                                          |
 
 ```
  lanes of one panel each          one lane of two            a lane of one, then a lane of two
@@ -65,7 +65,7 @@ placements were, one level down: see the note at the top of `dockGeometry.ts`.
 
 Two consequences worth knowing, both in `dockGeometry.ts`:
 
-- **Lanes sum, lane-mates do not.** `contentInset` adds each lane's thickness and takes the *widest*
+- **Lanes sum, lane-mates do not.** `contentInset` adds each lane's thickness and takes the _widest_
   panel within one, because two panels sharing a lane are one sidebar cut into pieces. Adding there
   would report an edge twice as deep as it is.
 - **Absent `band` means a lane of its own, not lane 0.** That is what keeps every arrangement that
@@ -100,7 +100,7 @@ zero, its content hidden rather than unmounted.
 
 Folding is offered wherever there is **somewhere for the room to go** (`canFold`). A float hands its
 room back to the screen, so it always may. A displacing panel hands it to a lane-mate, so it needs an
-*open* one — which refuses both a sidebar alone on its edge and the last open member of a lane, each
+_open_ one — which refuses both a sidebar alone on its edge and the last open member of a lane, each
 of which would otherwise leave the edge at its full width holding nothing but titlebars. An
 already-folded panel may always unfold, or folding the second-to-last member would disable the
 control that undoes it.
@@ -178,6 +178,45 @@ A module never positions its own chrome or its own panel. It says what it has an
   **collapsed** height: chrome that grows as somebody opens a disclosure would otherwise shove a
   panel down the screen mid-read.
 
+## A panel names itself, once, at the top
+
+The host's titlebar carries the move handle and the window controls and draws **no text**. A panel's
+name is its own to draw — but not its own to design: **open every panel with `panelHeader` or
+`panelShell` from `@we/schema-kit`.**
+
+```ts
+panelShell({ title: 'Inspector', children: [/* … */] });
+panelShell({ title: 'Calls', aside: startCall, children: [/* … */] });
+```
+
+That gives a quiet capitalised label — `variant: 'label'`, `text-muted`, uppercase, `letterSpacing:
+'wide'` — as the first child, in a `p: '300'` box that clips. Not a heading: the panel's _content_
+is the thing being read, and a title competing with it has misunderstood the job. `aside` takes the
+one control that belongs beside the name — a record button, a switch, "start a call".
+
+Four rules, each of which was broken by at least one panel before the fragment existed:
+
+- **First child, above every `$if`.** A title inside a condition is missing in the state that most
+  needs one — the state where the panel is explaining why it has nothing to show.
+- **The panel's name, not a region's.** A capitalised line further down that labels a list reads as
+  the panel's name when it is the only one there. Use `sectionLabel` for a region inside a panel; it
+  is deliberately quieter so the two do not compete.
+- **No second bar.** The titlebar above already has a bottom border. A panel drawing its own bordered
+  header sits two bars deep.
+- **One padding.** `300`, which `panelShell` applies. Panels share edges, and two paddings read as a
+  wobble.
+
+TSX panels cannot call a schema fragment, so they spread `PANEL_TITLE_PROPS` onto a `we-text` —
+one definition, two languages.
+
+Two panels are exceptions, and both say so in place: the **call stage**, whose fit-to-content height
+is computed from its padding and gap and cannot absorb a header row, and **space settings**, which
+opens with the space's avatar and name because it is _about_ a space and a caps label above that
+would name the surface twice. Add a third only with the same kind of reason written next to it.
+
+Home-lane sections (`meta.panels` with `home`) are not this. They render inline as cards, so they
+keep a card's heading.
+
 ## Where the code is
 
 - `packages/app-shell/src/shared/dockGeometry.ts` — every rule above, as pure functions over a
@@ -185,4 +224,5 @@ A module never positions its own chrome or its own panel. It says what it has an
 - `packages/app-shell/src/frameworks/solid/stores/ShellStore.tsx` — the state, the drag handling,
   and the custom properties.
 - `packages/app-shell/src/shared/registries/dockRegistry.ts` — the frame a panel is wrapped in.
+- `packages/schema-system/kit/src/layout/panelShell.ts` — the header every panel body opens with.
 - `packages/templates/shell/src/ChromeRail.schema.ts`, `Sidebar.schema.ts` — the two strips.

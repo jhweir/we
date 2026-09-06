@@ -123,6 +123,22 @@ export type LayoutFactory<TOptions = unknown> = (options?: TOptions) => Layout;
 export type EdgeCurve = 'straight' | 'arc' | 'smooth' | 'step';
 
 /**
+ * A side of a node, as an edge's anchor names it.
+ *
+ * Which side a connection leaves or arrives on is normally derived from where the two nodes are —
+ * see `attachPoint` — and an anchor is somebody overruling that for one end of one edge. A side
+ * rather than a point along it: a side survives the node being resized, and it is the same four the
+ * connect handles already offer.
+ */
+export type EdgeSide = 'n' | 'e' | 's' | 'w';
+
+/** Which side each end of an edge is pinned to, where either has been. Absent means derived. */
+export interface EdgeAnchors {
+  source?: EdgeSide;
+  target?: EdgeSide;
+}
+
+/**
  * Where an edge actually runs, in world units.
  *
  * Geometry, not drawing instructions: control points rather than an SVG path string, so the engine can
@@ -155,6 +171,18 @@ export interface EdgeGeometry {
    * out top-to-bottom.
    */
   elbows?: Point[];
+  /**
+   * The route as a chain of segments after `from`, when it was shaped by hand.
+   *
+   * Present only for an edge carrying waypoints, and it replaces `control`/`control2`/`elbows`
+   * rather than joining them: those describe one span between two nodes, and a route somebody bent
+   * around a third card is several. A segment with no controls is a straight leg, which is what a
+   * polyline and an orthogonal route are made of, so one field serves every shape.
+   *
+   * `to` is still the last segment's endpoint, so anything that only wants the ends — the arrowhead's
+   * back-off, the bounds, a label — reads the same fields it always did.
+   */
+  segments?: { control?: Point; control2?: Point; to: Point }[];
   curve: EdgeCurve;
   /** Midpoint of the drawn route — where a label sits. */
   mid: Point;

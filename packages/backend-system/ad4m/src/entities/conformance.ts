@@ -23,6 +23,7 @@ export type AssertClassesSatisfyContract = [
   Satisfies<InstanceType<typeof C.CodeBlock>, M.CodeBlockRecord>,
   Satisfies<InstanceType<typeof C.CollectionBlock>, M.CollectionBlockRecord>,
   Satisfies<InstanceType<typeof C.DividerBlock>, M.DividerBlockRecord>,
+  Satisfies<InstanceType<typeof C.EdgeRoute>, M.EdgeRouteRecord>,
   Satisfies<InstanceType<typeof C.EmbedBlock>, M.EmbedBlockRecord>,
   Satisfies<InstanceType<typeof C.EventBlock>, M.EventBlockRecord>,
   Satisfies<InstanceType<typeof C.FileBlock>, M.FileBlockRecord>,
@@ -46,6 +47,7 @@ export type AssertClassesSatisfyContract = [
   Satisfies<InstanceType<typeof C.TextBlock>, M.TextBlockRecord>,
   Satisfies<InstanceType<typeof C.Topic>, M.TopicRecord>,
   Satisfies<InstanceType<typeof C.Theme>, M.ThemeRecord>,
+  Satisfies<InstanceType<typeof C.ExtractionPass>, M.ExtractionPassRecord>,
   Satisfies<InstanceType<typeof C.TypeStyle>, M.TypeStyleRecord>,
   Satisfies<InstanceType<typeof C.VideoBlock>, M.VideoBlockRecord>,
 ];

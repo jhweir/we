@@ -62,6 +62,15 @@ const SHAPES: EntityShape[] = [
     ],
   },
   {
+    name: 'EdgeRoute',
+    properties: [
+      { name: 'sourceAnchor', type: 'string' },
+      { name: 'targetAnchor', type: 'string' },
+      { name: 'points', type: 'string' },
+    ],
+    relations: [{ name: 'connection', target: '', cardinality: 'one' }],
+  },
+  {
     name: 'Placement',
     properties: [
       { name: 'nodeType', type: 'string' },
@@ -529,5 +538,148 @@ describe('the board seed — pending records', () => {
     const { nodes } = await boardSeed().seed({ board: 'b1', contains: ['TaskBlock'] }, ctx);
 
     expect(nodes[0]?.data).not.toHaveProperty('pending');
+  });
+});
+
+/**
+ * How a board draws its connections — which side of a card each line leaves and arrives on.
+ *
+ * The same shape as the type key above and quiet in the same way: a route that does not reach its
+ * edge leaves the line attaching wherever the geometry decides, which looks like an anchor that was
+ * never saved rather than one that was saved and never read.
+ */
+describe('board connection routes', () => {
+  const twoCards = {
+    Placement: [
+      { id: 'p1', node: 'c1', nodeType: 'CollectionBlock', x: 0, y: 0 },
+      { id: 'p2', node: 'c2', nodeType: 'CollectionBlock', x: 200, y: 0 },
+    ],
+    CollectionBlock: [
+      { id: 'c1', title: 'One' },
+      { id: 'c2', title: 'Two' },
+    ],
+    Relationship: [
+      {
+        id: 'r1',
+        label: 'contradicts',
+        source: 'c1',
+        sourceType: 'CollectionBlock',
+        target: 'c2',
+        targetType: 'CollectionBlock',
+      },
+    ],
+  };
+
+  it('reads anchors onto the edge, under the names the router reads', async () => {
+    const { context: ctx } = context({
+      ...twoCards,
+      EdgeRoute: [{ id: 'e1', connection: 'r1', sourceAnchor: 'n', targetAnchor: 'w' }],
+    });
+
+    const { edges } = await boardSeed().seed({ board: 'b1', connections: 'Relationship', routes: 'EdgeRoute' }, ctx);
+
+    expect(edges[0].data).toMatchObject({ sourceAnchor: 'n', targetAnchor: 'w' });
+  });
+
+  it('carries an end that was never pinned as absent rather than empty', async () => {
+    // The router drops anything that is not a side, so an empty string would route identically —
+    // but it would also be a value a style rule could match on, asserting a side nobody chose.
+    const { context: ctx } = context({
+      ...twoCards,
+      EdgeRoute: [{ id: 'e1', connection: 'r1', sourceAnchor: 'e', targetAnchor: '' }],
+    });
+
+    const { edges } = await boardSeed().seed({ board: 'b1', connections: 'Relationship', routes: 'EdgeRoute' }, ctx);
+
+    expect(edges[0].data?.sourceAnchor).toBe('e');
+    expect(edges[0].data).not.toHaveProperty('targetAnchor');
+  });
+
+  it('leaves a connection nobody has routed alone', async () => {
+    const { context: ctx } = context({ ...twoCards, EdgeRoute: [] });
+
+    const { edges } = await boardSeed().seed({ board: 'b1', connections: 'Relationship', routes: 'EdgeRoute' }, ctx);
+
+    expect(edges[0].data).not.toHaveProperty('sourceAnchor');
+  });
+
+  it('costs no extra round trip, being keyed by a record id rather than by what is on the board', async () => {
+    /*
+      What decides how long a board takes to appear is the number of *sequential* rounds. A route
+      names its connection by id, so it can be read in round one beside the placements — waiting for
+      the connections it describes would add a fourth round to every board that has any.
+    */
+    const rounds: string[][] = [];
+    const { context: ctx } = context(
+      { ...twoCards, EdgeRoute: [{ id: 'e1', connection: 'r1', sourceAnchor: 'n' }], TypeStyle: [] },
+      rounds,
+    );
+
+    await boardSeed().seed(
+      { board: 'b1', connections: 'Relationship', typeStyles: 'TypeStyle', routes: 'EdgeRoute' },
+      ctx,
+    );
+
+    expect(rounds[0]).toEqual(['Placement', 'TypeStyle', 'EdgeRoute']);
+    expect(rounds).toHaveLength(3);
+  });
+
+  it('is not drawn as a node, being bookkeeping rather than content', async () => {
+    // The same trap a `Placement` is: it is parented to the board, so anything reading the board's
+    // children by containment would put a dot on the canvas for every routed line.
+    const { context: ctx } = context({
+      ...twoCards,
+      EdgeRoute: [{ id: 'e1', connection: 'r1', sourceAnchor: 'n' }],
+    });
+
+    const { nodes } = await boardSeed().seed({ board: 'b1', connections: 'Relationship', routes: 'EdgeRoute' }, ctx);
+
+    expect(nodes.map((node) => node.id).some((id) => id.includes('EdgeRoute'))).toBe(false);
+  });
+});
+
+describe('board connection waypoints', () => {
+  const twoCards = {
+    Placement: [
+      { id: 'p1', node: 'c1', nodeType: 'CollectionBlock', x: 0, y: 0 },
+      { id: 'p2', node: 'c2', nodeType: 'CollectionBlock', x: 200, y: 0 },
+    ],
+    CollectionBlock: [
+      { id: 'c1', title: 'One' },
+      { id: 'c2', title: 'Two' },
+    ],
+    Relationship: [
+      {
+        id: 'r1',
+        label: 'contradicts',
+        source: 'c1',
+        sourceType: 'CollectionBlock',
+        target: 'c2',
+        targetType: 'CollectionBlock',
+      },
+    ],
+  };
+
+  it('carries the stored blob through untouched', async () => {
+    // Passed on as the string it was stored as rather than parsed here: a data bag holds scalars, and
+    // parsing at the seed only to re-serialise for the router would be the same work done twice.
+    const points = '[{"along":0.5,"across":0.3}]';
+    const { context: ctx } = context({ ...twoCards, EdgeRoute: [{ id: 'e1', connection: 'r1', points }] });
+
+    const { edges } = await boardSeed().seed({ board: 'b1', connections: 'Relationship', routes: 'EdgeRoute' }, ctx);
+
+    expect(edges[0].data?.waypoints).toBe(points);
+  });
+
+  it('leaves a route carrying only anchors without a waypoints field', async () => {
+    const { context: ctx } = context({
+      ...twoCards,
+      EdgeRoute: [{ id: 'e1', connection: 'r1', sourceAnchor: 'n', points: '' }],
+    });
+
+    const { edges } = await boardSeed().seed({ board: 'b1', connections: 'Relationship', routes: 'EdgeRoute' }, ctx);
+
+    expect(edges[0].data?.sourceAnchor).toBe('n');
+    expect(edges[0].data).not.toHaveProperty('waypoints');
   });
 });

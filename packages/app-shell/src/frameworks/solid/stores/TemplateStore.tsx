@@ -1,5 +1,6 @@
 import { templateRegistry } from '@shared/registries/templateRegistry';
 import { profileTemplate, settingsTemplate } from '@shared/schemas';
+import { reserveId } from '@shared/templateIdentity';
 import { explain } from '@shared/userMessage';
 import { deepClone } from '@shared/utils';
 import { toastService } from '@we/components/solid';
@@ -52,10 +53,10 @@ export type TemplateSwitcherItem = {
    * only ever offer it for the active row — which is why editing a template you were not already
    * using took two extra clicks: switch, reopen the menu, then edit.
    *
-   * Derived exactly as `isReadOnly` is, through `isBuiltInTemplate` rather than the bare id
-   * predicate the "Built-in" *group* is filtered by. The two differ, and this is the one that
-   * matters: a built-in you have saved over has stored overrides, so it is editable while still
-   * belonging to that group.
+   * Derived exactly as `isReadOnly` is, and from the same predicate the "Built-in" *group* is
+   * filtered by. There used to be two, differing on a built-in somebody had saved over — it had
+   * stored overrides, so it was editable while still being listed as built-in. Ids are reserved
+   * now (see `reserveTemplateId`), so that state cannot arise and one predicate answers both.
    */
   editable: boolean;
 };
@@ -142,7 +143,7 @@ export interface TemplateStore {
   operationLoading: Accessor<string | null>;
 
   // Queries
-  isBuiltInTemplate: (templateId: string) => boolean;
+  isBuiltInTemplateId: (templateId: string) => boolean;
   isInstalled: (templateId: string) => boolean;
   getTemplateRecord: (templateId: string) => Template | undefined;
 }
@@ -155,6 +156,18 @@ export interface TemplateStore {
  * `not: 'view'` and get both.
  */
 const roleOf = (schema: { meta?: { role?: string } }): string => (schema.meta?.role === 'view' ? 'view' : '');
+
+/** A schema as the blob a `Template` record's `schema` field holds. */
+const encodeTemplateSchema = (schema: TemplateSchema): FileData => {
+  const jsonBytes = new TextEncoder().encode(JSON.stringify(createStoredTemplate(schema)));
+  let binary = '';
+  for (let i = 0; i < jsonBytes.length; i++) binary += String.fromCharCode(jsonBytes[i]);
+  return {
+    data_base64: btoa(binary),
+    name: 'template-schema.json',
+    file_type: 'application/json',
+  } as FileData;
+};
 
 const TemplateContext = createContext<TemplateStore>();
 
@@ -257,7 +270,7 @@ export function TemplateStoreProvider(props: ParentProps) {
       icon: t.meta?.icon || '',
       // From the unprefixed id: the prefix distinguishes a space's copy from your own for keying
       // rows, and is not part of any identity the template registry knows about.
-      editable: !isBuiltInTemplate(t.id || ''),
+      editable: !isBuiltInTemplateId(t.id || ''),
     }));
 
   // Grouped template data for the template switcher UI — flat name/icon fields allow $filter in schemas
@@ -312,7 +325,9 @@ export function TemplateStoreProvider(props: ParentProps) {
         if (accepted.blocked.length) console.warn(describeAcceptance(accepted, 'your library').join('\n'));
         const schema = accepted.schema;
         // Prefer the ID embedded in the schema (set during save) over deriving from name
-        const templateId = schema.id || template.name?.toLowerCase().replace(/\s+/g, '-') || template.id;
+        const requested = schema.id || template.name?.toLowerCase().replace(/\s+/g, '-') || template.id;
+        // Re-ids a record written before ids were reserved, so it stops hiding a built-in.
+        const templateId = await adoptStoredId(template, schema, requested);
 
         const entry = { ...schema, id: templateId, templateVersion: template.version ?? 1 };
         savedTemplates.push(entry);
@@ -806,7 +821,9 @@ export function TemplateStoreProvider(props: ParentProps) {
     setOperationLoading(`marketplace-install:${marketplaceTemplateId}`);
     try {
       const schema = request.schema;
-      const templateId = schema.id || request.name.toLowerCase().replace(/\s+/g, '-') || marketplaceTemplateId;
+      const templateId = reserveTemplateId(
+        schema.id || request.name.toLowerCase().replace(/\s+/g, '-') || marketplaceTemplateId,
+      );
       const newVersion = request.version;
       const schemaToInstall: TemplateSchema = { ...deepClone(schema), id: templateId, templateVersion: newVersion };
 
@@ -876,7 +893,9 @@ export function TemplateStoreProvider(props: ParentProps) {
     setOperationLoading(`space-install:${marketplaceTemplateId}`);
     try {
       const schema = request.schema;
-      const templateId = schema.id || request.name.toLowerCase().replace(/\s+/g, '-') || marketplaceTemplateId;
+      const templateId = reserveTemplateId(
+        schema.id || request.name.toLowerCase().replace(/\s+/g, '-') || marketplaceTemplateId,
+      );
       const schemaToInstall: TemplateSchema = { ...deepClone(schema), id: templateId };
 
       const schemaBlob = (() => {
@@ -1028,7 +1047,7 @@ export function TemplateStoreProvider(props: ParentProps) {
       return;
     }
 
-    const templateId = name.toLowerCase().replace(/\s+/g, '-');
+    const templateId = reserveTemplateId(name.toLowerCase().replace(/\s+/g, '-'));
     const schemaToSave: TemplateSchema = {
       ...deepClone(currentTemplate),
       id: templateId,
@@ -1099,9 +1118,25 @@ export function TemplateStoreProvider(props: ParentProps) {
       return false;
     }
 
-    const templateId = schema.id || schema.meta.name.toLowerCase().replace(/\s+/g, '-');
+    const requestedId = schema.id || schema.meta.name.toLowerCase().replace(/\s+/g, '-');
+    const templateId = reserveTemplateId(requestedId);
+    /*
+      Renamed exactly when the id had to be minted, and never otherwise.
+
+      This is the fork path — "Fork as a new template" arrives here carrying the id and the name of
+      whatever it was forking from — so a minted id means a second thing now exists beside a
+      built-in, and two rows called "Workshop" are barely better than the one row that used to lie
+      about which it was. An id that was already free is a save in place, where renaming somebody's
+      template every time they pressed save would be its own bug.
+    */
+    const name = templateId === requestedId ? schema.meta.name : `${schema.meta.name} (yours)`;
     setOperationLoading('save');
-    const schemaToSave: TemplateSchema = { ...deepClone(schema), id: templateId, author: session.me()?.did };
+    const schemaToSave: TemplateSchema = {
+      ...deepClone(schema),
+      id: templateId,
+      author: session.me()?.did,
+      meta: { ...schema.meta, name },
+    };
 
     const storedTemplate = createStoredTemplate(schemaToSave);
     const jsonBytes = new TextEncoder().encode(JSON.stringify(storedTemplate));
@@ -1252,7 +1287,7 @@ export function TemplateStoreProvider(props: ParentProps) {
     const perspective = targetDs.handle;
 
     const schema = currentTemplate;
-    const templateId = schema.id || schema.meta.name.toLowerCase().replace(/\s+/g, '-');
+    const templateId = reserveTemplateId(schema.id || schema.meta.name.toLowerCase().replace(/\s+/g, '-'));
 
     const existing = await Template.findOne(perspective, { where: { slug: templateId } });
     if (existing) {
@@ -1416,8 +1451,47 @@ export function TemplateStoreProvider(props: ParentProps) {
     return builtInTemplates.some((t) => t.id === templateId);
   }
 
-  function isBuiltInTemplate(templateId: string): boolean {
-    return isBuiltInTemplateId(templateId) && !savedTemplateMap.has(templateId);
+  /**
+   * The id a stored record may have — never a built-in's. Every write of one goes through here.
+   *
+   * The built-in or a fork, and nothing between; `@shared/templateIdentity` is why.
+   */
+  function reserveTemplateId(requested: string): string {
+    return reserveId(
+      requested,
+      builtInTemplates.map((t) => t.id || ''),
+    );
+  }
+
+  /**
+   * Re-id a stored template that was saved over a built-in, once, on the way in.
+   *
+   * Records written before ids were reserved are still out there, and each one is hiding a built-in.
+   * Renamed rather than refused: what is in there is somebody's work — usually a panel arrangement
+   * they pressed "Fork as a new template" to keep — and deleting it to restore the built-in would
+   * answer one silent loss with another. It becomes the fork it should always have been, and the
+   * built-in comes back beside it.
+   *
+   * Best effort. If the write fails the record is still used under its new id for the rest of the
+   * session, so the built-in is un-shadowed either way and the rename is retried next load.
+   */
+  async function adoptStoredId(record: Template, schema: TemplateSchema, requested: string): Promise<string> {
+    const reserved = reserveTemplateId(requested);
+    if (reserved === requested) return requested;
+
+    const name = schema.meta?.name ? `${schema.meta.name} (yours)` : reserved;
+    schema.id = reserved;
+    if (schema.meta) schema.meta.name = name;
+
+    try {
+      record.slug = reserved;
+      record.name = name;
+      record.schema = asFileField(encodeTemplateSchema(schema));
+      await record.save();
+    } catch (error) {
+      console.error('TemplateStore: could not re-id a template saved over a built-in', requested, error);
+    }
+    return reserved;
   }
 
   /** Check if a custom template is installed (visible in sidebar) */
@@ -1502,7 +1576,7 @@ export function TemplateStoreProvider(props: ParentProps) {
     operationLoading,
 
     // Queries
-    isBuiltInTemplate,
+    isBuiltInTemplateId,
     isInstalled,
     getTemplateRecord,
   };

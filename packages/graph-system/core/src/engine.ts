@@ -26,14 +26,35 @@ import type {
 } from '@we/graph-protocol';
 import { addressKind } from '@we/graph-protocol';
 
+import { connectionTarget } from './connect';
 import { ExpansionState, SEED_OPENER } from './expansion';
 import type { EdgeClearance } from './geometry';
-import { bowOffsets, distanceToEdge, edgeBounds, groupByEndpoints, normaliseCurve, routeEdge } from './geometry';
+import {
+  anchorsOf,
+  bowOffsets,
+  distanceToEdge,
+  edgeBounds,
+  endOf,
+  groupByEndpoints,
+  normaliseCurve,
+  routeEdge,
+  waypointsOf,
+  waypointToWorld,
+} from './geometry';
 import { PluginRegistry } from './registry';
 import { SpatialIndex } from './spatial';
 import { GraphStore } from './store';
 import { flattenRules, nodeVisual, resolveStyle } from './style';
 import { boundsOf, Viewport } from './viewport';
+
+/**
+ * The id the connect gesture's preview is routed under.
+ *
+ * A route needs one and this one is never stored, so it names nothing: it exists so the geometry can
+ * be handed to the same `pathFrom` a real edge's is, and so a style rule matching on `id` cannot
+ * accidentally claim a line that stands for nothing yet.
+ */
+const PENDING_EDGE_ID = '__pending__';
 
 export interface EngineOptions {
   spec: GraphSpec;
@@ -260,6 +281,48 @@ export class GraphEngine {
 
   getSelection(): string[] {
     return [...this.selected];
+  }
+
+  /**
+   * The one edge whose route is open for editing, or null.
+   *
+   * Its own slot rather than a member of the node selection, and singular rather than a set. An edge
+   * is selected here for one reason — to reveal the handles that reshape it — and "reshape these
+   * four at once" is not a gesture anybody has asked for, where multi-select on nodes carries
+   * dragging, pinning and deleting. A set would be a vocabulary with one word in it.
+   */
+  private selectedEdge: string | null = null;
+
+  getSelectedEdge(): string | null {
+    return this.selectedEdge;
+  }
+
+  /**
+   * Open an edge's route for editing, or close whichever was open.
+   *
+   * Clears the node selection, and `select` clears this — the two are alternatives rather than
+   * layers. A board showing a selected card's connect dots *and* a selected line's waypoints at once
+   * is two sets of handles a few pixels apart, and a press that could plausibly mean either.
+   */
+  selectEdge(id: string | null): void {
+    if (this.selectedEdge === id) return;
+    this.selectedEdge = id;
+    /*
+      Announced only when the node selection actually emptied.
+
+      `selectionChange` means "these nodes are selected now", and firing it because an *edge* was
+      clicked says something untrue about nodes — a host reading an empty list as "nothing is
+      selected, clear the panel" is right to, and would be acting on a change that did not happen.
+      The workshop board does exactly that, which is how this was found.
+
+      When a card really was selected, clearing it *is* a change and saying so is the point.
+    */
+    const emptied = Boolean(id) && this.selected.size > 0;
+    if (emptied) {
+      this.selected.clear();
+      this.emit({ type: 'selectionChange', ids: [] });
+    }
+    this.notify('selection');
   }
 
   getStatus(): Readonly<EngineStatus> {
@@ -966,6 +1029,32 @@ export class GraphEngine {
     return this.overlay.size > 0;
   }
 
+  /**
+   * The same, for edges — fields drawn over a connection's own, by edge id.
+   *
+   * Its own map rather than a second use of the node one: they are keyed in different namespaces and
+   * a collision would be silent. Routing is all it can affect, which is why this re-routes and does
+   * not re-index — an edge is not in the spatial index; `hitTestEdge` measures the geometry.
+   *
+   * Two jobs, and they are the same job at different moments. While somebody drags an anchor around
+   * a card's rim, the line has to follow the pointer — a preview that only appeared on release would
+   * be asking people to guess. And after they let go, the write goes to a peer-to-peer data layer and
+   * comes back through a subscription and a re-seed: without this the edge would snap to its derived
+   * side for that whole round trip and then move again, which reads as the gesture having failed.
+   */
+  private edgeOverlay: ReadonlyMap<string, Record<string, GraphValue>> = new Map();
+
+  setEdgeOverlay(overlay: ReadonlyMap<string, Record<string, GraphValue>>): void {
+    this.edgeOverlay = overlay;
+    this.routeEdges();
+    this.notify('graph');
+  }
+
+  /** The fields laid over this edge, if any. Read by a renderer so it draws from the same values. */
+  edgeOverlayFor(id: string): Record<string, GraphValue> | undefined {
+    return this.edgeOverlay.get(id);
+  }
+
   /** The fields laid over this node, if any. Read by a renderer so it draws from the same values. */
   overlayFor(id: string): Record<string, GraphValue> | undefined {
     return this.overlay.get(id);
@@ -1023,11 +1112,37 @@ export class GraphEngine {
     for (const group of groupByEndpoints([...this.store.edges()]).values()) {
       const offsets = bowOffsets(group.length);
       group.forEach((edge, index) => {
-        const from = this.positions.get(edge.source);
-        const to = this.positions.get(edge.target);
+        const patch = this.edgeOverlay.get(edge.id);
+        /*
+          An endpoint the overlay has moved — what a drag from one card to another previews with.
+
+          `source`/`target` are reserved names in an edge overlay for exactly this: everything else in
+          the patch is a data field routing reads, and these two say the line arrives somewhere else
+          entirely. Held here rather than by editing the edge, because the claim has not changed yet:
+          the store still says what it said, and a released drag whose write fails leaves nothing
+          behind to undo.
+        */
+        /*
+          Where each end routes to, which an overlay may have taken hold of — see `endOf`.
+
+          A re-attachment being dragged moves the end to another node; a drag in open canvas holds it
+          at a bare point, which is what makes dragging one *smooth*. A card has four sides and a
+          board has however many cards, so an end that could only ever be on one of those moves in
+          jumps however finely the pointer moves.
+        */
+        const { node: sourceId, loose: looseFrom } = endOf(patch, 'source', edge.source);
+        const { node: targetId, loose: looseTo } = endOf(patch, 'target', edge.target);
+        const from = looseFrom ?? this.positions.get(sourceId);
+        const to = looseTo ?? this.positions.get(targetId);
         if (!from || !to) return;
         const style = resolveStyle(edge, this.spec.edgeStyle);
-        const targetNode = this.store.node(edge.target);
+        // Where a connection leaves and arrives, when somebody has said. Off the edge's own data, so
+        // whatever loaded it decides — the board seed reads them from an `EdgeRoute` — with any
+        // overlay in front, which is how a drag previews and how a write holds until it lands.
+        const anchors = anchorsOf({ ...edge.data, ...patch });
+        // No node at a loose end, so nothing to stand off from: the line reaches the pointer itself.
+        const targetNode = looseTo ? undefined : this.store.node(targetId);
+        const sourceNode = looseFrom ? undefined : this.store.node(sourceId);
         /*
           Stop short of the node's *edge*, so an arrowhead lands on it rather than inside it or short
           of it. Measured from the same place the renderer gets its size, so the two cannot disagree.
@@ -1039,6 +1154,11 @@ export class GraphEngine {
 
           *Where* on the node it lands is still the route's decision, not this one: a curve that
           arrives along an axis does not meet the node where the straight line between centres would.
+
+          Both ends, so an edge is the segment *between* two shapes. It used to start at the source's
+          centre and be covered by whatever was painted over it, which is invisible under an opaque
+          card and wrong under everything else — a translucent one has a line running through its
+          text, and a round node has one crossing it.
         */
         const geometry = routeEdge(
           edge.id,
@@ -1046,7 +1166,16 @@ export class GraphEngine {
           to,
           normaliseCurve(style.curve),
           offsets[index],
-          this.clearanceFor(targetNode),
+          // A loose end stands off nothing — the point IS the end, so any clearance would leave the
+          // line trailing the cursor by a gap that reads as lag.
+          looseTo ? 0 : this.clearanceFor(targetNode),
+          looseFrom ? 0 : this.clearanceFor(sourceNode),
+          // A loose end has no side, whatever the fields still say: the end is a point, and pinning
+          // it to an axis would send the line off north from wherever the cursor happens to be.
+          { source: looseFrom ? undefined : anchors.source, target: looseTo ? undefined : anchors.target },
+          // Stored in the edge's own frame, so a bend keeps its proportions when either card moves —
+          // see `EdgeWaypoint`. Converted here, where both centres are in hand.
+          waypointsOf({ ...edge.data, ...patch }).map((point) => waypointToWorld(point, from, to)),
         );
         this.edgeGeometry.set(edge.id, geometry);
         this.edgeBoxes.set(edge.id, edgeBounds(geometry));
@@ -1276,6 +1405,9 @@ export class GraphEngine {
   // ─── Selection ───────────────────────────────────────────────────────────────
 
   select(ids: string[], mode: 'replace' | 'add' | 'toggle' = 'replace'): void {
+    // Selecting anything — including selecting *nothing*, which is what a background click does —
+    // closes an open route. See `selectEdge`.
+    this.selectedEdge = null;
     if (mode === 'replace') this.selected = new Set(ids);
     else {
       for (const id of ids) {
@@ -1315,6 +1447,7 @@ export class GraphEngine {
       toWorld: (at) => this.viewport.toWorld(at),
       toScreen: (at) => this.viewport.toScreen(at),
       drawConnection: (from, to) => this.drawConnection(from, to),
+      selectEdge: (id) => this.selectEdge(id),
       emit: (event) => this.emit(event),
     };
   }
@@ -1323,15 +1456,57 @@ export class GraphEngine {
    * The line currently being drawn, or null.
    *
    * Read by the renderer each frame of a connect gesture. Not an edge in the store, deliberately:
-   * it stands for nothing yet, it must not be laid out, routed, hit-tested, counted against the
-   * budget or seen by a metric — and putting it there would mean every one of those had to learn to
-   * skip it.
+   * it stands for nothing yet, it must not be hit-tested, counted against the budget or seen by a
+   * metric — and putting it there would mean every one of those had to learn to skip it.
+   *
+   * It *is* routed, through the same `routeEdge` a real edge goes through, because the preview's job
+   * is to show the edge it is proposing. It was two raw points drawn as a straight segment, so the
+   * line changed shape at the exact moment of commitment: a straight line became an S-curve, which is
+   * a jump at the one instant somebody is deciding whether the gesture did what they wanted.
+   *
+   * ## Over a card, it ends on that card
+   *
+   * Once the pointer is over something this drag could connect to, the far end stops being the
+   * pointer and becomes the target — routed to its centre with its own clearance, which is exactly
+   * what a real edge does, so the preview and the edge that lands are the same drawing. Without it
+   * the arrowhead sat wherever the cursor happened to be, usually somewhere inside the card, and read
+   * as pointing at its middle.
+   *
+   * Which card is `connectionTarget`'s decision and nobody else's — the same rule the release uses to
+   * decide what is connected and the renderer uses to decide what to mark. A line that snapped to a
+   * card the drop then refused would be worse than one that never snapped.
+   *
+   * Over empty canvas, or back over the card it came from, the far end is the pointer again and there
+   * is no target clearance: a pointer is not a shape to stop short of, and a clearance there would
+   * leave the arrowhead hanging a node's width from the cursor.
+   *
+   * **No offset**, either way. Bowing apart from a mutual pair is a question about two edges that
+   * both exist, and this one does not exist yet.
+   *
+   * The style is resolved against a placeholder edge, so a rule with no `when` applies and one that
+   * matches on a type or a property does not. That is the right answer either way: what a connection
+   * with nothing said about it yet would be drawn as.
    */
-  getPendingConnection(): { from: Point; to: Point } | null {
+  getPendingConnection(): EdgeGeometry | null {
     if (!this.pendingConnection) return null;
     const from = this.positions.get(this.pendingConnection.from);
     if (!from) return null;
-    return { from: { x: from.x, y: from.y }, to: this.pendingConnection.to };
+    const source = this.store.node(this.pendingConnection.from);
+    const style = resolveStyle(
+      { id: PENDING_EDGE_ID, source: this.pendingConnection.from, target: '', type: '' },
+      this.spec.edgeStyle,
+    );
+    const target = connectionTarget(this.index.hitTest(this.pendingConnection.to)[0], this.pendingConnection.from);
+    const landing = target ? this.positions.get(target) : undefined;
+    return routeEdge(
+      PENDING_EDGE_ID,
+      { x: from.x, y: from.y },
+      landing ? { x: landing.x, y: landing.y } : this.pendingConnection.to,
+      normaliseCurve(style.curve),
+      0,
+      landing ? this.clearanceFor(this.store.node(target!)) : 0,
+      this.clearanceFor(source),
+    );
   }
 
   private drawConnection(from: string | null, to?: Point): void {

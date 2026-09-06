@@ -1174,7 +1174,7 @@ div — not focusable, so there is no way to resize a panel from the keyboard. P
 `separator` role fix both once, for every consumer, in the layer where imperative DOM work belongs.
   Props: orientation: 'vertical' | 'horizontal' = 'vertical', align: 'start' | 'center' | 'end' = 'center', line: 'auto' | 'none' = 'auto', step: number = 16, dragging: boolean = false
 - we-scroll-area (DesignSystemElement)
-  Props: maxHeight: string = '', maxWidth: string = '', pin: '' | 'end' = ''
+  Props: maxHeight: string = '', maxWidth: string = '', pin: '' | 'end' = '', jump: '' | 'start' | 'end' | 'both' = ''
 - we-select (DesignSystemElement) — Pick a single value from a list of options. Custom-rendered dropdown.
 Use for form fields, settings, filters. Set searchable=true for type-to-filter.
   Props: options: SelectOption[] = [], value: string = '', placeholder: string = '', disabled: boolean = false, searchable: boolean = false, fit: boolean = false, name: string = '', label: string = '', size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md'
@@ -1375,7 +1375,7 @@ Common recipes:
 the relations between them. Picks up model types added later with no template change.
 - **Hierarchy** — `layout: { type: 'tree' }` with a `collection` expansion for nested content.
 - **Static diagram** — `seeds: { literal: true, nodes: [...], edges: [...] }` and no expansion at all.
-  Props: seeds?: SeedSpec | SeedSpec[], expansion?: ExpansionSpec, revision?: string | number | boolean, live?: boolean, layout?: LayoutSpec, nodeStyle?: NodeStyleRules, edgeStyle?: EdgeStyleRules, behaviours?: BehaviourSpec[], reified?: Record<string, { source: string; target: string; type?: string; sourceType?: string; targetType?: string; }>, width?: string, height?: string, bg?: string, showStatus?: boolean, empty?: string, emptyIcon?: string, showControls?: boolean, controls?: string[], onNodeClick?: ((node: GraphNode & { recordId?: string; recordType?: string; fields: { name: string; value: string; }[]; }) => void), expandRequest?: { id: string; expanders?: string[]; direction?: "in" | "out" | "both"; } | null, onNodeDoubleClick?: ((node: GraphNode & { recordId?: string; recordType?: string; }) => void), onEdgeClick?: ((edge: GraphEdge & { recordId?: string; recordType?: string; }) => void), onEdgeCreate?: ((payload: { source: GraphNode; target: GraphNode; sourceId: string; sourceType: string; targetId: string; targetType: string; sourceLabel: string; targetLabel: string; }) => void), onCanvasDoubleClick?: ((payload: { x: number; y: number; }) => void), onSelectionChange?: ((ids: string[]) => void), onNodeDragEnd?: ((payload: { id: string; x: number; y: number; recordId?: string; recordType?: string; }) => void), onNodeResize?: ((payload: { id: string; x: number; y: number; width: number; height: number; recordId?: string; recordType?: string; }) => void), nodeActions?: NodeAction[], onNodeAction?: ((payload: { action: string; id: string; recordId?: string; recordType?: string; }) => void), host?: GraphHostBindings
+  Props: seeds?: SeedSpec | SeedSpec[], expansion?: ExpansionSpec, revision?: string | number | boolean, live?: boolean, layout?: LayoutSpec, nodeStyle?: NodeStyleRules, edgeStyle?: EdgeStyleRules, behaviours?: BehaviourSpec[], reified?: Record<string, { source: string; target: string; type?: string; sourceType?: string; targetType?: string; }>, width?: string, height?: string, bg?: string, showStatus?: boolean, empty?: string, emptyIcon?: string, showControls?: boolean, controls?: string[], onNodeClick?: ((node: GraphNode & { recordId?: string; recordType?: string; fields: { name: string; value: string; }[]; }) => void), expandRequest?: { id: string; expanders?: string[]; direction?: "in" | "out" | "both"; } | null, onNodeDoubleClick?: ((node: GraphNode & { recordId?: string; recordType?: string; }) => void), onEdgeClick?: ((edge: GraphEdge & { recordId?: string; recordType?: string; }) => void), onEdgeRetarget?: ((payload: { id: string; end: "source" | "target"; nodeId: string; nodeType: string; recordId?: string; recordType?: string; }) => void), onEdgeReroute?: ((payload: { id: string; points: EdgeWaypoint[]; recordId?: string; recordType?: string; }) => void), onEdgeAnchor?: ((payload: { id: string; end: "source" | "target"; side: "" | "n" | "e" | "s" | "w"; recordId?: string; recordType?: string; }) => void), onEdgeCreate?: ((payload: { source: GraphNode; target: GraphNode; sourceId: string; sourceType: string; targetId: string; targetType: string; sourceLabel: string; targetLabel: string; }) => void), onCanvasDoubleClick?: ((payload: { x: number; y: number; }) => void), onSelectionChange?: ((ids: string[]) => void), onNodeDragEnd?: ((payload: { id: string; x: number; y: number; recordId?: string; recordType?: string; }) => void), onNodeResize?: ((payload: { id: string; x: number; y: number; width: number; height: number; recordId?: string; recordType?: string; }) => void), nodeActions?: NodeAction[], onNodeAction?: ((payload: { action: string; id: string; recordId?: string; recordType?: string; }) => void), host?: GraphHostBindings
 
 ---
 
@@ -1406,6 +1406,7 @@ Names resolvable inside GraphView props: seed sources (seeds.source), expanders 
   - via: string — Relation holding the contents. Defaults to "children".
   - connections: string — Reified relation entity to draw as lines between the cards — e.g. "Relationship". Only pairs whose two ends are both on the board are drawn, since a line to something elsewhere would leave the canvas. Each line carries the record it stands for, so clicking one can open it. Omit for a board with no connections.
   - typeStyles: string — Entity holding this board's colour per kind of thing — WE passes "TypeStyle". Read onto every node as `boardTypeColor`, for a style rule to pick up with `{ from: "data.boardTypeColor" }`. This is what a board's key writes.
+  - routes: string — Entity holding how this board draws its connections — WE passes "EdgeRoute". Read onto each edge as `sourceAnchor` / `targetAnchor`, which pin which SIDE of a card a line leaves and arrives on (`n`, `e`, `s`, `w`) instead of letting the geometry decide. Per board, like a placement: the same connection shown on two boards is tidied on each separately. Also carries the points a line is bent through, read onto the edge as `waypoints`. Pair with onEdgeAnchor/recordStore.anchorOnBoard and onEdgeReroute/recordStore.rerouteOnBoard to let people set them.
   - pending: string[] — Record ids whose card stands for a suggestion nobody has agreed to yet — an extraction pass can stage a whole record, so it is on the board and answers every query the accepted ones do. Read onto the matching node as `data.pending`, for a style rule or a node action to pick up with `{ when: { "data.pending": true } }` — the `data.` prefix is required, since a bare key reads a node field rather than seeded data, and matches nothing here. Ids rather than a query because only the capability that staged them knows which they are.
   - limit: number — Rows per type. Default 200.
   - Example: `{ "source": "board", "options": { "board": { "$": "local.boardId" } } }`
@@ -1984,11 +1985,20 @@ CollectionBlock extends WeNode:
   - textContent: string [we://text_content]
   Relations:
   - children: HasMany [we://children]
+  - extractionPasses: HasMany → ExtractionPass [we://extraction_pass_record]
 
 DividerBlock extends WeNode:
   Fields:
   - style: string = 'solid' [we://style]
   - version: number [we://version]
+
+EdgeRoute extends Ad4mModel:
+  Fields:
+  - sourceAnchor: string [we://source_anchor]
+  - targetAnchor: string [we://target_anchor]
+  - points: json [we://route_points]
+  Relations:
+  - connection: HasOne [we://routed_connection]
 
 EmbedBlock extends WeNode:
   Fields:
@@ -2223,6 +2233,13 @@ Theme extends WeNode:
   Relations:
   - screenshots: HasMany → ImageBlock [we://screenshot]
 
+ExtractionPass extends Ad4mModel:
+  Fields:
+  - outcome: string = 'done' [we://outcome]
+  - recordCount: number [we://record_count]
+  - targets: string [we://extraction_targets]
+  - error: string [we://error]
+
 TypeStyle extends Ad4mModel:
   Fields:
   - nodeType: string [we://node_type]
@@ -2441,6 +2458,9 @@ RecordStore:
   - placeOnBoard(board: string, nodeId: string, nodeType: string, x: number, y: number): puts a record at a position on a board, or moves one already there. An upsert, so dragging twice leaves one coordinate. Pair with the graph’s onNodeDragEnd
   - removeFromBoard(board: string, nodeId: string): takes a record off a board, leaving the record itself alone. A card the board owns survives as an unplaced one in the tray
   - resizeOnBoard(board: string, payload): resizes a card on a board. Takes the graph's onNodeResize payload as it arrives; the size lives on the placement, so the same post on another board is unaffected
+  - anchorOnBoard(board: string, payload): pins which SIDE of a card a connection leaves or arrives on, for this board. Takes the graph's onEdgeAnchor payload as it arrives; an empty side clears that end, and a route with neither end pinned and no bends is deleted. Bends survive a clear — one record holds both, and letting go of a side says nothing about the shape somebody drew. Per board, like a placement — the same connection on somebody else's board is unaffected
+  - rerouteOnBoard(board: string, payload): writes the shape of one connection's route on this board — the points it is bent through. Takes the graph's onEdgeReroute payload as it arrives; the whole list, in the edge's own frame, so a bend keeps its proportions when either card moves. An empty list straightens it, and a route with no points and no anchors is deleted
+  - retargetOnBoard(board: string, payload): moves one end of a connection onto a different record. Takes the graph's onEdgeRetarget payload as it arrives. Unlike anchorOnBoard and rerouteOnBoard this changes the CLAIM rather than how one board draws it — the relationship now says something different everywhere it is shown. That end's anchor is cleared; its waypoints stay
   - setCardStyle(board: string, nodeId: string, field: string, value): sets one presentation property of one card on one board — 'color', 'cardShape', 'contentScale'. Takes the field name so one action serves a swatch, a picker and a slider. Undone by taking the card off the board
   - previewCardStyle(nodeId: string, field: string, value): shows a presentation change without writing it — for a slider that reports while it moves. Pair with setCardStyle on release; both go through the same pending map so the card never jumps
   - setTypeColor(board: string, nodeType: string, color): sets the colour every card of one type is drawn in, on one board — the board's key, made writable. An empty colour clears it

@@ -40,8 +40,10 @@ export type {
   WatchQuery,
 } from './expander';
 export type {
+  EdgeAnchors,
   EdgeCurve,
   EdgeGeometry,
+  EdgeSide,
   Layout,
   LayoutFactory,
   LayoutInput,

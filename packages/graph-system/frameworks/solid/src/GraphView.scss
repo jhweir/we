@@ -368,8 +368,17 @@
   outline-offset: calc(1px / var(--graph-zoom));
 }
 
+/*
+  Divided by the zoom, like the hover ring above it and the connect handles.
+
+  A ring is chrome — it says which card is selected, and how thick it is says nothing. Written as a
+  plain `3px` it was three *world* pixels, so it grew with the camera: at 4x it was a twelve-pixel
+  band around the card, and the connect dots, which are pinned to screen size and sit a fixed
+  distance off the edge, were pushed into it and then under it. Reported as the dots drifting inwards
+  as you zoom, which is the ring growing outwards past them.
+*/
 .we-graph__node--card.we-graph__node--selected .we-graph__card {
-  box-shadow: 0 0 0 3px var(--we-color-primary-500);
+  box-shadow: 0 0 0 calc(3px / var(--graph-zoom)) var(--we-color-primary-500);
 }
 
 // A card that is both selected and hovered keeps the selection ring alone — two rings around one
@@ -399,8 +408,10 @@
 */
 .we-graph__node--pinned .we-graph__dot,
 .we-graph__node--pinned .we-graph__card {
-  outline: 2px dashed var(--we-color-neutral-500);
-  outline-offset: 3px;
+  // Screen-constant, for the reason the selection ring is: a pinned card can carry connect handles
+  // too, and this sits further out than the selection ring does.
+  outline: calc(2px / var(--graph-zoom)) dashed var(--we-color-neutral-500);
+  outline-offset: calc(3px / var(--graph-zoom));
 }
 
 .we-graph__node--unresolved .we-graph__dot {
@@ -639,22 +650,50 @@
  * beside a resize strip is a thing you miss and then miss again. Drawn as `::before` so the two sizes
  * are independent; the hit area never changes, only what is painted in it.
  *
- * Sized in `px / var(--graph-zoom)`, like the resize grips: the layer is scaled by the camera, so
- * dividing first is what keeps a dot the same size on screen at every zoom. No `scale()` here, which
- * is what lets `translate(-50%, -50%)` centre them honestly — a percentage translate resolves against
- * the unscaled box, so the two together mis-centre by however far the camera is from 1.
+ * ## Counter-scaled, not divided
+ *
+ * The layer carries the camera's `scale`, so everything in it needs undoing by the same factor to
+ * stay one size on screen. There are two ways, and only one of them survives being zoomed into.
+ *
+ * This was the other one: every length written as `px / var(--graph-zoom)`, so the *layout* shrank
+ * and the scale grew it back. At 4x that lays out a 6.5px disc with a 0.375px border and a 3.75px
+ * arrow inside a 7.5px box — and sub-pixel snapping rounds each axis on its own, so the disc came out
+ * a pixel taller than it was wide (a `border-radius: 50%` pill, not a circle) and the arrow sat a
+ * fraction off centre, both worse the further in you went. Nothing is wrong with the arithmetic; the
+ * arithmetic is asking the layout engine for a 0.375px border.
+ *
+ * So the box is laid out at its real screen size — 30px, a 26px disc, a 1.5px border — and scaled
+ * down by the camera instead. Integers at every zoom, one rasterised circle, one centred arrow.
+ *
+ * `scale` is written FIRST in the list, which means it applies LAST, and that is the whole trick —
+ * the same one `.we-graph__actions` above uses for its 24px buttons. A transform list applies right
+ * to left, so `translate(-50%, -50%)` is measured against the element's own unscaled 30px box and the
+ * displacement is then scaled with it. Written the other way round the translate would be 15 *world*
+ * pixels and the handle would drift off its anchor by however far the camera is from 1 — which is the
+ * objection that argued for dividing in the first place, and it is answered by the ordering.
+ *
+ * `transform-origin: 0 0` for the same reason: the anchor is the point `left`/`top` put the box at,
+ * and scaling about the centre would move it.
+ *
+ * `--reach` stays divided, because it is the one length that is NOT inside the scaled box: it is used
+ * in `left`/`top`, which are the parent's coordinates, and those are world units.
  */
 .we-graph__connect {
-  --hit: calc(26px / var(--graph-zoom));
-  --dot: calc(10px / var(--graph-zoom));
-  --reach: calc(16px / var(--graph-zoom));
+  --hit: 30px;
+  --dot: 10px;
+  --reach: calc(20px / var(--graph-zoom));
   --half-w: calc(var(--node-width) / 2);
   --half-h: calc(var(--node-height) / 2);
 
   position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: var(--hit);
   height: var(--hit);
-  transform: translate(-50%, -50%);
+  transform-origin: 0 0;
+  transform: scale(calc(1 / var(--graph-zoom))) translate(-50%, -50%);
+  color: var(--we-role-on-accent);
 
   // The node layer is inert so the canvas can hit-test in world space; these take their own presses.
   pointer-events: auto;
@@ -672,7 +711,7 @@
   height: var(--dot);
   border-radius: 50%;
   background: var(--we-role-accent);
-  border: calc(1.5px / var(--graph-zoom)) solid var(--we-color-neutral-0);
+  border: 1.5px solid var(--we-color-neutral-0);
   opacity: 0.6;
   transition:
     opacity 100ms ease-out,
@@ -680,54 +719,42 @@
     height 100ms ease-out;
 }
 
+/*
+  Big enough to be read past the cursor.
+
+  It was 22px, under a crosshair that covers most of that — so the thing the expansion exists to
+  reveal was mostly hidden by the pointer sitting on it, and what was left read as a smudge rather
+  than as a direction. The hit box grows with it and stays the larger of the two, since the target is
+  what a mouse has to land on and the disc is only what is painted in it.
+*/
 .we-graph__connect:hover::before {
-  width: calc(22px / var(--graph-zoom));
-  height: calc(22px / var(--graph-zoom));
+  width: 26px;
+  height: 26px;
   opacity: 1;
 }
 
 /**
  * The arrow, out of the edge it belongs to.
  *
- * Two borders on a square, turned — a chevron rather than a filled triangle, because a triangle at
- * this size reads as a blob and a chevron keeps a direction at every zoom. Hidden until the dot is
- * reached for: four permanent arrows around a card would be four claims about where its connections
- * go, and there is no such claim to make.
+ * A real arrow, one name per edge — see `CONNECT_EDGES`. It was a CSS chevron with a per-edge nudge
+ * that put three of the four visibly off-centre; an arrow centred in its own box is centred by the
+ * flex row above and needs no correction at all.
+ *
+ * Hidden until the dot is reached for: four permanent arrows around a card would be four claims
+ * about where its connections go, and there is no such claim to make.
+ *
+ * `position: relative` because the disc is an absolutely-positioned `::before`, which paints above
+ * ordinary in-flow content however early it comes in the tree. Without it the arrow is behind the
+ * very thing it is drawn on.
  */
-.we-graph__connect::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: calc(7px / var(--graph-zoom));
-  height: calc(7px / var(--graph-zoom));
-  border-top: calc(2px / var(--graph-zoom)) solid var(--we-role-on-accent);
-  border-right: calc(2px / var(--graph-zoom)) solid var(--we-role-on-accent);
+.we-graph__connect we-icon {
+  position: relative;
   opacity: 0;
   transition: opacity 100ms ease-out;
 }
 
-.we-graph__connect:hover::after {
+.we-graph__connect:hover we-icon {
   opacity: 1;
-}
-
-// A square bearing its top and right borders points north-east; each edge is that, turned to face
-// away from the card. The nudge keeps the chevron optically centred, since its mass sits on two
-// sides rather than in the middle.
-.we-graph__connect--n::after {
-  transform: rotate(-45deg) translate(calc(1px / var(--graph-zoom)), calc(1px / var(--graph-zoom)));
-}
-
-.we-graph__connect--e::after {
-  transform: rotate(45deg) translate(calc(-1px / var(--graph-zoom)), calc(1px / var(--graph-zoom)));
-}
-
-.we-graph__connect--s::after {
-  transform: rotate(135deg) translate(calc(-1px / var(--graph-zoom)), calc(-1px / var(--graph-zoom)));
-}
-
-.we-graph__connect--w::after {
-  transform: rotate(-135deg) translate(calc(1px / var(--graph-zoom)), calc(-1px / var(--graph-zoom)));
 }
 
 // Off the edge rather than on it: the edges and corners of the box are already grab areas for
@@ -750,4 +777,95 @@
 .we-graph__connect--e {
   left: calc(var(--half-w) + var(--reach));
   top: 0;
+}
+
+/**
+ * A grip on a connection — the ends that pin an anchor, and the points that bend it.
+ *
+ * ## Two circles, because a target and a hint are different sizes
+ *
+ * The painted dot is five pixels and the circle that takes the press is twelve, which is the same
+ * split the connect dots make in the other direction. Painted at its own size the dot was smaller
+ * than the cursor sitting on it: aiming was guesswork, and a miss grabbed the card behind it or
+ * panned the board, which reads as the handle not working rather than as having been missed.
+ *
+ * `pointer-events: all` on the target, not `visiblePainted` — a circle with no fill is not *painted*,
+ * so under the default it would be invisible to the pointer as well as to the eye, which is the one
+ * combination that makes an invisible hit area pointless.
+ *
+ * ## The cursor has to differ from the canvas's
+ *
+ * The canvas is `grab`, so a handle that also said `grab` said nothing: the pointer looked identical
+ * an inch away from a grip and on top of one, and the only way to find out was to press and see.
+ * `move` is the vector-editor convention for a point you drag, and — the part that matters here — it
+ * is not a hand.
+ */
+.we-graph__handle {
+  // The node layer is inert so the canvas can hit-test in world space; these take their own presses.
+  pointer-events: auto;
+  touch-action: none;
+  cursor: move;
+}
+
+.we-graph__handle:active {
+  cursor: grabbing;
+}
+
+// Invisible, and hit-tested anyway. See the note above on `all`.
+.we-graph__handle-hit {
+  fill: none;
+  pointer-events: all;
+}
+
+.we-graph__handle-dot {
+  fill: var(--we-role-accent);
+  stroke: var(--we-color-neutral-0);
+
+  // The press belongs to the target around it; taking it here would shrink the grip back to the dot.
+  pointer-events: none;
+  transition: stroke-width 80ms ease-out;
+}
+
+/*
+  Reached for, and saying so.
+
+  A ring rather than a size change: `r` is an SVG geometry attribute, and animating it across engines
+  is a fight — where the stroke grows outward from a circle whose centre never moves, which is what
+  keeps the grip under the pointer that is already on it.
+*/
+.we-graph__handle:hover .we-graph__handle-dot {
+  stroke: var(--we-role-accent-text);
+  stroke-width: 3px;
+}
+
+/*
+  A gap between two points, offered rather than placed.
+
+  Hollow, so the two read apart at a glance: a filled dot is a decision somebody made and this is an
+  invitation. Faint until it is reached for, since one sits in the middle of every leg and four solid
+  marks along a line would be four claims about a shape nobody has chosen yet.
+*/
+.we-graph__handle--ghost .we-graph__handle-dot {
+  fill: var(--we-color-neutral-0);
+  stroke: var(--we-role-accent);
+  opacity: 0.55;
+}
+
+.we-graph__handle--ghost:hover .we-graph__handle-dot {
+  opacity: 1;
+}
+
+/*
+  The tooltip must not be able to take the pointer.
+
+  `we-tooltip` re-enables hit-testing on its own plate while open — right for a tooltip you may want
+  to select text out of, and wrong here, where the plate sits directly over the handle that raised
+  it. The pointer crossing into it fired the handle's `pointerleave`, which unmounted the tooltip,
+  which put the pointer back on the handle, which raised it again: a flicker every frame for a mouse
+  a pixel too high. `pointer-events: none` on the host does not reach it, because the shadow rule is
+  the more specific of the two.
+*/
+.we-graph we-tooltip::part(tooltip),
+.we-graph we-tooltip::part(arrow) {
+  pointer-events: none;
 }

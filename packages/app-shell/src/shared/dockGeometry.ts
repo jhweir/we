@@ -920,6 +920,39 @@ export interface DockGeometry {
    */
   seam?: { top: string; left: string; width: string; height: string };
   /**
+   * The box the grip for the whole lane's thickness sits in — its inboard edge, along its full
+   * length. Present on a displacing lane's **first** member only, and absent everywhere else. See
+   * {@link laneEdgeBox}.
+   *
+   * The seam's sibling, and published for the same reason: a displacing lane has one thickness that
+   * every member shares, so dragging any member's inboard edge moves all of them — but a per-panel
+   * grip lights only the panel under the pointer, so the feedback said "this one" while the effect
+   * was "all of them". A boundary belonging to several panels is not any one panel's to draw.
+   */
+  laneEdge?: { top: string; left: string; width: string; height: string };
+  /**
+   * The layer the lane's own grip paints at: above every panel in the lane.
+   *
+   * A layer *name* is wrong here for the reason it is wrong for {@link seamLayer}, and this is where
+   * that lesson was learned twice. The grip straddles the lane's edge, so half of it lies over the
+   * lane's own panels — and `sticky` is `200`, which is exactly `PANEL_LAYER_BASE`, so it fell under
+   * every panel that had ever been raised. The inboard half was painted over and the line read as
+   * about half the thickness of every other grip in the app, which is how it was noticed.
+   */
+  laneEdgeLayer?: number;
+  /**
+   * Just joined or left a seat, so this panel lands rather than travels. True for one frame.
+   *
+   * A drop into a stack changes two things at once: the panel that was showing goes hidden, and the
+   * newcomer's box becomes the seat's. The first is instant and the second was eased, so the stack
+   * emptied and the arriving panel flew in from wherever it had been dragged, across the gap the
+   * stack had left. Tearing a tab out looked the same in reverse.
+   *
+   * Per panel rather than a flag on the store, because it is the only correct scope: every *other*
+   * panel should still ease into whatever room the change left it.
+   */
+  settling?: boolean;
+  /**
    * The layer the seam's divider paints at: above both panels it divides.
    *
    * It cannot take a layer *name*. A displacing lane has no gap, so the divider straddles the shared
@@ -1833,6 +1866,87 @@ export function seamBetween(a: Rect, b: Rect, axis: 'vertical' | 'horizontal'): 
   const y = Math.min(a.y, b.y);
   const boundary = (a.x + a.w + b.x) / 2;
   return { x: boundary - SEAM_PX / 2, y, w: SEAM_PX, h: Math.max(a.y + a.h, b.y + b.h) - y };
+}
+
+/**
+ * The box the handle that resizes a whole lane sits in — its inboard side, along its full length.
+ *
+ * The sibling of {@link seamBetween}, and it exists for the same reason: a boundary belonging to
+ * several panels cannot be drawn by any one of them. Dragging the inboard edge of a *displacing*
+ * lane resizes every member — the lane has one thickness and they share it — but the grip was a
+ * per-panel one, so it lit up the height of the panel under the pointer while moving the whole
+ * column. The feedback disagreed with the effect.
+ *
+ * Spanning the lane and centred on its edge, so it reads as the boundary between the lane and the
+ * content it pushed aside rather than as the side of whichever panel you happened to grab.
+ *
+ * `edge` is the screen edge the lane is docked to, so the inboard side is the opposite one: a lane
+ * on the right is dragged by its left.
+ */
+export function laneEdgeBox(boxes: Rect[], edge: Exclude<DockEdge, null>): Rect {
+  const x = Math.min(...boxes.map((box) => box.x));
+  const y = Math.min(...boxes.map((box) => box.y));
+  const right = Math.max(...boxes.map((box) => box.x + box.w));
+  const bottom = Math.max(...boxes.map((box) => box.y + box.h));
+
+  if (edge === 'left' || edge === 'right') {
+    const boundary = edge === 'left' ? right : x;
+    return { x: boundary - SEAM_PX / 2, y, w: SEAM_PX, h: bottom - y };
+  }
+  const boundary = edge === 'top' ? bottom : y;
+  return { x, y: boundary - SEAM_PX / 2, w: right - x, h: SEAM_PX };
+}
+
+/**
+ * Give every member of a seat the box the member that is showing resolved to. Mutates `resolved`.
+ *
+ * A seat has one size, so a tab brought forward appears exactly where the seat is. Most seats get
+ * that from `columnLayout`, which solves one box per seat and hands it to every member — but a lane
+ * holding a *single* seat is not divided, so there is no solve, and the members that are not showing
+ * have nothing to be given. They resolve from their own stored placements instead, which is what
+ * this corrects.
+ *
+ * ## Why it is a correction rather than a seat rect
+ *
+ * The box to share is the front's *resolved* one, and resolving it needs the same walk that resolves
+ * everything else. So `follows` records who copies whom and this runs afterwards, rather than the
+ * seating pass computing a rect it has no way to know.
+ *
+ * The alternative was a zero rect, which is what was there: `resolveDock` uses a supplied seat
+ * directly, so `{ x: 0, y: 0, w: 0, h: 0 }` resolved to a 0×0 box in the corner of the screen.
+ * Nothing showed that while a background tab was `display: none` and had no box at all — the moment
+ * it became `visibility: hidden`, so a tab switch stops tearing down the card's backdrop layer, the
+ * box was real and bringing the tab forward animated it in from the corner.
+ *
+ * It copies the whole answer and not just the rectangle, because the rest of it follows from where
+ * the panel is: `floating` decides whether the frame is glass, `handleX`/`handleY` which sides carry
+ * its grips, and `padTop`/`padBottom` what its content keeps clear of. A tab that answered those
+ * from its own placement would have swapped them all on the frame that brought it forward.
+ */
+export function shareSeatBox(resolved: Record<string, DockGeometry>, follows: Record<string, string>): void {
+  for (const [id, frontId] of Object.entries(follows)) {
+    const front = resolved[frontId];
+    const own = resolved[id];
+    if (!front || !own) continue;
+    const { edge, floating, maximised, handleX, handleY } = front;
+    const { top, right, bottom, left, width, height, padTop, padBottom } = front;
+    resolved[id] = {
+      ...own,
+      edge,
+      floating,
+      maximised,
+      handleX,
+      handleY,
+      top,
+      right,
+      bottom,
+      left,
+      width,
+      height,
+      padTop,
+      padBottom,
+    };
+  }
 }
 
 /**
