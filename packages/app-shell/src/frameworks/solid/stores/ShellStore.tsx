@@ -1532,11 +1532,35 @@ export function ShellStoreProvider(props: ParentProps) {
   /**
    * The same, by id — what the drag paths have, since a pointer knows which panel it has hold of and
    * not where that panel sits in the registry's order.
+   *
+   * ## A tab being dragged out is asked about as the card it is becoming
+   *
+   * `occupiedFor` exempts a displacing panel from its own lane and everything inboard of it, which is
+   * right for a panel that is *staying*: it is holding that edge, so stepping around itself would
+   * walk it off the screen one width per frame.
+   *
+   * A panel being dragged has left, and every other gesture says so before this is asked —
+   * `moveDock` restores a docked panel to a card at the drag threshold, which writes a placement with
+   * no snap. A **tab** drag deliberately writes nothing: the tab cannot leave its seat without taking
+   * the strip and the pointer capture with it. So the tab kept the exemption, its lane counted as
+   * nothing, and the floating snap markers on that edge — top-left, left, bottom-left for a stack
+   * docked on the left — were measured against a content region that still included the stack, and
+   * drawn on top of it rather than beside it.
+   *
+   * Only for a seat with tabs, because only a tab is dragged this way: several panels sharing that
+   * edge one above the other are each dragged by their own titlebar, and are restored to cards first.
    */
   const occupiedForId = (id: string | null): ContentInset => {
     const requests = dockRequests();
     const index = requests.findIndex((request) => request.id === id);
-    return index === -1 ? { ...NO_INSET } : occupiedOf(index, requests);
+    if (index === -1) return { ...NO_INSET };
+    if (!dragCarry()) return occupiedOf(index, requests);
+    const leaving = requests.map((request, at) =>
+      at === index
+        ? { ...request, placement: { ...(request.placement ?? placementOf(request)), snap: null, displace: false } }
+        : request,
+    );
+    return occupiedFor(leaving, index, viewport());
   };
 
   /**

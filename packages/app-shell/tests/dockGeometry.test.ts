@@ -603,6 +603,43 @@ describe('what a panel has to keep clear of', () => {
     expect(occupiedFor(panels, 0, desktop).right).toBe(0);
   });
 
+  describe('a member of a displacing lane, asked as the card it is being dragged into', () => {
+    /*
+      The exemption is for a panel that is STAYING, and every gesture but one says so before asking.
+
+      A displacing panel ignores its own lane because it is holding that edge — stepping around
+      itself would walk it off the screen a width per frame. Dragging a titlebar restores the panel
+      to a card at the threshold, which writes a placement with no snap, so by the time the drop
+      targets are computed the exemption no longer applies and the lane counts.
+
+      A **tab** drag writes nothing on purpose: the tab cannot leave its seat without taking the tab
+      strip and the pointer capture with it. So a tab pulled out of a stack kept the exemption it no
+      longer deserved, its lane counted as nothing, and the floating snap markers for that edge were
+      measured against a content region that still contained the stack — drawn on top of the panel
+      instead of beside it. Only a stack shows it: lane-mates one above the other are each dragged by
+      their own titlebar.
+    */
+    const seated = placement({ snap: 'left', displace: true, thicknessX: 440, order: 0 });
+    const panels = [
+      dock({ id: 'transcribe:transcript', placement: seated }),
+      dock({ id: 'notes:0', placement: seated }),
+    ];
+
+    it('clears nothing while it still belongs to the lane', () => {
+      expect(occupiedFor(panels, 0, desktop).left).toBe(0);
+    });
+
+    it('clears the lane once it is asked as a card with no snap', () => {
+      // What the drag paths now ask. The lane is still there — its other tabs are holding it — so
+      // what the departing one has to keep clear of is the whole of it.
+      const leaving = panels.map((entry, at) =>
+        at === 0 ? { ...entry, placement: { ...seated, snap: null, displace: false } } : entry,
+      );
+
+      expect(occupiedFor(leaving, 0, desktop).left).toBe(440);
+    });
+  });
+
   it('ignores panels that take no room', () => {
     // A floating or maximised neighbour covers content rather than displacing it, so there is nothing
     // for anyone to clear.
