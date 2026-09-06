@@ -306,8 +306,21 @@ export class GraphEngine {
   selectEdge(id: string | null): void {
     if (this.selectedEdge === id) return;
     this.selectedEdge = id;
-    if (id && this.selected.size) this.selected.clear();
-    this.emit({ type: 'selectionChange', ids: [...this.selected] });
+    /*
+      Announced only when the node selection actually emptied.
+
+      `selectionChange` means "these nodes are selected now", and firing it because an *edge* was
+      clicked says something untrue about nodes — a host reading an empty list as "nothing is
+      selected, clear the panel" is right to, and would be acting on a change that did not happen.
+      The workshop board does exactly that, which is how this was found.
+
+      When a card really was selected, clearing it *is* a change and saying so is the point.
+    */
+    const emptied = Boolean(id) && this.selected.size > 0;
+    if (emptied) {
+      this.selected.clear();
+      this.emit({ type: 'selectionChange', ids: [] });
+    }
     this.notify('selection');
   }
 

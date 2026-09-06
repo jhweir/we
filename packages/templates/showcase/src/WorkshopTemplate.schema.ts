@@ -754,6 +754,10 @@ const board: SchemaNode = {
         board: CALL,
         contains: EXTRACTED,
         connections: 'Relationship',
+        // How this board draws those connections: which side of a card each line attaches to, and
+        // any points somebody bent it through. Per board, like a placement — the same claim shown
+        // elsewhere keeps its own shape there.
+        routes: 'EdgeRoute',
         pending: { $: 'modules.transcribe.proposals.map(p, p.id)' },
       },
     },
@@ -865,6 +869,17 @@ const board: SchemaNode = {
       args: [CALL, { $: 'event.recordId' }, { $: 'event.recordType' }, { $: 'event.x' }, { $: 'event.y' }],
     },
     onNodeResize: { $action: 'recordStore.resizeOnBoard', args: [CALL, { $: 'event' }] },
+    /*
+      Routing a line by hand, written back — and binding these is what puts the handles on one.
+
+      Two gestures over one record: `onEdgeAnchor` pins which side of a card an end attaches to,
+      dragged around the card's rim; `onEdgeReroute` carries the points the line is bent through, so
+      a connection can be taken round a card sitting between its two ends. Both land on an
+      `EdgeRoute` parented to this board rather than on the `Relationship` — how a claim is *drawn*
+      is a fact about a view, and the same claim on another board is untouched.
+    */
+    onEdgeAnchor: { $action: 'recordStore.anchorOnBoard', args: [CALL, { $: 'event' }] },
+    onEdgeReroute: { $action: 'recordStore.rerouteOnBoard', args: [CALL, { $: 'event' }] },
     /*
       What is selected, in the address — because the inspector is a *panel*.
 

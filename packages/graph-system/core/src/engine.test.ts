@@ -1348,3 +1348,102 @@ describe('the pending connection', () => {
     expect(engine.getPendingConnection()).toBeNull();
   });
 });
+
+/**
+ * Opening an edge's route for editing, and what that does to the node selection.
+ *
+ * The two are alternatives rather than layers: a board showing a selected card's connect dots *and*
+ * a selected line's waypoint grips at once is two sets of handles a few pixels apart, with a press
+ * that could plausibly mean either.
+ */
+describe('selecting an edge', () => {
+  async function board() {
+    const registry = new PluginRegistry({ seeds: [seedOf(2)], expanders: [fanoutExpander(0)], layouts });
+    const engine = engineWith(
+      { seeds: { source: 'test' }, layout: { type: 'grid' }, expansion: { defaultDepth: 0 } },
+      registry,
+    );
+    await engine.start();
+    return engine;
+  }
+
+  it('opens one route and closes it again', async () => {
+    const engine = await board();
+
+    engine.selectEdge('some-edge');
+    expect(engine.getSelectedEdge()).toBe('some-edge');
+
+    engine.selectEdge(null);
+    expect(engine.getSelectedEdge()).toBeNull();
+  });
+
+  it('closes an open route when a node is selected', async () => {
+    const engine = await board();
+    engine.selectEdge('some-edge');
+
+    engine.select(['seed-0']);
+
+    expect(engine.getSelectedEdge()).toBeNull();
+  });
+
+  it('closes it on a background click, which selects nothing', async () => {
+    // `select([])` is what a click on empty canvas does, and "nothing is selected" has to include
+    // the line — otherwise its grips outlive the click that was meant to put them away.
+    const engine = await board();
+    engine.selectEdge('some-edge');
+
+    engine.select([]);
+
+    expect(engine.getSelectedEdge()).toBeNull();
+  });
+
+  it('clears a selected card', async () => {
+    const engine = await board();
+    engine.select(['seed-0']);
+
+    engine.selectEdge('some-edge');
+
+    expect(engine.getSelection()).toEqual([]);
+  });
+
+  it('says nothing about nodes when no node was selected', async () => {
+    /*
+      The bug this exists for. `selectionChange` means "these nodes are selected now", and firing it
+      because an *edge* was clicked says something untrue: a host reading an empty list as "nothing
+      is selected, clear the panel" is right to, and would be acting on a change that never
+      happened. The workshop board does exactly that, which is how it was found.
+    */
+    const events: string[] = [];
+    const registry = new PluginRegistry({ seeds: [seedOf(2)], expanders: [fanoutExpander(0)], layouts });
+    const engine = new GraphEngine({
+      spec: { seeds: { source: 'test' }, layout: { type: 'grid' }, expansion: { defaultDepth: 0 } },
+      registry,
+      context,
+      onEvent: (event) => events.push(event.type),
+    });
+    await engine.start();
+    events.length = 0;
+
+    engine.selectEdge('some-edge');
+
+    expect(events).not.toContain('selectionChange');
+  });
+
+  it('does say so when a card really was deselected by it', async () => {
+    const events: { type: string; ids?: string[] }[] = [];
+    const registry = new PluginRegistry({ seeds: [seedOf(2)], expanders: [fanoutExpander(0)], layouts });
+    const engine = new GraphEngine({
+      spec: { seeds: { source: 'test' }, layout: { type: 'grid' }, expansion: { defaultDepth: 0 } },
+      registry,
+      context,
+      onEvent: (event) => events.push(event as { type: string; ids?: string[] }),
+    });
+    await engine.start();
+    engine.select(['seed-0']);
+    events.length = 0;
+
+    engine.selectEdge('some-edge');
+
+    expect(events).toEqual([{ type: 'selectionChange', ids: [] }]);
+  });
+});
