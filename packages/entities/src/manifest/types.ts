@@ -188,6 +188,8 @@ export interface PlacementRecord extends RecordInstance {
   width: number;
   height: number;
   contentScale: number;
+  rotation: number;
+  z: number;
   color: string;
   cardShape: string;
   node?: string;

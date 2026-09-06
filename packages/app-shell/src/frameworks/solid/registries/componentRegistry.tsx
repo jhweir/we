@@ -17,6 +17,7 @@ import {
 import {
   AvatarStack,
   Calendar,
+  Canvas,
   Card,
   CodeEditor, // Plainly, though it carries CodeMirror — see the registry entry below.
   CollapsedContent,
@@ -100,6 +101,7 @@ export const componentRegistry: ComponentRegistry = {
   // @we/components
   AvatarStack,
   Calendar,
+  Canvas,
   Card,
   /*
     A read-only code view, and CodeMirror behind it.

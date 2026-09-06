@@ -6,6 +6,7 @@ import {
   BASE_TYPOGRAPHY_SPECS as BASE_TYPOGRAPHY,
   BASE_VISUAL_SPECS as BASE_VISUAL,
   bgImageLayer,
+  composeTransform,
   computeBgImageComposite,
   focusSelector,
   getMarginValues,
@@ -584,7 +585,10 @@ function updateCustomVars(
   } else {
     setProperty(el, `${prefix}box-shadow`, undefined);
   }
-  setProperty(el, `${prefix}transform`, props.transform);
+  // `x`/`y`/`rotate` are emitted as part of this one variable rather than three of their own, which
+  // is what gets them the state and tier axes for free: `transform` is already in
+  // `BASE_VISUAL_SPECS`, so every prefix this function writes under already declares it.
+  setProperty(el, `${prefix}transform`, composeTransform(props));
   setProperty(el, `${prefix}transition`, parseTransition(props.transition));
   setProperty(el, `${prefix}cursor`, props.cursor);
   setProperty(el, `${prefix}pointer-events`, props.pointerEvents);

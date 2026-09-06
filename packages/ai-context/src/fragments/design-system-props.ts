@@ -159,6 +159,11 @@ we-divider, we-icon, we-menu-group, we-popover, we-spinner, we-tooltip
 | mb | SpaceValue | Margin bottom |
 | ml | SpaceValue | Margin left |
 
+**\`position\`, \`top\`, \`right\`, \`bottom\` and \`left\` do not respond to a breakpoint.** They are
+excluded from the tier and state pipelines, so \`mdUpProps: { left: '300px' }\` validates and does
+nothing at all. To move something at a breakpoint, use \`x\` / \`y\` / \`rotate\` (see Visual), which
+compose into \`transform\` and do tier — as do \`width\`, \`height\` and \`zIndex\`.
+
 **A row that overflows is a row where nobody said who gives up space.** Inside a \`Row\`, a child's
 \`maxWidth\` is not a promise: a flex item's automatic minimum size is its *content*, so an item whose
 content cannot narrow — a strip of \`we-button\`s, which set \`white-space: nowrap\` — refuses every
@@ -203,6 +208,9 @@ the item is never asked to be narrower than its content in the first place.
 | cursor | "pointer" \\| "default" \\| "text" \\| "not-allowed" | Cursor style |
 | pointerEvents | "none" \\| "auto" | Pointer events |
 | transform | string | CSS transform |
+| x | number \\| string | Horizontal offset from where the element would otherwise sit. A bare number is px; a string carries its own unit. Composes into \`transform\` |
+| y | number \\| string | Vertical offset, same rules |
+| rotate | number \\| string | Degrees clockwise about the element's own centre. A bare number is degrees |
 | transition | string | CSS transition. Durations may be animation tokens (\`'0'\`–\`'500'\`): \`'width 300 ease-in-out'\`. Prefer the token — a theme's animationSpeed preset overrides those, so \`300\` respects a reduced-motion setting where \`300ms\` overrides it. Use for a property whose *value* changes in place (a width bound to a local); for something appearing and disappearing use \`$if\`/\`$animate\` transitions instead |
 | r | RadiusValue | Border radius (all corners) |
 | rt | RadiusValue | Border radius top |
@@ -213,6 +221,27 @@ the item is never asked to be narrower than its content in the first place.
 | rtr | RadiusValue | Border radius top-right |
 | rbr | RadiusValue | Border radius bottom-right |
 | rbl | RadiusValue | Border radius bottom-left |
+
+**Placing something: \`x\` / \`y\` / \`rotate\`, never \`top\` / \`left\`.** All three compose into one
+\`transform\`, in front of any \`transform\` you also write — so the element is put where it goes and
+turned, and anything else happens in that frame.
+
+\`\`\`json
+{ "type": "Column", "props": { "x": 40, "y": 120, "rotate": -3, "mdUpProps": { "x": 300, "y": 80 } } }
+\`\`\`
+
+They are the placement spelling for four reasons, any one of which decides it: the offsets are the
+only ones that respond to a breakpoint at all; they compose with rotation and scale in one property
+instead of fighting them; they move on the compositor, so a drag costs no layout; and they stay
+correct inside a scaled surface, where a pixel offset would be measured in the wrong units.
+
+Two things to know. A **percentage resolves against the element's own size**, not its parent's —
+that is what \`translate\` does, and rarely what \`x: '50%'\` means, so give a coordinate a length.
+And setting any of them makes the element a **containing block** for absolutely positioned
+descendants, as any transform does.
+
+They are meaningful anywhere, and they are *coordinates* inside a \`Canvas\`, whose \`artboard\`
+declares what space those numbers are in.
 
 ### Flex (Container)
 
@@ -302,13 +331,14 @@ States and tiers do not cross — there is no \`mdUpHoverProps\`. A tier sets ba
 
 ### Which mechanism to reach for
 
-Three ways to respond to size, and they are not interchangeable:
+Four ways to respond to size, and they are not interchangeable:
 
 | Need | Use | Why |
 |---|---|---|
 | Different **values** — padding, gap, width, font size | \`*UpProps\` | Pure CSS. Nothing remounts. |
 | A different **tree** — a pane becomes a drawer, two panes become one | \`$surface\` + \`$if\` on \`surface.tier\` | Only a branch can swap DOM. |
 | Same-shaped things **filling a box** — video tiles, a photo wall | \`Grid\` with \`childAspect\` | Needs both axes and an argmax; CSS cannot express it. |
+| A **composition the author placed by hand** — a scrapbook, a poster, a diagram | \`Canvas\` with an \`artboard\` | The coordinates mean something; declaring the space is what lets them be scaled rather than guessed. |
 
 **Prefer \`*UpProps\` for anything that is a value.** \`$if\` on the tier works and is tempting, because
 branching is the familiar tool — but it **unmounts and rebuilds the subtree** every time the surface

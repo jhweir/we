@@ -1109,6 +1109,23 @@ than once about every row inside it.
 Use this instead of `we-text` when content is stored as HTML (e.g. rich-text
 editor output such as Flux messages). The `content` prop accepts any HTML
 fragment; it is sanitized before rendering so XSS payloads are stripped.
+
+#### SVG animation: CSS keyframes, not SMIL
+
+Inline SVG passes through, and so does animation written as CSS — a `<style>` block with
+`@keyframes` inside the SVG, or a `<animateMotion>` following a path. **A SMIL `<animate>` or
+`<set>` element does not**: DOMPurify's default allowlist excludes them, so they are removed and
+the drawing renders static.
+
+That exclusion is deliberate and stays. `<set attributeName="href" to="javascript:…">` is a real
+XSS vector against an `<a>`, which is precisely the shape of payload this element exists to
+strip — and SMIL is a dead end besides, deprecated in spirit and unevenly implemented, where CSS
+animation is neither.
+
+What was wrong was not the policy but the silence: an author wrote something reasonable, it
+typechecked, it validated, and it did nothing, with no diagnostic anywhere. warnAboutSmil
+is the diagnostic. It says what was dropped and what to write instead, once per element, in
+development only.
   Props: content: string = ''
 - we-icon (LayoutElement)
   Props: name: string = '', color: string = '', size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '{css-length}' = '', weight: 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone' = 'regular', gradient: string = ''
@@ -1329,6 +1346,8 @@ when `relative` is enabled.
   Props: avatars: AvatarInfo[], max?: number, size?: "xs" | "sm" | "md" | "lg" | "xl" | "xxs" | "xxl", overlap?: number, ring?: string, styles?: Record<string, string | number>
 - Calendar
   Props: value?: string, events?: CalendarEvent[], onSelect?: ((date: string) => void), styles?: Record<string, string | number>
+- Canvas (DesignSystemElement)
+  Props: artboard: { width: number; height: number; }, fit?: "contain" | "none" | "stretch" | "scale", onMeasure?: ((box: { width: number; height: number; scale: number; }) => void)
 - Card (DesignSystemElement)
 - CodeEditor
   Props: code: string, language?: CodeEditorLanguage, readOnly?: boolean, onChange?: ((code: string) => void), onSave?: ((code: string) => void), maxHeight?: string, styles?: Record<string, string | number>
@@ -1674,6 +1693,11 @@ we-divider, we-icon, we-menu-group, we-popover, we-spinner, we-tooltip
 | mb | SpaceValue | Margin bottom |
 | ml | SpaceValue | Margin left |
 
+**`position`, `top`, `right`, `bottom` and `left` do not respond to a breakpoint.** They are
+excluded from the tier and state pipelines, so `mdUpProps: { left: '300px' }` validates and does
+nothing at all. To move something at a breakpoint, use `x` / `y` / `rotate` (see Visual), which
+compose into `transform` and do tier — as do `width`, `height` and `zIndex`.
+
 **A row that overflows is a row where nobody said who gives up space.** Inside a `Row`, a child's
 `maxWidth` is not a promise: a flex item's automatic minimum size is its *content*, so an item whose
 content cannot narrow — a strip of `we-button`s, which set `white-space: nowrap` — refuses every
@@ -1718,6 +1742,9 @@ the item is never asked to be narrower than its content in the first place.
 | cursor | "pointer" \| "default" \| "text" \| "not-allowed" | Cursor style |
 | pointerEvents | "none" \| "auto" | Pointer events |
 | transform | string | CSS transform |
+| x | number \| string | Horizontal offset from where the element would otherwise sit. A bare number is px; a string carries its own unit. Composes into `transform` |
+| y | number \| string | Vertical offset, same rules |
+| rotate | number \| string | Degrees clockwise about the element's own centre. A bare number is degrees |
 | transition | string | CSS transition. Durations may be animation tokens (`'0'`–`'500'`): `'width 300 ease-in-out'`. Prefer the token — a theme's animationSpeed preset overrides those, so `300` respects a reduced-motion setting where `300ms` overrides it. Use for a property whose *value* changes in place (a width bound to a local); for something appearing and disappearing use `$if`/`$animate` transitions instead |
 | r | RadiusValue | Border radius (all corners) |
 | rt | RadiusValue | Border radius top |
@@ -1728,6 +1755,27 @@ the item is never asked to be narrower than its content in the first place.
 | rtr | RadiusValue | Border radius top-right |
 | rbr | RadiusValue | Border radius bottom-right |
 | rbl | RadiusValue | Border radius bottom-left |
+
+**Placing something: `x` / `y` / `rotate`, never `top` / `left`.** All three compose into one
+`transform`, in front of any `transform` you also write — so the element is put where it goes and
+turned, and anything else happens in that frame.
+
+```json
+{ "type": "Column", "props": { "x": 40, "y": 120, "rotate": -3, "mdUpProps": { "x": 300, "y": 80 } } }
+```
+
+They are the placement spelling for four reasons, any one of which decides it: the offsets are the
+only ones that respond to a breakpoint at all; they compose with rotation and scale in one property
+instead of fighting them; they move on the compositor, so a drag costs no layout; and they stay
+correct inside a scaled surface, where a pixel offset would be measured in the wrong units.
+
+Two things to know. A **percentage resolves against the element's own size**, not its parent's —
+that is what `translate` does, and rarely what `x: '50%'` means, so give a coordinate a length.
+And setting any of them makes the element a **containing block** for absolutely positioned
+descendants, as any transform does.
+
+They are meaningful anywhere, and they are *coordinates* inside a `Canvas`, whose `artboard`
+declares what space those numbers are in.
 
 ### Flex (Container)
 
@@ -1817,13 +1865,14 @@ States and tiers do not cross — there is no `mdUpHoverProps`. A tier sets base
 
 ### Which mechanism to reach for
 
-Three ways to respond to size, and they are not interchangeable:
+Four ways to respond to size, and they are not interchangeable:
 
 | Need | Use | Why |
 |---|---|---|
 | Different **values** — padding, gap, width, font size | `*UpProps` | Pure CSS. Nothing remounts. |
 | A different **tree** — a pane becomes a drawer, two panes become one | `$surface` + `$if` on `surface.tier` | Only a branch can swap DOM. |
 | Same-shaped things **filling a box** — video tiles, a photo wall | `Grid` with `childAspect` | Needs both axes and an argmax; CSS cannot express it. |
+| A **composition the author placed by hand** — a scrapbook, a poster, a diagram | `Canvas` with an `artboard` | The coordinates mean something; declaring the space is what lets them be scaled rather than guessed. |
 
 **Prefer `*UpProps` for anything that is a value.** `$if` on the tier works and is tempting, because
 branching is the familiar tool — but it **unmounts and rebuilds the subtree** every time the surface
@@ -2070,6 +2119,8 @@ Placement extends Ad4mModel:
   - width: number [we://width]
   - height: number [we://height]
   - contentScale: number [we://content_scale]
+  - rotation: number [we://rotation]
+  - z: number [we://z]
   - color: string [we://color]
   - cardShape: string [we://card_shape]
   Relations:
@@ -2461,7 +2512,7 @@ RecordStore:
   - anchorOnBoard(board: string, payload): pins which SIDE of a card a connection leaves or arrives on, for this board. Takes the graph's onEdgeAnchor payload as it arrives; an empty side clears that end, and a route with neither end pinned and no bends is deleted. Bends survive a clear — one record holds both, and letting go of a side says nothing about the shape somebody drew. Per board, like a placement — the same connection on somebody else's board is unaffected
   - rerouteOnBoard(board: string, payload): writes the shape of one connection's route on this board — the points it is bent through. Takes the graph's onEdgeReroute payload as it arrives; the whole list, in the edge's own frame, so a bend keeps its proportions when either card moves. An empty list straightens it, and a route with no points and no anchors is deleted
   - retargetOnBoard(board: string, payload): moves one end of a connection onto a different record. Takes the graph's onEdgeRetarget payload as it arrives. Unlike anchorOnBoard and rerouteOnBoard this changes the CLAIM rather than how one board draws it — the relationship now says something different everywhere it is shown. That end's anchor is cleared; its waypoints stay
-  - setCardStyle(board: string, nodeId: string, field: string, value): sets one presentation property of one card on one board — 'color', 'cardShape', 'contentScale'. Takes the field name so one action serves a swatch, a picker and a slider. Undone by taking the card off the board
+  - setCardStyle(board: string, nodeId: string, field: string, value): sets one presentation property of one card on one board — 'color', 'cardShape', 'contentScale', 'rotation' (degrees clockwise) and 'z' (stacking order). Takes the field name so one action serves a swatch, a picker and a slider. 0 is unset for the numbers, so a card is un-rotated by writing 0. Undone by taking the card off the board
   - previewCardStyle(nodeId: string, field: string, value): shows a presentation change without writing it — for a slider that reports while it moves. Pair with setCardStyle on release; both go through the same pending map so the card never jumps
   - setTypeColor(board: string, nodeType: string, color): sets the colour every card of one type is drawn in, on one board — the board's key, made writable. An empty colour clears it
   - createOnBoard(board: string, x?: number, y?: number): opens the create form and places whatever it makes onto that board, at the point given. Pair with the graph’s onCanvasDoubleClick
@@ -3683,6 +3734,51 @@ everything below it down a second time.
 
 Two Columns, because centring and constraining are different jobs: the outer spans the viewport so
 the route's background reaches the edges, the inner holds the measure.
+
+### A composition placed by hand — Canvas and an artboard
+
+For anything where the author means a specific geometry: a scrapbook, a poster, a diagram, a title
+card. `Canvas` declares the coordinate space its children's `x` / `y` are in, and scales that
+space to whatever box it lands in — so one authored layout is never *broken*, only smaller.
+
+```json
+{
+  "type": "Canvas",
+  "props": { "artboard": { "width": 1200, "height": 1600 } },
+  "children": [
+    {
+      "type": "we-image",
+      "props": { "src": "…", "x": 90, "y": 120, "rotate": -4, "width": "420px", "shadow": "lg", "r": "200" }
+    },
+    {
+      "type": "we-text",
+      "props": { "x": 560, "y": 320, "rotate": 2, "variant": "heading-lg", "maxWidth": "380px" },
+      "children": ["The summer we moved"]
+    }
+  ]
+}
+```
+
+- **`artboard` is the point.** Without it a pixel resolves against whatever positioned ancestor
+  happens to be there — a docked panel, an editor preview pane, a phone — and nothing downstream can
+  scale it. `{ "width": 1200, "height": 1600 }` says what those numbers *mean*.
+- **Children are placed, not flowed.** Every direct child starts at the artboard's origin, so
+  `x`/`y` are coordinates and not offsets from whatever precedes them. Content that should flow
+  goes inside a placed `Column`, not loose on the canvas.
+- **Place with `x` / `y` / `rotate`, never `top` / `left`.** Offsets do not respond to a
+  breakpoint (see the Layout props) and do not compose with rotation; these do both.
+- **Stack with `zIndex`.** A raw number is legal there, not only the named layers — overlap is the
+  entire point of a scrapbook, and on a canvas it should be chosen rather than inherited from
+  document order.
+- **A tall artboard scrolls like a page.** At the default `fit: "scale"` the canvas takes the
+  height the scaled artboard needs, so a composition several screens long behaves like ordinary
+  content. Pair sections of it with `$animate` and `scrollReveal` to bring them in as they arrive.
+- **Reach for `fit: "contain"` only where the canvas has a height of its own** — a fixed panel, a
+  slide. In document flow there is no second axis to fit against and it scales by width anyway.
+
+**Do not use a Canvas for a layout that is merely arranged.** A dashboard of cards is a `Grid`, and
+a page is a `Column`. The test is whether the coordinates carry meaning the author chose: two
+photos overlapping at an angle, yes; three cards in a row, no.
 
 ### Titled section on a card
 

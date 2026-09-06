@@ -43,6 +43,7 @@ import type { GraphEdge, GraphNode, GraphValue, SeedSource } from '@we/graph-pro
 import { entityAddress } from '@we/graph-protocol';
 
 import { rowToNode } from './nodes';
+import { placementsFor, resolvePlacement } from './placements';
 
 export interface BoardSeedOptions {
   /** Record id of the board. Nothing loads until this is set. */
@@ -160,6 +161,17 @@ export function placementStyle(row: Record<string, unknown>): Record<string, Gra
     const value = Number(row[key]);
     if (Number.isFinite(value) && value > 0) style[as] = value;
   };
+  /*
+    The same "0 is unset" rule for a value that may legitimately be negative.
+
+    A card tilted -3° is the ordinary case, and one stacked behind the surface is a real answer too,
+    so `> 0` would silently drop half the range of both. Zero still means unset, and costs nothing:
+    an unrotated card and one nobody has rotated are the same card.
+  */
+  const signed = (key: string, as: string) => {
+    const value = Number(row[key]);
+    if (Number.isFinite(value) && value !== 0) style[as] = value;
+  };
   const text = (key: string, as: string) => {
     // The sentinel is dropped exactly as an empty value is — that is what makes it mean "unset".
     if (typeof row[key] === 'string' && row[key] && row[key] !== PLACEMENT_UNSET) style[as] = row[key] as string;
@@ -167,6 +179,8 @@ export function placementStyle(row: Record<string, unknown>): Record<string, Gra
   number('width', 'boardWidth');
   number('height', 'boardHeight');
   number('contentScale', 'boardContentScale');
+  signed('rotation', 'boardRotation');
+  signed('z', 'boardZ');
   text('color', 'boardColor');
   text('cardShape', 'boardCardShape');
   return style;
@@ -242,12 +256,19 @@ export function boardSeed(): SeedSource {
       */
       const positions = new Map<string, Placed>();
       const placedIds = new Map<string, string[]>();
-      for (const row of placements) {
-        const node = typeof row.node === 'string' ? row.node : undefined;
-        const nodeType = typeof row.nodeType === 'string' ? row.nodeType : '';
+      /*
+        Grouped and resolved, rather than `find`-ed.
+
+        A node with one placement is every node today, and this is that answer written the long way
+        round — see `placements.ts` for why it is worth the extra line now. No tier is passed
+        because a seed runs in the data layer and cannot see the box its nodes will be drawn in.
+      */
+      for (const [node, rows] of placementsFor(placements)) {
+        const row = resolvePlacement(rows);
+        const nodeType = typeof row?.nodeType === 'string' ? row.nodeType : '';
         // A placement whose node never linked names a type and points at nothing. Skipped rather
         // than half-drawn, and left for a sweep — the record it meant is not knowable from here.
-        if (!node || !nodeType) continue;
+        if (!row || !nodeType) continue;
         positions.set(node, { x: Number(row.x) || 0, y: Number(row.y) || 0, style: placementStyle(row) });
         placedIds.set(nodeType, [...(placedIds.get(nodeType) ?? []), node]);
       }

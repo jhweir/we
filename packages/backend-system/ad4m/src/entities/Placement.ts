@@ -77,6 +77,12 @@ export class Placement extends Ad4mModel {
   @Property({ through: 'we://content_scale' })
   contentScale: number = 0;
 
+  @Property({ through: 'we://rotation' })
+  rotation: number = 0;
+
+  @Property({ through: 'we://z' })
+  z: number = 0;
+
   /** Design token or CSS colour. Empty is unset, so the board's own rules decide. */
   @Property({ through: 'we://color' })
   color: string = '';
