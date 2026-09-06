@@ -30,6 +30,7 @@ import { CORE_MANIFEST } from '@we/entities/manifest';
 import { PLACEMENT_UNSET } from '@we/graph-expanders';
 import { Accessor, batch, createContext, createMemo, createSignal, ParentProps, useContext } from 'solid-js';
 
+import { routeWrite } from '../../../shared/edgeRoute';
 import { dropAllPending, dropPending, holdPending, type PendingWrites } from '../../../shared/shapes/pendingWrites';
 import { displayFor, type RecordDisplay } from '../../../shared/shapes/recordDisplay';
 import {
@@ -208,9 +209,11 @@ export interface RecordStore {
    * Pin which side of a card a connection leaves or arrives on, for this board. Takes the graph's
    * `onEdgeAnchor` payload as it arrives.
    *
-   * An empty `side` clears that end, and a route with neither end pinned is deleted — so the way back
-   * out leaves nothing behind. Per board, like a placement: how a connection is drawn is a fact about
-   * a view, and the same connection on somebody else's board is unaffected.
+   * An empty `side` clears that end, and a route with neither end pinned and no bends is deleted — so
+   * the way back out leaves nothing behind. The bends survive a clear either way: one record holds
+   * both, and letting go of a side says nothing about the shape somebody drew. Per board, like a
+   * placement: how a connection is drawn is a fact about a view, and the same connection on somebody
+   * else's board is unaffected.
    */
   anchorOnBoard: (board: string, payload: unknown) => Promise<void>;
   /**
@@ -670,9 +673,10 @@ export function RecordStoreProvider(props: ParentProps) {
    * Pin which side of a card a connection leaves or arrives on, for this board.
    *
    * Takes the graph's `onEdgeAnchor` payload as it arrives, the way `resizeOnBoard` takes
-   * `onNodeResize`'s. An empty `side` clears that end, and a route with neither end pinned is deleted
-   * rather than left as a record saying nothing — the way back has to leave nothing behind, or a
-   * board accumulates a route per connection anybody ever touched.
+   * `onNodeResize`'s. An empty `side` clears that end, and a route with neither end pinned and no
+   * bends is deleted rather than left as a record saying nothing — the way back has to leave nothing
+   * behind, or a board accumulates a route per connection anybody ever touched. A route still holding
+   * bends is not saying nothing, which is why the test asks about all three.
    *
    * Per board, on an `EdgeRoute` parented to it, for the reason a placement is: how a connection is
    * drawn is a fact about a *view*. Putting it on the `Relationship` would make one board's tidying
@@ -682,7 +686,6 @@ export function RecordStoreProvider(props: ParentProps) {
     const event = (payload ?? {}) as { recordId?: string; end?: 'source' | 'target'; side?: string };
     const dataset = datasetStore.currentDataset();
     if (!dataset || !board || !event.recordId || !event.end) return;
-    const field = event.end === 'source' ? 'sourceAnchor' : 'targetAnchor';
     const side = typeof event.side === 'string' ? event.side : '';
     const parent = { id: board, predicate: PREDICATES.CHILDREN };
 
@@ -692,45 +695,28 @@ export function RecordStoreProvider(props: ParentProps) {
         connection?: string;
         sourceAnchor?: string;
         targetAnchor?: string;
+        points?: string;
       }[];
       const already = existing.find((row) => row.connection === event.recordId);
+      // The rule itself lives in `routeWrite`, where it can be tested — every branch of it is a
+      // quiet refusal or a rewrite, which is precisely the kind of thing that stops working without
+      // anything failing. Discarding somebody's bends is how it stopped working the first time.
+      const write = routeWrite(already, event.end, side);
 
-      if (!already) {
-        // Nothing to clear, and nothing worth storing: a route recording "no anchors" is a record
-        // that changes nothing and would have to be swept up later.
-        if (!side) return;
-        await EdgeRoute.create(
-          dataset.handle as never,
-          { [field]: side, connection: [event.recordId] } as never,
-          { parent } as never,
-        );
+      if (write.action === 'none') return;
+      if (write.action === 'update') {
+        await EdgeRoute.update(dataset.handle, already!.id, write.fields);
         return;
       }
-
-      const other = event.end === 'source' ? already.targetAnchor : already.sourceAnchor;
-      if (!side && !other) {
-        await EdgeRoute.delete(dataset.handle, already.id);
-        return;
+      if (write.action === 'replace' || write.action === 'delete') {
+        await EdgeRoute.delete(dataset.handle, already!.id);
       }
-      /*
-        A cleared anchor is a delete-and-recreate, not an update.
-
-        `Ad4mModel`'s update skips `''` exactly as it skips `undefined`, so writing an empty string
-        leaves the old side stored and the line does not move — the same trap `PLACEMENT_UNSET` exists
-        for. There is no sentinel to reach for here because the field is one of four sides and a fifth
-        value would have to be understood by the router; recreating the record without that field is
-        the honest way to say it has none.
-      */
-      if (!side) {
-        await EdgeRoute.delete(dataset.handle, already.id);
-        await EdgeRoute.create(
-          dataset.handle as never,
-          { [event.end === 'source' ? 'targetAnchor' : 'sourceAnchor']: other, connection: [event.recordId] } as never,
-          { parent } as never,
-        );
-        return;
-      }
-      await EdgeRoute.update(dataset.handle, already.id, { [field]: side });
+      if (write.action === 'delete') return;
+      await EdgeRoute.create(
+        dataset.handle as never,
+        { ...write.fields, connection: [event.recordId] } as never,
+        { parent } as never,
+      );
     } catch (error) {
       console.error('RecordStore: anchoring a connection on a board failed', error);
       toastService.error('Could not save that.');
