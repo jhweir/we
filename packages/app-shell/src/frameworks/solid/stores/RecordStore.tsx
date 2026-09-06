@@ -214,6 +214,15 @@ export interface RecordStore {
    */
   anchorOnBoard: (board: string, payload: unknown) => Promise<void>;
   /**
+   * Write the shape of one connection's route on this board. Takes the graph's `onEdgeReroute`
+   * payload as it arrives.
+   *
+   * The whole list of points, in the edge's own frame, so a bend keeps its proportions when either
+   * card moves. An empty list straightens the line, and a route with no points and no anchors left
+   * is deleted.
+   */
+  rerouteOnBoard: (board: string, payload: unknown) => Promise<void>;
+  /**
    * Set one presentation property of one card on one board — colour, shape, content scale.
    *
    * Takes the property name, so one action serves every control, which is the only shape that works
@@ -695,6 +704,56 @@ export function RecordStoreProvider(props: ParentProps) {
     }
   }
 
+  /**
+   * Write the whole shape of one connection's route on this board.
+   *
+   * The whole list rather than the point that moved, because a route is one shape: written per point,
+   * two people bending the same line would each overwrite half of the other's and what came out would
+   * be neither of theirs. Last-write-wins on a shape is a shape somebody chose; last-write-wins on
+   * each point is a shape nobody did.
+   *
+   * An empty list is a straightened route, and a route with nothing left to say — no points and no
+   * anchors — is deleted, so the way back leaves nothing behind. See {@link anchorOnBoard}, which is
+   * the other half of the same record.
+   */
+  async function rerouteOnBoard(board: string, payload: unknown): Promise<void> {
+    const event = (payload ?? {}) as { recordId?: string; points?: unknown };
+    const dataset = datasetStore.currentDataset();
+    if (!dataset || !board || !event.recordId || !Array.isArray(event.points)) return;
+    const parent = { id: board, predicate: PREDICATES.CHILDREN };
+    const points = JSON.stringify(event.points);
+
+    try {
+      const existing = (await EdgeRoute.findAll(dataset.handle, { parent } as Record<string, unknown>)) as {
+        id: string;
+        connection?: string;
+        sourceAnchor?: string;
+        targetAnchor?: string;
+      }[];
+      const already = existing.find((row) => row.connection === event.recordId);
+
+      if (!already) {
+        if (!event.points.length) return;
+        await EdgeRoute.create(
+          dataset.handle as never,
+          { points, connection: [event.recordId] } as never,
+          { parent } as never,
+        );
+        return;
+      }
+      if (!event.points.length && !already.sourceAnchor && !already.targetAnchor) {
+        await EdgeRoute.delete(dataset.handle, already.id);
+        return;
+      }
+      // `[]` rather than `''`: an update skips an empty string, so a straightened route would keep
+      // its old bends. A two-character JSON array is a value, and `waypointsOf` reads it as none.
+      await EdgeRoute.update(dataset.handle, already.id, { points });
+    } catch (error) {
+      console.error('RecordStore: rerouting a connection on a board failed', error);
+      toastService.error('Could not save that.');
+    }
+  }
+
   async function resizeOnBoard(board: string, payload: unknown): Promise<void> {
     const event = (payload ?? {}) as { recordId?: string; width?: number; height?: number; x?: number; y?: number };
     if (!event.recordId || !event.width || !event.height) return;
@@ -903,6 +962,7 @@ export function RecordStoreProvider(props: ParentProps) {
     previewCardStyle,
     resizeOnBoard,
     anchorOnBoard,
+    rerouteOnBoard,
     setCardStyle,
     setTypeColor,
     setRecordEntity,

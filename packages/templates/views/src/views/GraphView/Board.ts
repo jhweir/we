@@ -210,6 +210,15 @@ const boardCards: SchemaNode = {
       learns it was ever bent around anything.
     */
     onEdgeAnchor: { $action: 'recordStore.anchorOnBoard', args: [BOARD, { $: 'event' }] },
+    /*
+      The shape of a line, written back — and binding this is what puts the grips on a selected one.
+
+      Points a route is bent through, so a connection can be taken round a card that sits between its
+      two ends. Stored in the edge's own frame rather than in world coordinates, which is what makes
+      a bend survive somebody tidying the board: move either card and the shape follows them, where
+      absolute points would leave the line doglegging through empty space.
+    */
+    onEdgeReroute: { $action: 'recordStore.rerouteOnBoard', args: [BOARD, { $: 'event' }] },
   },
 };
 

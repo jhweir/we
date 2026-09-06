@@ -1352,6 +1352,11 @@ export const contextData: ContextData = {
           optional: true,
         },
         {
+          name: 'onEdgeReroute',
+          type: '((payload: { id: string; points: EdgeWaypoint[]; recordId?: string; recordType?: string; }) => void)',
+          optional: true,
+        },
+        {
           name: 'onEdgeAnchor',
           type: '((payload: { id: string; end: "source" | "target"; side: "" | "n" | "e" | "s" | "w"; recordId?: string; recordType?: string; }) => void)',
           optional: true,
@@ -1569,6 +1574,7 @@ export const contextData: ContextData = {
       fields: [
         { name: 'sourceAnchor', type: 'string', predicate: 'we://source_anchor', required: false },
         { name: 'targetAnchor', type: 'string', predicate: 'we://target_anchor', required: false },
+        { name: 'points', type: 'json', predicate: 'we://route_points', required: false },
       ],
       relations: [{ name: 'connection', kind: 'HasOne', predicate: 'we://routed_connection' }],
     },
@@ -2400,6 +2406,7 @@ export const contextData: ContextData = {
         'removeFromBoard',
         'resizeOnBoard',
         'anchorOnBoard',
+        'rerouteOnBoard',
         'setCardStyle',
         'previewCardStyle',
         'setTypeColor',

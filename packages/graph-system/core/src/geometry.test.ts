@@ -15,6 +15,9 @@ import {
   normaliseCurve,
   routeEdge,
   trimToRadius,
+  waypointFromWorld,
+  waypointsOf,
+  waypointToWorld,
 } from './geometry';
 
 describe('trimToRadius', () => {
@@ -492,5 +495,177 @@ describe('anchorsOf', () => {
 
   it('answers for an edge carrying no data at all', () => {
     expect(anchorsOf(undefined)).toEqual({ source: undefined, target: undefined });
+  });
+});
+
+/**
+ * Waypoints — points somebody put a connection through, so it can be taken round what is in the way.
+ *
+ * Two things decide whether they are any good, and neither is the curve maths. They have to survive
+ * either card being moved, which is what the stored frame is for; and the shape drawn has to be the
+ * shape the handles are on, which is what interpolating rather than approximating is for.
+ */
+describe('the frame a waypoint is stored in', () => {
+  const from = { x: 0, y: 0 };
+  const to = { x: 100, y: 0 };
+
+  it('round-trips a point through the frame and back', () => {
+    const world = { x: 40, y: 30 };
+
+    expect(waypointToWorld(waypointFromWorld(world, from, to), from, to)).toEqual(world);
+  });
+
+  it('follows the cards when they move, which is the whole reason for it', () => {
+    /*
+      The decision this file is really about. In world coordinates a bend is a pair of numbers that
+      stops meaning anything the moment either end moves — so the first time somebody tidies a board,
+      every hand-drawn route doglegs through empty space. Stored along and across the span, the shape
+      travels with the cards: a point a quarter along and a tenth to the side stays there.
+    */
+    const point = waypointFromWorld({ x: 25, y: 10 }, from, to);
+    const moved = waypointToWorld(point, { x: 200, y: 200 }, { x: 400, y: 200 });
+
+    // Twice the span, so a quarter along is 50 from the new source and the sideways reach doubles.
+    expect(moved).toEqual({ x: 250, y: 220 });
+  });
+
+  it('turns with the pair, not with the screen', () => {
+    // The same point, with the target moved to sit *below* the source: the bend rotates with the
+    // frame rather than staying to the right of it, which is what keeps a route recognisable.
+    const point = waypointFromWorld({ x: 50, y: 20 }, from, to);
+    const turned = waypointToWorld(point, from, { x: 0, y: 100 });
+
+    expect(turned.x).toBeCloseTo(-20, 5);
+    expect(turned.y).toBeCloseTo(50, 5);
+  });
+
+  it('does not divide by zero when the two ends are in the same place', () => {
+    expect(() => waypointFromWorld({ x: 5, y: 5 }, from, from)).not.toThrow();
+    expect(Number.isFinite(waypointToWorld({ along: 0.5, across: 0 }, from, from).x)).toBe(true);
+  });
+});
+
+describe('a route through waypoints', () => {
+  const box = { halfWidth: 30, halfHeight: 20 };
+
+  it('passes through every point it was given', () => {
+    /*
+      Interpolating, not approximating. A B-spline would be smoother and would miss every waypoint,
+      which puts the handle somewhere the line is not — and a handle that is not on the thing it
+      moves is the one kind of control nobody can use.
+    */
+    const through = [
+      { x: 100, y: -80 },
+      { x: 200, y: 60 },
+    ];
+    const route = routeEdge('e', { x: 0, y: 0 }, { x: 300, y: 0 }, 'smooth', 0, box, box, {}, through);
+
+    expect(route.segments).toBeDefined();
+    // Three legs: source → first point → second point → target.
+    expect(route.segments).toHaveLength(3);
+    expect(route.segments![0].to).toEqual(through[0]);
+    expect(route.segments![1].to).toEqual(through[1]);
+  });
+
+  it('leaves each node facing its nearest point, not the far one', () => {
+    /*
+      A line bent up and over leaves its source *upwards*. Attaching toward a target it no longer
+      heads for would start the route on the wrong side of the card and then double back across it —
+      which is the one thing a route drawn to avoid something must not do.
+    */
+    const route = routeEdge('e', { x: 0, y: 0 }, { x: 300, y: 0 }, 'smooth', 0, box, box, {}, [{ x: 0, y: -200 }]);
+
+    // Straight up from the source, so it leaves the top rather than the right-hand side.
+    expect(route.from).toEqual({ x: 0, y: -20 });
+  });
+
+  it('joins the points with straight legs when the edge is drawn straight', () => {
+    const route = routeEdge('e', { x: 0, y: 0 }, { x: 300, y: 0 }, 'straight', 0, box, box, {}, [{ x: 150, y: 90 }]);
+
+    expect(route.segments!.every((segment) => !segment.control)).toBe(true);
+  });
+
+  it('turns a corner per leg when the edge is drawn as steps', () => {
+    const route = routeEdge('e', { x: 0, y: 0 }, { x: 300, y: 0 }, 'step', 0, box, box, {}, [{ x: 150, y: 90 }]);
+
+    // Two legs, two corners each, so four segments — and never a curve among them.
+    expect(route.segments).toHaveLength(4);
+    expect(route.segments!.every((segment) => !segment.control)).toBe(true);
+  });
+
+  it('ignores the lane offset, an explicit route being separate already', () => {
+    // Fanning is how two edges nobody has shaped are told apart. A route somebody drew is already
+    // distinguishable from whatever it was drawn around, and shifting it would move it off the
+    // points it was put through.
+    const bowed = routeEdge('e', { x: 0, y: 0 }, { x: 300, y: 0 }, 'smooth', 60, box, box, {}, [{ x: 150, y: 90 }]);
+    const plain = routeEdge('e', { x: 0, y: 0 }, { x: 300, y: 0 }, 'smooth', 0, box, box, {}, [{ x: 150, y: 90 }]);
+
+    expect(bowed).toEqual(plain);
+  });
+
+  it('carries none of the single-span fields, which describe a shape it no longer is', () => {
+    const route = routeEdge('e', { x: 0, y: 0 }, { x: 300, y: 0 }, 'smooth', 0, box, box, {}, [{ x: 150, y: 90 }]);
+
+    expect(route.control).toBeUndefined();
+    expect(route.control2).toBeUndefined();
+    expect(route.elbows).toBeUndefined();
+  });
+
+  it('puts the label half-way along the shape rather than between the two nodes', () => {
+    // A bent route's midpoint is nowhere near the chord's, and a label at the chord's would sit off
+    // the line it belongs to — which is the same trap the quadratic and cubic cases document.
+    const route = routeEdge('e', { x: 0, y: 0 }, { x: 300, y: 0 }, 'smooth', 0, box, box, {}, [{ x: 150, y: 200 }]);
+
+    expect(route.mid.y).toBeGreaterThan(100);
+  });
+
+  it('is measurable, so a bent line can still be picked', () => {
+    // Picking is geometric and shared with the renderer. A shape `polyline` could not walk would be
+    // a line you can see and cannot click.
+    const route = routeEdge('e', { x: 0, y: 0 }, { x: 300, y: 0 }, 'smooth', 0, box, box, {}, [{ x: 150, y: 200 }]);
+
+    expect(distanceToEdge({ x: 150, y: 200 }, route)).toBeLessThan(1);
+    expect(distanceToEdge({ x: 150, y: 0 }, route)).toBeGreaterThan(50);
+  });
+});
+
+/**
+ * What the router reads waypoints out of, and everything it refuses.
+ *
+ * The blob is whatever the last writer wrote — possibly an older version of this code, possibly
+ * something that is not this code at all. A route that threw on one bad record would take the whole
+ * board's rendering down with it, so every malformed shape answers with no waypoints.
+ */
+describe('waypointsOf', () => {
+  it('reads a stored list', () => {
+    expect(waypointsOf({ waypoints: '[{"along":0.5,"across":0.2}]' })).toEqual([{ along: 0.5, across: 0.2 }]);
+  });
+
+  it('answers nothing for an edge that carries none', () => {
+    expect(waypointsOf(undefined)).toEqual([]);
+    expect(waypointsOf({})).toEqual([]);
+    expect(waypointsOf({ waypoints: '' })).toEqual([]);
+  });
+
+  it('answers nothing rather than throwing on a blob that is not JSON', () => {
+    expect(waypointsOf({ waypoints: 'not json' })).toEqual([]);
+  });
+
+  it('answers nothing for JSON that is not a list', () => {
+    expect(waypointsOf({ waypoints: '{"along":0.5}' })).toEqual([]);
+  });
+
+  it('drops the entries that are not points, keeping the ones that are', () => {
+    // Half a route is better than none: the points that parse are still where somebody put them.
+    expect(
+      waypointsOf({ waypoints: '[{"along":0.5,"across":0},null,{"along":"x","across":1},{"along":1,"across":1}]' }),
+    ).toEqual([
+      { along: 0.5, across: 0 },
+      { along: 1, across: 1 },
+    ]);
+  });
+
+  it('drops a point carrying an infinity, which would route to nowhere', () => {
+    expect(waypointsOf({ waypoints: '[{"along":1e999,"across":0}]' })).toEqual([]);
   });
 });

@@ -797,3 +797,32 @@
 .we-graph__anchor:active {
   cursor: grabbing;
 }
+
+/**
+ * A point a connection is bent through, and the hollow one standing for a gap between two.
+ *
+ * The gap grips are what let a route grow with no mode: the middle of each leg is a handle that
+ * becomes a real point the moment it is dragged. Drawn hollow so the two read apart at a glance —
+ * one is a decision somebody made, the other is an offer.
+ */
+.we-graph__waypoint {
+  fill: var(--we-role-accent);
+  stroke: var(--we-color-neutral-0);
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+}
+
+.we-graph__waypoint--ghost {
+  fill: var(--we-color-neutral-0);
+  stroke: var(--we-role-accent);
+  opacity: 0.7;
+}
+
+.we-graph__waypoint:hover {
+  opacity: 1;
+}
+
+.we-graph__waypoint:active {
+  cursor: grabbing;
+}

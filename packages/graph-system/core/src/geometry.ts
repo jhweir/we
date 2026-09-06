@@ -78,6 +78,34 @@ export function anchorsOf(data: Record<string, unknown> | undefined): EdgeAnchor
 }
 
 /**
+ * The waypoints an edge is carrying, in its own frame — see {@link EdgeWaypoint}.
+ *
+ * Stored as JSON on the record and passed through the data bag as the same string: a bag holds
+ * scalars, and parsing at the seed only to re-serialise for the router would be the same work twice.
+ *
+ * Every kind of malformed input answers with no waypoints rather than throwing. This is a shared,
+ * writable, peer-to-peer data layer: the blob is whatever the last writer wrote, possibly by an
+ * older version of this code or by something that is not this code at all, and a route that threw on
+ * one bad record would take the whole board's rendering down with it.
+ */
+export function waypointsOf(data: Record<string, unknown> | undefined): EdgeWaypoint[] {
+  const raw = data?.waypoints;
+  if (typeof raw !== 'string' || !raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((entry) => {
+      const point = entry as { along?: unknown; across?: unknown };
+      return Number.isFinite(point?.along) && Number.isFinite(point?.across)
+        ? [{ along: Number(point.along), across: Number(point.across) }]
+        : [];
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Trim a segment so it ends at the node's edge rather than its centre.
  *
  * Without this the arrowhead sits under the target node and every edge looks unterminated.
@@ -191,6 +219,118 @@ function departure(
 }
 
 /**
+ * A waypoint, stored in the edge's **own** frame rather than in the world.
+ *
+ * `along` runs from the source (0) to the target (1); `across` is perpendicular, in the same units,
+ * so a bend keeps its proportions. This is the whole difference between a route that survives
+ * somebody tidying a board and one that becomes litter: in world coordinates, moving either card
+ * leaves the line doglegging through empty space, and the first rearrangement turns every hand-drawn
+ * route into a mess nobody chose. Both ends move here and the shape follows them.
+ *
+ * The length of the source→target span scales *both* axes, on purpose. Scaling only `along` would
+ * keep a bend's sideways reach fixed, so pulling two cards apart would flatten the curve out of it.
+ */
+export interface EdgeWaypoint {
+  along: number;
+  across: number;
+}
+
+/** Where a waypoint sits on screen, given where its two nodes are now. */
+export function waypointToWorld(point: EdgeWaypoint, from: Point, to: Point): Point {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const ux = dx / length;
+  const uy = dy / length;
+  return {
+    x: from.x + ux * point.along * length - uy * point.across * length,
+    y: from.y + uy * point.along * length + ux * point.across * length,
+  };
+}
+
+/** The inverse — what to store for a point somebody dropped at a place on screen. */
+export function waypointFromWorld(at: Point, from: Point, to: Point): EdgeWaypoint {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const ux = dx / length;
+  const uy = dy / length;
+  const px = at.x - from.x;
+  const py = at.y - from.y;
+  return { along: (px * ux + py * uy) / length, across: (-px * uy + py * ux) / length };
+}
+
+/**
+ * A smooth curve through every point, as a chain of cubics — Catmull-Rom, converted to Bézier.
+ *
+ * Interpolating rather than approximating: the curve passes *through* each waypoint, which is the
+ * only behaviour that makes sense for a point somebody placed. A B-spline would be smoother and
+ * would miss every one of them, so the handle and the line would not be in the same place.
+ *
+ * The tangent at each point is a sixth of the span between its neighbours, the standard uniform
+ * Catmull-Rom conversion. Ends duplicate their neighbour, which makes the first and last segments
+ * leave and arrive straight at the nodes rather than overshooting to guess a tangent that is not
+ * there.
+ *
+ * This is also the shape a per-point handle would edit later: a Catmull-Rom point *is* a cubic
+ * control pair derived from its neighbours, so overriding one is a stored tangent taking the place
+ * of the derived one, with no second code path and nothing to migrate.
+ */
+export function splineThrough(points: Point[]): { control: Point; control2: Point; to: Point }[] {
+  const segments: { control: Point; control2: Point; to: Point }[] = [];
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const before = points[index - 1] ?? points[index];
+    const start = points[index];
+    const finish = points[index + 1];
+    const after = points[index + 2] ?? finish;
+    segments.push({
+      control: { x: start.x + (finish.x - before.x) / 6, y: start.y + (finish.y - before.y) / 6 },
+      control2: { x: finish.x - (after.x - start.x) / 6, y: finish.y - (after.y - start.y) / 6 },
+      to: finish,
+    });
+  }
+  return segments;
+}
+
+/**
+ * The same points joined at right angles — one corner per leg, on the axis that leg mostly runs.
+ *
+ * Deterministic rather than clever: a router that chose corners by looking at what else is on the
+ * board would move lines nobody touched every time a card did. The point of a waypoint is that the
+ * shape is somebody's decision, so the legs between them follow one rule and stay put.
+ */
+export function orthogonalThrough(points: Point[]): { to: Point }[] {
+  const segments: { to: Point }[] = [];
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const start = points[index];
+    const finish = points[index + 1];
+    const horizontal = Math.abs(finish.x - start.x) >= Math.abs(finish.y - start.y);
+    segments.push({ to: horizontal ? { x: finish.x, y: start.y } : { x: start.x, y: finish.y } }, { to: finish });
+  }
+  return segments;
+}
+
+/** The point half-way along a polyline, by arc length — where a label sits on a bent route. */
+function midpointOf(points: Point[]): Point {
+  const lengths = points
+    .slice(1)
+    .map((point, index) => Math.hypot(point.x - points[index].x, point.y - points[index].y));
+  const total = lengths.reduce((sum, length) => sum + length, 0);
+  if (total === 0) return points[0];
+  let walked = 0;
+  for (let index = 0; index < lengths.length; index += 1) {
+    if (walked + lengths[index] >= total / 2) {
+      const t = lengths[index] === 0 ? 0 : (total / 2 - walked) / lengths[index];
+      const a = points[index];
+      const b = points[index + 1];
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+    }
+    walked += lengths[index];
+  }
+  return points[points.length - 1];
+}
+
+/**
  * Route one edge.
  *
  * `offset` bows the curve to one side. Two nodes related in both directions produce two edges with
@@ -290,6 +430,12 @@ function trimToBox(from: Point, to: Point, halfWidth: number, halfHeight: number
  * still derived from the axis the edge mostly runs along. Cross-axis anchors on an orthogonal route
  * want a router that solves the whole path, which is a different piece of work; the shape a board
  * uses is `smooth`.
+ *
+ * `waypoints` are points the route must pass through, in world coordinates — somebody's decision
+ * about where this line goes, so they beat every derivation left. Each end attaches facing its
+ * *nearest waypoint* rather than the far node, since that is the direction the line actually leaves
+ * in, and `offset` is ignored: fanning is a way of separating two edges nobody has shaped, and an
+ * explicit route is already separate from whatever it was drawn around.
  */
 export function routeEdge(
   id: string,
@@ -300,6 +446,7 @@ export function routeEdge(
   clearance: number | EdgeClearance = 0,
   sourceClearance: number | EdgeClearance = 0,
   anchors: EdgeAnchors = {},
+  waypoints: readonly Point[] = [],
 ): EdgeGeometry {
   if (from.x === to.x && from.y === to.y) {
     // A self-loop has no direction to bow along, so it gets a fixed teardrop above the node.
@@ -324,6 +471,40 @@ export function routeEdge(
   const end = attachPoint(from, to, curve, clearance, horizontal, anchors.target);
   // The same question at the other end — see `sourceClearance`. Roles swapped, axis not.
   const begin = attachPoint(to, from, curve, sourceClearance, horizontal, anchors.source);
+
+  if (waypoints.length) {
+    /*
+      Each end faces the waypoint next to it, not the far node.
+
+      A line bent up and over a card leaves its source *upwards*; attaching it toward a target it no
+      longer heads for would start the route on the wrong side and then double back across the card
+      it belongs to. Each end therefore re-asks `attachPoint` against its own neighbour, with its own
+      axis — the shared `horizontal` is a property of a straight span and there is no longer one.
+    */
+    const first = waypoints[0];
+    const last = waypoints[waypoints.length - 1];
+    const facing = (node: Point, neighbour: Point, side: EdgeSide | undefined, own: number | EdgeClearance) =>
+      attachPoint(neighbour, node, curve, own, Math.abs(neighbour.x - node.x) >= Math.abs(neighbour.y - node.y), side);
+    const head = facing(from, first, anchors.source, sourceClearance);
+    const tail = facing(to, last, anchors.target, clearance);
+    const through = [head, ...waypoints, tail];
+    const segments =
+      curve === 'step'
+        ? orthogonalThrough(through)
+        : curve === 'straight'
+          ? through.slice(1).map((point) => ({ to: point }))
+          : splineThrough(through);
+    return {
+      id,
+      from: head,
+      to: tail,
+      segments,
+      curve,
+      // Half-way along the points rather than of the curve: a label wants to be on the line, and the
+      // difference between the polyline's midpoint and the spline's is far below where one sits.
+      mid: midpointOf(through),
+    };
+  }
 
   if (curve === 'step') {
     // Two separations, at right angles to each other so they compose rather than compete: the lane
@@ -464,6 +645,28 @@ function quadraticAt(from: Point, control: Point, to: Point, t: number): Point {
  * same function serves straight and orthogonal routes, which are already polylines.
  */
 export function polyline(geometry: EdgeGeometry, samples = 16): Point[] {
+  /*
+    A hand-shaped route, segment by segment.
+
+    Sampled at the same rate per *segment* rather than over the whole route, so a line bent three
+    times is measured as finely as one bent once — picking tolerance is a few pixels and a shared
+    budget would thin out exactly where the shape is most interesting.
+  */
+  if (geometry.segments) {
+    const points: Point[] = [geometry.from];
+    let at = geometry.from;
+    for (const segment of geometry.segments) {
+      if (segment.control && segment.control2) {
+        for (let step = 1; step <= samples; step += 1) {
+          points.push(cubicAt(at, segment.control, segment.control2, segment.to, step / samples));
+        }
+      } else {
+        points.push(segment.to);
+      }
+      at = segment.to;
+    }
+    return points;
+  }
   if (geometry.elbows) return [geometry.from, ...geometry.elbows, geometry.to];
   if (!geometry.control) return [geometry.from, geometry.to];
   const { from, to, control, control2 } = geometry;

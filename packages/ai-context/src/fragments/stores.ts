@@ -1120,6 +1120,8 @@ export function generateStoresText(entries: StoreEntry[]): string {
           "(board: string, payload): resizes a card on a board. Takes the graph's onNodeResize payload as it arrives; the size lives on the placement, so the same post on another board is unaffected",
         anchorOnBoard:
           "(board: string, payload): pins which SIDE of a card a connection leaves or arrives on, for this board. Takes the graph's onEdgeAnchor payload as it arrives; an empty side clears that end, and a route with neither end pinned is deleted. Per board, like a placement — the same connection on somebody else's board is unaffected",
+        rerouteOnBoard:
+          "(board: string, payload): writes the shape of one connection's route on this board — the points it is bent through. Takes the graph's onEdgeReroute payload as it arrives; the whole list, in the edge's own frame, so a bend keeps its proportions when either card moves. An empty list straightens it, and a route with no points and no anchors is deleted",
         setCardStyle:
           "(board: string, nodeId: string, field: string, value): sets one presentation property of one card on one board — 'color', 'cardShape', 'contentScale'. Takes the field name so one action serves a swatch, a picker and a slider. Undone by taking the card off the board",
         previewCardStyle:

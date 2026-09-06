@@ -24,6 +24,7 @@
  */
 import { Column, Row } from '@we/components/solid';
 import { ROLE_NAMES } from '@we/design-utils';
+import type { EdgeWaypoint } from '@we/graph-core';
 import {
   anchorsOf,
   connectionTarget,
@@ -32,12 +33,18 @@ import {
   defaultControls,
   defaultMetrics,
   dispatchPointer,
+  distanceToEdge,
   edgeVisual,
   GraphEngine,
   matches,
   nodeVisual,
   PluginRegistry,
+  polyline,
   resolveStyle,
+  splineThrough,
+  waypointFromWorld,
+  waypointsOf,
+  waypointToWorld,
 } from '@we/graph-core';
 import { DEFAULT_REIFIED_EDGES, defaultExpanders } from '@we/graph-expanders';
 import { defaultLayouts } from '@we/graph-layouts';
@@ -78,8 +85,23 @@ const DEFAULT_BEHAVIOURS = ['pan-zoom', 'select', 'expand-on-double-click'];
  * without re-deriving anything.
  */
 export function pathFrom(route: EdgeGeometry, endGap = 0): string {
-  const { from, control, control2, elbows } = route;
+  const { from, control, control2, elbows, segments } = route;
   const to = endGap > 0 ? backOff(route, endGap) : route.to;
+  /*
+    A hand-shaped route: one command per segment, and the last one ends where the arrowhead does.
+
+    First, because a route with segments carries none of the other three fields — they describe one
+    span between two nodes and this is several.
+  */
+  if (segments) {
+    const drawn = segments.map((segment, index) => {
+      const end = index === segments.length - 1 ? to : segment.to;
+      return segment.control && segment.control2
+        ? `C ${segment.control.x} ${segment.control.y} ${segment.control2.x} ${segment.control2.y} ${end.x} ${end.y}`
+        : `L ${end.x} ${end.y}`;
+    });
+    return `M ${from.x} ${from.y} ` + drawn.join(' ');
+  }
   if (elbows) return `M ${from.x} ${from.y} ` + [...elbows, to].map((p) => `L ${p.x} ${p.y}`).join(' ');
   // The second control is what makes it cubic — a renderer needs no other signal to pick its command.
   if (control && control2) {
@@ -108,8 +130,16 @@ export function pathFrom(route: EdgeGeometry, endGap = 0): string {
  * splitting a cubic at an arc length nobody can see.
  */
 function backOff(route: EdgeGeometry, gap: number): Point {
-  const { to, control, control2, elbows } = route;
-  const previous = elbows?.[elbows.length - 1] ?? control2 ?? control ?? route.from;
+  const { to, control, control2, elbows, segments } = route;
+  // The closing tangent of whichever shape this is. For a hand-shaped route that is the last
+  // segment's second control, or the point before it when the leg is straight.
+  const last = segments?.[segments.length - 1];
+  const previous =
+    (last && (last.control2 ?? (segments!.length > 1 ? segments![segments!.length - 2].to : route.from))) ??
+    elbows?.[elbows.length - 1] ??
+    control2 ??
+    control ??
+    route.from;
   const dx = to.x - previous.x;
   const dy = to.y - previous.y;
   const length = Math.hypot(dx, dy);
@@ -146,6 +176,19 @@ const CLEAR_ANCHOR_WITHIN = 0.45;
 
 /** Radius of an edge's endpoint grip, in screen pixels. Divided by the camera where it is drawn. */
 const ANCHOR_HANDLE_R = 5;
+
+/**
+ * How near its own route a dragged waypoint has to be dropped to be removed, in screen pixels.
+ *
+ * Generous, because this is the way back from a bend somebody did not mean to add, and a gesture
+ * that has to be aimed is one people stop trusting. Nothing is lost by being wrong in this direction:
+ * a point removed by accident is one drag from existing again.
+ */
+const REMOVE_WAYPOINT_WITHIN = 10;
+
+/** A waypoint's grip, and the hollow one that stands for a gap. Screen pixels; divided by the camera. */
+const WAYPOINT_HANDLE_R = 5;
+const WAYPOINT_GHOST_R = 4;
 
 /**
  * How much of a value is worth carrying to a panel.
@@ -205,6 +248,17 @@ export function GraphView(props: GraphViewProps) {
   const [connectionVersion, setConnectionVersion] = createSignal(0);
   const [hovered, setHovered] = createSignal<string | null>(null);
   const [hoveredEdge, setHoveredEdge] = createSignal<string | null>(null);
+  /**
+   * The edge whose route is open for editing.
+   *
+   * On the general version rather than a channel of its own: `selection` is one of the reasons that
+   * falls through to it, and a fourth signal would be a fourth thing to keep in step for a value
+   * that changes on a click.
+   */
+  const selectedEdge = createMemo(() => {
+    version();
+    return engine.getSelectedEdge();
+  });
   /**
    * The anchor being dragged, and then the one just written — held until the data says the same.
    *
@@ -1004,6 +1058,155 @@ export function GraphView(props: GraphViewProps) {
     window.addEventListener('pointercancel', finish);
   }
 
+  /**
+   * Drag a point on a connection, adding one where there was none.
+   *
+   * `index` is where the point sits in the stored list; `insert` says whether the press was on an
+   * existing point or on the line between two, which is how a route grows without a separate "add a
+   * point" mode. Miro's gesture, and the reason it needs no instruction: the line is the control.
+   *
+   * Previewed through the same edge overlay the anchors use, so what moves under the pointer is the
+   * connection itself and the shape holds while the write goes round the data layer.
+   *
+   * **Dropped back onto the line it came from, a point is removed.** An added bend has to be
+   * removable by the gesture that made it, or the only way back from a mis-click is a menu; and
+   * "this point is doing nothing" is a thing the shape already says, which is why the test is
+   * geometric rather than a modifier key. Double-clicking one removes it too — see the markup.
+   */
+  function beginWaypoint(event: PointerEvent, edgeId: string, index: number, insert: boolean) {
+    event.stopPropagation();
+    event.preventDefault();
+    const edge = engine.store.edge(edgeId);
+    if (!edge) return;
+    const from = engine.getPositions().get(edge.source);
+    const to = engine.getPositions().get(edge.target);
+    if (!from || !to) return;
+    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+
+    const stored = waypointsOf({ ...edge.data, ...engine.edgeOverlayFor(edgeId) });
+    const at = (moved: PointerEvent) => {
+      const surfaceBox = surface?.getBoundingClientRect();
+      return engine.viewport.toWorld({
+        x: moved.clientX - (surfaceBox?.left ?? 0),
+        y: moved.clientY - (surfaceBox?.top ?? 0),
+      });
+    };
+    let points = stored;
+    let removing = false;
+
+    const move = (moved: PointerEvent) => {
+      if (moved.buttons === 0) return;
+      const world = at(moved);
+      const next = [...stored];
+      const point = waypointFromWorld(world, { x: from.x, y: from.y }, { x: to.x, y: to.y });
+      if (insert) next.splice(index, 0, point);
+      else next[index] = point;
+      /*
+        Back on the line, and it goes.
+
+        Measured against the route this point would leave behind rather than against the straight
+        chord: on a line already bent twice, "on the line" means on the curve its neighbours make,
+        which is not where the chord runs. Dropped only for a point that already existed — an insert
+        that never left the line simply never becomes one.
+      */
+      removing = !insert && nearRoute(next, index, world, { x: from.x, y: from.y }, { x: to.x, y: to.y });
+      points = removing ? next.filter((_, at) => at !== index) : next;
+      setAnchorDraft({ id: edgeId, patch: { waypoints: JSON.stringify(points) } });
+    };
+
+    const finish = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      // A press that never moved is not an edit. Without this, clicking a handle to look at it
+      // would write the route back unchanged and cost a round trip for nothing.
+      if (points === stored) return;
+      const behind = edge.reifiedAs ? parseAddress(edge.reifiedAs) : null;
+      props.onEdgeReroute?.({
+        id: edgeId,
+        points,
+        ...(behind?.kind === 'entity' && { recordId: behind.id, recordType: behind.type }),
+      });
+    };
+
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+  }
+
+  /**
+   * The grips on one route: a filled one per waypoint, a hollow one in each gap between them.
+   *
+   * `index` is where a drag would write into the stored list, which is the same number for both
+   * kinds — a point at index *i* is replaced, and a gap at index *i* is inserted before it. That is
+   * what lets one gesture serve moving and adding.
+   *
+   * The gaps are placed on the drawn route rather than half-way between the points, so a hollow grip
+   * sits on the line somebody is looking at. `polyline` samples whatever shape this is, so the same
+   * arithmetic serves a spline, a polyline and an orthogonal route.
+   */
+  function waypointHandles(edgeId: string, route: EdgeGeometry): { index: number; at: Point; insert: boolean }[] {
+    const edge = engine.store.edge(edgeId);
+    const from = edge && engine.getPositions().get(edge.source);
+    const to = edge && engine.getPositions().get(edge.target);
+    if (!edge || !from || !to) return [];
+    const points = waypointsOf({ ...edge.data, ...engine.edgeOverlayFor(edgeId) });
+    const world = points.map((point) => waypointToWorld(point, { x: from.x, y: from.y }, { x: to.x, y: to.y }));
+    const handles = world.map((at, index) => ({ index, at, insert: false }));
+    // One gap per leg — before the first point, between each pair, and after the last.
+    const drawn = polyline(route);
+    const gaps = Array.from({ length: world.length + 1 }, (_, index) => ({
+      index,
+      at: alongPolyline(drawn, (index + 0.5) / (world.length + 1)),
+      insert: true,
+    }));
+    return [...handles, ...gaps];
+  }
+
+  /** The point a fraction of the way along a polyline, by arc length. */
+  function alongPolyline(points: Point[], fraction: number): Point {
+    const lengths = points
+      .slice(1)
+      .map((point, index) => Math.hypot(point.x - points[index].x, point.y - points[index].y));
+    const total = lengths.reduce((sum, length) => sum + length, 0);
+    if (total === 0) return points[0];
+    let walked = 0;
+    const target = total * fraction;
+    for (let index = 0; index < lengths.length; index += 1) {
+      if (walked + lengths[index] >= target) {
+        const t = lengths[index] === 0 ? 0 : (target - walked) / lengths[index];
+        const a = points[index];
+        const b = points[index + 1];
+        return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+      }
+      walked += lengths[index];
+    }
+    return points[points.length - 1];
+  }
+
+  /** Take one point out of a route — the double-click path. See `beginWaypoint` for the other. */
+  function removeWaypoint(edgeId: string, index: number) {
+    const edge = engine.store.edge(edgeId);
+    if (!edge) return;
+    const points = waypointsOf({ ...edge.data, ...engine.edgeOverlayFor(edgeId) }).filter((_, at) => at !== index);
+    setAnchorDraft({ id: edgeId, patch: { waypoints: JSON.stringify(points) } });
+    const behind = edge.reifiedAs ? parseAddress(edge.reifiedAs) : null;
+    props.onEdgeReroute?.({
+      id: edgeId,
+      points,
+      ...(behind?.kind === 'entity' && { recordId: behind.id, recordType: behind.type }),
+    });
+  }
+
+  /** Whether a point has been dropped back onto the route its neighbours would draw without it. */
+  function nearRoute(points: EdgeWaypoint[], index: number, world: Point, from: Point, to: Point): boolean {
+    const without = points.filter((_, at) => at !== index);
+    const through = [from, ...without.map((point) => waypointToWorld(point, from, to)), to];
+    const route = { id: '', from: through[0], to: through[through.length - 1], curve: 'smooth' as const, mid: world };
+    const shape = without.length ? { ...route, segments: splineThrough(through) } : route;
+    return distanceToEdge(world, shape) <= REMOVE_WAYPOINT_WITHIN / engine.viewport.get().zoom;
+  }
+
   function beginResize(
     event: PointerEvent,
     entry: { node: GraphNode; at: { x: number; y: number }; visual: { width?: number; height?: number } },
@@ -1208,6 +1411,40 @@ export function GraphView(props: GraphViewProps) {
                   And on the edge being dragged whatever the pointer is over, because the pointer
                   leaves the line immediately: that is the gesture.
                 */}
+                {/*
+                  The points this route is bent through, and the gaps between them.
+
+                  A filled handle is a point that exists; a hollow one is the middle of a leg, which
+                  becomes a point the moment it is dragged. That is what lets a route grow with no
+                  "add a point" mode — the line is the control, which needs no instruction.
+
+                  On the **selected** edge rather than the hovered one, unlike the anchors: reshaping
+                  is sustained work where anchoring is a flick, and grips that vanished the moment the
+                  pointer left the line would be unusable for the first. Which is also why clicking a
+                  line selects it — see `selectBehaviour`.
+                */}
+                <Show when={props.onEdgeReroute && selectedEdge() === entry.edge.id}>
+                  <For each={waypointHandles(entry.edge.id, entry.route)}>
+                    {(handle) => (
+                      <circle
+                        class="we-graph__waypoint"
+                        classList={{ 'we-graph__waypoint--ghost': handle.insert }}
+                        cx={handle.at.x}
+                        cy={handle.at.y}
+                        r={(handle.insert ? WAYPOINT_GHOST_R : WAYPOINT_HANDLE_R) / zoom()}
+                        stroke-width={1.5 / zoom()}
+                        onPointerDown={(event) => beginWaypoint(event, entry.edge.id, handle.index, handle.insert)}
+                        // The other way to remove one, for a point somebody would rather not have to
+                        // land back on the line. Both exist because they suit different moments.
+                        onDblClick={(event) => {
+                          if (handle.insert) return;
+                          event.stopPropagation();
+                          removeWaypoint(entry.edge.id, handle.index);
+                        }}
+                      />
+                    )}
+                  </For>
+                </Show>
                 <Show
                   when={props.onEdgeAnchor && (hoveredEdge() === entry.edge.id || anchorDraft()?.id === entry.edge.id)}
                 >

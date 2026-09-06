@@ -45,6 +45,7 @@ function fakeContext(overrides: Partial<BehaviourContext> = {}): BehaviourContex
     collapse: vi.fn(),
     toScreen: (p) => p,
     drawConnection: vi.fn(),
+    selectEdge: vi.fn(),
   };
   return Object.assign(base, overrides);
 }

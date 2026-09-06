@@ -37,6 +37,8 @@ import {
   groupByEndpoints,
   normaliseCurve,
   routeEdge,
+  waypointsOf,
+  waypointToWorld,
 } from './geometry';
 import { PluginRegistry } from './registry';
 import { SpatialIndex } from './spatial';
@@ -278,6 +280,35 @@ export class GraphEngine {
 
   getSelection(): string[] {
     return [...this.selected];
+  }
+
+  /**
+   * The one edge whose route is open for editing, or null.
+   *
+   * Its own slot rather than a member of the node selection, and singular rather than a set. An edge
+   * is selected here for one reason — to reveal the handles that reshape it — and "reshape these
+   * four at once" is not a gesture anybody has asked for, where multi-select on nodes carries
+   * dragging, pinning and deleting. A set would be a vocabulary with one word in it.
+   */
+  private selectedEdge: string | null = null;
+
+  getSelectedEdge(): string | null {
+    return this.selectedEdge;
+  }
+
+  /**
+   * Open an edge's route for editing, or close whichever was open.
+   *
+   * Clears the node selection, and `select` clears this — the two are alternatives rather than
+   * layers. A board showing a selected card's connect dots *and* a selected line's waypoints at once
+   * is two sets of handles a few pixels apart, and a press that could plausibly mean either.
+   */
+  selectEdge(id: string | null): void {
+    if (this.selectedEdge === id) return;
+    this.selectedEdge = id;
+    if (id && this.selected.size) this.selected.clear();
+    this.emit({ type: 'selectionChange', ids: [...this.selected] });
+    this.notify('selection');
   }
 
   getStatus(): Readonly<EngineStatus> {
@@ -1102,6 +1133,11 @@ export class GraphEngine {
           // so whatever loaded it decides — the board seed reads them from an `EdgeRoute` — with any
           // overlay in front, which is how a drag previews and how a write holds until it lands.
           anchorsOf({ ...edge.data, ...this.edgeOverlay.get(edge.id) }),
+          // Stored in the edge's own frame, so a bend keeps its proportions when either card moves —
+          // see `EdgeWaypoint`. Converted here, where both centres are in hand.
+          waypointsOf({ ...edge.data, ...this.edgeOverlay.get(edge.id) }).map((point) =>
+            waypointToWorld(point, from, to),
+          ),
         );
         this.edgeGeometry.set(edge.id, geometry);
         this.edgeBoxes.set(edge.id, edgeBounds(geometry));
@@ -1331,6 +1367,9 @@ export class GraphEngine {
   // ─── Selection ───────────────────────────────────────────────────────────────
 
   select(ids: string[], mode: 'replace' | 'add' | 'toggle' = 'replace'): void {
+    // Selecting anything — including selecting *nothing*, which is what a background click does —
+    // closes an open route. See `selectEdge`.
+    this.selectedEdge = null;
     if (mode === 'replace') this.selected = new Set(ids);
     else {
       for (const id of ids) {
@@ -1370,6 +1409,7 @@ export class GraphEngine {
       toWorld: (at) => this.viewport.toWorld(at),
       toScreen: (at) => this.viewport.toScreen(at),
       drawConnection: (from, to) => this.drawConnection(from, to),
+      selectEdge: (id) => this.selectEdge(id),
       emit: (event) => this.emit(event),
     };
   }

@@ -66,6 +66,7 @@ const SHAPES: EntityShape[] = [
     properties: [
       { name: 'sourceAnchor', type: 'string' },
       { name: 'targetAnchor', type: 'string' },
+      { name: 'points', type: 'string' },
     ],
     relations: [{ name: 'connection', target: '', cardinality: 'one' }],
   },
@@ -634,5 +635,51 @@ describe('board connection routes', () => {
     const { nodes } = await boardSeed().seed({ board: 'b1', connections: 'Relationship', routes: 'EdgeRoute' }, ctx);
 
     expect(nodes.map((node) => node.id).some((id) => id.includes('EdgeRoute'))).toBe(false);
+  });
+});
+
+describe('board connection waypoints', () => {
+  const twoCards = {
+    Placement: [
+      { id: 'p1', node: 'c1', nodeType: 'CollectionBlock', x: 0, y: 0 },
+      { id: 'p2', node: 'c2', nodeType: 'CollectionBlock', x: 200, y: 0 },
+    ],
+    CollectionBlock: [
+      { id: 'c1', title: 'One' },
+      { id: 'c2', title: 'Two' },
+    ],
+    Relationship: [
+      {
+        id: 'r1',
+        label: 'contradicts',
+        source: 'c1',
+        sourceType: 'CollectionBlock',
+        target: 'c2',
+        targetType: 'CollectionBlock',
+      },
+    ],
+  };
+
+  it('carries the stored blob through untouched', async () => {
+    // Passed on as the string it was stored as rather than parsed here: a data bag holds scalars, and
+    // parsing at the seed only to re-serialise for the router would be the same work done twice.
+    const points = '[{"along":0.5,"across":0.3}]';
+    const { context: ctx } = context({ ...twoCards, EdgeRoute: [{ id: 'e1', connection: 'r1', points }] });
+
+    const { edges } = await boardSeed().seed({ board: 'b1', connections: 'Relationship', routes: 'EdgeRoute' }, ctx);
+
+    expect(edges[0].data?.waypoints).toBe(points);
+  });
+
+  it('leaves a route carrying only anchors without a waypoints field', async () => {
+    const { context: ctx } = context({
+      ...twoCards,
+      EdgeRoute: [{ id: 'e1', connection: 'r1', sourceAnchor: 'n', points: '' }],
+    });
+
+    const { edges } = await boardSeed().seed({ board: 'b1', connections: 'Relationship', routes: 'EdgeRoute' }, ctx);
+
+    expect(edges[0].data?.sourceAnchor).toBe('n');
+    expect(edges[0].data).not.toHaveProperty('waypoints');
   });
 });

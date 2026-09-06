@@ -62,6 +62,26 @@ export class EdgeRoute extends Ad4mModel {
   targetAnchor: string = '';
 
   /**
+   * Points the line is bent through, as JSON: `[{ along, across }, …]`, in order.
+   *
+   * **In the edge's own frame, not the world.** `along` runs from the source (0) to the target
+   * (1) and `across` is perpendicular in the same units, so a bend keeps its proportions when
+   * either card moves. World coordinates were the obvious choice and the wrong one: the first
+   * time somebody tidied a board every hand-drawn route would dogleg through empty space, and a
+   * route that becomes litter on the first rearrangement is worse than no route at all.
+   *
+   * A blob rather than rows, on `TextBlock.marks`' precedent: nobody ever asks which connectors
+   * bend near a place, so this is rendered from and never filtered on. Rows would also make the
+   * order a stored field on each, which is a second thing to keep right.
+   *
+   * Each point may carry `in`/`out` tangents later, for per-point curve handles. Absent means
+   * derived from the neighbours, which is what the spline does today — so that is an addition
+   * rather than a migration.
+   */
+  @Property({ through: 'we://route_points' })
+  points: string = '';
+
+  /**
    * The connection this routes. Untyped, because what a board draws lines between is the
    * community's decision — `Relationship` is what WE passes, and a space that names its own
    * connection model gets routes on it for nothing.

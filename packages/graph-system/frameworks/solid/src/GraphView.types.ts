@@ -9,6 +9,7 @@
  * The plugin contracts — expanders, layouts, renderers, behaviours, metrics — live in
  * `@we/graph-protocol` and are named here by id, never passed as objects.
  */
+import type { EdgeWaypoint } from '@we/graph-core';
 import type {
   BehaviourSpec,
   EdgeStyleRules,
@@ -175,6 +176,19 @@ export interface GraphViewProps {
    * Binding this is also what makes the handles appear. Nothing draws an affordance for a gesture
    * that would end in nothing, which is the same rule the connect dots and the resize grips follow.
    */
+  onEdgeReroute?: (payload: {
+    id: string;
+    /**
+     * The whole list, in order, in the edge's own frame — see `EdgeWaypoint`.
+     *
+     * The list rather than the one that moved, because a route is one shape: written per point, two
+     * people bending the same line would each overwrite half of the other's, and the shape that came
+     * out would be neither of theirs. Empty means the route has been straightened.
+     */
+    points: EdgeWaypoint[];
+    recordId?: string;
+    recordType?: string;
+  }) => void;
   onEdgeAnchor?: (payload: {
     id: string;
     end: 'source' | 'target';

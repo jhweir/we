@@ -38,10 +38,16 @@ export {
   distanceToEdge,
   edgeBounds,
   groupByEndpoints,
+  orthogonalThrough,
   polyline,
   routeEdge,
+  splineThrough,
   trimToRadius,
+  waypointFromWorld,
+  waypointsOf,
+  waypointToWorld,
 } from './geometry';
+export type { EdgeClearance, EdgeWaypoint } from './geometry';
 export { communityMetric, defaultMetrics, degreeMetric } from './metrics';
 export type { ChangeReason, EngineOptions, EngineStatus } from './engine';
 export { ExpansionState, SEED_OPENER } from './expansion';

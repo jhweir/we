@@ -171,6 +171,18 @@ export interface EdgeGeometry {
    * out top-to-bottom.
    */
   elbows?: Point[];
+  /**
+   * The route as a chain of segments after `from`, when it was shaped by hand.
+   *
+   * Present only for an edge carrying waypoints, and it replaces `control`/`control2`/`elbows`
+   * rather than joining them: those describe one span between two nodes, and a route somebody bent
+   * around a third card is several. A segment with no controls is a straight leg, which is what a
+   * polyline and an orthogonal route are made of, so one field serves every shape.
+   *
+   * `to` is still the last segment's endpoint, so anything that only wants the ends — the arrowhead's
+   * back-off, the bounds, a label — reads the same fields it always did.
+   */
+  segments?: { control?: Point; control2?: Point; to: Point }[];
   curve: EdgeCurve;
   /** Midpoint of the drawn route — where a label sits. */
   mid: Point;
