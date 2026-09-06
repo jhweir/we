@@ -195,6 +195,15 @@ const HANDLE_HIT_R = 12;
 const CONNECT_DOT_REACH = 20;
 
 /**
+ * How far outside a card a dragged endpoint still snaps to it, in screen pixels.
+ *
+ * The sides a drag is aiming at sit *outside* the box — an anchor stands off the rim so an arrowhead
+ * lands on the card rather than inside it — so a snap armed only over the card body would arm past
+ * the thing it is aiming for. Roughly the standoff plus a thumb's worth of slack.
+ */
+const ANCHOR_SNAP_REACH = 24;
+
+/**
  * How far above the handle a tooltip is anchored, in screen pixels.
  *
  * Enough for the plate to clear the grip rather than rest on it. Not a fix for the flicker — that
@@ -290,6 +299,18 @@ export function GraphView(props: GraphViewProps) {
    * can find is one that may as well not exist.
    */
   const [handleHint, setHandleHint] = createSignal<{ at: Point; text: string } | null>(null);
+  /**
+   * The connection a handle gesture is under way on — its edge id, or `connect` for a new line.
+   *
+   * Two jobs, both of which need the gesture to outlive the pointer's whereabouts. The hint is
+   * raised by the pointer entering a handle, and a dragged end now *follows* the pointer — so the
+   * handle arrives back under the cursor on every frame and re-raises the plate it was dismissed
+   * with, leaving a tooltip parked over the drag for the whole of it; a gesture being performed has
+   * nothing left to explain. And the grips are shown while the edge is hovered or has a draft
+   * pending, neither of which is reliably true mid-drag: a snap that happens to match what is stored
+   * settles the draft on the spot, and the handles would vanish from under the finger holding them.
+   */
+  const [gesturing, setGesturing] = createSignal<string | null>(null);
 
   // Read once: expanders are constructed with their options, so changing `reified` needs a remount —
   // which is what a template does anyway when it swaps one graph for another.
@@ -941,6 +962,7 @@ export function GraphView(props: GraphViewProps) {
    */
   function beginConnect(event: PointerEvent, entry: { node: GraphNode }) {
     setHandleHint(null);
+    setGesturing('connect');
     // Never reaches the canvas dispatcher: the node under the handle is the node being connected
     // *from*, so a press that fell through would also start dragging it across the board.
     event.stopPropagation();
@@ -988,6 +1010,7 @@ export function GraphView(props: GraphViewProps) {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
       window.removeEventListener('pointercancel', end);
+      setGesturing(null);
       const [hit] = ctx.hitTest(ctx.toWorld(at(ended)));
       ctx.drawConnection(null);
       // The gesture owned the mark; it does not own what happens next. The surface re-establishes it
@@ -1059,6 +1082,7 @@ export function GraphView(props: GraphViewProps) {
   function beginAnchor(event: PointerEvent, edgeId: string, end: 'source' | 'target') {
     // Nothing to explain once the gesture is under way, and a plate over the drag is in the way.
     setHandleHint(null);
+    setGesturing(edgeId);
     // Never reaches the canvas dispatcher: a press here would otherwise also be a press on whatever
     // is under it, which for an endpoint is the node this edge attaches to.
     event.stopPropagation();
@@ -1089,6 +1113,8 @@ export function GraphView(props: GraphViewProps) {
     };
     let side: EdgeSide | '' = '';
     let landing: string | null = null;
+    /** Whether the pointer is somewhere a release would attach to — see the note in `move`. */
+    let armed = false;
 
     /*
       Merge into whatever the draft already holds, and drop the loose point.
@@ -1124,24 +1150,33 @@ export function GraphView(props: GraphViewProps) {
       setHovered(landing);
       side = sideOf(world, centre, halfWidth, halfHeight);
       /*
-        The end goes wherever the pointer is, and is resolved to a side on release.
+        Loose between the cards, snapped once it is over one — and that is the whole gesture.
 
-        Both halves of what a drag is for. A card has four sides and a board has however many cards,
-        so an end that could only ever be *on* one of those moves in jumps however finely the pointer
-        moves — which is what this looked like beside the waypoint drag, where the point follows the
-        cursor exactly. So the line is drawn to the cursor while the button is down; where it will
-        land is carried in `side` and `landing` and applied when it comes up.
+        Free movement is what makes a drag feel like a drag rather than a five-way switch, and it is
+        also what leaves somebody guessing: a line ending under the cursor says nothing about where
+        it would attach if they let go. So the two are split by where the pointer is. Over open
+        canvas the end follows it exactly. Over a card — its own or another — it jumps to where a
+        release would actually put it and stays there while the pointer moves around inside, which is
+        the answer to "is it safe to drop here", drawn as the thing itself rather than as a marker
+        beside it.
 
-        The landing is still written, because the other end of the line has to know: routing to a
-        loose point beside a card the end is about to join is what makes the shape change as the
-        pointer crosses onto it. And the anchor goes with the move — which side of a card you left is
-        not an answer about a different card.
+        Its own card gets a margin, because the sides are *outside* the box: without one the snap
+        would only arm once the cursor was over the card body, past the anchors it is aiming at.
+        Another card does not, since being over it is what a re-attachment already means on release —
+        one rule, so the preview cannot promise what the drop refuses.
       */
-      draft({
-        ...(landing ? { [end]: landing, [field]: '' } : { [end]: '', [field]: side }),
-        [`${end}X`]: world.x,
-        [`${end}Y`]: world.y,
-      });
+      const margin = ANCHOR_SNAP_REACH / engine.viewport.get().zoom;
+      const onOwn =
+        Math.abs(world.x - centre.x) <= halfWidth + margin && Math.abs(world.y - centre.y) <= halfHeight + margin;
+      armed = Boolean(landing) || onOwn;
+      const snapped = landing ? { [end]: landing, [field]: '' } : onOwn ? { [end]: '', [field]: side } : null;
+      /*
+        Off every card the end is held loose and nothing is pinned yet — including the anchor, which
+        is why the previous field is left alone rather than written from `side`. `sideOf` answers for
+        any point on the board, so writing it here would pin a side from a cursor nowhere near the
+        card and undo the snap the moment the pointer left it.
+      */
+      draft(snapped ?? { [end]: '', [`${end}X`]: world.x, [`${end}Y`]: world.y });
     };
 
     const finish = () => {
@@ -1151,6 +1186,7 @@ export function GraphView(props: GraphViewProps) {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', finish);
       window.removeEventListener('pointercancel', finish);
+      setGesturing(null);
       setHovered(null);
       const behind = edge.reifiedAs ? parseAddress(edge.reifiedAs) : null;
       const connection = behind?.kind === 'entity' ? { recordId: behind.id, recordType: behind.type } : {};
@@ -1178,10 +1214,29 @@ export function GraphView(props: GraphViewProps) {
         return;
       }
       /*
-        Anywhere else, it was an anchor drag — including a drop on another card that nothing is
-        listening for. A board that has not wired re-attachment would otherwise swallow the gesture
-        whole, leaving the end previewed on a card it never moved to, so the preview is withdrawn
-        here rather than left for a write that is not coming.
+        Let go where nothing was offered, and nothing happens.
+
+        The release has to agree with what the drag was showing. Off every card the end was drawn
+        loose under the cursor, promising nothing — and `sideOf` answers for any point on the board,
+        so anchoring anyway would pin a side chosen by a cursor nowhere near the card, which is a
+        decision nobody made. So the preview is dropped and the line goes back to what is stored.
+
+        This is also the exit from the gesture: pull the end off into open space and let go.
+      */
+      if (!armed) {
+        setAnchorDraft((previous) => {
+          if (previous?.id !== edgeId) return previous;
+          const held = { ...previous.patch };
+          for (const key of [end, field, `${end}X`, `${end}Y`]) delete held[key];
+          return { id: edgeId, patch: held };
+        });
+        return;
+      }
+      /*
+        Otherwise it was an anchor drag — including a drop on another card that nothing is listening
+        for. A board that has not wired re-attachment would otherwise swallow the gesture whole,
+        leaving the end previewed on a card it never moved to, so the preview is withdrawn here
+        rather than left for a write that is not coming.
       */
       draft({ [end]: '', [field]: side });
       props.onEdgeAnchor?.({ id: edgeId, end, side, ...connection });
@@ -1210,6 +1265,7 @@ export function GraphView(props: GraphViewProps) {
   function beginWaypoint(event: PointerEvent, edgeId: string, index: number, insert: boolean) {
     // Nothing to explain once the gesture is under way, and a plate over the drag is in the way.
     setHandleHint(null);
+    setGesturing(edgeId);
     event.stopPropagation();
     event.preventDefault();
     const edge = engine.store.edge(edgeId);
@@ -1257,6 +1313,7 @@ export function GraphView(props: GraphViewProps) {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', finish);
       window.removeEventListener('pointercancel', finish);
+      setGesturing(null);
       // A press that never moved is not an edit. Without this, clicking a handle to look at it
       // would write the route back unchanged and cost a round trip for nothing.
       if (points === stored) return;
@@ -1583,7 +1640,7 @@ export function GraphView(props: GraphViewProps) {
                   pointer left the line would be unusable for the first. Which is also why clicking a
                   line selects it — see `selectBehaviour`.
                 */}
-                <Show when={props.onEdgeReroute && selectedEdge() === entry.edge.id}>
+                <Show when={props.onEdgeReroute && (selectedEdge() === entry.edge.id || gesturing() === entry.edge.id)}>
                   <For each={waypointHandles(entry.edge.id, entry.route)}>
                     {(handle) => (
                       <g
@@ -1625,7 +1682,15 @@ export function GraphView(props: GraphViewProps) {
                   </For>
                 </Show>
                 <Show
-                  when={props.onEdgeAnchor && (hoveredEdge() === entry.edge.id || anchorDraft()?.id === entry.edge.id)}
+                  when={
+                    props.onEdgeAnchor &&
+                    (hoveredEdge() === entry.edge.id ||
+                      anchorDraft()?.id === entry.edge.id ||
+                      // Held open for the whole gesture: a snap onto the side an edge is already
+                      // anchored to settles the draft on the spot, and without this the grips would
+                      // vanish from under the finger holding one.
+                      gesturing() === entry.edge.id)
+                  }
                 >
                   <For each={['source', 'target'] as const}>
                     {(end) => (
@@ -2042,7 +2107,7 @@ export function GraphView(props: GraphViewProps) {
         which is what keeps the tooltip one size at every zoom without any counter-scaling: it is
         chrome, and chrome is not part of the drawing.
       */}
-      <Show when={handleHint()}>
+      <Show when={!gesturing() && handleHint()}>
         {(hint) => (
           <we-tooltip
             open
