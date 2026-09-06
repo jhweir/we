@@ -176,6 +176,27 @@ export interface GraphViewProps {
    * Binding this is also what makes the handles appear. Nothing draws an affordance for a gesture
    * that would end in nothing, which is the same rule the connect dots and the resize grips follow.
    */
+  /**
+   * Somebody dragged one end of a connection onto a **different** node, re-attaching it.
+   *
+   * The other half of `onEdgeAnchor`, and the same gesture: which of the two fires is decided by
+   * where the drag was let go. Worth knowing that they write at different scopes — an anchor is how
+   * *one view* draws the connection, and this is what the connection **is**, so it changes on every
+   * board and for everyone. That is the right answer for "this actually goes there", but it is not
+   * the same kind of edit.
+   *
+   * `nodeId`/`nodeType` are the new endpoint's record; `recordId`/`recordType` are the connection's,
+   * where it stands for one. Intent, not a mutation, exactly as every other event here — the graph
+   * has no write path and what re-attaching means is the template's to decide.
+   */
+  onEdgeRetarget?: (payload: {
+    id: string;
+    end: 'source' | 'target';
+    nodeId: string;
+    nodeType: string;
+    recordId?: string;
+    recordType?: string;
+  }) => void;
   onEdgeReroute?: (payload: {
     id: string;
     /**

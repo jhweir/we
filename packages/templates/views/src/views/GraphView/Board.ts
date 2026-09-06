@@ -219,6 +219,15 @@ const boardCards: SchemaNode = {
       absolute points would leave the line doglegging through empty space.
     */
     onEdgeReroute: { $action: 'recordStore.rerouteOnBoard', args: [BOARD, { $: 'event' }] },
+    /*
+      And the same handle dropped on a *different* card, which re-attaches the connection.
+
+      The one gesture here that edits the claim rather than the view: an anchor and a bend are how
+      this board draws the line, and this is what the line *says* — so it changes wherever the
+      relationship is shown. That end's anchor is cleared with it, a side pinned against the card
+      that used to be there deciding nothing about the one that arrived.
+    */
+    onEdgeRetarget: { $action: 'recordStore.retargetOnBoard', args: [BOARD, { $: 'event' }] },
   },
 };
 

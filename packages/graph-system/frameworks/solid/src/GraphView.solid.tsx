@@ -191,6 +191,9 @@ const ANCHOR_HANDLE_R = 5;
  */
 const HANDLE_HIT_R = 12;
 
+/** How far a card's connect dot sits off its edge, in screen pixels — `--reach` in the stylesheet. */
+const CONNECT_DOT_REACH = 20;
+
 /**
  * How near its own route a dragged waypoint has to be dropped to be removed, in screen pixels.
  *
@@ -270,6 +273,14 @@ export function GraphView(props: GraphViewProps) {
    * release would snap the line back for a round trip and then move it again.
    */
   const [anchorDraft, setAnchorDraft] = createSignal<{ id: string; patch: Record<string, GraphValue> } | null>(null);
+  /**
+   * What the handle under the pointer does, and where it is — for the tooltip that says so.
+   *
+   * Both gestures a handle carries are invisible: dragging an end onto another card re-attaches the
+   * connection, and double-clicking a point removes it. Neither is guessable, and a gesture nobody
+   * can find is one that may as well not exist.
+   */
+  const [handleHint, setHandleHint] = createSignal<{ at: Point; text: string } | null>(null);
 
   // Read once: expanders are constructed with their options, so changing `reified` needs a remount —
   // which is what a template does anyway when it swaps one graph for another.
@@ -899,6 +910,7 @@ export function GraphView(props: GraphViewProps) {
    * indistinguishable downstream from one drawn any other, and a template needs no second handler.
    */
   function beginConnect(event: PointerEvent, entry: { node: GraphNode }) {
+    setHandleHint(null);
     // Never reaches the canvas dispatcher: the node under the handle is the node being connected
     // *from*, so a press that fell through would also start dragging it across the board.
     event.stopPropagation();
@@ -1015,6 +1027,8 @@ export function GraphView(props: GraphViewProps) {
    * answer while the write goes round the data layer and comes back. See `setEdgeOverlay`.
    */
   function beginAnchor(event: PointerEvent, edgeId: string, end: 'source' | 'target') {
+    // Nothing to explain once the gesture is under way, and a plate over the drag is in the way.
+    setHandleHint(null);
     // Never reaches the canvas dispatcher: a press here would otherwise also be a press on whatever
     // is under it, which for an endpoint is the node this edge attaches to.
     event.stopPropagation();
@@ -1033,6 +1047,9 @@ export function GraphView(props: GraphViewProps) {
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
 
     const field = end === 'source' ? 'sourceAnchor' : 'targetAnchor';
+    // The end that is staying put: what a re-attachment must not land on, since a connection from a
+    // card to itself is not a thing the graph can draw or the data can hold. `connectionTarget`'s rule.
+    const opposite = end === 'source' ? edge.target : edge.source;
     const at = (moved: PointerEvent) => {
       const surfaceBox = surface?.getBoundingClientRect();
       return engine.viewport.toWorld({
@@ -1041,16 +1058,32 @@ export function GraphView(props: GraphViewProps) {
       });
     };
     let side: EdgeSide | '' = '';
+    let landing: string | null = null;
 
     const move = (moved: PointerEvent) => {
       if (moved.buttons === 0) return;
-      side = sideOf(at(moved), centre, halfWidth, halfHeight);
+      const world = at(moved);
+      /*
+        Over another card, this stops being an anchor drag and becomes a re-attachment.
+
+        The standard behaviour everywhere connectors exist, and the handle was already tracking the
+        pointer — it simply ignored everything outside its own card. Back over its own card, or over
+        nothing, it is an anchor drag again.
+      */
+      const over = connectionTarget(engine.index.hitTest(world)[0], opposite);
+      landing = over && over !== nodeId ? over : null;
+      // The candidate says so by lighting up — the mark a card already carries for being under the
+      // pointer, so there is nothing new to learn and nothing new to draw.
+      setHovered(landing);
+      side = sideOf(world, centre, halfWidth, halfHeight);
       // Merged rather than replaced, so pinning one end and then the other does not drop the first
       // end's preview while its write is still in flight.
-      setAnchorDraft((previous) => ({
-        id: edgeId,
-        patch: { ...(previous?.id === edgeId ? previous.patch : {}), [field]: side },
-      }));
+      if (!landing) {
+        setAnchorDraft((previous) => ({
+          id: edgeId,
+          patch: { ...(previous?.id === edgeId ? previous.patch : {}), [field]: side },
+        }));
+      }
     };
 
     const finish = () => {
@@ -1060,13 +1093,30 @@ export function GraphView(props: GraphViewProps) {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', finish);
       window.removeEventListener('pointercancel', finish);
+      setHovered(null);
       const behind = edge.reifiedAs ? parseAddress(edge.reifiedAs) : null;
-      props.onEdgeAnchor?.({
-        id: edgeId,
-        end,
-        side,
-        ...(behind?.kind === 'entity' && { recordId: behind.id, recordType: behind.type }),
-      });
+      const connection = behind?.kind === 'entity' ? { recordId: behind.id, recordType: behind.type } : {};
+      const arrived = landing ? parseAddress(landing) : null;
+      /*
+        A re-attachment rewrites the *claim*; an anchor rewrites how one board draws it.
+
+        Two scopes on one gesture, decided by where it was let go, and worth being explicit about:
+        "this connection actually goes there" is an edit to what the relationship asserts, so it
+        changes on every board and for everyone. Where it *attaches* is this board's business alone.
+      */
+      if (landing && arrived?.kind === 'entity' && arrived.id) {
+        props.onEdgeRetarget?.({
+          id: edgeId,
+          end,
+          ...connection,
+          nodeId: arrived.id,
+          // Empty rather than absent for an address that named no type — the store needs a type to
+          // write beside the endpoint, and a missing one is a refusal it can make for itself.
+          nodeType: arrived.type ?? '',
+        });
+        return;
+      }
+      props.onEdgeAnchor?.({ id: edgeId, end, side, ...connection });
     };
 
     window.addEventListener('pointermove', move);
@@ -1090,6 +1140,8 @@ export function GraphView(props: GraphViewProps) {
    * geometric rather than a modifier key. Double-clicking one removes it too — see the markup.
    */
   function beginWaypoint(event: PointerEvent, edgeId: string, index: number, insert: boolean) {
+    // Nothing to explain once the gesture is under way, and a plate over the drag is in the way.
+    setHandleHint(null);
     event.stopPropagation();
     event.preventDefault();
     const edge = engine.store.edge(edgeId);
@@ -1215,6 +1267,27 @@ export function GraphView(props: GraphViewProps) {
       points,
       ...(behind?.kind === 'entity' && { recordId: behind.id, recordType: behind.type }),
     });
+  }
+
+  /**
+   * Where a card's connect dot sits in the world, for the tooltip to point at.
+   *
+   * Derived here rather than measured, because the dot is placed by CSS — `left`/`top` off the
+   * node's own box plus a reach in screen pixels — and asking the DOM for it would mean reading a
+   * layout back out of the thing that just wrote it. The same two numbers, said once more.
+   */
+  function connectDotAt(entry: { node: GraphNode }, edge: 'n' | 'e' | 's' | 'w'): Point {
+    const row = nodes().find((candidate) => candidate.node.id === entry.node.id);
+    const box = row ? boxOf(row) : { x: 0, y: 0, width: 0, height: 0 };
+    const half = { x: (box.width ?? 0) / 2, y: (box.height ?? 0) / 2 };
+    // `--reach` in the stylesheet, in screen pixels, so it is divided by the camera exactly as the
+    // dot itself is. One number in two places is a drift waiting to happen; it is small enough that
+    // a tooltip a few pixels out is invisible, and naming it here is what makes that a decision.
+    const reach = CONNECT_DOT_REACH / zoom();
+    return {
+      x: box.x + (edge === 'e' ? half.x + reach : edge === 'w' ? -(half.x + reach) : 0),
+      y: box.y + (edge === 's' ? half.y + reach : edge === 'n' ? -(half.y + reach) : 0),
+    };
   }
 
   /** Whether a point has been dropped back onto the route its neighbours would draw without it. */
@@ -1456,6 +1529,15 @@ export function GraphView(props: GraphViewProps) {
                           event.stopPropagation();
                           removeWaypoint(entry.edge.id, handle.index);
                         }}
+                        onPointerEnter={() =>
+                          setHandleHint({
+                            at: handle.at,
+                            text: handle.insert
+                              ? 'Drag to bend the line here'
+                              : 'Drag to move · double-click to remove',
+                          })
+                        }
+                        onPointerLeave={() => setHandleHint(null)}
                       >
                         <circle
                           class="we-graph__handle-hit"
@@ -1482,6 +1564,13 @@ export function GraphView(props: GraphViewProps) {
                       <g
                         class="we-graph__handle we-graph__handle--anchor"
                         onPointerDown={(event) => beginAnchor(event, entry.edge.id, end)}
+                        onPointerEnter={() =>
+                          setHandleHint({
+                            at: end === 'source' ? entry.route.from : entry.route.to,
+                            text: 'Drag around the card to pin a side · onto another card to reconnect',
+                          })
+                        }
+                        onPointerLeave={() => setHandleHint(null)}
                       >
                         {/*
                           The target, and then the dot. Two circles because they answer different
@@ -1755,8 +1844,17 @@ export function GraphView(props: GraphViewProps) {
                   {(handle) => (
                     <div
                       class={`we-graph__connect we-graph__connect--${handle.edge}`}
-                      title="Drag to connect"
                       onPointerDown={(event) => beginConnect(event, entry)}
+                      /*
+                        The same tooltip the route handles use, rather than the `title` attribute
+                        this carried. A native tooltip is the browser's: it ignores the theme
+                        outright — a blue plate with a white outline over a board that is neither —
+                        and there is no way to style one.
+                      */
+                      onPointerEnter={() =>
+                        setHandleHint({ at: connectDotAt(entry, handle.edge), text: 'Drag to connect' })
+                      }
+                      onPointerLeave={() => setHandleHint(null)}
                     >
                       {/*
                         A plain screen-pixel length: the handle is laid out at its real size and
@@ -1861,6 +1959,37 @@ export function GraphView(props: GraphViewProps) {
             }}
           </For>
         </Column>
+      </Show>
+
+      {/*
+        What the handle under the pointer does.
+
+        `we-tooltip` rather than a `title` attribute or a box of our own: the native tooltip is the
+        browser's, so it ignores the theme entirely — a blue plate with a white outline over a board
+        that is neither — and a box built here would be a copy of the primitive's look that stops
+        matching the first time the design system moves.
+
+        The primitive wraps its own trigger and positions against it, so the trigger is a zero-size
+        div put where the handle is. Outside the scaled layer and placed in *screen* coordinates,
+        which is what keeps the tooltip one size at every zoom without any counter-scaling: it is
+        chrome, and chrome is not part of the drawing.
+      */}
+      <Show when={handleHint()}>
+        {(hint) => (
+          <we-tooltip
+            open
+            title={hint().text}
+            placement="top"
+            style={{
+              position: 'absolute',
+              left: `${engine.viewport.toScreen(hint().at).x}px`,
+              top: `${engine.viewport.toScreen(hint().at).y}px`,
+              'pointer-events': 'none',
+            }}
+          >
+            <div style={{ width: '0px', height: '0px' }} />
+          </we-tooltip>
+        )}
       </Show>
 
       <Show

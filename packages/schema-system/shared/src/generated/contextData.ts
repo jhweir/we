@@ -1352,6 +1352,11 @@ export const contextData: ContextData = {
           optional: true,
         },
         {
+          name: 'onEdgeRetarget',
+          type: '((payload: { id: string; end: "source" | "target"; nodeId: string; nodeType: string; recordId?: string; recordType?: string; }) => void)',
+          optional: true,
+        },
+        {
           name: 'onEdgeReroute',
           type: '((payload: { id: string; points: EdgeWaypoint[]; recordId?: string; recordType?: string; }) => void)',
           optional: true,
@@ -2407,6 +2412,7 @@ export const contextData: ContextData = {
         'resizeOnBoard',
         'anchorOnBoard',
         'rerouteOnBoard',
+        'retargetOnBoard',
         'setCardStyle',
         'previewCardStyle',
         'setTypeColor',

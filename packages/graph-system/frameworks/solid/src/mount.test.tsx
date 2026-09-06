@@ -65,6 +65,14 @@ describe('GraphView mounts', () => {
     expect(host.querySelector('.we-graph__edges')).not.toBeNull();
   });
 
+  it('renders with re-attachment bound as well', () => {
+    // The third route-editing handler, and the one that writes the claim rather than the view.
+    // Bound, its branch in the anchor gesture exists; unbound the drag falls back to anchoring.
+    const host = mount({ onEdgeAnchor: () => undefined, onEdgeRetarget: () => undefined });
+
+    expect(host.querySelector('.we-graph__edges')).not.toBeNull();
+  });
+
   it('unmounts without throwing', () => {
     mount();
 

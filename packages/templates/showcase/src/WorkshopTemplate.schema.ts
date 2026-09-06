@@ -881,6 +881,15 @@ const board: SchemaNode = {
     onEdgeAnchor: { $action: 'recordStore.anchorOnBoard', args: [CALL, { $: 'event' }] },
     onEdgeReroute: { $action: 'recordStore.rerouteOnBoard', args: [CALL, { $: 'event' }] },
     /*
+      And the same handle dropped on a *different* card, which re-attaches the connection.
+
+      The one gesture here that edits the claim rather than the view: an anchor and a bend are how
+      this board draws the line, and this is what the line *says* — so it changes wherever the
+      relationship is shown. That end's anchor is cleared with it, a side pinned against the card
+      that used to be there deciding nothing about the one that arrived.
+    */
+    onEdgeRetarget: { $action: 'recordStore.retargetOnBoard', args: [CALL, { $: 'event' }] },
+    /*
       What is selected, in the address — because the inspector is a *panel*.
 
       A panel is not inside this route's tree, so the two cannot share a `$localState`: the board

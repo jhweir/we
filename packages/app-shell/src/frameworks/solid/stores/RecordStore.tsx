@@ -223,6 +223,15 @@ export interface RecordStore {
    */
   rerouteOnBoard: (board: string, payload: unknown) => Promise<void>;
   /**
+   * Move one end of a connection onto a different record. Takes the graph's `onEdgeRetarget` payload.
+   *
+   * Unlike the two above, this changes the **claim** rather than how one board draws it: the
+   * relationship now says something different, everywhere it is shown. That end's anchor is cleared,
+   * since a side pinned against the card that used to be there decides nothing about the one that
+   * arrived; the waypoints stay, being stored in the connection's own frame.
+   */
+  retargetOnBoard: (board: string, payload: unknown) => Promise<void>;
+  /**
    * Set one presentation property of one card on one board — colour, shape, content scale.
    *
    * Takes the property name, so one action serves every control, which is the only shape that works
@@ -740,6 +749,61 @@ export function RecordStoreProvider(props: ParentProps) {
    * anchors — is deleted, so the way back leaves nothing behind. See {@link anchorOnBoard}, which is
    * the other half of the same record.
    */
+  /**
+   * Move one end of a connection onto a different record.
+   *
+   * The *claim* changes here, not the view. `anchorOnBoard` and `rerouteOnBoard` write to an
+   * `EdgeRoute` parented to one board, so the same connection shown elsewhere is untouched; this
+   * rewrites the `Relationship` itself, so it changes on every board, in the knowledge map, and for
+   * every member. That is the right answer for "this actually goes there" and it is a different kind
+   * of edit from the two beside it — which is why it is its own action rather than a branch inside
+   * one of them.
+   *
+   * The endpoint and its type are two different writes. `sourceType` is an ordinary property; the
+   * endpoint is a relation, and `innerUpdate` skips a relation field holding a plain value — so
+   * `update(p, id, { source: uri })` typechecks, runs, and moves nothing. The generated accessor is
+   * the documented path, and the same trap `saveRecord` documents at the other end of this record's
+   * life.
+   *
+   * That end's **anchor is cleared**, and the waypoints are left alone. A side pinned against the
+   * card that used to be there is a decision about something no longer in the picture, and applying
+   * it to whatever arrived would be somebody's choice used for a thing they never chose it for. The
+   * points are stored in the connection's own frame, so they follow the new geometry rather than
+   * becoming litter — see `EdgeWaypoint`.
+   */
+  async function retargetOnBoard(board: string, payload: unknown): Promise<void> {
+    const event = (payload ?? {}) as {
+      recordId?: string;
+      recordType?: string;
+      end?: 'source' | 'target';
+      nodeId?: string;
+      nodeType?: string;
+    };
+    const dataset = datasetStore.currentDataset();
+    if (!dataset || !event.recordId || !event.end || !event.nodeId || !event.nodeType) return;
+
+    try {
+      const Model = getEntity(event.recordType || RELATIONSHIP);
+      const record = (await Model.findOne(dataset.handle, { where: { id: event.recordId } })) as {
+        setSource?: (value: string) => Promise<unknown>;
+        setTarget?: (value: string) => Promise<unknown>;
+      } | null;
+      if (!record) return;
+
+      await Model.update(dataset.handle, event.recordId, {
+        [event.end === 'source' ? 'sourceType' : 'targetType']: event.nodeType,
+      });
+      await (event.end === 'source' ? record.setSource?.(event.nodeId) : record.setTarget?.(event.nodeId));
+
+      // The anchor for the end that moved, dropped — see the note above. Reusing the same action a
+      // person's own clear goes through, so there is one path that knows how to unset one.
+      if (board) await anchorOnBoard(board, { recordId: event.recordId, end: event.end, side: '' });
+    } catch (error) {
+      console.error('RecordStore: re-attaching a connection failed', error);
+      toastService.error('Could not move that connection.');
+    }
+  }
+
   async function rerouteOnBoard(board: string, payload: unknown): Promise<void> {
     const event = (payload ?? {}) as { recordId?: string; points?: unknown };
     const dataset = datasetStore.currentDataset();
@@ -987,6 +1051,7 @@ export function RecordStoreProvider(props: ParentProps) {
     resizeOnBoard,
     anchorOnBoard,
     rerouteOnBoard,
+    retargetOnBoard,
     setCardStyle,
     setTypeColor,
     setRecordEntity,
