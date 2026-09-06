@@ -368,9 +368,33 @@ export function RecordStoreProvider(props: ParentProps) {
     indexes it by each row's type — and `$action` cannot return a value. Recomputed when the
     space's shapes change, so a model defined a moment ago has a display a moment later.
   */
+  /**
+   * Every model that can be *shown*, which is not the same set as every model that can be *made*.
+   *
+   * `Relationship` is the case that separates them, and the reason this exists. It is excluded from
+   * `creatableEntities` on purpose — a connection is drawn between two things rather than filled in
+   * from a picker, so offering it in the "new record" list would be offering a form with two
+   * endpoints nobody had chosen. But it is a `WeNode` with a label, a description, comments and
+   * signals, and clicking the line that stands for it is exactly the moment somebody wants to read
+   * all of that.
+   *
+   * Deriving one list from the other quietly made "cannot be created here" mean "cannot be
+   * displayed", so the inspector showed an empty panel for a connector whose name was drawn on the
+   * line beside it. Two questions, two lists.
+   */
+  const displayableEntities = createMemo<CreatableEntity[]>(() => {
+    const named = new Set(creatableEntities().map((entity) => entity.value));
+    const relationship = CORE_MANIFEST.entities[RELATIONSHIP];
+    if (named.has(RELATIONSHIP) || !relationship) return creatableEntities();
+    return [
+      ...creatableEntities(),
+      { label: RELATIONSHIP, value: RELATIONSHIP, icon: BLOCK_ICONS[RELATIONSHIP] ?? 'cube', group: 'Built in' },
+    ];
+  });
+
   const displays = createMemo<Record<string, RecordDisplay>>(() => {
     const out: Record<string, RecordDisplay> = {};
-    for (const entity of creatableEntities()) {
+    for (const entity of displayableEntities()) {
       const found = schemaFor(entity.value);
       if (!found) continue;
       out[entity.value] = displayFor({

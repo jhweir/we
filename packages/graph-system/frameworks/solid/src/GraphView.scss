@@ -780,49 +780,77 @@
 }
 
 /**
- * The grip on each end of a hovered connection — drag it round a card's rim to pin the side.
+ * A grip on a connection — the ends that pin an anchor, and the points that bend it.
  *
- * In the edges SVG, which is inert so the canvas can hit-test in world space, so this takes its own
- * presses. Its hit area is the circle itself, which is small; `stroke` is what makes it reachable —
- * a stroked circle is hit over its whole painted width, so the ring doubles as the target.
+ * ## Two circles, because a target and a hint are different sizes
+ *
+ * The painted dot is five pixels and the circle that takes the press is twelve, which is the same
+ * split the connect dots make in the other direction. Painted at its own size the dot was smaller
+ * than the cursor sitting on it: aiming was guesswork, and a miss grabbed the card behind it or
+ * panned the board, which reads as the handle not working rather than as having been missed.
+ *
+ * `pointer-events: all` on the target, not `visiblePainted` — a circle with no fill is not *painted*,
+ * so under the default it would be invisible to the pointer as well as to the eye, which is the one
+ * combination that makes an invisible hit area pointless.
+ *
+ * ## The cursor has to differ from the canvas's
+ *
+ * The canvas is `grab`, so a handle that also said `grab` said nothing: the pointer looked identical
+ * an inch away from a grip and on top of one, and the only way to find out was to press and see.
+ * `move` is the vector-editor convention for a point you drag, and — the part that matters here — it
+ * is not a hand.
  */
-.we-graph__anchor {
-  fill: var(--we-role-accent);
-  stroke: var(--we-color-neutral-0);
+.we-graph__handle {
+  // The node layer is inert so the canvas can hit-test in world space; these take their own presses.
   pointer-events: auto;
   touch-action: none;
-  cursor: grab;
+  cursor: move;
 }
 
-.we-graph__anchor:active {
+.we-graph__handle:active {
   cursor: grabbing;
 }
 
-/**
- * A point a connection is bent through, and the hollow one standing for a gap between two.
- *
- * The gap grips are what let a route grow with no mode: the middle of each leg is a handle that
- * becomes a real point the moment it is dragged. Drawn hollow so the two read apart at a glance —
- * one is a decision somebody made, the other is an offer.
- */
-.we-graph__waypoint {
-  fill: var(--we-role-accent);
-  stroke: var(--we-color-neutral-0);
-  pointer-events: auto;
-  touch-action: none;
-  cursor: grab;
+// Invisible, and hit-tested anyway. See the note above on `all`.
+.we-graph__handle-hit {
+  fill: none;
+  pointer-events: all;
 }
 
-.we-graph__waypoint--ghost {
+.we-graph__handle-dot {
+  fill: var(--we-role-accent);
+  stroke: var(--we-color-neutral-0);
+
+  // The press belongs to the target around it; taking it here would shrink the grip back to the dot.
+  pointer-events: none;
+  transition: stroke-width 80ms ease-out;
+}
+
+/*
+  Reached for, and saying so.
+
+  A ring rather than a size change: `r` is an SVG geometry attribute, and animating it across engines
+  is a fight — where the stroke grows outward from a circle whose centre never moves, which is what
+  keeps the grip under the pointer that is already on it.
+*/
+.we-graph__handle:hover .we-graph__handle-dot {
+  stroke: var(--we-role-accent-text);
+  stroke-width: 3px;
+}
+
+/*
+  A gap between two points, offered rather than placed.
+
+  Hollow, so the two read apart at a glance: a filled dot is a decision somebody made and this is an
+  invitation. Faint until it is reached for, since one sits in the middle of every leg and four solid
+  marks along a line would be four claims about a shape nobody has chosen yet.
+*/
+.we-graph__handle--ghost .we-graph__handle-dot {
   fill: var(--we-color-neutral-0);
   stroke: var(--we-role-accent);
-  opacity: 0.7;
+  opacity: 0.55;
 }
 
-.we-graph__waypoint:hover {
+.we-graph__handle--ghost:hover .we-graph__handle-dot {
   opacity: 1;
-}
-
-.we-graph__waypoint:active {
-  cursor: grabbing;
 }

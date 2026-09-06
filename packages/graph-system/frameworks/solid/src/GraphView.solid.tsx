@@ -178,6 +178,20 @@ const CLEAR_ANCHOR_WITHIN = 0.45;
 const ANCHOR_HANDLE_R = 5;
 
 /**
+ * Radius of the invisible circle that actually takes the press, in screen pixels.
+ *
+ * The same split the connect dots make, and for the same reason said differently: the dot is a
+ * *hint* and the target is what a mouse has to land on. Painted at five pixels they were smaller
+ * than the cursor covering them, so aiming at one was guesswork and a miss grabbed the card behind
+ * it or panned the board — which reads as the handle not working rather than as having been missed.
+ *
+ * Twelve rather than the connect dots' fifteen: several of these can sit along one line, and a
+ * target greedy enough to swallow the presses meant for its neighbours trades one aiming problem
+ * for another.
+ */
+const HANDLE_HIT_R = 12;
+
+/**
  * How near its own route a dragged waypoint has to be dropped to be removed, in screen pixels.
  *
  * Generous, because this is the way back from a bend somebody did not mean to add, and a gesture
@@ -1431,13 +1445,9 @@ export function GraphView(props: GraphViewProps) {
                 <Show when={props.onEdgeReroute && selectedEdge() === entry.edge.id}>
                   <For each={waypointHandles(entry.edge.id, entry.route)}>
                     {(handle) => (
-                      <circle
-                        class="we-graph__waypoint"
-                        classList={{ 'we-graph__waypoint--ghost': handle.insert }}
-                        cx={handle.at.x}
-                        cy={handle.at.y}
-                        r={(handle.insert ? WAYPOINT_GHOST_R : WAYPOINT_HANDLE_R) / zoom()}
-                        stroke-width={1.5 / zoom()}
+                      <g
+                        class="we-graph__handle we-graph__handle--waypoint"
+                        classList={{ 'we-graph__handle--ghost': handle.insert }}
                         onPointerDown={(event) => beginWaypoint(event, entry.edge.id, handle.index, handle.insert)}
                         // The other way to remove one, for a point somebody would rather not have to
                         // land back on the line. Both exist because they suit different moments.
@@ -1446,7 +1456,21 @@ export function GraphView(props: GraphViewProps) {
                           event.stopPropagation();
                           removeWaypoint(entry.edge.id, handle.index);
                         }}
-                      />
+                      >
+                        <circle
+                          class="we-graph__handle-hit"
+                          cx={handle.at.x}
+                          cy={handle.at.y}
+                          r={HANDLE_HIT_R / zoom()}
+                        />
+                        <circle
+                          class="we-graph__handle-dot"
+                          cx={handle.at.x}
+                          cy={handle.at.y}
+                          r={(handle.insert ? WAYPOINT_GHOST_R : WAYPOINT_HANDLE_R) / zoom()}
+                          stroke-width={1.5 / zoom()}
+                        />
+                      </g>
                     )}
                   </For>
                 </Show>
@@ -1455,16 +1479,31 @@ export function GraphView(props: GraphViewProps) {
                 >
                   <For each={['source', 'target'] as const}>
                     {(end) => (
-                      <circle
-                        class="we-graph__anchor"
-                        cx={end === 'source' ? entry.route.from.x : entry.route.to.x}
-                        cy={end === 'source' ? entry.route.from.y : entry.route.to.y}
-                        // World units over zoom, so the grip is one size on screen at every camera —
-                        // the same arithmetic every other handle in here does.
-                        r={ANCHOR_HANDLE_R / zoom()}
-                        stroke-width={1.5 / zoom()}
+                      <g
+                        class="we-graph__handle we-graph__handle--anchor"
                         onPointerDown={(event) => beginAnchor(event, entry.edge.id, end)}
-                      />
+                      >
+                        {/*
+                          The target, and then the dot. Two circles because they answer different
+                          questions — see `HANDLE_HIT_R`; the first is invisible and takes the press,
+                          the second is painted and takes none, so the paint can stay small.
+                        */}
+                        <circle
+                          class="we-graph__handle-hit"
+                          cx={end === 'source' ? entry.route.from.x : entry.route.to.x}
+                          cy={end === 'source' ? entry.route.from.y : entry.route.to.y}
+                          r={HANDLE_HIT_R / zoom()}
+                        />
+                        <circle
+                          class="we-graph__handle-dot"
+                          cx={end === 'source' ? entry.route.from.x : entry.route.to.x}
+                          cy={end === 'source' ? entry.route.from.y : entry.route.to.y}
+                          // World units over zoom, so the grip is one size on screen at every camera
+                          // — the same arithmetic every other handle in here does.
+                          r={ANCHOR_HANDLE_R / zoom()}
+                          stroke-width={1.5 / zoom()}
+                        />
+                      </g>
                     )}
                   </For>
                 </Show>
