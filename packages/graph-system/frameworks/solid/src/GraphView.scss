@@ -650,14 +650,37 @@
  * beside a resize strip is a thing you miss and then miss again. Drawn as `::before` so the two sizes
  * are independent; the hit area never changes, only what is painted in it.
  *
- * Sized in `px / var(--graph-zoom)`, like the resize grips: the layer is scaled by the camera, so
- * dividing first is what keeps a dot the same size on screen at every zoom. No `scale()` here, which
- * is what lets `translate(-50%, -50%)` centre them honestly — a percentage translate resolves against
- * the unscaled box, so the two together mis-centre by however far the camera is from 1.
+ * ## Counter-scaled, not divided
+ *
+ * The layer carries the camera's `scale`, so everything in it needs undoing by the same factor to
+ * stay one size on screen. There are two ways, and only one of them survives being zoomed into.
+ *
+ * This was the other one: every length written as `px / var(--graph-zoom)`, so the *layout* shrank
+ * and the scale grew it back. At 4x that lays out a 6.5px disc with a 0.375px border and a 3.75px
+ * arrow inside a 7.5px box — and sub-pixel snapping rounds each axis on its own, so the disc came out
+ * a pixel taller than it was wide (a `border-radius: 50%` pill, not a circle) and the arrow sat a
+ * fraction off centre, both worse the further in you went. Nothing is wrong with the arithmetic; the
+ * arithmetic is asking the layout engine for a 0.375px border.
+ *
+ * So the box is laid out at its real screen size — 30px, a 26px disc, a 1.5px border — and scaled
+ * down by the camera instead. Integers at every zoom, one rasterised circle, one centred arrow.
+ *
+ * `scale` is written FIRST in the list, which means it applies LAST, and that is the whole trick —
+ * the same one `.we-graph__actions` above uses for its 24px buttons. A transform list applies right
+ * to left, so `translate(-50%, -50%)` is measured against the element's own unscaled 30px box and the
+ * displacement is then scaled with it. Written the other way round the translate would be 15 *world*
+ * pixels and the handle would drift off its anchor by however far the camera is from 1 — which is the
+ * objection that argued for dividing in the first place, and it is answered by the ordering.
+ *
+ * `transform-origin: 0 0` for the same reason: the anchor is the point `left`/`top` put the box at,
+ * and scaling about the centre would move it.
+ *
+ * `--reach` stays divided, because it is the one length that is NOT inside the scaled box: it is used
+ * in `left`/`top`, which are the parent's coordinates, and those are world units.
  */
 .we-graph__connect {
-  --hit: calc(30px / var(--graph-zoom));
-  --dot: calc(10px / var(--graph-zoom));
+  --hit: 30px;
+  --dot: 10px;
   --reach: calc(20px / var(--graph-zoom));
   --half-w: calc(var(--node-width) / 2);
   --half-h: calc(var(--node-height) / 2);
@@ -668,7 +691,8 @@
   justify-content: center;
   width: var(--hit);
   height: var(--hit);
-  transform: translate(-50%, -50%);
+  transform-origin: 0 0;
+  transform: scale(calc(1 / var(--graph-zoom))) translate(-50%, -50%);
   color: var(--we-role-on-accent);
 
   // The node layer is inert so the canvas can hit-test in world space; these take their own presses.
@@ -687,7 +711,7 @@
   height: var(--dot);
   border-radius: 50%;
   background: var(--we-role-accent);
-  border: calc(1.5px / var(--graph-zoom)) solid var(--we-color-neutral-0);
+  border: 1.5px solid var(--we-color-neutral-0);
   opacity: 0.6;
   transition:
     opacity 100ms ease-out,
@@ -704,8 +728,8 @@
   what a mouse has to land on and the disc is only what is painted in it.
 */
 .we-graph__connect:hover::before {
-  width: calc(26px / var(--graph-zoom));
-  height: calc(26px / var(--graph-zoom));
+  width: 26px;
+  height: 26px;
   opacity: 1;
 }
 

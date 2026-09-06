@@ -1262,12 +1262,14 @@ export function GraphView(props: GraphViewProps) {
                       onPointerDown={(event) => beginConnect(event, entry)}
                     >
                       {/*
-                        Sized in `px / var(--graph-zoom)` like everything else in here: the layer
-                        carries the camera's `scale`, so dividing first is what keeps the arrow one
-                        size on screen at every zoom. `size` takes a length as well as a token, and
-                        the element writes it to its own `--icon-size`.
+                        A plain screen-pixel length: the handle is laid out at its real size and
+                        counter-scaled by the camera, so nothing in here divides by the zoom. See the
+                        stylesheet for why that is not the same as dividing — an arrow asked for at
+                        3.75px lands wherever sub-pixel snapping puts it, which is what made it drift
+                        off centre the further in you zoomed. `size` takes a length as well as a
+                        token, and the element writes it to its own `--icon-size`.
                       */}
-                      <we-icon name={handle.icon} size="calc(15px / var(--graph-zoom))" />
+                      <we-icon name={handle.icon} size="17px" />
                     </div>
                   )}
                 </For>
