@@ -26,6 +26,7 @@ import type {
 } from '@we/graph-protocol';
 import { addressKind } from '@we/graph-protocol';
 
+import { connectionTarget } from './connect';
 import { ExpansionState, SEED_OPENER } from './expansion';
 import type { EdgeClearance } from './geometry';
 import { bowOffsets, distanceToEdge, edgeBounds, groupByEndpoints, normaliseCurve, routeEdge } from './geometry';
@@ -1347,13 +1348,24 @@ export class GraphEngine {
    * line changed shape at the exact moment of commitment: a straight line became an S-curve, which is
    * a jump at the one instant somebody is deciding whether the gesture did what they wanted.
    *
-   * Two differences from a real edge, and both are deliberate:
+   * ## Over a card, it ends on that card
    *
-   * - **No target clearance.** The far end is a pointer, not a node, so there is no shape to stop
-   *   short of. The near end takes the source's, which is what stops the line leaving the middle of
-   *   the card it is being dragged out of.
-   * - **No offset.** Bowing apart from a mutual pair is a question about two edges that both exist,
-   *   and this one does not exist yet. That half of the old reasoning still stands.
+   * Once the pointer is over something this drag could connect to, the far end stops being the
+   * pointer and becomes the target — routed to its centre with its own clearance, which is exactly
+   * what a real edge does, so the preview and the edge that lands are the same drawing. Without it
+   * the arrowhead sat wherever the cursor happened to be, usually somewhere inside the card, and read
+   * as pointing at its middle.
+   *
+   * Which card is `connectionTarget`'s decision and nobody else's — the same rule the release uses to
+   * decide what is connected and the renderer uses to decide what to mark. A line that snapped to a
+   * card the drop then refused would be worse than one that never snapped.
+   *
+   * Over empty canvas, or back over the card it came from, the far end is the pointer again and there
+   * is no target clearance: a pointer is not a shape to stop short of, and a clearance there would
+   * leave the arrowhead hanging a node's width from the cursor.
+   *
+   * **No offset**, either way. Bowing apart from a mutual pair is a question about two edges that
+   * both exist, and this one does not exist yet.
    *
    * The style is resolved against a placeholder edge, so a rule with no `when` applies and one that
    * matches on a type or a property does not. That is the right answer either way: what a connection
@@ -1368,13 +1380,15 @@ export class GraphEngine {
       { id: PENDING_EDGE_ID, source: this.pendingConnection.from, target: '', type: '' },
       this.spec.edgeStyle,
     );
+    const target = connectionTarget(this.index.hitTest(this.pendingConnection.to)[0], this.pendingConnection.from);
+    const landing = target ? this.positions.get(target) : undefined;
     return routeEdge(
       PENDING_EDGE_ID,
       { x: from.x, y: from.y },
-      this.pendingConnection.to,
+      landing ? { x: landing.x, y: landing.y } : this.pendingConnection.to,
       normaliseCurve(style.curve),
       0,
-      0,
+      landing ? this.clearanceFor(this.store.node(target!)) : 0,
       this.clearanceFor(source),
     );
   }

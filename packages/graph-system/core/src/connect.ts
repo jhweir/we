@@ -1,10 +1,16 @@
 /**
- * What a released connection drag means.
+ * What a connection drag is pointing at.
  *
  * A pure function, extracted for the reason `resize.ts` is: the gesture around it is DOM and pointer
  * capture and cannot be tested without a browser, while the *rule* is three lines and is where the
  * behaviour actually lives. Both halves of it are quiet refusals, which is precisely the kind of
  * thing that stops working without anything failing.
+ *
+ * In the core rather than beside the gesture, because three separate places now ask it and they must
+ * not be able to disagree: the renderer marks the card under the line, the engine ends the preview on
+ * that card's edge, and the release decides what is connected. Two of those are in one package and
+ * one is in another; a copy of the rule anywhere would show up as a line snapping to a card the drop
+ * then refuses.
  */
 
 /**

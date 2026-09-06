@@ -25,6 +25,7 @@
 import { Column, Row } from '@we/components/solid';
 import { ROLE_NAMES } from '@we/design-utils';
 import {
+  connectionTarget,
   DEFAULT_CONTROLS,
   defaultBehaviours,
   defaultControls,
@@ -52,7 +53,6 @@ import { parseAddress } from '@we/graph-protocol';
 import { batch, createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, untrack } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 
-import { connectionTarget } from './connect';
 import type { GraphViewProps, NodeContent } from './GraphView.types';
 import { isSettled, patched } from './pending';
 import { type Grip, HANDLES, resizeBox } from './resize';

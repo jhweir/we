@@ -1239,6 +1239,32 @@ describe('the pending connection', () => {
     return engine;
   }
 
+  /**
+   * Two seeds, so there is something to land on, and far enough apart to mean it.
+   *
+   * The shared `grid` stub spaces nodes ten apart, which is inside their own clearance — every
+   * attachment then lands behind the node it belongs to, and an assertion that the endpoint moved
+   * off the centre passes on nonsense. Its own layout rather than a wider shared one, so no other
+   * test's positions move.
+   */
+  async function connectingTwo() {
+    const spread = {
+      grid: () => ({
+        id: 'grid',
+        init(input: { nodes: { id: string }[] }) {
+          return { positions: new Map(input.nodes.map((node, index) => [node.id, { x: index * 400, y: 0 }])) };
+        },
+      }),
+    };
+    const registry = new PluginRegistry({ seeds: [seedOf(2)], expanders: [fanoutExpander(0)], layouts: spread });
+    const engine = engineWith(
+      { seeds: { source: 'test' }, layout: { type: 'grid' }, expansion: { defaultDepth: 0 } },
+      registry,
+    );
+    await engine.start();
+    return engine;
+  }
+
   it('is nothing at all until a gesture is running', async () => {
     const engine = await connecting();
 
@@ -1257,13 +1283,47 @@ describe('the pending connection', () => {
     expect(route.from.x).toBeLessThan(400);
   });
 
-  it('ends exactly at the pointer, which is not a node', async () => {
+  it('ends exactly at the pointer over empty canvas, which is not a node', async () => {
     // The asymmetry that is deliberate: there is no shape at the far end to stop short of, so a
     // target clearance there would leave the arrowhead hanging a node's width from the cursor.
     const engine = await connecting();
     engine.behaviourContext().drawConnection('seed-0', { x: 400, y: 120 });
 
     expect(engine.getPendingConnection()!.to).toEqual({ x: 400, y: 120 });
+  });
+
+  it('ends on a card it is over, not at the point inside it', async () => {
+    /*
+      The far end stops being the pointer once the drag is over something it could connect to, and
+      becomes the target's own edge — exactly what a real edge does, so what is drawn and what lands
+      are the same. Without it the arrowhead sat wherever the cursor was, which for anyone aiming at
+      a card is somewhere in its middle.
+
+      `seed-0` sits at the origin and `seed-1` well to its right, so the pointer is put on the second
+      one's centre — the worst case, and the one somebody aiming at a card actually produces.
+    */
+    const engine = await connectingTwo();
+    const landing = engine.getPositions().get('seed-1')!;
+    engine.behaviourContext().drawConnection('seed-0', { x: landing.x, y: landing.y });
+
+    const route = engine.getPendingConnection()!;
+
+    // Short of the centre it was given, and still beyond the source: on the near side of the card,
+    // which is where the arrowhead belongs. Approaching horizontally, it keeps the target's own y.
+    expect(route.to.x).toBeLessThan(landing.x);
+    expect(route.to.x).toBeGreaterThan(route.from.x);
+    expect(route.to.y).toBe(landing.y);
+  });
+
+  it('follows the pointer again over the card it came from', async () => {
+    // Dragging out of an edge and back is how the gesture is cancelled by hand, so there is nothing
+    // to snap to — `connectionTarget` refuses the source, and the same refusal decides the drop.
+    const engine = await connectingTwo();
+    const source = engine.getPositions().get('seed-0')!;
+
+    engine.behaviourContext().drawConnection('seed-0', { x: source.x, y: source.y });
+
+    expect(engine.getPendingConnection()!.to).toEqual({ x: source.x, y: source.y });
   });
 
   it('is drawn with the shape the graph draws its edges with', async () => {
