@@ -689,6 +689,85 @@ function quadraticAt(from: Point, control: Point, to: Point, t: number): Point {
 }
 
 /**
+ * The point a fraction of the way along a polyline, by arc length.
+ *
+ * By length rather than by index, so a sampled curve is walked at a constant speed: the samples of a
+ * tight bend are packed close together, and stepping through them by count would crawl round the
+ * corner and sprint down the straight.
+ */
+export function pointAlong(points: Point[], fraction: number): Point {
+  if (!points.length) return { x: 0, y: 0 };
+  const lengths = points
+    .slice(1)
+    .map((point, index) => Math.hypot(point.x - points[index].x, point.y - points[index].y));
+  const total = lengths.reduce((sum, length) => sum + length, 0);
+  if (total === 0) return points[0];
+  let walked = 0;
+  const target = total * Math.min(Math.max(fraction, 0), 1);
+  for (let index = 0; index < lengths.length; index += 1) {
+    if (walked + lengths[index] >= target) {
+      const t = lengths[index] === 0 ? 0 : (target - walked) / lengths[index];
+      const a = points[index];
+      const b = points[index + 1];
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+    }
+    walked += lengths[index];
+  }
+  return points[points.length - 1];
+}
+
+/**
+ * How far along a polyline a point sits, as a fraction of its length.
+ *
+ * The inverse of {@link pointAlong}, by projection onto the nearest leg — a waypoint is stored in the
+ * edge's frame and drawn from the routed curve, so where it falls *along the drawn line* is not
+ * something either of those says and has to be measured.
+ */
+export function fractionAlong(points: Point[], at: Point): number {
+  if (points.length < 2) return 0;
+  const lengths = points
+    .slice(1)
+    .map((point, index) => Math.hypot(point.x - points[index].x, point.y - points[index].y));
+  const total = lengths.reduce((sum, length) => sum + length, 0);
+  if (total === 0) return 0;
+  let walked = 0;
+  let best = { distance: Infinity, at: 0 };
+  for (let index = 0; index < lengths.length; index += 1) {
+    const a = points[index];
+    const b = points[index + 1];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const square = dx * dx + dy * dy;
+    const t = square === 0 ? 0 : Math.min(Math.max(((at.x - a.x) * dx + (at.y - a.y) * dy) / square, 0), 1);
+    const distance = Math.hypot(a.x + dx * t - at.x, a.y + dy * t - at.y);
+    if (distance < best.distance) best = { distance, at: (walked + lengths[index] * t) / total };
+    walked += lengths[index];
+  }
+  return best.at;
+}
+
+/**
+ * Where to offer a new bend — one point per gap between the bends a route already has.
+ *
+ * The gaps have to be found by *measuring*, which is the whole point of this function. Dividing the
+ * route into equal lengths is the obvious shortcut and is wrong: waypoints sit wherever somebody put
+ * them, so the k-th equal division is not the k-th gap. A route bent once near its target drew its
+ * second offer before that bend and inserted it after — so the press landed a point in the list at
+ * one place and on the canvas at another, and the line pinched somewhere the pointer had never been.
+ *
+ * Result index k is the gap before waypoint k, which is also the index a new point splices in at.
+ * Fractions are clamped to be non-decreasing so a route that doubles back — where a waypoint can
+ * project onto an earlier leg than its neighbour — still offers its gaps in order rather than
+ * inside out.
+ */
+export function bendPoints(drawn: Point[], waypoints: Point[]): Point[] {
+  const edges = [0];
+  for (const point of waypoints) edges.push(Math.max(fractionAlong(drawn, point), edges[edges.length - 1]));
+  edges.push(1);
+  return edges.slice(1).map((end, index) => pointAlong(drawn, (edges[index] + end) / 2));
+}
+
+/**
  * The route as a polyline.
  *
  * Sampling rather than solving: the exact distance from a point to a quadratic bezier is a quartic

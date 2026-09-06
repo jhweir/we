@@ -9,11 +9,14 @@ import { describe, expect, it } from 'vitest';
 
 import {
   anchorsOf,
+  bendPoints,
   bowOffsets,
   distanceToEdge,
   endOf,
+  fractionAlong,
   groupByEndpoints,
   normaliseCurve,
+  pointAlong,
   routeEdge,
   routesAlike,
   trimToRadius,
@@ -489,6 +492,99 @@ describe('anchors', () => {
   places the grips along it. They used to answer separately, and the grips froze at the settled
   endpoints while the line they belong to followed the pointer.
 */
+/*
+  Offering a new bend, in the gap somebody is pointing at.
+
+  The reported fault: pressing a faint dot between two bends sometimes pinched the line somewhere
+  else, occasionally past the next bend entirely. The offers were placed by cutting the route into
+  equal lengths, one per gap — but a bend sits wherever it was put, so the k-th equal division is
+  not the k-th gap. The dot was drawn in one place and its press spliced a point into the list at
+  another, and the line kinked at neither.
+*/
+describe('bendPoints', () => {
+  /** A straight run left to right, sampled the way `polyline` returns one. */
+  const line = Array.from({ length: 101 }, (_, index) => ({ x: index, y: 0 }));
+
+  it('offers one gap on a route with no bends, at its middle', () => {
+    expect(bendPoints(line, [])).toEqual([{ x: 50, y: 0 }]);
+  });
+
+  it('puts each offer between the bends it actually sits between', () => {
+    // The bend is at 90 — far down the line. The second offer belongs BETWEEN it and the end.
+    const [before, after] = bendPoints(line, [{ x: 90, y: 0 }]);
+
+    expect(before.x).toBeCloseTo(45, 5);
+    expect(after.x).toBeCloseTo(95, 5);
+  });
+
+  it('is the failure it was: equal division would put the second offer before the bend', () => {
+    // The old placement was (index + 0.5) / (n + 1) of the whole length — 0.75 here, or x=75,
+    // which is BEFORE the bend at 90 while splicing after it. That is the pinch.
+    const [, after] = bendPoints(line, [{ x: 90, y: 0 }]);
+
+    expect(after.x).toBeGreaterThan(90);
+  });
+
+  it('offers one more than there are bends', () => {
+    expect(
+      bendPoints(line, [
+        { x: 20, y: 0 },
+        { x: 60, y: 0 },
+      ]),
+    ).toHaveLength(3);
+  });
+
+  it('keeps the offers in order when a route doubles back', () => {
+    // A bend can project onto an earlier leg than its neighbour, which would invert two gaps and
+    // offer them inside out. The fractions are clamped non-decreasing instead.
+    const offers = bendPoints(line, [
+      { x: 70, y: 0 },
+      { x: 30, y: 0 },
+    ]);
+
+    expect(offers[0].x).toBeLessThanOrEqual(offers[1].x);
+    expect(offers[1].x).toBeLessThanOrEqual(offers[2].x);
+  });
+
+  it('answers for a route of no length rather than dividing by it', () => {
+    expect(
+      bendPoints(
+        [
+          { x: 5, y: 5 },
+          { x: 5, y: 5 },
+        ],
+        [],
+      ),
+    ).toEqual([{ x: 5, y: 5 }]);
+  });
+});
+
+describe('pointAlong and fractionAlong', () => {
+  const line = [
+    { x: 0, y: 0 },
+    { x: 10, y: 0 },
+    { x: 10, y: 30 },
+  ];
+
+  it('walks by length rather than by sample index', () => {
+    // Half of 40 is 20, which is ten down the second leg — not the midpoint of the two legs.
+    expect(pointAlong(line, 0.5)).toEqual({ x: 10, y: 10 });
+  });
+
+  it('clamps a fraction outside the line', () => {
+    expect(pointAlong(line, -1)).toEqual({ x: 0, y: 0 });
+    expect(pointAlong(line, 2)).toEqual({ x: 10, y: 30 });
+  });
+
+  it('measures a point back to the fraction it sits at', () => {
+    expect(fractionAlong(line, { x: 10, y: 10 })).toBeCloseTo(0.5, 5);
+  });
+
+  it('projects a point that is not on the line onto the nearest leg', () => {
+    expect(fractionAlong(line, { x: 5, y: 40 })).toBeCloseTo(fractionAlong(line, { x: 10, y: 30 }), 1);
+  });
+});
+
 describe('endOf', () => {
   it('falls back to the edge\u2019s own end when nothing is overlaid', () => {
     expect(endOf(undefined, 'source', 'a')).toEqual({ node: 'a', loose: null });

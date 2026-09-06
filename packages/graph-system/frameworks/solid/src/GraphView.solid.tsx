@@ -26,6 +26,7 @@ import { Column, Row } from '@we/components/solid';
 import { ROLE_NAMES } from '@we/design-utils';
 import type { EdgeWaypoint } from '@we/graph-core';
 import {
+  bendPoints,
   connectionTarget,
   DEFAULT_CONTROLS,
   defaultBehaviours,
@@ -1368,35 +1369,15 @@ export function GraphView(props: GraphViewProps) {
     const points = waypointsOf({ ...edge.data, ...patch });
     const world = points.map((point) => waypointToWorld(point, { x: from.x, y: from.y }, { x: to.x, y: to.y }));
     const handles = world.map((at, index) => ({ index, at, insert: false }));
-    // One gap per leg — before the first point, between each pair, and after the last.
-    const drawn = polyline(route);
-    const gaps = Array.from({ length: world.length + 1 }, (_, index) => ({
-      index,
-      at: alongPolyline(drawn, (index + 0.5) / (world.length + 1)),
-      insert: true,
-    }));
+    /*
+      One offer per gap — before the first point, between each pair, and after the last — placed by
+      measuring where the existing points fall along the drawn line rather than by dividing it into
+      equal lengths. `bendPoints` carries the reasoning; the short of it is that a point sits
+      wherever somebody put it, so the k-th equal division is not the k-th gap, and an offer drawn in
+      the wrong gap splices its new point at an index the pointer was never near.
+    */
+    const gaps = bendPoints(polyline(route), world).map((at, index) => ({ index, at, insert: true }));
     return [...handles, ...gaps];
-  }
-
-  /** The point a fraction of the way along a polyline, by arc length. */
-  function alongPolyline(points: Point[], fraction: number): Point {
-    const lengths = points
-      .slice(1)
-      .map((point, index) => Math.hypot(point.x - points[index].x, point.y - points[index].y));
-    const total = lengths.reduce((sum, length) => sum + length, 0);
-    if (total === 0) return points[0];
-    let walked = 0;
-    const target = total * fraction;
-    for (let index = 0; index < lengths.length; index += 1) {
-      if (walked + lengths[index] >= target) {
-        const t = lengths[index] === 0 ? 0 : (target - walked) / lengths[index];
-        const a = points[index];
-        const b = points[index + 1];
-        return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-      }
-      walked += lengths[index];
-    }
-    return points[points.length - 1];
   }
 
   /** Take one point out of a route — the double-click path. See `beginWaypoint` for the other. */
