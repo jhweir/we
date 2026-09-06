@@ -904,6 +904,69 @@ describe('edge picking', () => {
     // Target sits at x=300; the route must end before it.
     expect(engine.getEdgeGeometry().get('a-b')!.to.x).toBeLessThan(300 - 30);
   });
+
+  /*
+    Dragging one end of a connection onto another card.
+
+    The overlay is how that gesture is *seen*: the write goes round a peer-to-peer data layer and
+    comes back through a re-seed, so without this the endpoint stays pinned to the card it came from
+    for the whole drag and the gesture looks like it only ever offered that card's own four sides —
+    which is exactly how it was reported.
+  */
+  function threeSeed(): SeedSource {
+    return {
+      id: 'linked',
+      async seed() {
+        return {
+          nodes: ['a', 'b', 'c'].map((id) => ({ id, kind: 'entity' as const, type: 'Thing', label: id })),
+          edges: [{ id: 'a-b', source: 'a', target: 'b', type: 'rel' }],
+        };
+      },
+    };
+  }
+
+  async function threeNodeEngine() {
+    const registry = new PluginRegistry({ seeds: [threeSeed()], layouts: placed });
+    const engine = engineWith(
+      { seeds: { source: 'linked' }, layout: { type: 'grid' }, edgeStyle: [{ style: { curve: 'straight' } }] },
+      registry,
+    );
+    await engine.start();
+    engine.resize(800, 600);
+    return engine;
+  }
+
+  it('routes to the endpoint an overlay names, so a re-attachment can be previewed', async () => {
+    const engine = await threeNodeEngine();
+    // b sits at x=300, c at x=600.
+    const before = engine.getEdgeGeometry().get('a-b')!.to.x;
+
+    engine.setEdgeOverlay(new Map([['a-b', { target: 'c' }]]));
+
+    expect(engine.getEdgeGeometry().get('a-b')!.to.x).toBeGreaterThan(before);
+    // The claim itself is untouched — a released drag whose write fails leaves nothing to undo.
+    expect(engine.store.edge('a-b')?.target).toBe('b');
+  });
+
+  it('keeps the stored endpoint when the overlay names an empty one', async () => {
+    // How the anchor half of the same gesture says "not over another card": the field is present and
+    // empty rather than absent, so merging one patch into the next cannot resurrect a stale landing.
+    const engine = await threeNodeEngine();
+    const before = engine.getEdgeGeometry().get('a-b')!.to;
+
+    engine.setEdgeOverlay(new Map([['a-b', { target: '', targetAnchor: '' }]]));
+
+    expect(engine.getEdgeGeometry().get('a-b')!.to).toEqual(before);
+  });
+
+  it('honours an overlaid source as well as a target', async () => {
+    const engine = await threeNodeEngine();
+    const before = engine.getEdgeGeometry().get('a-b')!.from.x;
+
+    engine.setEdgeOverlay(new Map([['a-b', { source: 'c' }]]));
+
+    expect(engine.getEdgeGeometry().get('a-b')!.from.x).toBeGreaterThan(before);
+  });
 });
 
 describe('re-tuning a layout', () => {

@@ -195,6 +195,15 @@ const HANDLE_HIT_R = 12;
 const CONNECT_DOT_REACH = 20;
 
 /**
+ * How far above the handle a tooltip is anchored, in screen pixels.
+ *
+ * Enough for the plate to clear the grip rather than rest on it. Not a fix for the flicker — that
+ * was the tooltip taking the pointer, and is answered in the stylesheet — but a plate touching the
+ * dot it describes reads as part of it.
+ */
+const TOOLTIP_LIFT = 6;
+
+/**
  * How near its own route a dragged waypoint has to be dropped to be removed, in screen pixels.
  *
  * Generous, because this is the way back from a bend somebody did not mean to add, and a gesture
@@ -673,7 +682,19 @@ export function GraphView(props: GraphViewProps) {
       `''` and the seed answers by omitting the field altogether, so compared literally a clear could
       never settle and the overlay would outlive the graph.
     */
-    if (raw && routesAlike(raw.data, { ...raw.data, ...draft.patch })) {
+    /*
+      An endpoint the draft has moved is settled when the edge itself says so.
+
+      `routesAlike` asks about the fields one board draws with, and a re-attachment is not one of
+      them — the claim changed, so the edge comes back from the seed attached somewhere else. Asking
+      only the data would call the move settled on the frame it was made, drop the overlay, and snap
+      the end back to the card it came from until the write returned.
+    */
+    const endsArrived = (['source', 'target'] as const).every((end) => {
+      const wanted = draft.patch[end];
+      return typeof wanted !== 'string' || !wanted || raw?.[end] === wanted;
+    });
+    if (raw && endsArrived && routesAlike(raw.data, { ...raw.data, ...draft.patch })) {
       setAnchorDraft(null);
       engine.setEdgeOverlay(new Map());
       return;
@@ -1076,14 +1097,26 @@ export function GraphView(props: GraphViewProps) {
       // pointer, so there is nothing new to learn and nothing new to draw.
       setHovered(landing);
       side = sideOf(world, centre, halfWidth, halfHeight);
-      // Merged rather than replaced, so pinning one end and then the other does not drop the first
-      // end's preview while its write is still in flight.
-      if (!landing) {
-        setAnchorDraft((previous) => ({
-          id: edgeId,
-          patch: { ...(previous?.id === edgeId ? previous.patch : {}), [field]: side },
-        }));
-      }
+      /*
+        The line follows either way, and this is the half that was missing.
+
+        Over another card the whole end moves there, previewed through the same overlay the anchor
+        drag uses — `source`/`target` in a patch mean "route as though it attached here". Without it
+        the endpoint stayed pinned to its own card's rim for the whole drag, so the gesture looked
+        like it only ever offered the four sides of the card it started on, whatever the drop then
+        did. The anchor goes with it: which side of a card you left is not an answer about a
+        different card, so it is cleared and the geometry decides again.
+
+        Merged rather than replaced, so pinning one end and then the other does not drop the first
+        end's preview while its write is still in flight.
+      */
+      setAnchorDraft((previous) => ({
+        id: edgeId,
+        patch: {
+          ...(previous?.id === edgeId ? previous.patch : {}),
+          ...(landing ? { [end]: landing, [field]: '' } : { [end]: '', [field]: side }),
+        },
+      }));
     };
 
     const finish = () => {
@@ -1104,8 +1137,8 @@ export function GraphView(props: GraphViewProps) {
         "this connection actually goes there" is an edit to what the relationship asserts, so it
         changes on every board and for everyone. Where it *attaches* is this board's business alone.
       */
-      if (landing && arrived?.kind === 'entity' && arrived.id) {
-        props.onEdgeRetarget?.({
+      if (landing && arrived?.kind === 'entity' && arrived.id && props.onEdgeRetarget) {
+        props.onEdgeRetarget({
           id: edgeId,
           end,
           ...connection,
@@ -1116,6 +1149,16 @@ export function GraphView(props: GraphViewProps) {
         });
         return;
       }
+      /*
+        Anywhere else, it was an anchor drag — including a drop on another card that nothing is
+        listening for. A board that has not wired re-attachment would otherwise swallow the gesture
+        whole, leaving the end previewed on a card it never moved to, so the preview is withdrawn
+        here rather than left for a write that is not coming.
+      */
+      setAnchorDraft((previous) => ({
+        id: edgeId,
+        patch: { ...(previous?.id === edgeId ? previous.patch : {}), [end]: '', [field]: side },
+      }));
       props.onEdgeAnchor?.({ id: edgeId, end, side, ...connection });
     };
 
@@ -1983,7 +2026,9 @@ export function GraphView(props: GraphViewProps) {
             style={{
               position: 'absolute',
               left: `${engine.viewport.toScreen(hint().at).x}px`,
-              top: `${engine.viewport.toScreen(hint().at).y}px`,
+              // Lifted clear of the handle: the plate is placed above its trigger, and a trigger
+              // sitting exactly on the dot leaves the two touching.
+              top: `${engine.viewport.toScreen(hint().at).y - TOOLTIP_LIFT}px`,
               'pointer-events': 'none',
             }}
           >

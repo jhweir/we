@@ -784,16 +784,29 @@ export function RecordStoreProvider(props: ParentProps) {
 
     try {
       const Model = getEntity(event.recordType || RELATIONSHIP);
-      const record = (await Model.findOne(dataset.handle, { where: { id: event.recordId } })) as {
-        setSource?: (value: string) => Promise<unknown>;
-        setTarget?: (value: string) => Promise<unknown>;
-      } | null;
+      const record = (await Model.findOne(dataset.handle, { where: { id: event.recordId } })) as Record<
+        string,
+        unknown
+      > | null;
       if (!record) return;
 
       await Model.update(dataset.handle, event.recordId, {
         [event.end === 'source' ? 'sourceType' : 'targetType']: event.nodeType,
       });
-      await (event.end === 'source' ? record.setSource?.(event.nodeId) : record.setTarget?.(event.nodeId));
+      /*
+        Called, not optional-chained.
+
+        `setSource`/`setTarget` are generated from the model's declaration, so their absence means
+        the record did not come back as a live instance — which is a thing to hear about rather than
+        a reason to write nothing. Optional-chained, that case left the type written, the anchor
+        cleared and the endpoint exactly where it was: a gesture that reported success and moved
+        nothing, which is the hardest kind of failure to find.
+      */
+      const move = record[event.end === 'source' ? 'setSource' : 'setTarget'];
+      if (typeof move !== 'function') {
+        throw new Error(`${event.recordType || RELATIONSHIP} has no ${event.end} accessor to move`);
+      }
+      await (move as (value: string) => Promise<unknown>).call(record, event.nodeId);
 
       // The anchor for the end that moved, dropped — see the note above. Reusing the same action a
       // person's own clear goes through, so there is one path that knows how to unset one.

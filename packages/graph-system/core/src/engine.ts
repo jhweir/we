@@ -1111,12 +1111,24 @@ export class GraphEngine {
     for (const group of groupByEndpoints([...this.store.edges()]).values()) {
       const offsets = bowOffsets(group.length);
       group.forEach((edge, index) => {
-        const from = this.positions.get(edge.source);
-        const to = this.positions.get(edge.target);
+        const patch = this.edgeOverlay.get(edge.id);
+        /*
+          An endpoint the overlay has moved — what a drag from one card to another previews with.
+
+          `source`/`target` are reserved names in an edge overlay for exactly this: everything else in
+          the patch is a data field routing reads, and these two say the line arrives somewhere else
+          entirely. Held here rather than by editing the edge, because the claim has not changed yet:
+          the store still says what it said, and a released drag whose write fails leaves nothing
+          behind to undo.
+        */
+        const sourceId = typeof patch?.source === 'string' && patch.source ? patch.source : edge.source;
+        const targetId = typeof patch?.target === 'string' && patch.target ? patch.target : edge.target;
+        const from = this.positions.get(sourceId);
+        const to = this.positions.get(targetId);
         if (!from || !to) return;
         const style = resolveStyle(edge, this.spec.edgeStyle);
-        const targetNode = this.store.node(edge.target);
-        const sourceNode = this.store.node(edge.source);
+        const targetNode = this.store.node(targetId);
+        const sourceNode = this.store.node(sourceId);
         /*
           Stop short of the node's *edge*, so an arrowhead lands on it rather than inside it or short
           of it. Measured from the same place the renderer gets its size, so the two cannot disagree.
@@ -1145,12 +1157,10 @@ export class GraphEngine {
           // Where a connection leaves and arrives, when somebody has said. Off the edge's own data,
           // so whatever loaded it decides — the board seed reads them from an `EdgeRoute` — with any
           // overlay in front, which is how a drag previews and how a write holds until it lands.
-          anchorsOf({ ...edge.data, ...this.edgeOverlay.get(edge.id) }),
+          anchorsOf({ ...edge.data, ...patch }),
           // Stored in the edge's own frame, so a bend keeps its proportions when either card moves —
           // see `EdgeWaypoint`. Converted here, where both centres are in hand.
-          waypointsOf({ ...edge.data, ...this.edgeOverlay.get(edge.id) }).map((point) =>
-            waypointToWorld(point, from, to),
-          ),
+          waypointsOf({ ...edge.data, ...patch }).map((point) => waypointToWorld(point, from, to)),
         );
         this.edgeGeometry.set(edge.id, geometry);
         this.edgeBoxes.set(edge.id, edgeBounds(geometry));

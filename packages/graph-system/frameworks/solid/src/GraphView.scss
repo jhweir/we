@@ -854,3 +854,18 @@
 .we-graph__handle--ghost:hover .we-graph__handle-dot {
   opacity: 1;
 }
+
+/*
+  The tooltip must not be able to take the pointer.
+
+  `we-tooltip` re-enables hit-testing on its own plate while open — right for a tooltip you may want
+  to select text out of, and wrong here, where the plate sits directly over the handle that raised
+  it. The pointer crossing into it fired the handle's `pointerleave`, which unmounted the tooltip,
+  which put the pointer back on the handle, which raised it again: a flicker every frame for a mouse
+  a pixel too high. `pointer-events: none` on the host does not reach it, because the shadow rule is
+  the more specific of the two.
+*/
+.we-graph we-tooltip::part(tooltip),
+.we-graph we-tooltip::part(arrow) {
+  pointer-events: none;
+}
