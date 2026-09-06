@@ -21,6 +21,11 @@
  *
  * Emitting for either would open a dialog about a connection nobody made, which is worse than doing
  * nothing — a dialog has to be read and dismissed before the board is usable again.
+ *
+ * Asked twice per gesture, on purpose: once on release to decide what is connected, and once per
+ * move to decide which card is marked under the line. One rule, so the mark cannot promise a
+ * connection the drop then refuses — the source card does not light up as you drag out of it, and
+ * neither does empty canvas.
  */
 export function connectionTarget(hit: string | undefined, source: string): string | null {
   if (!hit || hit === source) return null;

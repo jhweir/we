@@ -368,8 +368,17 @@
   outline-offset: calc(1px / var(--graph-zoom));
 }
 
+/*
+  Divided by the zoom, like the hover ring above it and the connect handles.
+
+  A ring is chrome — it says which card is selected, and how thick it is says nothing. Written as a
+  plain `3px` it was three *world* pixels, so it grew with the camera: at 4x it was a twelve-pixel
+  band around the card, and the connect dots, which are pinned to screen size and sit a fixed
+  distance off the edge, were pushed into it and then under it. Reported as the dots drifting inwards
+  as you zoom, which is the ring growing outwards past them.
+*/
 .we-graph__node--card.we-graph__node--selected .we-graph__card {
-  box-shadow: 0 0 0 3px var(--we-color-primary-500);
+  box-shadow: 0 0 0 calc(3px / var(--graph-zoom)) var(--we-color-primary-500);
 }
 
 // A card that is both selected and hovered keeps the selection ring alone — two rings around one
@@ -399,8 +408,10 @@
 */
 .we-graph__node--pinned .we-graph__dot,
 .we-graph__node--pinned .we-graph__card {
-  outline: 2px dashed var(--we-color-neutral-500);
-  outline-offset: 3px;
+  // Screen-constant, for the reason the selection ring is: a pinned card can carry connect handles
+  // too, and this sits further out than the selection ring does.
+  outline: calc(2px / var(--graph-zoom)) dashed var(--we-color-neutral-500);
+  outline-offset: calc(3px / var(--graph-zoom));
 }
 
 .we-graph__node--unresolved .we-graph__dot {
@@ -645,16 +656,20 @@
  * the unscaled box, so the two together mis-centre by however far the camera is from 1.
  */
 .we-graph__connect {
-  --hit: calc(26px / var(--graph-zoom));
+  --hit: calc(30px / var(--graph-zoom));
   --dot: calc(10px / var(--graph-zoom));
-  --reach: calc(16px / var(--graph-zoom));
+  --reach: calc(20px / var(--graph-zoom));
   --half-w: calc(var(--node-width) / 2);
   --half-h: calc(var(--node-height) / 2);
 
   position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: var(--hit);
   height: var(--hit);
   transform: translate(-50%, -50%);
+  color: var(--we-role-on-accent);
 
   // The node layer is inert so the canvas can hit-test in world space; these take their own presses.
   pointer-events: auto;
@@ -680,54 +695,42 @@
     height 100ms ease-out;
 }
 
+/*
+  Big enough to be read past the cursor.
+
+  It was 22px, under a crosshair that covers most of that — so the thing the expansion exists to
+  reveal was mostly hidden by the pointer sitting on it, and what was left read as a smudge rather
+  than as a direction. The hit box grows with it and stays the larger of the two, since the target is
+  what a mouse has to land on and the disc is only what is painted in it.
+*/
 .we-graph__connect:hover::before {
-  width: calc(22px / var(--graph-zoom));
-  height: calc(22px / var(--graph-zoom));
+  width: calc(26px / var(--graph-zoom));
+  height: calc(26px / var(--graph-zoom));
   opacity: 1;
 }
 
 /**
  * The arrow, out of the edge it belongs to.
  *
- * Two borders on a square, turned — a chevron rather than a filled triangle, because a triangle at
- * this size reads as a blob and a chevron keeps a direction at every zoom. Hidden until the dot is
- * reached for: four permanent arrows around a card would be four claims about where its connections
- * go, and there is no such claim to make.
+ * A real arrow, one name per edge — see `CONNECT_EDGES`. It was a CSS chevron with a per-edge nudge
+ * that put three of the four visibly off-centre; an arrow centred in its own box is centred by the
+ * flex row above and needs no correction at all.
+ *
+ * Hidden until the dot is reached for: four permanent arrows around a card would be four claims
+ * about where its connections go, and there is no such claim to make.
+ *
+ * `position: relative` because the disc is an absolutely-positioned `::before`, which paints above
+ * ordinary in-flow content however early it comes in the tree. Without it the arrow is behind the
+ * very thing it is drawn on.
  */
-.we-graph__connect::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: calc(7px / var(--graph-zoom));
-  height: calc(7px / var(--graph-zoom));
-  border-top: calc(2px / var(--graph-zoom)) solid var(--we-role-on-accent);
-  border-right: calc(2px / var(--graph-zoom)) solid var(--we-role-on-accent);
+.we-graph__connect we-icon {
+  position: relative;
   opacity: 0;
   transition: opacity 100ms ease-out;
 }
 
-.we-graph__connect:hover::after {
+.we-graph__connect:hover we-icon {
   opacity: 1;
-}
-
-// A square bearing its top and right borders points north-east; each edge is that, turned to face
-// away from the card. The nudge keeps the chevron optically centred, since its mass sits on two
-// sides rather than in the middle.
-.we-graph__connect--n::after {
-  transform: rotate(-45deg) translate(calc(1px / var(--graph-zoom)), calc(1px / var(--graph-zoom)));
-}
-
-.we-graph__connect--e::after {
-  transform: rotate(45deg) translate(calc(-1px / var(--graph-zoom)), calc(1px / var(--graph-zoom)));
-}
-
-.we-graph__connect--s::after {
-  transform: rotate(135deg) translate(calc(-1px / var(--graph-zoom)), calc(-1px / var(--graph-zoom)));
-}
-
-.we-graph__connect--w::after {
-  transform: rotate(-135deg) translate(calc(1px / var(--graph-zoom)), calc(-1px / var(--graph-zoom)));
 }
 
 // Off the edge rather than on it: the edges and corners of the box are already grab areas for

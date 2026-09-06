@@ -726,13 +726,25 @@ export function GraphView(props: GraphViewProps) {
    * edge moves one. Zero on an axis is what makes an edge handle leave the other dimension alone.
    */
   /**
-   * The four edges a connection can be drawn from, as the DOM knows them.
+   * The four edges a connection can be drawn from, as the DOM knows them, and the arrow each shows.
    *
    * Midpoints rather than corners, because the corners are the resize grips — an affordance for
    * "make this bigger" and one for "join this to something" sharing a pixel is a coin toss every
    * time somebody reaches for either.
+   *
+   * A named arrow per edge rather than one glyph turned four ways. It was a CSS chevron — two
+   * borders on a rotated square — with a one-pixel nudge per edge to correct for its mass sitting on
+   * two sides rather than in the middle. A `translate` after a `rotate` applies in the *rotated*
+   * frame, so all four nudges came out as the same 1.4px sideways shove in screen space: right for
+   * the east arrow by luck, and visibly off-centre on the other three. An arrow that is centred in
+   * its own box needs no correction, and four names cost less than the arithmetic that was wrong.
    */
-  const CONNECT_EDGES = ['n', 'e', 's', 'w'] as const;
+  const CONNECT_EDGES = [
+    { edge: 'n', icon: 'arrow-up' },
+    { edge: 'e', icon: 'arrow-right' },
+    { edge: 's', icon: 'arrow-down' },
+    { edge: 'w', icon: 'arrow-left' },
+  ] as const;
 
   /**
    * Drag a connection out of one edge of a card.
@@ -770,9 +782,26 @@ export function GraphView(props: GraphViewProps) {
       // following the cursor around the canvas with no way to put it down.
       if (moved.buttons === 0) {
         ctx.drawConnection(null);
+        setHovered(null);
         return;
       }
-      ctx.drawConnection(source, ctx.toWorld(at(moved)));
+      const world = ctx.toWorld(at(moved));
+      ctx.drawConnection(source, world);
+      /*
+        Marking the card under the line, here, because nothing else can while this gesture runs.
+
+        `onPointerMove` is the only writer of `hovered` and it is bound to `.we-graph__surface`,
+        which is a *sibling* of the layer holding the cards and these handles. The press sets pointer
+        capture on the handle, so every move that follows is retargeted into that subtree and reaches
+        the surface's listener never — the highlight froze wherever it was when the drag began, and
+        came back only once the gesture was over and the pointer moved again. Which reads as a drag
+        that is not working, since the line is the half that never broke.
+
+        Through `connectionTarget`, so what lights up is what a release would actually connect to:
+        the source card is refused, and so is empty canvas. A mark that promised a connection the
+        drop then declines is worse than no mark.
+      */
+      setHovered(connectionTarget(ctx.hitTest(world)[0], source));
     };
 
     const end = (ended: PointerEvent) => {
@@ -781,6 +810,9 @@ export function GraphView(props: GraphViewProps) {
       window.removeEventListener('pointercancel', end);
       const [hit] = ctx.hitTest(ctx.toWorld(at(ended)));
       ctx.drawConnection(null);
+      // The gesture owned the mark; it does not own what happens next. The surface re-establishes it
+      // on the next move, and a drop that opens a dialog leaves no card lit behind it.
+      setHovered(null);
       const target = connectionTarget(hit, source);
       if (!target) return;
       ctx.emit({
@@ -1223,12 +1255,20 @@ export function GraphView(props: GraphViewProps) {
               */}
               <Show when={props.onEdgeCreate && entry.selected && entry.visual.shape === 'card'}>
                 <For each={CONNECT_EDGES}>
-                  {(edge) => (
+                  {(handle) => (
                     <div
-                      class={`we-graph__connect we-graph__connect--${edge}`}
+                      class={`we-graph__connect we-graph__connect--${handle.edge}`}
                       title="Drag to connect"
                       onPointerDown={(event) => beginConnect(event, entry)}
-                    />
+                    >
+                      {/*
+                        Sized in `px / var(--graph-zoom)` like everything else in here: the layer
+                        carries the camera's `scale`, so dividing first is what keeps the arrow one
+                        size on screen at every zoom. `size` takes a length as well as a token, and
+                        the element writes it to its own `--icon-size`.
+                      */}
+                      <we-icon name={handle.icon} size="calc(15px / var(--graph-zoom))" />
+                    </div>
                   )}
                 </For>
               </Show>
