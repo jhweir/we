@@ -249,17 +249,6 @@ export function GraphView(props: GraphViewProps) {
   const [hovered, setHovered] = createSignal<string | null>(null);
   const [hoveredEdge, setHoveredEdge] = createSignal<string | null>(null);
   /**
-   * The edge whose route is open for editing.
-   *
-   * On the general version rather than a channel of its own: `selection` is one of the reasons that
-   * falls through to it, and a fourth signal would be a fourth thing to keep in step for a value
-   * that changes on a click.
-   */
-  const selectedEdge = createMemo(() => {
-    version();
-    return engine.getSelectedEdge();
-  });
-  /**
    * The anchor being dragged, and then the one just written — held until the data says the same.
    *
    * One draft rather than a map: an anchor drag is a pointer gesture, and there is exactly one
@@ -399,6 +388,23 @@ export function GraphView(props: GraphViewProps) {
       else if (reason === 'connection') setConnectionVersion((n) => n + 1);
       else setVersion((n) => n + 1);
     });
+  });
+
+  /**
+   * The edge whose route is open for editing.
+   *
+   * Declared **after** the engine, like every other memo that reads it. `createMemo` runs its body
+   * eagerly, so one written up beside the signals it looks like — `hovered`, `hoveredEdge` — reaches
+   * a `const` that is not initialised yet and takes the whole app down with a `ReferenceError`
+   * before anything renders. The signals can sit there because they read nothing.
+   *
+   * On the general version rather than a channel of its own: `selection` is one of the reasons that
+   * falls through to it, and a fourth signal would be a fourth thing to keep in step for a value
+   * that changes on a click.
+   */
+  const selectedEdge = createMemo(() => {
+    version();
+    return engine.getSelectedEdge();
   });
 
   const behaviours = createMemo<Behaviour[]>(() => {
