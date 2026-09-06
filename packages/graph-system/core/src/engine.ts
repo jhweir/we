@@ -35,6 +35,15 @@ import { GraphStore } from './store';
 import { flattenRules, nodeVisual, resolveStyle } from './style';
 import { boundsOf, Viewport } from './viewport';
 
+/**
+ * The id the connect gesture's preview is routed under.
+ *
+ * A route needs one and this one is never stored, so it names nothing: it exists so the geometry can
+ * be handed to the same `pathFrom` a real edge's is, and so a style rule matching on `id` cannot
+ * accidentally claim a line that stands for nothing yet.
+ */
+const PENDING_EDGE_ID = '__pending__';
+
 export interface EngineOptions {
   spec: GraphSpec;
   registry: PluginRegistry;
@@ -1028,6 +1037,7 @@ export class GraphEngine {
         if (!from || !to) return;
         const style = resolveStyle(edge, this.spec.edgeStyle);
         const targetNode = this.store.node(edge.target);
+        const sourceNode = this.store.node(edge.source);
         /*
           Stop short of the node's *edge*, so an arrowhead lands on it rather than inside it or short
           of it. Measured from the same place the renderer gets its size, so the two cannot disagree.
@@ -1039,6 +1049,11 @@ export class GraphEngine {
 
           *Where* on the node it lands is still the route's decision, not this one: a curve that
           arrives along an axis does not meet the node where the straight line between centres would.
+
+          Both ends, so an edge is the segment *between* two shapes. It used to start at the source's
+          centre and be covered by whatever was painted over it, which is invisible under an opaque
+          card and wrong under everything else — a translucent one has a line running through its
+          text, and a round node has one crossing it.
         */
         const geometry = routeEdge(
           edge.id,
@@ -1047,6 +1062,7 @@ export class GraphEngine {
           normaliseCurve(style.curve),
           offsets[index],
           this.clearanceFor(targetNode),
+          this.clearanceFor(sourceNode),
         );
         this.edgeGeometry.set(edge.id, geometry);
         this.edgeBoxes.set(edge.id, edgeBounds(geometry));
@@ -1323,15 +1339,44 @@ export class GraphEngine {
    * The line currently being drawn, or null.
    *
    * Read by the renderer each frame of a connect gesture. Not an edge in the store, deliberately:
-   * it stands for nothing yet, it must not be laid out, routed, hit-tested, counted against the
-   * budget or seen by a metric — and putting it there would mean every one of those had to learn to
-   * skip it.
+   * it stands for nothing yet, it must not be hit-tested, counted against the budget or seen by a
+   * metric — and putting it there would mean every one of those had to learn to skip it.
+   *
+   * It *is* routed, through the same `routeEdge` a real edge goes through, because the preview's job
+   * is to show the edge it is proposing. It was two raw points drawn as a straight segment, so the
+   * line changed shape at the exact moment of commitment: a straight line became an S-curve, which is
+   * a jump at the one instant somebody is deciding whether the gesture did what they wanted.
+   *
+   * Two differences from a real edge, and both are deliberate:
+   *
+   * - **No target clearance.** The far end is a pointer, not a node, so there is no shape to stop
+   *   short of. The near end takes the source's, which is what stops the line leaving the middle of
+   *   the card it is being dragged out of.
+   * - **No offset.** Bowing apart from a mutual pair is a question about two edges that both exist,
+   *   and this one does not exist yet. That half of the old reasoning still stands.
+   *
+   * The style is resolved against a placeholder edge, so a rule with no `when` applies and one that
+   * matches on a type or a property does not. That is the right answer either way: what a connection
+   * with nothing said about it yet would be drawn as.
    */
-  getPendingConnection(): { from: Point; to: Point } | null {
+  getPendingConnection(): EdgeGeometry | null {
     if (!this.pendingConnection) return null;
     const from = this.positions.get(this.pendingConnection.from);
     if (!from) return null;
-    return { from: { x: from.x, y: from.y }, to: this.pendingConnection.to };
+    const source = this.store.node(this.pendingConnection.from);
+    const style = resolveStyle(
+      { id: PENDING_EDGE_ID, source: this.pendingConnection.from, target: '', type: '' },
+      this.spec.edgeStyle,
+    );
+    return routeEdge(
+      PENDING_EDGE_ID,
+      { x: from.x, y: from.y },
+      this.pendingConnection.to,
+      normaliseCurve(style.curve),
+      0,
+      0,
+      this.clearanceFor(source),
+    );
   }
 
   private drawConnection(from: string | null, to?: Point): void {

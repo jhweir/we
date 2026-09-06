@@ -309,3 +309,86 @@ describe('clearance against a box', () => {
     expect(route.to).toEqual({ x: 10, y: 0 });
   });
 });
+
+/**
+ * An edge is the segment between two shapes, not between two centres.
+ *
+ * The far end has always been trimmed, so an arrowhead lands on the target rather than inside it.
+ * The near end was not: the line started at the source's centre and was covered by whatever was
+ * painted over it. Invisible under an opaque card, and wrong under everything else — a translucent
+ * one has a line running through its text, a round node has one crossing it, and the connect
+ * gesture's preview, drawn while the pointer is elsewhere, had a visible stub leaving the middle of
+ * the card it was dragged out of.
+ */
+describe('clearance at the source end', () => {
+  it('starts on the source rather than at its centre', () => {
+    const route = routeEdge('e', { x: 0, y: 0 }, { x: 400, y: 0 }, 'straight', 0, 10, 30);
+
+    expect(route.from.x).toBeCloseTo(30, 5);
+    expect(route.to.x).toBeCloseTo(390, 5);
+  });
+
+  it('leaves the source on the side it departs from, for a shape that travels along an axis', () => {
+    // The mirror of `attachPoint`'s rule at the far end: a smooth curve leaves horizontally, so it
+    // leaves by a vertical side, and how tall the card is says nothing about where that side is.
+    const route = routeEdge('e', { x: 0, y: 0 }, { x: 400, y: 40 }, 'smooth', 0, 0, {
+      halfWidth: 20,
+      halfHeight: 150,
+    });
+
+    expect(route.from).toEqual({ x: 20, y: 0 });
+  });
+
+  it('is the same measurement at both ends, so a route and its reverse are mirrors', () => {
+    /*
+      The property worth having rather than four separate assertions: `attachPoint` is asked about
+      the source with the roles swapped, so getting that swap wrong in any branch shows up here as an
+      asymmetry, whatever the shape.
+    */
+    const near = { halfWidth: 40, halfHeight: 20 };
+    const far = { halfWidth: 90, halfHeight: 30 };
+
+    for (const curve of ['straight', 'smooth', 'step', 'arc'] as const) {
+      const there = routeEdge('there', { x: 0, y: 0 }, { x: 400, y: 0 }, curve, 0, far, near);
+      const back = routeEdge('back', { x: 400, y: 0 }, { x: 0, y: 0 }, curve, 0, near, far);
+
+      expect(back.to.x).toBeCloseTo(there.from.x, 5);
+      expect(back.from.x).toBeCloseTo(there.to.x, 5);
+    }
+  });
+
+  it('still decides its axis from the centres, now that both ends move', () => {
+    /*
+      Already true of the target's trim and doubly load-bearing with two: between two boxes wide
+      enough to nearly touch, the trimmed endpoints can end up closer on the other axis than the
+      centres are, and re-deriving `horizontal` from them would flip the whole route — a curve
+      leaving a card's side one frame and its top the next, with neither node having moved.
+    */
+    const wide = { halfWidth: 140, halfHeight: 20 };
+    const route = routeEdge('e', { x: 0, y: 0 }, { x: 300, y: 60 }, 'smooth', 0, wide, wide);
+
+    // Mostly horizontal by the centres, so both ends attach on a vertical side and keep their own y.
+    expect(route.from).toEqual({ x: 140, y: 0 });
+    expect(route.to).toEqual({ x: 160, y: 60 });
+  });
+
+  it('does not overshoot a source closer to the target than its own edge', () => {
+    // The counterpart of the target-end guard: two overlapping cards must not put the start beyond
+    // the end and draw the line backwards.
+    const route = routeEdge('e', { x: 0, y: 0 }, { x: 10, y: 0 }, 'straight', 0, 0, {
+      halfWidth: 150,
+      halfHeight: 150,
+    });
+
+    expect(route.from).toEqual({ x: 0, y: 0 });
+  });
+
+  it('leaves a route with no source clearance exactly where it was', () => {
+    // The default, and what every caller that has not been told about a source gets.
+    const trimmed = routeEdge('e', { x: 0, y: 0 }, { x: 100, y: 0 }, 'smooth', 0, 10);
+    const explicit = routeEdge('e', { x: 0, y: 0 }, { x: 100, y: 0 }, 'smooth', 0, 10, 0);
+
+    expect(trimmed.from).toEqual({ x: 0, y: 0 });
+    expect(explicit.from).toEqual(trimmed.from);
+  });
+});

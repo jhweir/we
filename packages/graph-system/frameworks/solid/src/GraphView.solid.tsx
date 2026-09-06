@@ -125,6 +125,15 @@ function backOff(route: EdgeGeometry, gap: number): Point {
 const ARROW_LENGTH = 6;
 
 /**
+ * Stroke width of the connect gesture's preview.
+ *
+ * Named because it is used twice and the two have to agree: `markerUnits` defaults to `strokeWidth`,
+ * so the arrowhead is `ARROW_LENGTH` multiples of it, and the stroke is shortened by exactly that
+ * much so the line meets the head instead of running under it. See `backOff`.
+ */
+const PENDING_WIDTH = 2;
+
+/**
  * How much of a value is worth carrying to a panel.
  *
  * Long enough for a sentence, short enough that one field cannot become the whole panel.
@@ -1039,22 +1048,29 @@ export function GraphView(props: GraphViewProps) {
           {/*
             The line being drawn during a connect gesture.
 
-            Dashed, so it reads as a proposal rather than as an edge that already exists, and drawn
-            straight rather than through the curve machinery: it has no endpoints to bow apart from
-            and no direction worth stating until it lands somewhere. It is not in the store — see
-            `getPendingConnection` — so nothing lays it out, routes it, or counts it.
+            Routed exactly as the edge it is proposing — see `getPendingConnection` — so nothing about
+            the drawing changes at the moment of commitment. It was a straight segment between two raw
+            points, which became an S-curve leaving a different side of the card the instant it landed:
+            a jump at the one moment somebody is deciding whether the gesture did what they meant.
+
+            Dashed, and that is the only difference kept on purpose: it says proposal. It is still not
+            in the store, so nothing lays it out, hit-tests it or counts it.
+
+            The arrowhead says which way round the connection will be, which nothing else does — the
+            highlight under the pointer names the card and not the direction. Its own marker rather
+            than the edges', because that one is filled `neutral-400` and this line is not; `context-
+            stroke` would say it once, and Safari does not support it.
           */}
           <Show when={pending()}>
-            {(line) => (
-              <line
-                x1={line().from.x}
-                y1={line().from.y}
-                x2={line().to.x}
-                y2={line().to.y}
+            {(route) => (
+              <path
+                d={pathFrom(route(), ARROW_LENGTH * PENDING_WIDTH)}
+                fill="none"
                 stroke="var(--we-color-primary-500)"
-                stroke-width="2"
+                stroke-width={PENDING_WIDTH}
                 stroke-dasharray="6 4"
                 vector-effect="non-scaling-stroke"
+                marker-end="url(#we-graph-arrow-pending)"
               />
             )}
           </Show>
@@ -1071,6 +1087,22 @@ export function GraphView(props: GraphViewProps) {
               orient="auto-start-reverse"
             >
               <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--we-color-neutral-400)" />
+            </marker>
+            {/*
+              The same head in the proposal's colour. A marker paints in its own right rather than
+              inheriting from the path that references it, and the one way to say it once —
+              `context-stroke` — is SVG 2 and unsupported in Safari, so this is a copy on purpose.
+            */}
+            <marker
+              id="we-graph-arrow-pending"
+              viewBox="0 0 10 10"
+              refX="0"
+              refY="5"
+              markerWidth={ARROW_LENGTH}
+              markerHeight={ARROW_LENGTH}
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--we-color-primary-500)" />
             </marker>
           </defs>
         </svg>

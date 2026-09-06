@@ -1215,3 +1215,76 @@ describe('data overlay', () => {
     expect(engine.index.hitTest({ x: at.x + 120, y: at.y })).not.toContain('a');
   });
 });
+
+/**
+ * The connect gesture's preview is the edge it is proposing.
+ *
+ * It was two raw points drawn as a straight segment, so the line changed shape at the exact moment
+ * of commitment: a straight line became an S-curve leaving a different side of the card, at the one
+ * instant somebody is deciding whether the gesture did what they meant. Routed through the same
+ * `routeEdge` a real edge goes through, there is nothing left to change.
+ *
+ * Not in the store, still: nothing here lays it out, hit-tests it or counts it against a budget.
+ */
+describe('the pending connection', () => {
+  async function connecting(spec?: { edgeStyle?: unknown }) {
+    const registry = new PluginRegistry({ seeds: [seedOf(1)], expanders: [fanoutExpander(0)], layouts });
+    const engine = engineWith(
+      { seeds: { source: 'test' }, layout: { type: 'grid' }, expansion: { defaultDepth: 0 }, ...spec } as Parameters<
+        typeof GraphEngine.prototype.setSpec
+      >[0],
+      registry,
+    );
+    await engine.start();
+    return engine;
+  }
+
+  it('is nothing at all until a gesture is running', async () => {
+    const engine = await connecting();
+
+    expect(engine.getPendingConnection()).toBeNull();
+  });
+
+  it('starts on the source rather than under it', async () => {
+    // The reported symptom: the line came out of the middle of the card it was dragged from, because
+    // the source's own clearance was never applied. `seed-0` is at the origin under the grid layout.
+    const engine = await connecting();
+    engine.behaviourContext().drawConnection('seed-0', { x: 400, y: 0 });
+
+    const route = engine.getPendingConnection()!;
+
+    expect(route.from.x).toBeGreaterThan(0);
+    expect(route.from.x).toBeLessThan(400);
+  });
+
+  it('ends exactly at the pointer, which is not a node', async () => {
+    // The asymmetry that is deliberate: there is no shape at the far end to stop short of, so a
+    // target clearance there would leave the arrowhead hanging a node's width from the cursor.
+    const engine = await connecting();
+    engine.behaviourContext().drawConnection('seed-0', { x: 400, y: 120 });
+
+    expect(engine.getPendingConnection()!.to).toEqual({ x: 400, y: 120 });
+  });
+
+  it('is drawn with the shape the graph draws its edges with', async () => {
+    // What stops it changing shape on the drop. A rule with no `when` applies to the placeholder the
+    // style is resolved against, which is the right answer: what an edge with nothing said about it
+    // yet would look like.
+    const engine = await connecting({ edgeStyle: [{ style: { curve: 'step' } }] });
+    engine.behaviourContext().drawConnection('seed-0', { x: 400, y: 120 });
+
+    const route = engine.getPendingConnection()!;
+
+    expect(route.curve).toBe('step');
+    expect(route.elbows).toBeDefined();
+  });
+
+  it('goes away when the gesture does', async () => {
+    const engine = await connecting();
+    engine.behaviourContext().drawConnection('seed-0', { x: 400, y: 0 });
+
+    engine.behaviourContext().drawConnection(null);
+
+    expect(engine.getPendingConnection()).toBeNull();
+  });
+});
