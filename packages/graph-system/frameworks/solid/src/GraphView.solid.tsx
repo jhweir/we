@@ -26,7 +26,6 @@ import { Column, Row } from '@we/components/solid';
 import { ROLE_NAMES } from '@we/design-utils';
 import type { EdgeWaypoint } from '@we/graph-core';
 import {
-  anchorsOf,
   connectionTarget,
   DEFAULT_CONTROLS,
   defaultBehaviours,
@@ -41,6 +40,7 @@ import {
   PluginRegistry,
   polyline,
   resolveStyle,
+  routesAlike,
   splineThrough,
   waypointFromWorld,
   waypointsOf,
@@ -638,18 +638,14 @@ export function GraphView(props: GraphViewProps) {
     const raw = engine.store.edge(draft.id);
     /*
       Settled means the stored data already *routes* the same, not that the fields are spelled the
-      same — which is why this asks `anchorsOf` rather than `isSettled`. Clearing an anchor writes
+      same — which is why this asks `routesAlike` rather than `isSettled`. Clearing an anchor writes
       `''` and the seed answers by omitting the field altogether, so compared literally a clear could
       never settle and the overlay would outlive the graph.
     */
-    if (raw) {
-      const stored = anchorsOf(raw.data);
-      const wanted = anchorsOf({ ...raw.data, ...draft.patch });
-      if (stored.source === wanted.source && stored.target === wanted.target) {
-        setAnchorDraft(null);
-        engine.setEdgeOverlay(new Map());
-        return;
-      }
+    if (raw && routesAlike(raw.data, { ...raw.data, ...draft.patch })) {
+      setAnchorDraft(null);
+      engine.setEdgeOverlay(new Map());
+      return;
     }
     // Only when it would change something. `setEdgeOverlay` notifies, which re-runs this — so an
     // unconditional call is an infinite loop rather than a redundant one.
@@ -1104,10 +1100,13 @@ export function GraphView(props: GraphViewProps) {
       /*
         Back on the line, and it goes.
 
-        Measured against the route this point would leave behind rather than against the straight
-        chord: on a line already bent twice, "on the line" means on the curve its neighbours make,
-        which is not where the chord runs. Dropped only for a point that already existed — an insert
-        that never left the line simply never becomes one.
+        Measured against the shape the remaining points make, rather than against the straight chord:
+        on a line already bent twice, "on the line" means on the curve its neighbours draw, which is
+        nowhere near the chord. With no points left it *is* the chord — an approximation of the
+        derived curve, which is close enough for a ten-pixel tolerance and is exact at both ends.
+
+        Only for a point that already existed: an insert that never left the line simply never
+        becomes one, so there is nothing to undo.
       */
       removing = !insert && nearRoute(next, index, world, { x: from.x, y: from.y }, { x: to.x, y: to.y });
       points = removing ? next.filter((_, at) => at !== index) : next;

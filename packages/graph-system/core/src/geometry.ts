@@ -106,6 +106,29 @@ export function waypointsOf(data: Record<string, unknown> | undefined): EdgeWayp
 }
 
 /**
+ * Whether two data bags describe the same route — both anchors and every waypoint.
+ *
+ * What an optimistic edit is *finished* by. A host draws a change before the write comes back, and
+ * letting go too early puts the old shape back for a round trip while too late shows something that
+ * was never stored — so the question has to be "does the stored data already route the same", not
+ * "are the fields spelled the same". They differ: clearing an anchor writes `''` and the seed answers
+ * by omitting the field, so a literal compare could never settle a clear.
+ *
+ * Both halves, and that is the point rather than tidiness. The first version asked only about
+ * anchors, so a waypoint patch compared equal to the data it was standing in front of, the draft was
+ * dropped on the frame after it was set, and dragging a point did visibly nothing at all. A draft
+ * that says something the data does not is unsettled, whichever field it says it in.
+ */
+export function routesAlike(a: Record<string, unknown> | undefined, b: Record<string, unknown> | undefined): boolean {
+  const anchorsA = anchorsOf(a);
+  const anchorsB = anchorsOf(b);
+  if (anchorsA.source !== anchorsB.source || anchorsA.target !== anchorsB.target) return false;
+  // Serialised rather than walked: the list is ordered and short, and a hand-written deep compare is
+  // one more thing to keep in step with the shape of a point.
+  return JSON.stringify(waypointsOf(a)) === JSON.stringify(waypointsOf(b));
+}
+
+/**
  * Trim a segment so it ends at the node's edge rather than its centre.
  *
  * Without this the arrowhead sits under the target node and every edge looks unterminated.

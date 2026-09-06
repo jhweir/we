@@ -41,6 +41,7 @@ export {
   orthogonalThrough,
   polyline,
   routeEdge,
+  routesAlike,
   splineThrough,
   trimToRadius,
   waypointFromWorld,

@@ -14,6 +14,7 @@ import {
   groupByEndpoints,
   normaliseCurve,
   routeEdge,
+  routesAlike,
   trimToRadius,
   waypointFromWorld,
   waypointsOf,
@@ -667,5 +668,57 @@ describe('waypointsOf', () => {
 
   it('drops a point carrying an infinity, which would route to nowhere', () => {
     expect(waypointsOf({ waypoints: '[{"along":1e999,"across":0}]' })).toEqual([]);
+  });
+});
+
+/**
+ * When an optimistic route edit is finished with.
+ *
+ * The bug this exists for: the first version compared anchors and nothing else, so a waypoint draft
+ * compared equal to the data it was standing in front of. The draft was dropped on the frame after
+ * it was set, the overlay went with it, and dragging a point did visibly nothing — a whole gesture
+ * that ran, wrote, and never appeared. Nothing failed; the wrong question was asked.
+ */
+describe('routesAlike', () => {
+  it('is unsettled while a waypoint draft says something the data does not', () => {
+    const stored = { sourceAnchor: 'n' };
+    const drafted = { sourceAnchor: 'n', waypoints: '[{"along":0.5,"across":0.2}]' };
+
+    expect(routesAlike(stored, drafted)).toBe(false);
+  });
+
+  it('is unsettled while an anchor draft says something the data does not', () => {
+    expect(routesAlike({}, { sourceAnchor: 'e' })).toBe(false);
+  });
+
+  it('is settled once the data carries both halves', () => {
+    const shape = { sourceAnchor: 'n', waypoints: '[{"along":0.5,"across":0.2}]' };
+
+    expect(routesAlike(shape, { ...shape })).toBe(true);
+  });
+
+  it('settles a cleared anchor, which the data answers by omitting the field', () => {
+    // The other half of the same question, and why this is not a literal compare: an update writes
+    // `''` and the seed drops the field, so `'' === undefined` would never be true and the overlay
+    // would outlive the graph.
+    expect(routesAlike({}, { sourceAnchor: '' })).toBe(true);
+  });
+
+  it('settles a straightened route the same way', () => {
+    expect(routesAlike({}, { waypoints: '[]' })).toBe(true);
+  });
+
+  it('notices a point that moved, not merely one that appeared', () => {
+    const before = { waypoints: '[{"along":0.5,"across":0.2}]' };
+    const after = { waypoints: '[{"along":0.5,"across":0.4}]' };
+
+    expect(routesAlike(before, after)).toBe(false);
+  });
+
+  it('notices a point that was removed from the middle', () => {
+    const before = { waypoints: '[{"along":0.3,"across":0},{"along":0.7,"across":0}]' };
+    const after = { waypoints: '[{"along":0.7,"across":0}]' };
+
+    expect(routesAlike(before, after)).toBe(false);
   });
 });
