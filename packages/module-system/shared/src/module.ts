@@ -626,6 +626,14 @@ export type SettingResolution = 'override' | 'restrict';
  * — the same move `recordStore.displays` makes for a record's own form, and for the same reason. A
  * setting nobody wrote a screen for still has one.
  *
+ * That closed the accretion — a capability wanting a setting today declares one here — but it did
+ * **not** retire the three columns, and two of them are staying. This resolves along one axis, who
+ * is asking; `autoInterpret` and `extractionTargets` also resolve by *subject*, a per-call decision
+ * belonging to that call's participants (`CallExtraction`, reached through
+ * `spaceStore.autoInterpretForCall`). Folding them in here would compile, pass, and lose that layer.
+ * Read the `moduleSettings` docblock on `Space` in `@we/entities` before moving any of the three;
+ * the condition for revisiting the subject axis is written down there.
+ *
  * ## What it is not
  *
  * Not availability. Whether a module runs here at all is four booleans that intersect —

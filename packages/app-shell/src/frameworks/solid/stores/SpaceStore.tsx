@@ -1,3 +1,10 @@
+import {
+  LEGACY_EXTRACTION_TARGETS,
+  parseEntityList,
+  resolveCallAutoInterpret,
+  resolveCallExtractionTargets,
+  resolveSpaceExtractionTargets,
+} from '@shared/callExtraction';
 import { buildGuestLink } from '@shared/guestLink';
 import { containmentPredicate, gatherTranscriptTurns, type TurnRecord } from '@shared/interpretation/transcriptTurns';
 import {
@@ -178,28 +185,11 @@ export interface SpaceListEntry {
  * A plain function over the stored string rather than a memo over the current space, because the
  * settings page answers this for spaces the agent is not standing in.
  */
-/**
- * What a space extracts before anybody decides — the two classes that were hardcoded until this
- * setting existed.
- *
- * A migration floor, not a default anybody chose. `Space.extractionTargets` follows the
- * `enabledModules` rule that empty means "not decided", and reading it as "none" would make every
- * space that predates the field silently stop extracting with nothing on screen to say why. The
- * first toggle writes the resolved list and the community owns it from then on.
- */
-const LEGACY_EXTRACTION_TARGETS = ['TaskBlock', 'EventBlock'];
-
-/** A JSON array of entity names as stored on `Space.extractionTargets` / `CallExtraction.entities`. */
-function parseEntityList(raw: string | undefined): string[] | null {
-  if (raw === undefined || raw === '') return null;
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((name): name is string => typeof name === 'string') : null;
-  } catch {
-    console.warn('extraction targets are not valid JSON; falling back');
-    return null;
-  }
-}
+/*
+  The extraction-settings resolution — `LEGACY_EXTRACTION_TARGETS`, `parseEntityList` and the two
+  `*ForCall` resolvers below — lives in `@shared/callExtraction` so it can be tested without
+  mounting this provider. See that module for why the per-call level is the part worth guarding.
+*/
 
 function resolveEnabledModules(raw: string | undefined): string[] {
   if (raw) {
@@ -2269,11 +2259,9 @@ export function SpaceStoreProvider(props: ParentProps) {
     Order follows the candidates, so a settings list reads the same way every time rather than in
     whatever order somebody happened to tick things.
   */
-  const extractionTargets = createMemo<string[]>(() => {
-    const candidates = shapeStore.extractionCandidates();
-    const chosen = parseEntityList(currentSpace()?.extractionTargets) ?? LEGACY_EXTRACTION_TARGETS;
-    return candidates.filter((entity) => chosen.includes(entity));
-  });
+  const extractionTargets = createMemo<string[]>(() =>
+    resolveSpaceExtractionTargets(shapeStore.extractionCandidates(), currentSpace()?.extractionTargets),
+  );
 
   /**
    * What one call extracts, where its participants asked for something other than the default.
@@ -2314,12 +2302,8 @@ export function SpaceStoreProvider(props: ParentProps) {
    * standing pass mid-meeting is about this conversation, and needing whoever owns the space to be
    * in the room for it makes the honest response "leave the call".
    */
-  const autoInterpretForCall = (collectionId: string): boolean => {
-    const own = callExtractions().find((row) => row.callId === collectionId)?.auto;
-    if (own === 'on') return true;
-    if (own === 'off') return false;
-    return autoInterpret();
-  };
+  const autoInterpretForCall = (collectionId: string): boolean =>
+    resolveCallAutoInterpret(autoInterpret(), callExtractions().find((row) => row.callId === collectionId)?.auto);
 
   /**
    * Turn automatic extraction on or off for one call, for everyone in it.
@@ -2344,12 +2328,12 @@ export function SpaceStoreProvider(props: ParentProps) {
     }
   }
 
-  const extractionTargetsForCall = (collectionId: string): string[] => {
-    const candidates = shapeStore.extractionCandidates();
-    const own = parseEntityList(callExtractions().find((row) => row.callId === collectionId)?.entities);
-    if (!own) return extractionTargets();
-    return candidates.filter((entity) => own.includes(entity));
-  };
+  const extractionTargetsForCall = (collectionId: string): string[] =>
+    resolveCallExtractionTargets(
+      shapeStore.extractionCandidates(),
+      currentSpace()?.extractionTargets,
+      callExtractions().find((row) => row.callId === collectionId)?.entities,
+    );
 
   /**
    * Add or remove one model from what a call extracts, for everyone in it.

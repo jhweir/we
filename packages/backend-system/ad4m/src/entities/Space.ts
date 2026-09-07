@@ -127,6 +127,27 @@ export class Space extends WeNode {
    * nothing until somebody sets something, and the resolver takes the most specific level that
    * has an opinion. See `moduleSettings.ts` in the app shell for the order and for how a
    * `restrict` setting differs.
+   *
+   * ## Two of those three columns are staying, and this is not an oversight
+   *
+   * This field replaced the *shape*, not the three instances of it — and only one of them could
+   * move anyway. This resolver answers along one axis, **who is asking**: deployment → agent
+   * everywhere → community here → agent here, most specific wins. `autoInterpret` and
+   * `extractionTargets` carry a second axis it has no concept of, **which call** — a per-call
+   * decision belonging to that call's participants rather than to the space's administrator,
+   * held in `CallExtraction` and read through `spaceStore.autoInterpretForCall(collectionId)`,
+   * which is a function rather than a value for exactly that reason. Migrating them here as-is
+   * would typecheck, pass, and silently drop the layer where participants overrule the space.
+   *
+   * `shareExtractionDetail` has no such axis and could move. There is no reason to: it is a
+   * stored predicate with data behind it, and absent-means-no-opinion makes the move a
+   * read-fallback preserving a three-way distinction rather than a rename — against the gain of
+   * one fewer column.
+   *
+   * What was worth fixing is fixed: a capability that wants a setting today declares a
+   * `ModuleSetting` and gets a resolved value and a rendered control, so there is no fourth
+   * column coming. **Revisit the subject axis when a second capability wants a per-subject
+   * override** — one is not evidence the resolver needs one. Recording is the one to watch.
    */
   @Property({ through: 'we://module_settings' })
   moduleSettings: string = '';
