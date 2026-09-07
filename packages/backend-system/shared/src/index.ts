@@ -111,7 +111,7 @@ export { queryIRSchema, filterSchema, validateQueryIR } from './queryIR';
 export { validateQueryAgainstManifest } from './queryValidation';
 export { planQuery } from './queryCapabilities';
 export type { AdapterCapabilities, AggregateFn, Disposition, CapabilityGap, QueryPlan } from './queryCapabilities';
-export { compileQuery, irToFlatQuery, whereUsesCombinator } from './queryCompiler';
+export { compileQuery, irToFlatQuery } from './queryCompiler';
 export type { FlatQuery, CompileResult } from './queryCompiler';
 export { executeQueryIR } from './queryEngine';
 export type { Row, InMemoryDataset, InMemoryRelation } from './queryEngine';

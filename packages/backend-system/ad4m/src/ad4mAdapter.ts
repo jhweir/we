@@ -16,26 +16,23 @@
  * exactly as `unsupported` does. `executeQueryIR` is the in-memory backend's own engine, not a
  * fallback this adapter reaches for; an earlier version of this comment said otherwise.
  *
- * What's native (verified against AD4M's `Where`/`Order` types and coasys/ad4m #867/#868):
+ * What's native (read off the executor's own `WhereOps`, where-clause compiler and pagination gate
+ * at the pinned build, rather than off a changelog):
  * - Scalar operators eq / not(→ne,nin) / lt / lte / gt / gte / contains, plus OR/AND/NOT combinators.
+ * - Relation quantifiers `some` / `none`, which compile to a SPARQL `EXISTS` group.
  * - `include` (nested), `count` projections, `parent` drill-down (`scope`).
  * - Sort by property, by a relation path, and by a projection count — but **one sort key only**
- *   (the SPARQL pagination pushdown is single-key), and only with a `limit`/`offset`.
+ *   (the SPARQL pagination pushdown is single-key), and the last two only with a `limit`/`offset`.
  *
  * Classified `compute-up` — not native, and so (per the note above) currently refused rather than
  * faked. A template using one gets an error and no rows, which is the honest outcome but not the
- * intended one:
- * - `startsWith`/`endsWith` operators, sum/min/max/avg aggregates, and — the confirmed gap —
- *   **filtering by a related model's property** (`{ rel, some/none }`): AD4M's `where` has no
- *   relation quantifier, so `relationFilters` is false.
+ * intended one: `startsWith`/`endsWith` operators, and sum/min/max/avg aggregates.
  *
- * Two documented caveats aren't clean capability booleans, and aren't capability gaps at all — they
- * are **AD4M bugs**: an explicit OR/AND/NOT in `where` disables its sort/pagination pushdown, and a
- * projection / relation-path sort silently needs a `limit`. In both cases AD4M returns the correct
- * rows and simply ignores the ordering, so they are reported as `degraded` (run + warn), not
- * `compute-up` (which would fail loud until something computed them up) — see {@link Disposition}.
- * The real fix is upstream in AD4M; when it lands, grep `sort:under-boolean` / `sort:needs-limit`
- * and delete these two blocks.
+ * One caveat is not a clean capability boolean and is not a capability gap either — it is an **AD4M
+ * bug**: a projection or relation-path sort silently needs a `limit`. The rows come back correct and
+ * the ordering is ignored, so it is reported as `degraded` (run + warn) rather than `compute-up`
+ * (which, per the note above, refuses) — see {@link Disposition}. The real fix is upstream; when it
+ * lands, grep `sort:needs-limit` and delete that block.
  */
 import type { PerspectiveProxy } from '@coasys/ad4m';
 import type {
@@ -51,7 +48,7 @@ import type {
   RendererDataBindings,
   Scope,
 } from '@we/backend-shared';
-import { irToFlatQuery, planQuery, whereUsesCombinator } from '@we/backend-shared';
+import { irToFlatQuery, planQuery } from '@we/backend-shared';
 import { type EntityClass as Ad4mEntityClass, getEntitiesForPerspective, getEntity } from '@we/entities';
 
 import type { EntityManifestEntry } from './manifestTypes';
@@ -206,9 +203,23 @@ export function createAd4mDataBindings(
 export const VERIFIED_AGAINST_AD4M = '0.13.0-test-model-layer';
 
 export const ad4mCapabilities: AdapterCapabilities = {
-  operators: ['eq', 'ne', 'lt', 'lte', 'gt', 'gte', 'in', 'nin', 'contains', 'exists'],
+  /*
+    `exists` is deliberately absent, and its absence is a correction rather than a change of policy.
+    The executor has no such operator: `WhereOps` does not declare one and uses `deny_unknown_fields`,
+    so `{ field: { exists: true } }` is refused as an operator object and re-read as a nested where
+    clause. That is incomplete, so it routes to the post-hydration filter — where a `SubClause`
+    reaching a value comparison returns false. Every row is rejected and the query answers nothing,
+    always, with no error anywhere.
+
+    Claiming it here made that silent. Dropping it makes the query refuse instead, which is the
+    honest answer while the operator does not exist, and nothing in WE regresses: the two live uses
+    are `filter()` in a GlobeView expression and a graph style rule, both evaluated client-side and
+    neither of them a `$query`. It is the *documented* idiom for "absent counts as the default" that
+    this invalidates, which is worth more attention than the code change.
+  */
+  operators: ['eq', 'ne', 'lt', 'lte', 'gt', 'gte', 'in', 'nin', 'contains'],
   booleanCombinators: true, // OR / AND / NOT in `where` (#868)
-  relationFilters: false, // no native relation quantifier — the confirmed gap
+  relationFilters: true, // `some` / `none` compile to a SPARQL EXISTS group (#923)
   scope: true, // drill-down via `parent`
   include: { supported: true }, // nested include is a core ORM feature
   aggregate: ['count'], // count projections only; sum/min/max/avg → compute-up
@@ -246,10 +257,10 @@ function resolveScopeToParent(models: EntityManifestEntry[], scope: Scope): { id
  * perspective's model manifest to resolve a `scope` drill-down — so `getEntities` returns the SHACL model
  * entries (including synced ones, e.g. Flux's) at call time.
  *
- * `plan` is `planQuery` over `ad4mCapabilities` plus AD4M's two conditional degradations, which no
- * capability boolean captures: OR/AND/NOT in `where` disables the SPARQL sort/pagination pushdown, and a
- * projection/relation-path sort silently no-ops without a `limit`. `lower` is the neutral `irToFlatQuery`,
- * plus resolving `scope` → `parent` here (AD4M-specific; `irToFlatQuery` throws on `scope` by design).
+ * `plan` is `planQuery` over `ad4mCapabilities` plus the one conditional degradation no capability
+ * boolean captures: a projection or relation-path sort silently no-ops without a `limit`. `lower` is
+ * the neutral `irToFlatQuery`, plus resolving `scope` → `parent` here (AD4M-specific;
+ * `irToFlatQuery` throws on `scope` by design).
  */
 export function createAd4mQueryAdapter(getEntities: () => EntityManifestEntry[]): QueryAdapter {
   return {
@@ -259,23 +270,22 @@ export function createAd4mQueryAdapter(getEntities: () => EntityManifestEntry[])
       const base = planQuery(ir, ad4mCapabilities);
       const gaps: CapabilityGap[] = [...base.gaps];
       if (ir.sort?.length) {
-        // Judge this on the *lowered* where, not the IR: an implicit conjunction (sibling `where`
-        // keys) compiles to an `and` node but merges back to sibling keys, which AD4M pushes down
-        // natively. Only an explicit OR/AND/NOT that survives lowering costs the pushdown.
-        if (whereUsesCombinator(ir.filter)) {
-          gaps.push({
-            feature: 'sort:under-boolean',
-            path: 'sort',
-            disposition: 'degraded',
-            note: 'AD4M returns correct rows but silently ignores the sort when where uses an explicit OR/AND/NOT',
-          });
-        }
+        /*
+          `sort:under-boolean` used to be raised here and is gone, because the thing it described
+          stopped being true. The pagination pushdown is gated on `all_where_pushable`, which is now
+          nothing but `compile_where_clause(...).complete` — one compiler answering for its own
+          emission rather than a second function guessing at it — and OR and NOT compile. So a sort
+          beside an explicit combinator keeps its pushdown, and there is no degradation to report.
+        */
         const aggregateAliases = new Set((ir.aggregate ?? []).map((a) => a.as));
         if (!ir.page && ir.sort.some((k) => sortNeedsLimit(k.by, aggregateAliases))) {
           gaps.push({
             feature: 'sort:needs-limit',
             path: 'sort',
             disposition: 'degraded',
+            // Still true, and checked rather than assumed: `sparql_pagination` is only built when
+            // `limit` or `offset` is present, and the post-hydration fallback sort runs before the
+            // projection data is attached — so those two sort kinds have nothing to sort on.
             note: 'AD4M returns correct rows but silently ignores a projection/relation-path sort without a limit',
           });
         }
