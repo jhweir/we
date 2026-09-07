@@ -148,7 +148,9 @@ async function expandForward({
           context.models(dataset),
           ID,
         );
-        if (resolved) {
+        // No warning on the skip here, unlike the backward pass: this one falls through to drawing
+        // the target as an ordinary node, which is a degradation rather than a failure.
+        if (!('reason' in resolved)) {
           nodes.push(...resolved.nodes);
           edges.push(resolved.edge);
           continue;
@@ -247,8 +249,8 @@ async function expandBackward({
       // endpoint and the relationship points at you. Collapse it rather than adding a dot.
       if (isReified(source.name, options.reified)) {
         const resolved = reifiedEdgeFrom(row, source.name, options.reified![source.name], dataset, shapes, ID);
-        if (!resolved) {
-          context.warn(`${source.name} ${String(row.id)} is missing an endpoint — skipped`);
+        if ('reason' in resolved) {
+          context.warn(`${source.name} ${String(row.id)} not drawn: ${resolved.reason}`);
           continue;
         }
         nodes.push(...resolved.nodes);

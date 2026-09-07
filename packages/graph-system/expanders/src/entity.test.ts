@@ -273,7 +273,9 @@ describe('reified edges', () => {
     const result = await entityExpander({ reified: REIFIED }).expand({ id: POST, direction: 'in' }, context);
 
     expect(result.edges).toEqual([]);
-    expect(warnings.join(' ')).toContain('endpoint');
+    // The warning names which end and why, so a repeating one in a real space can be acted on: this
+    // record has no `tag` link at all, which is different from having one nothing can classify.
+    expect(warnings.join(' ')).toContain('tag is empty');
   });
 
   it('reads an untyped endpoint from what it says it is, when nothing recorded its type', async () => {
