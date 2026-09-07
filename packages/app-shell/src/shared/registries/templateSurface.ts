@@ -403,6 +403,9 @@ export const TEMPLATE_SURFACE: Record<string, Record<string, Classification>> = 
     unreadNodeIds: state('content'),
     myMentions: state('content'),
     uploadFile: action('content'),
+    taskStates: state('content'),
+    offeredTaskStates: state('content'),
+    taskStatesLoaded: state('content'),
     mutedDids: state('content'),
     mutedAgents: state('content'),
     setAgentMuted: action('content'),
@@ -416,6 +419,16 @@ export const TEMPLATE_SURFACE: Record<string, Record<string, Classification>> = 
     // a community naming what it means by something.
     createRelationshipType: action('signals'),
     upsertSignal: action('signals'),
+    /*
+      The vocabulary of states, the third of the same kind — a community naming what it means by
+      something, alongside its reactions and its connections.
+
+      Reading the states is `content`, not `signals`: a card showing which state a task is in is for
+      every member, and a board that could not read them would be unable to draw a column. Naming a
+      new one is the act that commits the community to a word, so it sits with the other two.
+    */
+    createTaskState: action('signals'),
+    setTaskStateRetired: action('signals'),
 
     // ── navigation ──
     spaceList: state('navigation'),

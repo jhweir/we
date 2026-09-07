@@ -59,6 +59,7 @@ import {
   compressImageToFileData,
   type DatasetProxy,
   dataURIToFileData,
+  DEFAULT_TASK_STATES,
   type FileData,
   FOLLOW_SPACE,
   getEntitiesForPerspective,
@@ -71,6 +72,7 @@ import {
   SignalType,
   Space,
   SpacePreference,
+  TaskState,
 } from '@we/entities';
 import type { ResolvedView, TemplateSchema } from '@we/schema-shared';
 import { hasViewsMarker } from '@we/schema-shared';
@@ -251,6 +253,26 @@ export interface ModuleSetting {
   visible: boolean;
   /** All of the above agreeing — whether it actually renders here for this agent. */
   active: boolean;
+}
+
+/**
+ * A state this space's work can be in, as a screen reads it.
+ *
+ * `defined` is the one field with no counterpart on the record: false means this is a default the
+ * space has never written down. It matters because a default cannot be retired or renamed until it
+ * exists — see `createTaskState`, which writes the whole resolved set the first time rather than
+ * letting the first addition silently become the only state.
+ */
+export interface TaskStateView {
+  /** Empty for a default the space has not written down. */
+  id: string;
+  name: string;
+  /** What `TaskBlock.status` holds. */
+  slug: string;
+  semantic: 'open' | 'active' | 'done';
+  color: string;
+  retired: boolean;
+  defined: boolean;
 }
 
 export interface SpaceMetaUpdate {
@@ -441,6 +463,16 @@ export interface SpaceStore {
    *  member. Falls back to everything the seed activated when the space has never decided, so
    *  spaces that predate the setting keep the chrome they had. */
   enabledModules: Accessor<string[]>;
+  /**
+   * The states this community's work moves through — its own if it has defined any, otherwise the
+   * defaults. Ordered open, then active, then done. Includes withdrawn states, so a task sitting in
+   * one still resolves; use `offeredTaskStates` for anything a person picks from.
+   */
+  taskStates: Accessor<TaskStateView[]>;
+  /** The same list without the withdrawn ones — what a picker or a new column should offer. */
+  offeredTaskStates: Accessor<TaskStateView[]>;
+  /** The space has been asked for its states. An empty list is otherwise "not fetched yet". */
+  taskStatesLoaded: Accessor<boolean>;
   /** Options for the per-space template override picker, including a "follow the space" entry. */
   templateOverrideOptions: Accessor<{ label: string; value: string }[]>;
   /** Options for the per-space theme override picker, including a "follow the space" entry. */
@@ -716,6 +748,13 @@ export interface SpaceStore {
   createRelationshipType: (config: Partial<RelationshipType>) => Promise<void>;
   /** Withdraw a signal type from use, or bring it back. Never removes the signals given with it. */
   setSignalTypeRetired: (signalTypeId: string, retired: boolean) => Promise<void>;
+  /**
+   * Name a state this community's work moves through. The first one also writes down the defaults,
+   * so adding a state never silently becomes replacing them.
+   */
+  createTaskState: (config: { name: string; semantic?: 'open' | 'active' | 'done'; color?: string }) => Promise<void>;
+  /** Withdraw a state from use, or bring it back. Never touches the work sitting in it. */
+  setTaskStateRetired: (stateId: string, retired: boolean) => Promise<void>;
   upsertSignal: (nodeId: string, signalTypeId: string, value: number) => Promise<void>;
   navigateToSpace: (spaceId: string, view?: string) => Promise<void>;
   openRecordRef: (ref: string) => Promise<void>;
@@ -2133,6 +2172,155 @@ export function SpaceStoreProvider(props: ParentProps) {
    * space of its chrome.
    */
   const enabledModules = createMemo<string[]>(() => resolveEnabledModules(currentSpace()?.enabledModules));
+
+  /*
+    ── Task states ──────────────────────────────────────────────────────────────────────────────
+
+    The states this community's work moves through, resolved the way `enabledModules` resolves: a
+    space that has defined none gets the defaults, because "unset" means *not decided* rather than
+    *none*. Reading an empty list as "no states" would empty every board in every space that existed
+    before the vocabulary did.
+
+    Loaded per space rather than queried in a template — unlike signal types, which templates resolve
+    by slug through a hoisted `$query`. The difference is the fallback: a template can filter a list
+    it was handed, and cannot substitute a list it was not.
+  */
+  const [ownTaskStates, setOwnTaskStates] = createSignal<TaskStateView[]>([]);
+  const [taskStatesLoaded, setTaskStatesLoaded] = createSignal(false);
+
+  async function loadTaskStates(): Promise<void> {
+    const dataset = datasetStore.currentDataset()?.handle;
+    const uuid = datasetStore.currentDataset()?.id;
+    const ports = session.backendPorts()?.schemas;
+    if (!dataset || !ports || !datasetStore.isWeSpace()) {
+      setOwnTaskStates([]);
+      setTaskStatesLoaded(true);
+      return;
+    }
+    setTaskStatesLoaded(false);
+    try {
+      // Every space predates this entity, so none of them have its shape installed. `ensure` is the
+      // diff-first idempotent path — a read in the common case — and the same step `loadShapes`
+      // takes for exactly this reason.
+      await ports.ensure(dataset, TaskState as never);
+      const records = await TaskState.findAll(dataset);
+      if (datasetStore.currentDataset()?.id !== uuid) return; // navigated away while loading
+      setOwnTaskStates(
+        records.map((r: TaskState) => ({
+          id: r.id,
+          name: r.name || r.slug,
+          slug: r.slug || deriveSlug(r.name || ''),
+          semantic: (r.semantic || 'open') as TaskStateView['semantic'],
+          color: r.color || '',
+          retired: Boolean(r.retired),
+          defined: true,
+        })),
+      );
+    } catch (error) {
+      console.warn('SpaceStore: could not read task states', error);
+      if (datasetStore.currentDataset()?.id === uuid) setOwnTaskStates([]);
+    } finally {
+      if (datasetStore.currentDataset()?.id === uuid) setTaskStatesLoaded(true);
+    }
+  }
+
+  createEffect(() => {
+    void datasetStore.currentDataset()?.id;
+    void loadTaskStates();
+  });
+
+  /**
+   * The states this space uses — its own if it has any, otherwise the defaults.
+   *
+   * Ordered by semantic (open, then active, then done) rather than by a stored position. That is the
+   * only ordering that means anything across communities, and a position number would be a scalar
+   * two people editing at once break — see the note on `TaskState`.
+   */
+  const taskStates = createMemo<TaskStateView[]>(() => {
+    const own = ownTaskStates();
+    const states = own.length
+      ? own
+      : DEFAULT_TASK_STATES.map((d) => ({
+          ...d,
+          id: '',
+          semantic: d.semantic as TaskStateView['semantic'],
+          retired: false,
+          defined: false,
+        }));
+    const rank: Record<string, number> = { open: 0, active: 1, done: 2 };
+    return [...states].sort((a, b) => (rank[a.semantic] ?? 0) - (rank[b.semantic] ?? 0));
+  });
+
+  /** The states a person should be offered — the same list, without the withdrawn ones. */
+  const offeredTaskStates = createMemo<TaskStateView[]>(() => taskStates().filter((s) => !s.retired));
+
+  /**
+   * Name a state this community's work moves through.
+   *
+   * **The first one writes the defaults too.** A space with no states resolves to the three
+   * defaults; adding "Blocked" to it would flip that resolution from "the defaults" to "the space's
+   * own list", and a community that added one state would find they had exactly one — every task
+   * they own stranded under a state nothing shows. So the first create materialises what was
+   * previously implicit and then adds to it, which is the rule `setModuleEnabled` already follows
+   * ("writes the resolved list, so the first toggle also pins whatever was on by fallback").
+   *
+   * Slug derived from the name when none is given, as a signal type's is. It is what tasks store,
+   * so it is not offered for editing afterwards — renaming is what `name` is for.
+   */
+  async function createTaskState(config: {
+    name: string;
+    semantic?: TaskStateView['semantic'];
+    color?: string;
+  }): Promise<void> {
+    const p = datasetStore.currentDataset()?.handle;
+    if (!p || !config.name?.trim()) return;
+    try {
+      if (!ownTaskStates().length) {
+        for (const d of DEFAULT_TASK_STATES) {
+          await TaskState.create(p, { name: d.name, slug: d.slug, semantic: d.semantic, color: d.color });
+        }
+      }
+      const slug = deriveSlug(config.name);
+      // A slug already in use would make two states indistinguishable to every task holding it.
+      if (taskStates().some((state) => state.slug === slug)) {
+        toastService.error(`A state with the name "${config.name}" already exists`);
+        return;
+      }
+      await TaskState.create(p, {
+        name: config.name.trim(),
+        slug,
+        semantic: config.semantic ?? 'open',
+        color: config.color ?? '',
+      });
+      await loadTaskStates();
+    } catch (error) {
+      console.error('SpaceStore: could not create task state', error);
+      toastService.error('Could not add that state');
+    }
+  }
+
+  /**
+   * Withdraw a state from use, or bring it back — without touching the work sitting in it.
+   *
+   * The same decision `setSignalTypeRetired` makes, for the same reason one layer along: a task
+   * names its state by slug, so deleting the state leaves every task holding a word nothing
+   * defines. Retiring stops it being offered and leaves everything readable, and un-retiring puts
+   * it back exactly as it was.
+   */
+  async function setTaskStateRetired(stateId: string, retired: boolean): Promise<void> {
+    const p = datasetStore.currentDataset()?.handle;
+    if (!p || !stateId) return;
+    try {
+      const record = await TaskState.findOne(p, { where: { id: stateId } });
+      if (!record) return;
+      record.retired = retired;
+      await record.save();
+      await loadTaskStates();
+    } catch (error) {
+      console.error('SpaceStore: could not update task state', error);
+      toastService.error('Could not update that state');
+    }
+  }
 
   /*
     ── Module settings ──────────────────────────────────────────────────────────────────────────
@@ -3621,6 +3809,9 @@ export function SpaceStoreProvider(props: ParentProps) {
     joinError,
     orderedSidebarItems,
     enabledModules,
+    taskStates,
+    offeredTaskStates,
+    taskStatesLoaded,
     installedModules,
     requiredModules,
     missingModules,
@@ -3686,6 +3877,8 @@ export function SpaceStoreProvider(props: ParentProps) {
     createSignalType,
     createRelationshipType,
     setSignalTypeRetired,
+    createTaskState,
+    setTaskStateRetired,
     upsertSignal,
     navigateToSpace,
     openRecordRef,

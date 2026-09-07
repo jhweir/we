@@ -47,6 +47,8 @@ export type Signal = M.SignalRecord;
 export const Signal = defineEntity('Signal') as unknown as EntityStatic<M.SignalRecord>;
 export type SignalType = M.SignalTypeRecord;
 export const SignalType = defineEntity('SignalType') as unknown as EntityStatic<M.SignalTypeRecord>;
+export type TaskState = M.TaskStateRecord;
+export const TaskState = defineEntity('TaskState') as unknown as EntityStatic<M.TaskStateRecord>;
 export type Space = M.SpaceRecord;
 export const Space = defineEntity('Space') as unknown as EntityStatic<M.SpaceRecord>;
 export { AGENT_DEFAULT, FOLLOW_SPACE } from './manifest/SpacePreference';

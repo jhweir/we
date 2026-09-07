@@ -349,6 +349,12 @@ export const storeEntries: StoreEntry[] = [
         type: 'array',
         properties: ['id', 'icon', 'label', 'active'],
       },
+      taskStates: { type: 'array', properties: ['id', 'name', 'slug', 'semantic', 'color', 'retired', 'defined'] },
+      offeredTaskStates: {
+        type: 'array',
+        properties: ['id', 'name', 'slug', 'semantic', 'color', 'retired', 'defined'],
+      },
+      taskStatesLoaded: { type: 'boolean' },
       unreadNodeIds: { type: 'array' },
       myMentions: { type: 'array', properties: ['id', 'author', 'createdAt'] },
     },
@@ -367,6 +373,8 @@ export const storeEntries: StoreEntry[] = [
       'setSpaceDefaultTheme',
       'createSignalType',
       'setSignalTypeRetired',
+      'createTaskState',
+      'setTaskStateRetired',
       'upsertSignal',
       'navigateToSpace',
       'openRecordRef',
@@ -974,6 +982,12 @@ export function generateStoresText(entries: StoreEntry[]): string {
           'string[] — ids of the feature modules THIS SPACE has turned on: the community\u2019s decision, shared with every member. An unset value means "not decided", not "none": it falls back to every registered module, so spaces predating the setting keep the chrome they had',
         installedModules:
           'string[] — ids of the feature modules THIS AGENT wants available anywhere. Personal, held in the root dataset; unset means "not decided" and falls back to every registered module',
+        taskStates:
+          '{ id, name, slug, semantic, color, retired, defined }[] — the states this community\u2019s work moves through, its own if it has defined any and otherwise the defaults ("unset" means not decided, never none). Ordered open, then active, then done. `slug` is what TaskBlock.status holds; `semantic` is the closed fact underneath a community\u2019s own word, so "is this outstanding?" stays answerable after a rename. Includes withdrawn states, because a task sitting in one still has to resolve — offer offeredTaskStates instead. `defined` is false for a default the space has never written down',
+        offeredTaskStates:
+          '{ id, name, slug, semantic, color, retired, defined }[] — the same list without the withdrawn ones. What a state picker or a new board column should offer',
+        taskStatesLoaded:
+          'boolean — the space has been asked for its states. An empty list is otherwise indistinguishable from "not fetched yet"; gate an empty state on it',
         templateOverrideOptions:
           '{ label, value }[] — options for the per-space template override picker: "Use the space\u2019s default" (space-default), "Use my default" (agent-default), then every template. Each of the first two names what it resolves to. Pre-built because a schema can map a store array into options but cannot prepend one, and without those entries overriding would be one-way',
         themeOverrideOptions: '{ label, value }[] — the same, for themes',
@@ -1046,6 +1060,10 @@ export function generateStoresText(entries: StoreEntry[]): string {
           '(config: Partial<SignalType>): creates a new signal type in the community; slug auto-derived from name if blank',
         setSignalTypeRetired:
           '(signalTypeId: string, retired: boolean): withdraws a signal type from use, or brings it back. Never deletes the signals given with it — a signal names its type by record id while templates resolve it by slug, so DELETING a type strands every reaction ever given and re-creating one with the same slug does not restore them. Retiring is the reversible version: the type stops being offered, existing counts keep working, and un-retiring brings everything back. Filter the offered list with OFFERED_SIGNAL_TYPES from @we/template-kit; leave find()-by-slug unfiltered so history still resolves',
+        createTaskState:
+          'createTaskState(config: { name, semantic?, color? }): names a state this community\u2019s work moves through — "Blocked", "In review". The counterpart to createSignalType one concept along. The FIRST one also writes down the defaults, so adding a state never silently becomes replacing them: a space that had three implicit states and gained one would otherwise have exactly one. Slug derived from the name; it is what tasks store, so it is not editable afterwards',
+        setTaskStateRetired:
+          'setTaskStateRetired(stateId: string, retired: boolean): withdraws a state from use, or brings it back. Never touches the work sitting in it — a task names its state by slug, so deleting the state would leave the work holding a word nothing defines. The same decision setSignalTypeRetired makes',
         unreadNodeIds:
           'string[] — ids of containers in this space holding something newer than your read marker. The read side of `ReadMarker`: use it for unread dots with `{ "$": "channel.id in spaceStore.unreadNodeIds" }` rather than recomputing a `$latestChild` projection and a comparison per row',
         myMentions:

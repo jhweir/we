@@ -5260,6 +5260,65 @@
       "relations": []
     },
     {
+      "name": "TaskState",
+      "className": "TaskState",
+      "extends": "WeNode",
+      "fields": [
+        {
+          "name": "name",
+          "type": "string",
+          "predicate": "we://name",
+          "required": true
+        },
+        {
+          "name": "slug",
+          "type": "string",
+          "predicate": "we://slug",
+          "required": false
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "predicate": "we://description",
+          "required": false
+        },
+        {
+          "name": "icon",
+          "type": "string",
+          "predicate": "we://icon",
+          "required": false
+        },
+        {
+          "name": "color",
+          "type": "string",
+          "predicate": "we://color",
+          "required": false
+        },
+        {
+          "name": "semantic",
+          "type": "TaskStateSemantic",
+          "predicate": "we://semantic",
+          "required": false,
+          "default": "'open'"
+        },
+        {
+          "name": "retired",
+          "type": "boolean",
+          "predicate": "we://retired",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "schemaVersion",
+          "type": "number",
+          "predicate": "we://schema_version",
+          "required": false,
+          "default": "1"
+        }
+      ],
+      "relations": []
+    },
+    {
       "name": "Template",
       "className": "Template",
       "extends": "WeNode",
@@ -6856,6 +6915,17 @@
         "enabledModules": {
           "type": "array"
         },
+        "taskStates": {
+          "type": "array",
+          "properties": ["id", "name", "slug", "semantic", "color", "retired", "defined"]
+        },
+        "offeredTaskStates": {
+          "type": "array",
+          "properties": ["id", "name", "slug", "semantic", "color", "retired", "defined"]
+        },
+        "taskStatesLoaded": {
+          "type": "boolean"
+        },
         "templateOverrideOptions": {
           "type": "array",
           "properties": ["label", "value"]
@@ -6976,6 +7046,8 @@
         "createSignalType",
         "createRelationshipType",
         "setSignalTypeRetired",
+        "createTaskState",
+        "setTaskStateRetired",
         "upsertSignal",
         "navigateToSpace",
         "openRecordRef",
