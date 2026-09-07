@@ -24,32 +24,49 @@ import { emptyState, field, formModal } from '@we/template-kit';
  * and is worth restating: **do not mix them in one view.** A status dropdown beside containment
  * columns is the disagreement both designs exist to avoid.
  *
- * The consequence worth naming: these three columns are a fixed vocabulary, where a hand-built
- * board's are not. That is the trade — a task appears here the moment a model finds it, and nobody
- * can invent a fourth column. Columns as saved queries would give both, and is where this goes.
+ * The columns are no longer a fixed vocabulary. They come from `spaceStore.taskStates` — the states
+ * this community has defined, or the defaults if it has defined none — so a space can invent
+ * "Blocked" and get a column, while a task still appears here the moment a model finds it. That is
+ * the "columns as saved queries" this note used to describe as where it was going.
+ *
+ * What a community names is free; what everything else reads is the state's `semantic`, which is why
+ * a renamed vocabulary does not make the space illegible to a peer, an agent, or a view that has
+ * never heard of it.
  *
  * ## Ordering
  *
- * By creation, and no drag-to-reorder — the same constraint the kit's board documents. Ordering
- * within a column needs a conflict-free position (the AD4M CRDT work); a `position` scalar written
- * now is a shape that design supersedes.
+ * By creation, and no drag-to-reorder, which is a property of the columns being queries: ordering
+ * belongs to a relation's membership, and a filtered query has no membership to order. See the long
+ * note on the sortable below — a board whose columns *contain* their cards is the shape that gets
+ * it, and is a different surface rather than a change to this one.
  */
-const COLUMNS = [
-  { status: 'todo', label: 'To do', color: 'text-muted' },
-  { status: 'doing', label: 'Doing', color: 'accent-text' },
-  { status: 'done', label: 'Done', color: 'success-text' },
-] as const;
-
-/** Tasks in one state, oldest first — hoisted on the view root under `rowsOf(status)`. */
-const tasksIn = (status: string) => ({
+/**
+ * The tasks in one state, oldest first.
+ *
+ * Declared per column *inside* the loop rather than hoisted on the view root, which is the one
+ * structural consequence of the columns being data. A hoisted `$queries` name is fixed when the
+ * schema is written, and there is no name to give a column a community has not invented yet — so
+ * each column carries its own subscription, the way a group over a dynamic model list does.
+ *
+ * The documented cost applies: a schema cannot total a set of queries whose length it does not
+ * know, so the "is this board empty" test reads its own query rather than summing the columns.
+ */
+const columnTasks = {
   entity: 'TaskBlock',
-  where: { status },
+  where: { status: { $: 'state.slug' } },
   order: { createdAt: 'asc' },
   limit: 100,
-});
-// `in-progress` → `inProgressTasks`: a hoisted query's name is read as an identifier.
-const rowsOf = (status: string) => `${status.replace(/-(\w)/g, (_, c: string) => c.toUpperCase())}Tasks`;
-const rows = (status: string) => ({ $: `local.${rowsOf(status)}` });
+};
+
+/**
+ * The colour a column's heading takes when the community has not chosen one.
+ *
+ * From the semantic rather than the name, which is the point of the semantic: a community that
+ * renames "Done" to "Shipped" keeps the colour that means finished, and one that invents "Blocked"
+ * gets a sensible one without being asked.
+ */
+const HEADING_COLOR =
+  "state.color ? state.color : state.semantic == 'done' ? 'success-text' : state.semantic == 'active' ? 'accent-text' : 'text-muted'";
 
 /**
  * Moving a card is a `record.update` of one scalar.
@@ -66,11 +83,16 @@ const moveMenu: SchemaNode = {
     // read "Options" beside the arrows — the fallback label, which no caller here ever asked for.
     triggerTitle: 'Move this task',
     size: 'xs',
-    items: COLUMNS.map((spec) => ({
-      id: spec.status,
-      label: `Move to ${spec.label}`,
-      onAction: { $action: 'record.update', args: ['TaskBlock', { $: 'task.id' }, { status: spec.status }] },
-    })),
+    /*
+      Items from the space's own states, and one handler rather than a handler per item.
+
+      A per-item `onAction` cannot be built from data: an expression produces values, and a handler
+      is a token — nested inside a mapped object it would be stored as the object rather than
+      resolved. `onSelect` fires once with the item that was chosen, so the id carries the slug and
+      the menu becomes an ordinary mapped list.
+    */
+    items: { $: 'spaceStore.offeredTaskStates.map(s, { id: s.slug, label: `Move to ${s.name}` })' },
+    onSelect: { $action: 'record.update', args: ['TaskBlock', { $: 'task.id' }, { status: { $: 'arg.id' } }] },
   },
 };
 
@@ -163,8 +185,9 @@ const card: SchemaNode = {
 };
 
 /** One column: a heading with a count, and the cards in that state. */
-const column = (spec: (typeof COLUMNS)[number]): SchemaNode => ({
+const column: SchemaNode = {
   type: 'Column',
+  $queries: { columnTasks },
   props: {
     // A column has to read as a *trough* even when it is empty, or a board with one card in it
     // looks like a card with a stray heading. Hence the minimum height and the border. Sunken is
@@ -184,7 +207,11 @@ const column = (spec: (typeof COLUMNS)[number]): SchemaNode => ({
       type: 'Row',
       props: { gap: '200', ay: 'center', width: '100%' },
       children: [
-        { type: 'we-text', props: { variant: 'footnote', uppercase: true, color: spec.color }, children: [spec.label] },
+        {
+          type: 'we-text',
+          props: { variant: 'footnote', uppercase: true, color: { $: HEADING_COLOR } },
+          children: [{ $: 'state.name' }],
+        },
         {
           // The count as a **prop**, not a child. A `$query` is hoisted into a subscription at
           // component setup, which is safe for a prop and not for a child — written as a child it
@@ -194,7 +221,7 @@ const column = (spec: (typeof COLUMNS)[number]): SchemaNode => ({
             variant: 'footnote',
             color: 'text-muted',
             ml: 'auto',
-            text: { $: `count(local.${rowsOf(spec.status)})` },
+            text: { $: 'count(local.columnTasks)' },
           },
         },
       ],
@@ -234,7 +261,7 @@ const column = (spec: (typeof COLUMNS)[number]): SchemaNode => ({
     {
       type: 'we-sortable',
       props: {
-        zone: spec.status,
+        zone: { $: 'state.slug' },
         group: 'tasks',
         gap: 'var(--we-space-300)',
         /*
@@ -260,13 +287,74 @@ const column = (spec: (typeof COLUMNS)[number]): SchemaNode => ({
       children: [
         {
           type: '$each',
-          props: { items: rows(spec.status), as: 'task' },
+          props: { items: { $: 'local.columnTasks' }, as: 'task' },
           children: [card],
         },
       ],
     },
   ],
-});
+};
+
+/**
+ * Work whose state nothing recognises.
+ *
+ * A task holds a state's *slug*, so it outlives the state: retired, deleted, renamed by a community
+ * that did not realise the slug was the stored value, or invented by an agent writing through MCP.
+ * Whatever the cause, the task is real and somebody has to be able to reach it.
+ *
+ * Shown as a trailing column and only when it has something in it, so an ordinary board is
+ * unaffected. It has no drop zone — there is no state to drop *into* — and the way out is the card's
+ * own move menu, which offers the states that do exist. That makes this self-clearing: rescue the
+ * work and the column disappears.
+ *
+ * The alternative was to filter these out, which would have been tidier and would have hidden work.
+ */
+const strayColumn: SchemaNode = {
+  type: '$if',
+  props: {
+    condition: { $: 'count(local.strayTasks)' },
+    then: {
+      type: 'Column',
+      props: {
+        width: '300px',
+        minHeight: '200px',
+        gap: '300',
+        bg: 'surface-sunken',
+        border: '1px dashed border-strong',
+        r: '400',
+        p: '300',
+        ay: 'start',
+      },
+      children: [
+        {
+          type: 'Row',
+          props: { gap: '200', ay: 'center', width: '100%' },
+          children: [
+            {
+              type: 'we-text',
+              props: { variant: 'footnote', uppercase: true, color: 'warning-text' },
+              children: ['Unknown state'],
+            },
+            {
+              type: 'we-text',
+              props: { variant: 'footnote', color: 'text-muted', ml: 'auto', text: { $: 'count(local.strayTasks)' } },
+            },
+          ],
+        },
+        {
+          type: 'we-text',
+          props: { fontSize: '200', color: 'text-muted' },
+          children: ['These are filed under a state this space no longer has. Move them somewhere that exists.'],
+        },
+        {
+          type: '$each',
+          props: { items: { $: 'local.strayTasks' }, as: 'task' },
+          children: [cardBody],
+        },
+      ],
+    },
+  },
+};
 
 /**
  * Creating a task by hand — the other way work gets onto this board, beside extraction.
@@ -293,7 +381,7 @@ const composer: SchemaNode = formModal({
       name: 'draftStatus',
       label: 'Status',
       control: 'select',
-      props: { options: COLUMNS.map((spec) => ({ label: spec.label, value: spec.status })) },
+      props: { options: { $: 'spaceStore.offeredTaskStates.map(s, { label: s.name, value: s.slug })' } },
     }),
   ],
   disabled: { $: '!local.draftTitle' },
@@ -329,8 +417,27 @@ export const tasksView: TemplateSchema = {
   $localState: {
     composerOpen: { type: 'boolean', initial: false },
   },
-  // One subscription per column, shared by the column's count and its cards.
-  $queries: Object.fromEntries(COLUMNS.map((spec) => [rowsOf(spec.status), tasksIn(spec.status)])),
+  /*
+    Two subscriptions the columns cannot supply.
+
+    `anyTasks` answers "is this board empty" in one row. The columns each own their own query now,
+    and a schema cannot sum a set of queries whose length it does not know — so the empty state asks
+    its own question rather than adding the columns up.
+
+    `strayTasks` is the work whose state nothing recognises: written under a state since retired or
+    deleted, or by an agent that invented one. It must be *shown*, not filtered away — hiding work is
+    the single failure this whole vocabulary is designed against, and a task nobody can see is a task
+    nobody can rescue.
+  */
+  $queries: {
+    anyTasks: { entity: 'TaskBlock', limit: 1 },
+    strayTasks: {
+      entity: 'TaskBlock',
+      where: { status: { not: { $: 'spaceStore.taskStates.map(s, s.slug)' } } },
+      order: { createdAt: 'asc' },
+      limit: 100,
+    },
+  },
   children: [
     {
       type: 'Column',
@@ -352,11 +459,14 @@ export const tasksView: TemplateSchema = {
         {
           type: '$if',
           props: {
-            condition: { $: COLUMNS.map((spec) => `count(local.${rowsOf(spec.status)})`).join(' || ') },
+            condition: { $: 'count(local.anyTasks)' },
             then: {
               type: 'Row',
               props: { width: '100%', gap: '400', ay: 'start', overflow: 'auto' },
-              children: COLUMNS.map(column),
+              children: [
+                { type: '$each', props: { items: { $: 'spaceStore.taskStates' }, as: 'state' }, children: [column] },
+                strayColumn,
+              ],
             },
             else: emptyState({
               icon: 'check-square',
