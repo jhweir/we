@@ -46,6 +46,13 @@ jobs:
       - name: Lint CSS
         run: pnpm lint:css
 
+      # Here rather than in Typecheck, which is where the failure it prevents would surface: this
+      # reads package.json and tsconfig.json only, so it needs no build and can answer in seconds
+      # while the Build job is still running. Its whole value is naming the package to fix, which
+      # `tsc` cannot — the 29 errors it reports land in the package that is correct.
+      - name: Check source-shipping consumers
+        run: pnpm check:source-consumers
+
   build:
     name: Build
     runs-on: ubuntu-latest
