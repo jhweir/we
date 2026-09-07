@@ -220,6 +220,21 @@ const column = (spec: (typeof COLUMNS)[number]): SchemaNode => ({
         zone: spec.status,
         group: 'tasks',
         gap: 'var(--we-space-300)',
+        /*
+          The zone has to be the whole trough, not just the cards in it.
+
+          A drop target is hit-tested by its own bounding rectangle, so a sortable holding nothing is
+          a zero-height rectangle and nothing can be dropped into it — which is exactly the column
+          you most need to drop into, an empty one. The column around it looked droppable (it has the
+          minimum height and the border that make it read as a trough) and was not: the pointer was
+          over the `Column`, which is not a zone.
+
+          `flex: '1'` takes the height the trough already reserves, and `width: '100%'` the width its
+          `ay: 'start'` would otherwise leave unclaimed — so the area that *reads* as the drop target
+          is the area that is one.
+        */
+        flex: '1',
+        width: '100%',
         onMoved: {
           $action: 'record.update',
           args: ['TaskBlock', { $: 'arg.detail.id' }, { status: { $: 'arg.detail.to' } }],

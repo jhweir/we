@@ -1259,6 +1259,18 @@ by construction, needing no knowledge of the consumer's data shape. The innermos
 under the pointer wins, so dropping into a nested list does not also count as dropping into its
 parent.
 
+#### A zone that can be empty needs a size
+
+Hit-testing is by the zone's own bounding rectangle, so a zone holding nothing is a zero-height
+rectangle and nothing can be dropped into it — which is precisely the zone a person most wants to
+drop into. **Give any zone that can empty a `flex` or a `minHeight`**; without one the surrounding
+box may look like the target while not being it, which is worse than looking undroppable.
+
+Left to the consumer rather than defaulted here, because how much room an empty list should hold
+is a design decision and differs per surface — a kanban column reserves a trough, a reorderable
+settings list should collapse. What the primitive owes is that the rule is written down where
+somebody wiring one up will read it.
+
 #### Keyboard
 
 Space or Enter picks up the focused item; the arrow keys move it, along the list and across
