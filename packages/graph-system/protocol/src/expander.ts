@@ -91,12 +91,12 @@ export interface ExpanderContext {
    * changed" cannot report anything about a query nobody asked. WE's does exactly that — its model
    * subscriptions fire only when the rows of *their own* query change — so a coarse watch was
    * subscribed to a one-row probe over the whole type, and a record created behind an existing one
-   * left that probe's answer identical. The board that read it never heard, and stayed as loaded
+   * left that probe's answer identical. The canvas that read it never heard, and stayed as loaded
    * while the panel beside it, subscribed to its own narrower query, updated.
    *
    * So a watch carries the read it came from, and a host subscribes to *that*. The cost the coarse
    * form was avoiding — one subscription per distinct read — is what makes the answer trustworthy,
-   * and it is bounded by what the seeds actually asked for: a board makes four.
+   * and it is bounded by what the seeds actually asked for: a canvas makes four.
    *
    * Optional because it is a *capability*, not a requirement: a host with no change notification
    * (a fixture, a static export) simply omits it and the graph stays as loaded. Nothing calls this

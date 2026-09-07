@@ -235,7 +235,7 @@ export function gridLayout(rawOptions?: Record<string, unknown>): Layout {
 export interface ManualLayoutOptions {
   /**
    * Where to read a node's stored position from — `data.<key>`.
-   * A board's positions are *data*, not something computed, which is the whole inversion that makes a
+   * A canvas's positions are *data*, not something computed, which is the whole inversion that makes a
    * freeform canvas a mode of this engine rather than a different engine.
    */
   xField?: string;
@@ -247,14 +247,14 @@ export interface ManualLayoutOptions {
 /**
  * Positions come from the nodes themselves.
  *
- * The board case. Everything else here derives position from structure; this one treats position as
+ * The canvas case. Everything else here derives position from structure; this one treats position as
  * the data being edited, and only invents one for a node that has never been placed — arranged in a
  * grid off to one side rather than stacked at the origin, so a batch of new nodes is separable.
  */
 /**
  * Where a node with no stored position goes.
  *
- * A row along the top of whatever is currently on screen — a tray of things that are on the board
+ * A row along the top of whatever is currently on screen — a tray of things that are on the canvas
  * and nowhere in particular, waiting to be put somewhere.
  *
  * In *view* rather than at the origin, which is the whole point. The origin is the one place
@@ -284,10 +284,10 @@ export function manualLayout(rawOptions?: Record<string, unknown>): Layout {
   /*
     Nodes this layout parked itself, so a later run can tell its own work from somebody else's.
 
-    Without it the warning below fires on every healthy board. A card that has never been dragged
+    Without it the warning below fires on every healthy canvas. A card that has never been dragged
     carries no coordinate, so the first run parks it — and on the *second* run that parked position
     arrives as `previous`, which counts as reused. Nothing was read from data, nothing new was
-    parked, something was reused: the exact shape of "this layout did nothing", reported at a board
+    parked, something was reused: the exact shape of "this layout did nothing", reported at a canvas
     that had just laid out a set of freshly extracted cards perfectly well.
   */
   const parked = new Set<string>();
@@ -317,7 +317,7 @@ export function manualLayout(rawOptions?: Record<string, unknown>): Layout {
           positions.set(node.id, { x, y, fixed: true });
           // It has a coordinate of its own now — somebody dragged it — so this layout is no longer
           // the reason it is where it is. Forgetting keeps the set from growing for the life of the
-          // board and from excusing a genuine no-op later.
+          // canvas and from excusing a genuine no-op later.
           parked.delete(node.id);
           fromData += 1;
           continue;
@@ -343,10 +343,10 @@ export function manualLayout(rawOptions?: Record<string, unknown>): Layout {
         indistinguishable from a layout that ran and decided nothing needed moving — and "it silently
         does nothing" is the conclusion people reach.
 
-        "No node carries x/y" is *not* that failure, and warning on it was wrong. A board whose cards
+        "No node carries x/y" is *not* that failure, and warning on it was wrong. A canvas whose cards
         have never been dragged carries no positions and is working perfectly: the nodes get parked
         into a grid, which is a visible arrangement and the whole reason `unplaced` exists. Reported
-        anyway, it fired as a matter of course on every fresh board and then stayed on screen after
+        anyway, it fired as a matter of course on every fresh canvas and then stayed on screen after
         the first drag made it untrue — a permanent warning about a state that had passed.
 
         So the test is what *happened*, not what was read: nothing from data, nothing parked, and
@@ -356,7 +356,7 @@ export function manualLayout(rawOptions?: Record<string, unknown>): Layout {
       if (fromData === 0 && unplaced === 0 && reused > 0) {
         warnings.push(
           `manual layout: no node carries "${options.xField}" and "${options.yField}", so every node was left exactly where it already was. ` +
-            `It suits a board, where position is the data being edited — a graph without stored positions wants a layout that derives them.`,
+            `It suits a canvas, where position is the data being edited — a graph without stored positions wants a layout that derives them.`,
         );
       }
       return { positions, warnings };
@@ -364,7 +364,7 @@ export function manualLayout(rawOptions?: Record<string, unknown>): Layout {
 
     fix(id, at) {
       // Held in the layout rather than written back: persisting a position is a data mutation, and
-      // the template decides whether a drag is worth writing (a board saves it, an explorer does not).
+      // the template decides whether a drag is worth writing (a canvas saves it, an explorer does not).
       if (at) pinned.set(id, at);
       else pinned.delete(id);
     },

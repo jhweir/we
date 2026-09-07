@@ -1,9 +1,9 @@
 /**
  * Where does this node sit — answered from a *list*, never from a `find`.
  *
- * A board reads placements and asks each node where it goes. The obvious spelling of that question
+ * A canvas reads placements and asks each node where it goes. The obvious spelling of that question
  * is `placements.find(p => p.node === id)`, and it is the spelling that has to be unpicked the first
- * time a node has more than one placement on the same board. That day is already visible: freeform
+ * time a node has more than one placement on the same canvas. That day is already visible: freeform
  * placement is not responsive, and the mature conventions for making it responsive either scale one
  * coordinate set or store *several* — one per breakpoint. Every other way of adapting a placed
  * layout is a render-time choice over the same stored numbers; per-breakpoint placement is the one
@@ -11,7 +11,7 @@
  *
  * Nothing writes a `tier` today, and nothing here asks anybody to. What this module buys is that the
  * code asking the question is already shaped to answer it from a list, so adding the field later is
- * a field rather than a refactor of every board query. Ten lines now against a migration later.
+ * a field rather than a refactor of every canvas query. Ten lines now against a migration later.
  *
  * ## The resolution rule
  *

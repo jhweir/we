@@ -665,14 +665,14 @@ export const TEMPLATE_SURFACE: Record<string, Record<string, Classification>> = 
     pendingLink: state('content'),
     openRecordForm: action('content'),
     connectNodes: action('content'),
-    createOnBoard: action('content'),
-    createCardOnBoard: action('content'),
-    placeOnBoard: action('content'),
-    removeFromBoard: action('content'),
-    resizeOnBoard: action('content'),
-    anchorOnBoard: action('content'),
-    rerouteOnBoard: action('content'),
-    retargetOnBoard: action('content'),
+    createOnCanvas: action('content'),
+    createCardOnCanvas: action('content'),
+    placeOnCanvas: action('content'),
+    removeFromCanvas: action('content'),
+    resizeOnCanvas: action('content'),
+    anchorOnCanvas: action('content'),
+    rerouteOnCanvas: action('content'),
+    retargetOnCanvas: action('content'),
     // Host wiring, both halves of one mechanism: the graph host reads what is pending and reports
     // the rows it read back. A template has no use for either — it writes through the actions above
     // and the optimism is applied for it.

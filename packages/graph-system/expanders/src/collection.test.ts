@@ -210,8 +210,8 @@ describe('what a collection is opened into by default', () => {
   });
 
   it('never opens a collection into its placements, even when told to', async () => {
-    // A board keeps its coordinates as `Placement` records parented alongside its cards — the
-    // cheapest place for them, since a board's children are a mixed bag anyway. Drawn as
+    // A canvas keeps its coordinates as `Placement` records parented alongside its cards — the
+    // cheapest place for them, since a canvas's children are a mixed bag anyway. Drawn as
     // containment they would put a dot on the canvas for every card, saying nothing and doubling
     // the node count. The refusal is unconditional because it is not a preference: a placement is
     // never what anybody means by "what is in here".

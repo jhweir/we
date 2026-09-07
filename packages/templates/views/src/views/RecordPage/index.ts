@@ -27,7 +27,7 @@ import { pageShell, RECORD_ROUTE_PATH } from '@we/template-kit';
  * model this community defined this morning.
  *
  * That is also how the rest of the codebase already passes records around: the graph's node payloads
- * carry `recordType` beside `recordId`, and `recordStore.placeOnBoard` takes both. Nothing here is
+ * carry `recordType` beside `recordId`, and `recordStore.placeOnCanvas` takes both. Nothing here is
  * inventing a convention.
  *
  * ## Why the id is *not* in the path

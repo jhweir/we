@@ -16,10 +16,12 @@
  *
  * ## Ordering
  *
- * Cards sort by creation, and there is no drag-to-reorder. Ordering *within* a column needs a
- * conflict-free position — the AD4M CRDT ordering work — and a `position` scalar written now would
- * be a shape that design supersedes. Moving *between* columns works today, via a menu, because that
- * is containment rather than order.
+ * Cards sort by creation, and there is no drag-to-reorder. Not for want of conflict-free ordering,
+ * which has landed: it attaches to a relation's membership, and a column here reads its cards
+ * through a `scope`, which lowers to a filter by parent link and has no membership to order. The
+ * surface that does have one is WE's own Boards view, whose ordered `children` are position hints
+ * over a membership the task's state defines. Moving *between* columns works today, via a menu,
+ * because that is containment rather than order.
  */
 import type { RouteSchema, TemplateSchema } from '@we/schema-shared';
 import { agentByline, collectionFeed, emptyState, kanbanBoard, moveCardMenu } from '@we/template-kit';

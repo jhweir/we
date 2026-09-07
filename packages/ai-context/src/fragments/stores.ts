@@ -1142,28 +1142,28 @@ export function generateStoresText(entries: StoreEntry[]): string {
       },
       actions: {
         setRelationshipKind: '(id): sets which named kind the pending connection is; an empty value clears it',
-        placeOnBoard:
-          '(board: string, nodeId: string, nodeType: string, x: number, y: number): puts a record at a position on a board, or moves one already there. An upsert, so dragging twice leaves one coordinate. Pair with the graph’s onNodeDragEnd',
-        removeFromBoard:
-          '(board: string, nodeId: string): takes a record off a board, leaving the record itself alone. A card the board owns survives as an unplaced one in the tray',
-        resizeOnBoard:
-          "(board: string, payload): resizes a card on a board. Takes the graph's onNodeResize payload as it arrives; the size lives on the placement, so the same post on another board is unaffected",
-        anchorOnBoard:
-          "(board: string, payload): pins which SIDE of a card a connection leaves or arrives on, for this board. Takes the graph's onEdgeAnchor payload as it arrives; an empty side clears that end, and a route with neither end pinned and no bends is deleted. Bends survive a clear — one record holds both, and letting go of a side says nothing about the shape somebody drew. Per board, like a placement — the same connection on somebody else's board is unaffected",
-        rerouteOnBoard:
-          "(board: string, payload): writes the shape of one connection's route on this board — the points it is bent through. Takes the graph's onEdgeReroute payload as it arrives; the whole list, in the edge's own frame, so a bend keeps its proportions when either card moves. An empty list straightens it, and a route with no points and no anchors is deleted",
-        retargetOnBoard:
-          "(board: string, payload): moves one end of a connection onto a different record. Takes the graph's onEdgeRetarget payload as it arrives. Unlike anchorOnBoard and rerouteOnBoard this changes the CLAIM rather than how one board draws it — the relationship now says something different everywhere it is shown. That end's anchor is cleared; its waypoints stay",
+        placeOnCanvas:
+          '(canvas: string, nodeId: string, nodeType: string, x: number, y: number): puts a record at a position on a canvas, or moves one already there. An upsert, so dragging twice leaves one coordinate. Pair with the graph’s onNodeDragEnd',
+        removeFromCanvas:
+          '(canvas: string, nodeId: string): takes a record off a canvas, leaving the record itself alone. A card the canvas owns survives as an unplaced one in the tray',
+        resizeOnCanvas:
+          "(canvas: string, payload): resizes a card on a canvas. Takes the graph's onNodeResize payload as it arrives; the size lives on the placement, so the same post on another canvas is unaffected",
+        anchorOnCanvas:
+          "(canvas: string, payload): pins which SIDE of a card a connection leaves or arrives on, for this canvas. Takes the graph's onEdgeAnchor payload as it arrives; an empty side clears that end, and a route with neither end pinned and no bends is deleted. Bends survive a clear — one record holds both, and letting go of a side says nothing about the shape somebody drew. Per canvas, like a placement — the same connection on somebody else's canvas is unaffected",
+        rerouteOnCanvas:
+          "(canvas: string, payload): writes the shape of one connection's route on this canvas — the points it is bent through. Takes the graph's onEdgeReroute payload as it arrives; the whole list, in the edge's own frame, so a bend keeps its proportions when either card moves. An empty list straightens it, and a route with no points and no anchors is deleted",
+        retargetOnCanvas:
+          "(canvas: string, payload): moves one end of a connection onto a different record. Takes the graph's onEdgeRetarget payload as it arrives. Unlike anchorOnCanvas and rerouteOnCanvas this changes the CLAIM rather than how one canvas draws it — the relationship now says something different everywhere it is shown. That end's anchor is cleared; its waypoints stay",
         setCardStyle:
-          "(board: string, nodeId: string, field: string, value): sets one presentation property of one card on one board — 'color', 'cardShape', 'contentScale', 'rotation' (degrees clockwise) and 'z' (stacking order). Takes the field name so one action serves a swatch, a picker and a slider. 0 is unset for the numbers, so a card is un-rotated by writing 0. Undone by taking the card off the board",
+          "(canvas: string, nodeId: string, field: string, value): sets one presentation property of one card on one canvas — 'color', 'cardShape', 'contentScale', 'rotation' (degrees clockwise) and 'z' (stacking order). Takes the field name so one action serves a swatch, a picker and a slider. 0 is unset for the numbers, so a card is un-rotated by writing 0. Undone by taking the card off the canvas",
         previewCardStyle:
           '(nodeId: string, field: string, value): shows a presentation change without writing it — for a slider that reports while it moves. Pair with setCardStyle on release; both go through the same pending map so the card never jumps',
         setTypeColor:
-          "(board: string, nodeType: string, color): sets the colour every card of one type is drawn in, on one board — the board's key, made writable. An empty colour clears it",
-        createOnBoard:
-          '(board: string, x?: number, y?: number): opens the create form and places whatever it makes onto that board, at the point given. Pair with the graph’s onCanvasDoubleClick',
-        createCardOnBoard:
-          "(editorState, { board, at? }): composes a card onto a board and records where it sits, as one write. Without `at` the card lands in the board's tray. The composer's counterpart to createOnBoard",
+          "(canvas: string, nodeType: string, color): sets the colour every card of one type is drawn in, on one canvas — the canvas's key, made writable. An empty colour clears it",
+        createOnCanvas:
+          '(canvas: string, x?: number, y?: number): opens the create form and places whatever it makes onto that canvas, at the point given. Pair with the graph’s onCanvasDoubleClick',
+        createCardOnCanvas:
+          "(editorState, { canvas, at? }): composes a card onto a canvas and records where it sits, as one write. Without `at` the card lands in the canvas's tray. The composer's counterpart to createOnCanvas",
         openRecordForm:
           '(entity?): opens the create form — on that model, or on the first offered one. Clears any pending connection',
         connectNodes:

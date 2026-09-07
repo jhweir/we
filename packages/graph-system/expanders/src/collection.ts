@@ -38,9 +38,9 @@ export interface CollectionExpanderOptions {
   /**
    * Child types to skip, whatever else says to look for them.
    *
-   * For containment that is bookkeeping rather than content. A board keeps its coordinates as
+   * For containment that is bookkeeping rather than content. A canvas keeps its coordinates as
    * `Placement` records parented alongside its cards — the cheapest place to put them, since a
-   * board's children are already a mixed bag — and a containment walk that drew them would put a
+   * canvas's children are already a mixed bag — and a containment walk that drew them would put a
    * dot on the canvas for every card, saying nothing and doubling the node count.
    *
    * A denylist rather than leaving them out of `children`, because the two lists answer different
@@ -58,7 +58,7 @@ const ID = 'collection';
 /**
  * Never drawn as containment, whatever a template asks for.
  *
- * `Placement` is a coordinate parented next to the thing it positions — see the board seed — so it
+ * `Placement` is a coordinate parented next to the thing it positions — see the canvas seed — so it
  * is a child in the storage sense and never in the sense anybody means by "what is in here".
  */
 const NEVER_CHILDREN = ['Placement'];

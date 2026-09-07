@@ -121,9 +121,9 @@ export function dragNodeBehaviour(rawOptions?: Record<string, unknown>): Behavio
       const world = ctx.toWorld(input.at);
       const at = { x: world.x + grabOffset.x, y: world.y + grabOffset.y };
       // Released rather than left pinned by default: on an explorer, a dragged node that stays put
-      // fights the layout for every subsequent expansion. A board passes `pin: true`.
+      // fights the layout for every subsequent expansion. A canvas passes `pin: true`.
       if (!options.pin) ctx.pin(id, null);
-      // The node's position, not the pointer's — what a board persists has to be where the node
+      // The node's position, not the pointer's — what a canvas persists has to be where the node
       // actually ended up.
       ctx.emit({ type: 'nodeDragEnd', node: { id, kind: 'entity', type: '' }, position: at });
       return true;
@@ -289,7 +289,7 @@ export function expandOnDoubleClickBehaviour(rawOptions?: Record<string, unknown
  * quietest kind of gap — everything typechecks, the wiring reads as complete, and the gesture just
  * does nothing.
  *
- * Emits and does nothing else. What opening a node *means* is the consumer's: a board opens the
+ * Emits and does nothing else. What opening a node *means* is the consumer's: a canvas opens the
  * card, an explorer might do what `expand-on-double-click` does instead. Which is why the two are
  * separate behaviours rather than one with a mode — a template lists whichever it means, and
  * listing both would have the first claim the gesture.
@@ -379,7 +379,7 @@ export function defaultBehaviours() {
  * progress. It is the wrong rule for the event that *ends* one: a behaviour holding state across a
  * gesture has to be told the gesture finished, whether or not something ahead of it also cared.
  *
- * Getting this wrong produced a genuinely confusing bug. On a board the order is
+ * Getting this wrong produced a genuinely confusing bug. On a canvas the order is
  * `[pan-zoom, select, drag-node]`; a plain click on a node let `select` claim the pointer-up, so
  * `drag-node` never learned the press had ended, kept its node latched, and the next mouse movement —
  * with no button held — dragged it. From the outside: click a node once and it sticks to the cursor,

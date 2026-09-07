@@ -8,8 +8,8 @@
  * - **Exploration** — {@link GraphStore}, {@link ExpansionState}, {@link GraphEngine}. Expanders,
  *   expansion state, reference-counted collapse, bundling, budgets.
  *
- * A board built on this uses the scene and none of the exploration; a knowledge map uses both. That
- * is the split that stops a board dragging in expansion state it has no use for, and stops undo and
+ * A canvas built on this uses the scene and none of the exploration; a knowledge map uses both. That
+ * is the split that stops a canvas dragging in expansion state it has no use for, and stops undo and
  * marquee selection leaking into an explorer that will never want them.
  */
 export {

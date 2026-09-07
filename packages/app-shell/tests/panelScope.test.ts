@@ -20,15 +20,15 @@ describe('the panels on screen', () => {
     // What makes a panel a panel rather than a region of a page: it survives navigation.
     const shell = [panel('transcript'), panel('calls')];
 
-    expect(ids(activePanels(shell, undefined, ['space', 'abc', 'board']))).toEqual(['transcript', 'calls']);
+    expect(ids(activePanels(shell, undefined, ['space', 'abc', 'canvas']))).toEqual(['transcript', 'calls']);
     expect(ids(activePanels(shell, undefined, ['space', 'abc', 'tasks']))).toEqual(['transcript', 'calls']);
   });
 
   it('drops one scoped to a segment that is not in the path', () => {
-    const shell = [panel('inspector', 'board'), panel('calls')];
+    const shell = [panel('inspector', 'canvas'), panel('calls')];
 
     expect(ids(activePanels(shell, undefined, ['space', 'abc', 'tasks']))).toEqual(['calls']);
-    expect(ids(activePanels(shell, undefined, ['space', 'abc', 'board']))).toEqual(['inspector', 'calls']);
+    expect(ids(activePanels(shell, undefined, ['space', 'abc', 'canvas']))).toEqual(['inspector', 'calls']);
   });
 
   it('takes a list of segments, for two pages and not the third', () => {
@@ -37,9 +37,9 @@ describe('the panels on screen', () => {
       twice under two routes — which happens to work, since exactly one survives this filter and the
       dock id is stable, but it is one panel written down twice for the copies to disagree later.
     */
-    const shell = [panel('inspector', ['board', 'tasks'])];
+    const shell = [panel('inspector', ['canvas', 'tasks'])];
 
-    expect(ids(activePanels(shell, undefined, ['space', 'abc', 'board']))).toEqual(['inspector']);
+    expect(ids(activePanels(shell, undefined, ['space', 'abc', 'canvas']))).toEqual(['inspector']);
     expect(ids(activePanels(shell, undefined, ['space', 'abc', 'tasks']))).toEqual(['inspector']);
     expect(ids(activePanels(shell, undefined, ['space', 'abc', 'events']))).toEqual([]);
   });
@@ -57,7 +57,7 @@ describe('the panels on screen', () => {
   });
 
   it('applies the route filter to a section’s panels too', () => {
-    const view = [panel('legend', 'graph'), panel('stray', 'board')];
+    const view = [panel('legend', 'graph'), panel('stray', 'canvas')];
 
     expect(ids(activePanels([], view, ['space', 'abc', 'graph']))).toEqual(['legend']);
   });
@@ -118,7 +118,7 @@ describe('a module panel the interface supplies', () => {
     // registration filters on `node && !module`, which is what keeps the count at one.
     const supplied = { id: 'transcript', module: 'transcribe', node: { type: 'Column' } } as TemplatePanel;
 
-    const authored = activePanels([supplied], undefined, ['space', 'abc', 'board']).filter(
+    const authored = activePanels([supplied], undefined, ['space', 'abc', 'canvas']).filter(
       (panel) => panel.node && !panel.module,
     );
 
@@ -128,7 +128,7 @@ describe('a module panel the interface supplies', () => {
   it('is addressed by module, so the module’s own frame can find it', () => {
     const supplied = { id: 'transcript', module: 'transcribe', node: { type: 'Column' } } as TemplatePanel;
 
-    const byModule = activePanels([supplied], undefined, ['space', 'abc', 'board']).find(
+    const byModule = activePanels([supplied], undefined, ['space', 'abc', 'canvas']).find(
       (panel) => panel.module === 'transcribe' && panel.node,
     );
 

@@ -421,7 +421,7 @@ describe('following the data', () => {
       A host subscribes to what it is given, and a backend that reports "this query's answer
       changed" can say nothing about a query nobody asked. WE's does exactly that, so the coarse
       form — entity and dataset — became a one-row probe over the type, silent for every change
-      that left that row alone: a board's second extracted record never appeared while the panel
+      that left that row alone: a canvas's second extracted record never appeared while the panel
       beside it, subscribed to its own narrower question, updated.
     */
     const fixture = watchableFixture('TaskBlock', {
@@ -542,7 +542,7 @@ describe('warnings', () => {
   }
 
   it('retires a layout warning once a later arrangement no longer makes it', async () => {
-    // The bug this pins: a complaint true of an empty board stayed on screen after the first drag
+    // The bug this pins: a complaint true of an empty canvas stayed on screen after the first drag
     // made it false. A layout warning describes the arrangement *as it is now*, so a later
     // arrangement supersedes it — otherwise a reader cannot tell a live warning from a spent one.
     let say: string | null = 'nothing carries a position';
@@ -801,7 +801,7 @@ describe('hit areas follow what is drawn', () => {
   });
 
   it('does not let a wide card swallow the node beside it', async () => {
-    // On a board cards sit close together, and a click landing on the wrong one is worse than a click
+    // On a canvas cards sit close together, and a click landing on the wrong one is worse than a click
     // landing on nothing.
     const registry = new PluginRegistry({ seeds: [seedOf(2)], layouts });
     const engine = engineWith(
@@ -960,7 +960,7 @@ describe('edge picking', () => {
   });
 
   it('draws an end to a loose point, so dragging one is smooth rather than stepped', async () => {
-    // A card has four sides and a board has however many cards, so an end that can only ever be on
+    // A card has four sides and a canvas has however many cards, so an end that can only ever be on
     // one of those moves in jumps however finely the pointer does. The point IS the end here — no
     // clearance, or the line would trail the cursor by a gap that reads as lag.
     const engine = await threeNodeEngine();
@@ -1230,22 +1230,22 @@ describe('a settled layout that is given a reason to move', () => {
  * forces a re-read. That is what this pins.
  */
 describe('data overlay', () => {
-  const cardStyle = [{ style: { shape: 'card' as const, width: { from: 'data.boardWidth' }, height: 100 } }];
+  const cardStyle = [{ style: { shape: 'card' as const, width: { from: 'data.canvasWidth' }, height: 100 } }];
 
   const twoCards: SeedSource = {
     id: 'two',
     async seed() {
       return {
         nodes: [
-          { id: 'a', kind: 'entity' as const, type: 'Card', label: 'A', data: { boardWidth: 100 } },
-          { id: 'b', kind: 'entity' as const, type: 'Card', label: 'B', data: { boardWidth: 100 } },
+          { id: 'a', kind: 'entity' as const, type: 'Card', label: 'A', data: { canvasWidth: 100 } },
+          { id: 'b', kind: 'entity' as const, type: 'Card', label: 'B', data: { canvasWidth: 100 } },
         ],
         edges: [{ id: 'a->b', source: 'a', target: 'b', type: 'rel' }],
       };
     },
   };
 
-  async function boardEngine() {
+  async function canvasEngine() {
     const registry = new PluginRegistry({ seeds: [twoCards], expanders: [], layouts });
     const engine = engineWith({ seeds: { source: 'two' }, layout: { type: 'grid' }, nodeStyle: cardStyle }, registry);
     await engine.start();
@@ -1253,23 +1253,23 @@ describe('data overlay', () => {
   }
 
   it('picks a node at its overlaid size', async () => {
-    const engine = await boardEngine();
+    const engine = await canvasEngine();
     const at = engine.getPositions().get('a')!;
     // 120 world units to the right of centre: outside a 100-wide card, inside a 400-wide one.
     const beyond = { x: at.x + 120, y: at.y };
 
     expect(engine.index.hitTest(beyond)).not.toContain('a');
 
-    engine.setDataOverlay(new Map([['a', { boardWidth: 400 }]]));
+    engine.setDataOverlay(new Map([['a', { canvasWidth: 400 }]]));
 
     expect(engine.index.hitTest(beyond)).toContain('a');
   });
 
   it('re-routes the edges that meet an overlaid node', async () => {
-    const engine = await boardEngine();
+    const engine = await canvasEngine();
     const before = engine.getEdgeGeometry().get('a->b');
 
-    engine.setDataOverlay(new Map([['b', { boardWidth: 400 }]]));
+    engine.setDataOverlay(new Map([['b', { canvasWidth: 400 }]]));
 
     // The line stops short of the node's border, so a wider target ends the edge sooner.
     expect(engine.getEdgeGeometry().get('a->b')?.to).not.toEqual(before?.to);
@@ -1279,27 +1279,27 @@ describe('data overlay', () => {
     // The host works out that a write has come back by comparing its patch against the *seeded*
     // data. Merging the overlay into the store would report every patch settled the moment it was
     // applied, and the card would flick back to the old value.
-    const engine = await boardEngine();
+    const engine = await canvasEngine();
 
-    engine.setDataOverlay(new Map([['a', { boardWidth: 400 }]]));
+    engine.setDataOverlay(new Map([['a', { canvasWidth: 400 }]]));
 
-    expect(engine.store.node('a')?.data?.boardWidth).toBe(100);
-    expect(engine.overlayFor('a')).toEqual({ boardWidth: 400 });
+    expect(engine.store.node('a')?.data?.canvasWidth).toBe(100);
+    expect(engine.overlayFor('a')).toEqual({ canvasWidth: 400 });
   });
 
   it('tells subscribers the graph changed', async () => {
-    const engine = await boardEngine();
+    const engine = await canvasEngine();
     const reasons: string[] = [];
     engine.subscribe((reason) => reasons.push(reason));
 
-    engine.setDataOverlay(new Map([['a', { boardWidth: 400 }]]));
+    engine.setDataOverlay(new Map([['a', { canvasWidth: 400 }]]));
 
     expect(reasons).toContain('graph');
   });
 
   it('clears back to the seeded size', async () => {
-    const engine = await boardEngine();
-    engine.setDataOverlay(new Map([['a', { boardWidth: 400 }]]));
+    const engine = await canvasEngine();
+    engine.setDataOverlay(new Map([['a', { canvasWidth: 400 }]]));
 
     engine.setDataOverlay(new Map());
 
@@ -1445,12 +1445,12 @@ describe('the pending connection', () => {
 /**
  * Opening an edge's route for editing, and what that does to the node selection.
  *
- * The two are alternatives rather than layers: a board showing a selected card's connect dots *and*
+ * The two are alternatives rather than layers: a canvas showing a selected card's connect dots *and*
  * a selected line's waypoint grips at once is two sets of handles a few pixels apart, with a press
  * that could plausibly mean either.
  */
 describe('selecting an edge', () => {
-  async function board() {
+  async function canvas() {
     const registry = new PluginRegistry({ seeds: [seedOf(2)], expanders: [fanoutExpander(0)], layouts });
     const engine = engineWith(
       { seeds: { source: 'test' }, layout: { type: 'grid' }, expansion: { defaultDepth: 0 } },
@@ -1461,7 +1461,7 @@ describe('selecting an edge', () => {
   }
 
   it('opens one route and closes it again', async () => {
-    const engine = await board();
+    const engine = await canvas();
 
     engine.selectEdge('some-edge');
     expect(engine.getSelectedEdge()).toBe('some-edge');
@@ -1471,7 +1471,7 @@ describe('selecting an edge', () => {
   });
 
   it('closes an open route when a node is selected', async () => {
-    const engine = await board();
+    const engine = await canvas();
     engine.selectEdge('some-edge');
 
     engine.select(['seed-0']);
@@ -1482,7 +1482,7 @@ describe('selecting an edge', () => {
   it('closes it on a background click, which selects nothing', async () => {
     // `select([])` is what a click on empty canvas does, and "nothing is selected" has to include
     // the line — otherwise its grips outlive the click that was meant to put them away.
-    const engine = await board();
+    const engine = await canvas();
     engine.selectEdge('some-edge');
 
     engine.select([]);
@@ -1491,7 +1491,7 @@ describe('selecting an edge', () => {
   });
 
   it('clears a selected card', async () => {
-    const engine = await board();
+    const engine = await canvas();
     engine.select(['seed-0']);
 
     engine.selectEdge('some-edge');
@@ -1504,7 +1504,7 @@ describe('selecting an edge', () => {
       The bug this exists for. `selectionChange` means "these nodes are selected now", and firing it
       because an *edge* was clicked says something untrue: a host reading an empty list as "nothing
       is selected, clear the panel" is right to, and would be acting on a change that never
-      happened. The workshop board does exactly that, which is how it was found.
+      happened. The workshop canvas does exactly that, which is how it was found.
     */
     const events: string[] = [];
     const registry = new PluginRegistry({ seeds: [seedOf(2)], expanders: [fanoutExpander(0)], layouts });
