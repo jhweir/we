@@ -14,7 +14,7 @@
  * metadata for forms and prompts — not compiled, since SHACL carries no enum the executor reads.
  */
 import { Ad4mModel, fileToDataUri, Flag, HasMany, HasOne, Model, Property } from '@coasys/ad4m';
-import type { EntityManifest, EntitySchema } from '@we/backend-shared';
+import { type EntityManifest, type EntitySchema, resolvesPolymorphically } from '@we/backend-shared';
 import { FILE_STORAGE_LANGUAGE } from '@we/entities';
 
 import type { EntityManifestEntry } from './manifestTypes';
@@ -123,6 +123,10 @@ export function buildEntityFromEntry(
       decorator({
         through: p.predicate,
         ...(resolver && related !== undefined ? { target: () => resolver(related) as never } : {}),
+        // The declaration says the members are in a chosen order; the strategy naming *how* that
+        // order survives concurrent edits is AD4M's, and belongs here rather than in the manifest.
+        ...(p.ordered ? { ordering: { strategy: 'linkedList' as const } } : {}),
+        ...(p.polymorphic ? { polymorphic: true } : {}),
       })(proto as never, p.name as never);
     } else {
       // Only what the declaration states. `null` is itself a declared default (an unset file
@@ -214,6 +218,8 @@ export function manifestToEntries(manifest: EntityManifest, opts: CompileManifes
           required: false,
           writable: true,
           ...(spec.target ? { relatedEntity: spec.target } : {}),
+          ...(spec.ordered ? { ordered: true } : {}),
+          ...(resolvesPolymorphically(spec) ? { polymorphic: true } : {}),
         })),
       ],
     };

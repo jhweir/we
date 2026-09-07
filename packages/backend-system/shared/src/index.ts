@@ -76,6 +76,7 @@ export {
   getProperty,
   getRelation,
   modelManifestSchema,
+  resolvesPolymorphically,
   validateManifest,
 } from './manifest';
 export type {
