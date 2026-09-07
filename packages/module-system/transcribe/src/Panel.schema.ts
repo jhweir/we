@@ -286,17 +286,171 @@ export const coverage: SchemaNode = {
   },
 };
 
+/** What the card knows about the model it is a suggestion of — see `recordStore.displays`. */
+const DISPLAY = 'recordStore.displays[proposal.entity]';
+
+/** The value of whichever property plays a role on this model, or empty when none does. */
+const roleValue = (role: 'title' | 'summary') => ({
+  $: `find(proposal.fields, { name: ${DISPLAY}.${role} }).value`,
+});
+
 /**
- * Suggestions the backend staged instead of writing, and the two buttons that resolve them.
+ * A state's colour, from its *position* in the model's own list rather than from its spelling.
  *
- * Only appears when there are any, which is *not* the common case: a value is staged only where a
- * human already owns one, so a first pass over a fresh transcript stages nothing and this stays
- * invisible. That is the right default — a permanently empty "0 pending" box teaches people to stop
- * looking at the place their attention is eventually needed.
+ * The last value of a closed vocabulary is the settled one — `done`, `published`, `resolved` — and
+ * the first is the not-started one, because that is how anybody writes such a list. Reading the
+ * position means a community shape with states nobody here has heard of still gets a sensible ramp,
+ * where a lookup table of English words would give every one of them the same neutral grey.
+ */
+const STATE_VARIANT =
+  "field.value == last(find(recordStore.displays[proposal.entity].fields, { name: field.name }).options) ? 'success' " +
+  ": field.value == first(find(recordStore.displays[proposal.entity].fields, { name: field.name }).options) ? 'neutral' : 'primary'";
+
+/**
+ * One proposed value as a row, and — when it is being edited — as a control.
  *
- * Accept and reject rather than an edit affordance. Editing a suggestion is authoring, and it
- * belongs to whatever normally edits that record; the decision this list exists for is only whether
- * the model's version survives contact with the person who owns the value.
+ * Skips the two the card has already drawn large. A field is not repeated under its own title.
+ */
+const proposalDetail: SchemaNode = {
+  type: '$each',
+  props: {
+    items: { $: `proposal.fields.filter(f, f.name != ${DISPLAY}.title && f.name != ${DISPLAY}.summary)` },
+    as: 'field',
+  },
+  children: [
+    {
+      type: 'Row',
+      props: { gap: '200', ay: 'center', wrap: true },
+      children: [
+        {
+          type: 'we-text',
+          props: { variant: 'footnote', color: 'text-muted' },
+          children: [
+            { $: 'find(recordStore.displays[proposal.entity].fields, { name: field.name }).label ?? field.name' },
+          ],
+        },
+        {
+          /*
+            A closed vocabulary is a badge; everything else is its value.
+
+            The set comes from the model's own declaration (`DisplayField.options`), so this is not a
+            list of statuses this panel knows about — a community shape with its own states gets a
+            badge for them without a line written here, and a free-text field never gets one.
+          */
+          type: '$if',
+          props: {
+            condition: {
+              $: 'count(find(recordStore.displays[proposal.entity].fields, { name: field.name }).options)',
+            },
+            then: {
+              type: 'we-badge',
+              props: { size: 'xs', variant: { $: STATE_VARIANT } },
+              children: [{ $: 'field.value' }],
+            },
+            else: { type: 'we-text', props: { variant: 'footnote' }, children: [{ $: 'field.value' }] },
+          },
+        },
+      ],
+    },
+  ],
+};
+
+/** Every proposed field, as a control over the store's draft. */
+const proposalEditor: SchemaNode = {
+  type: '$each',
+  props: { items: { $: 'proposal.fields' }, as: 'field' },
+  children: [
+    {
+      type: 'we-form-field',
+      props: {
+        size: 'xs',
+        label: { $: 'find(recordStore.displays[proposal.entity].fields, { name: field.name }).label ?? field.name' },
+      },
+      children: [
+        {
+          /*
+            A picker where the model closes the set, a box where it does not.
+
+            Same question the badge above asks, answered on the way in: a text input over `status`
+            invites "pending" into a field whose model only knows three words, and the record then
+            renders an unrecognised tag everywhere it appears.
+          */
+          type: '$if',
+          props: {
+            condition: {
+              $: 'count(find(recordStore.displays[proposal.entity].fields, { name: field.name }).options)',
+            },
+            then: {
+              type: 'we-select',
+              props: {
+                size: 'xs',
+                value: { $: 'modules.transcribe.proposalDraft[field.name]' },
+                options: {
+                  $: 'find(recordStore.displays[proposal.entity].fields, { name: field.name }).options.map(o, { label: o, value: o })',
+                },
+                onChange: {
+                  $action: 'modules.transcribe.setProposalField',
+                  args: [{ $: 'field.name' }, { $: 'event.detail' }],
+                },
+              },
+            },
+            else: {
+              type: 'we-input',
+              props: {
+                size: 'xs',
+                value: { $: 'modules.transcribe.proposalDraft[field.name]' },
+                onInput: {
+                  $action: 'modules.transcribe.setProposalField',
+                  args: [{ $: 'field.name' }, { $: 'event.detail' }],
+                },
+              },
+            },
+          },
+        },
+      ],
+    },
+  ],
+};
+
+/**
+ * Suggestions the backend staged instead of writing, and the controls that resolve them.
+ *
+ * Only appears when there are any, which is *not* always: a value is staged rather than written only
+ * where a human already owns one, so a pass that only *creates* records leaves this empty. That is
+ * the right default — a permanently empty "0 pending" box teaches people to stop looking at the
+ * place their attention is eventually needed.
+ *
+ * ## Why it scrolls, and why that is not a `maxHeight`
+ *
+ * It used to be a plain column beside the panel's one scroll area, and a long call filled the panel
+ * with it: a `Column` cannot shrink below its content unless it is told it may, so flexbox took the
+ * whole deficit out of the results list underneath — which collapsed to nothing while the review
+ * list ran off the bottom. `minHeight: '0'` is what makes this section shrinkable at all; the scroll
+ * area inside it is then what the shrinking does. A pixel cap would have been a guess about a panel
+ * whose height is the reader's to choose.
+ *
+ * ## A grid, because a card is not a paragraph
+ *
+ * `minChildWidth` rather than a column: widening the panel used to stretch each card to the full
+ * width, which for four fields of a task is a strip of text with a button at the end of it. The
+ * cards reflow into two and three abreast as the lane grows, and back to one in a narrow dock, with
+ * no breakpoint to get wrong.
+ *
+ * ## Still `we-alert`
+ *
+ * The look is unchanged and deliberately so — `appearance: 'accent'` is a plain surface with a thick
+ * status edge, which is what stops a run of these reading as a stack of brown rectangles in a dark
+ * theme. It also keeps the warning glyph, which is what makes the state readable to somebody who
+ * cannot tell the colours apart. What changed is only what is *inside* it.
+ *
+ * ## Editing, which this used to refuse
+ *
+ * The old note here said editing a suggestion is authoring and belongs to whatever normally edits
+ * that record. That was true when the only thing staged was a single field of a record somebody
+ * already owned. It stopped being true when a pass began proposing whole records: the reviewer is
+ * then looking at the only surface that will ever show it *as a suggestion*, and sending them
+ * somewhere else to fix a wrong title means keeping something known to be wrong, or discarding a
+ * record that was mostly right.
  */
 const proposals: SchemaNode = {
   type: '$if',
@@ -304,53 +458,203 @@ const proposals: SchemaNode = {
     condition: { $: 'count(modules.transcribe.proposals)' },
     then: {
       type: 'Column',
-      props: { gap: '200' },
+      // `flex: '0 1 auto'` with `minHeight: '0'`: take the room the cards want, give it back when
+      // the panel is short. Without the minimum this section cannot shrink and the results list
+      // below it pays for every suggestion.
+      props: { gap: '200', flex: '0 1 auto', minHeight: '0' },
       children: [
-        sectionLabel({ label: 'Awaiting your call' }),
+        sectionLabel({
+          label: 'Awaiting your call',
+          aside: {
+            type: 'we-badge',
+            props: { size: 'xs', variant: 'warning' },
+            children: [{ $: 'count(modules.transcribe.proposals)' }],
+          },
+        }),
         {
-          type: '$each',
-          props: { items: { $: 'modules.transcribe.proposals' }, as: 'proposal' },
+          type: 'we-scroll-area',
+          props: { flex: '1', minHeight: '0' },
           children: [
-            /*
-              An alert, not a tinted box drawn by hand — a proposal waiting on a decision is exactly
-              what `role="alert"` and a warning glyph are for, and the icon is what makes the status
-              readable to someone who cannot tell the colours apart.
-
-              `accent` rather than the tint it replaces: these arrive as a *column*, and a run of
-              filled warning panels is a stack of competing rectangles that in a dark theme reads as
-              brown before it reads as a warning. The edge says the same thing at the volume a list
-              can carry.
-            */
             {
-              type: 'we-alert',
-              props: { variant: 'warning', appearance: 'accent', r: '300', px: '300', py: '300', gap: '300' },
+              type: 'Grid',
+              props: { minChildWidth: '240px', gap: '200', width: '100%' },
               children: [
                 {
-                  type: 'Column',
-                  props: { gap: '200' },
+                  type: '$each',
+                  props: { items: { $: 'modules.transcribe.proposals' }, as: 'proposal' },
                   children: [
-                    { type: 'we-text', props: { variant: 'footnote' }, children: [{ $: 'proposal.summary' }] },
                     {
-                      type: 'Row',
-                      props: { gap: '200', ay: 'center' },
+                      type: 'we-alert',
+                      props: { variant: 'warning', appearance: 'accent', r: '300', px: '300', py: '300', gap: '300' },
                       children: [
                         {
-                          type: 'we-button',
-                          props: {
-                            size: 'xs',
-                            variant: 'secondary',
-                            onClick: { $action: 'modules.transcribe.acceptProposal', args: [{ $: 'proposal.id' }] },
-                          },
-                          children: ['Keep'],
-                        },
-                        {
-                          type: 'we-button',
-                          props: {
-                            size: 'xs',
-                            variant: 'ghost',
-                            onClick: { $action: 'modules.transcribe.rejectProposal', args: [{ $: 'proposal.id' }] },
-                          },
-                          children: ['Discard'],
+                          type: 'Column',
+                          props: { gap: '200', width: '100%' },
+                          children: [
+                            /*
+                              What kind of thing is being offered, in the model's own words and icon.
+
+                              Absent where the backend could not classify the base — an executor
+                              predating `subjectClassesOf` answers that way for everything — and the
+                              card falls back to the flat summary below rather than to a blank box.
+                            */
+                            {
+                              type: '$if',
+                              props: {
+                                condition: { $: `${DISPLAY}.label` },
+                                then: {
+                                  type: 'Row',
+                                  props: { gap: '100', ay: 'center' },
+                                  children: [
+                                    {
+                                      type: '$if',
+                                      props: {
+                                        condition: { $: `${DISPLAY}.icon` },
+                                        then: {
+                                          type: 'we-icon',
+                                          props: { size: 'xs', name: { $: `${DISPLAY}.icon` }, color: 'text-muted' },
+                                        },
+                                      },
+                                    },
+                                    {
+                                      type: 'we-text',
+                                      props: {
+                                        variant: 'footnote',
+                                        color: 'text-muted',
+                                        uppercase: true,
+                                        truncate: true,
+                                      },
+                                      children: [{ $: `${DISPLAY}.label` }],
+                                    },
+                                  ],
+                                },
+                              },
+                            },
+                            {
+                              // Editing, or reading. The controls replace the card's body rather than
+                              // sitting under it, so the thing being changed is the thing on screen.
+                              type: '$if',
+                              props: {
+                                condition: { $: 'modules.transcribe.editingProposal == proposal.id' },
+                                then: { type: 'Column', props: { gap: '200' }, children: [proposalEditor] },
+                                else: {
+                                  type: 'Column',
+                                  props: { gap: '100' },
+                                  children: [
+                                    /*
+                                      The model's title property, drawn as one — the whole reason this
+                                      stopped being a run-on line of `field: value` pairs.
+
+                                      Falls back to the flat summary where there is no model to ask,
+                                      which is the one case a card cannot do better than the old one.
+                                    */
+                                    {
+                                      type: '$if',
+                                      props: {
+                                        condition: { $: `${DISPLAY}.title` },
+                                        then: {
+                                          type: 'we-text',
+                                          props: { variant: 'footnote', fontWeight: '600' },
+                                          children: [roleValue('title')],
+                                        },
+                                        else: {
+                                          type: 'we-text',
+                                          props: { variant: 'footnote' },
+                                          children: [{ $: 'proposal.summary' }],
+                                        },
+                                      },
+                                    },
+                                    {
+                                      type: '$if',
+                                      props: {
+                                        condition: { $: `${DISPLAY}.summary && ${roleValue('summary').$}` },
+                                        then: {
+                                          type: 'we-text',
+                                          props: { variant: 'footnote', color: 'text-muted' },
+                                          children: [roleValue('summary')],
+                                        },
+                                      },
+                                    },
+                                    {
+                                      type: '$if',
+                                      props: { condition: { $: `${DISPLAY}.label` }, then: proposalDetail },
+                                    },
+                                  ],
+                                },
+                              },
+                            },
+                            {
+                              type: 'Row',
+                              props: { gap: '200', ay: 'center', wrap: true },
+                              children: [
+                                {
+                                  type: 'we-button',
+                                  props: {
+                                    size: 'xs',
+                                    variant: 'secondary',
+                                    onClick: {
+                                      $action: 'modules.transcribe.acceptProposal',
+                                      args: [{ $: 'proposal.id' }],
+                                    },
+                                  },
+                                  children: ['Keep'],
+                                },
+                                {
+                                  type: 'we-button',
+                                  props: {
+                                    size: 'xs',
+                                    variant: 'ghost',
+                                    onClick: {
+                                      $action: 'modules.transcribe.rejectProposal',
+                                      args: [{ $: 'proposal.id' }],
+                                    },
+                                  },
+                                  children: ['Discard'],
+                                },
+                                {
+                                  /*
+                                    Offered only where an edit could actually be written back: the
+                                    host has to lend a record-update surface and the backend has to
+                                    have said which model this is. Without either, Keep would take
+                                    the typing and silently drop it.
+                                  */
+                                  type: '$if',
+                                  props: {
+                                    condition: {
+                                      $: 'modules.transcribe.canEditProposals && proposal.entity',
+                                    },
+                                    then: {
+                                      type: '$if',
+                                      props: {
+                                        condition: { $: 'modules.transcribe.editingProposal == proposal.id' },
+                                        then: {
+                                          type: 'we-button',
+                                          props: {
+                                            size: 'xs',
+                                            variant: 'ghost',
+                                            onClick: { $action: 'modules.transcribe.cancelProposalEdit' },
+                                          },
+                                          children: ['Cancel'],
+                                        },
+                                        else: {
+                                          type: 'we-button',
+                                          props: {
+                                            size: 'xs',
+                                            variant: 'ghost',
+                                            onClick: {
+                                              $action: 'modules.transcribe.editProposal',
+                                              args: [{ $: 'proposal.id' }],
+                                            },
+                                          },
+                                          children: ['Edit'],
+                                        },
+                                      },
+                                    },
+                                  },
+                                },
+                              ],
+                            },
+                          ],
                         },
                       ],
                     },
@@ -788,8 +1092,23 @@ const extractedRows: SchemaNode = {
       },
       children: [
         {
+          /*
+            What the passes *wrote*, which is not the same as what they produced.
+
+            A staged `create` is a fully written record — the engine writes real values whenever no
+            human owns them and keeps the overlay only as provenance — so it answers this query like
+            any other, and every suggestion appeared twice: once above as a decision, and again here
+            among the settled results, indistinguishable from something already agreed to.
+
+            Filtered rather than excluded by the query, because "is this still awaiting a decision"
+            is not a property of the record and there is nothing in the graph to ask it about. The
+            list of pending ids is right here, and it is a handful.
+          */
           type: '$each',
-          props: { items: { $: 'local.found' }, as: 'item' },
+          props: {
+            items: { $: 'local.found.filter(r, !(r.id in modules.transcribe.proposals.map(p, p.id)))' },
+            as: 'item',
+          },
           children: [
             {
               type: 'Row',

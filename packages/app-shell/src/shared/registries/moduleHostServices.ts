@@ -140,6 +140,13 @@ export interface ModuleHostServices {
   ) => Promise<string | null>;
   /** Add one value to a to-many relation on an existing record. See `ModuleStoreDeps.linkEntity`. */
   linkEntity?: (entity: string, id: string, relation: string, value: string, options?: DatasetTarget) => Promise<void>;
+  /** Change named scalar fields of an existing record. See `ModuleStoreDeps.updateEntity`. */
+  updateEntity?: (
+    entity: string,
+    id: string,
+    fields: Record<string, unknown>,
+    options?: DatasetTarget,
+  ) => Promise<void>;
   /** This agent's own records, in the root dataset. See `AgentDataAccess`. */
   agentData?: AgentDataAccess;
   /** How the current dataset is named in a record reference. See `ModuleStoreDeps.datasetRefKey`. */
@@ -397,6 +404,10 @@ export function createModuleStoreDeps(framework: {
 
     linkEntity: async (entity, id, relation, value, options) => {
       await services.linkEntity?.(entity, id, relation, value, options);
+    },
+
+    updateEntity: async (entity, id, fields, options) => {
+      await services.updateEntity?.(entity, id, fields, options);
     },
   };
 }

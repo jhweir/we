@@ -41,6 +41,20 @@ export interface DisplayField {
   label: string;
   kind: DisplayKind;
   role: DisplayRole;
+  /**
+   * The values this field is allowed to hold, when the declaration closes the set — a task's
+   * `status`, a signal's `mode`. Empty for an open field.
+   *
+   * {@link kindFor} deliberately answers `'text'` for these, because a closed vocabulary *is* a
+   * string as far as drawing one goes. That is right for rendering and loses the one thing a caller
+   * needs to do anything better: a card cannot tell a state worth drawing as a badge from a free
+   * sentence, and an *edit* control cannot offer the choices — so it offers a text box, and
+   * somebody types "pending" into a field whose model only knows "todo".
+   *
+   * Carried rather than re-derived because the declaration is the only place the set exists, and a
+   * surface rendering a model it was not written for has no other way to ask.
+   */
+  options: string[];
 }
 
 export interface RecordDisplay {
@@ -134,6 +148,9 @@ export function displayFor(source: DisplaySource): RecordDisplay {
     label: humanise(name),
     kind: kindFor(name, properties[name]),
     role: name === title ? 'title' : name === summary ? 'summary' : name === media ? 'media' : 'detail',
+    // Stringified: a declaration may close a numeric set, and every consumer of this is a control
+    // or a label, both of which deal in strings.
+    options: (properties[name].options ?? []).map(String),
   }));
 
   return {

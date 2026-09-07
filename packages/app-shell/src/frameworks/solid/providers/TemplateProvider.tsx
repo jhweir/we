@@ -149,6 +149,11 @@ export default function TemplateProvider() {
     return getEntity(entity).create(perspective, fields, Object.keys(rest).length ? rest : undefined);
   }
 
+  /** The same, for `record.update` — `recordActions` resolves a store *path*, and a module has a handle. */
+  function updateInDataset(entity: string, id: string, fields: Record<string, unknown>, perspective: DatasetProxy) {
+    return getEntity(entity).update(perspective, id, fields);
+  }
+
   // The same capability schemas get as `record.create`, lent to module stores that must write
   // without a click to hang a schema action on — a transcript appears because somebody spoke.
   onCleanup(
@@ -226,6 +231,16 @@ export default function TemplateProvider() {
           return;
         }
         await (add as (v: string) => Promise<void>).call(instance, value);
+      },
+
+      // The scalar counterpart of `linkEntity`, resolved the same way `createEntity` is: a module
+      // names a dataset by URI, and an unresolvable name refuses rather than writing to whatever is
+      // on screen. See `ModuleStoreDeps.updateEntity` for why a module needs this when a schema's
+      // `record.update` already exists.
+      updateEntity: async (entity, id, fields, options) => {
+        const p = moduleTarget(options?.dataset);
+        if (!p) return;
+        await updateInDataset(entity, id, fields, p);
       },
     }),
   );

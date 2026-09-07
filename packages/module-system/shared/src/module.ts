@@ -919,10 +919,44 @@ export interface ModuleStoreDeps {
    * conflict-free by construction, which is what makes a call's participant list safe to build from
    * several agents at once with no coordination.
    *
-   * There is deliberately no general `update` here yet. When one arrives it will need an answer for
-   * concurrent writers, and this covers the add-only cases without pretending to have one.
+   * For scalar fields see {@link updateEntity}, which arrived later and answers the question this
+   * docstring used to leave open — read it before reaching for either.
    */
   linkEntity?: (entity: string, id: string, relation: string, value: string, options?: DatasetTarget) => Promise<void>;
+
+  /**
+   * Change the named scalar fields of a record in the current dataset, leaving the rest.
+   *
+   * ## The concurrent-writer question `linkEntity` deferred
+   *
+   * It asked for an answer before a general update landed. The answer is that there is no new
+   * hazard to answer for: this is the same last-write-wins-per-field write that `record.update`
+   * already performs, and `record.update` is reachable from **any** template in the deployment. A
+   * module store calling it is not a widening of what can happen to a record — it is the same
+   * capability reached from the other side of the data/code line.
+   *
+   * What it does not do is make a *list* safe. Appending by writing the whole array back is the
+   * read-modify-write that loses a concurrent writer's entry, which is exactly why `linkEntity` is
+   * add-one and stays the right call for a to-many relation. Use this for scalars.
+   *
+   * ## Why a module needs it at all
+   *
+   * A schema's `record.update` takes a field bag written as an object literal, so its **keys are
+   * fixed when the template is authored**. That is fine for a form over a known model and useless
+   * for one over a model the community defined this morning: there is no set of literal keys to
+   * write. The host's own answer to that is `recordStore`, which holds the draft in a store and
+   * writes it by name — and a module editing records of an open-ended set of models needs the same
+   * shape, which it cannot have without this.
+   *
+   * Honours `options.dataset` for {@link createEntity}'s reason: a module's work outlives the space
+   * on screen, so "the current dataset" is the wrong default for anything a call started.
+   */
+  updateEntity?: (
+    entity: string,
+    id: string,
+    fields: Record<string, unknown>,
+    options?: DatasetTarget,
+  ) => Promise<void>;
 
   /**
    * This module's own settings, resolved for where the agent is right now.

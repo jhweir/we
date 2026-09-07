@@ -78,24 +78,60 @@ function humanise(entity: string): string {
 /** How an extraction pass is going. `done` holds until the next run, so the result stays readable. */
 export type ExtractStatus = 'idle' | 'running' | 'done' | 'error';
 
+/** One proposed value, as a row a schema can render and an edit control can write back to. */
+export interface ProposalField {
+  /** The model's own property name — what an edit writes to, so it must not be prettified. */
+  name: string;
+  /** Ready to print: stringified and bounded. See {@link MAX_SUMMARY_VALUE}. */
+  value: string;
+}
+
 /**
- * One staged suggestion, flattened for display.
+ * One staged suggestion, in the pieces a card is built from.
  *
- * `summary` rather than the raw value map, because a schema `$each` cannot iterate an object's
- * entries and a person deciding whether to keep a suggestion needs to read it, not inspect it. Built
- * here so the panel stays declarative — the alternative was a template that knew which field of a
- * task to show first, which is knowledge about models rather than about layout.
+ * ## Why this is a list and not the value map
+ *
+ * A schema `$each` cannot iterate an object's entries, so a map of proposed values is unrenderable
+ * however well-shaped it is. The list is ordered here rather than in the panel because "lead with
+ * what identifies it" is knowledge about models, not about layout — see {@link SUMMARY_FIELDS}.
+ *
+ * ## Why `summary` survives alongside it
+ *
+ * It is the degraded rendering, not a duplicate. A card draws a title, a badge and a description by
+ * asking `recordStore.displays[entity]` which property plays each role — and {@link entity} is
+ * absent whenever the backend could not classify the base, which is every proposal on an executor
+ * predating `subjectClassesOf`. One flat line is a worse card and a much better outcome than a blank
+ * one, so the panel falls back to it rather than refusing to draw a decision somebody has to make.
  */
 export interface ProposalView {
   id: string;
   /** `create` proposed a whole record; `update` proposed changes to one that exists. */
   kind: string;
-  /** What it says, in the order a reader wants it: what it is, then the detail. */
+  /**
+   * Which model this is a suggestion of, or `''` when the backend could not say.
+   *
+   * Empty rather than absent so a schema can test it — an expression reads a missing property as
+   * undefined and a card would branch correctly either way, but every other string on this view is
+   * always present and one that sometimes is not invites a template to read it without checking.
+   */
+  entity: string;
+  /** The proposed values, identifying field first. */
+  fields: ProposalField[];
+  /** All of it on one line, for a card with no model to draw from. */
   summary: string;
 }
 
-/** Field names worth leading with, most identifying first. Anything else follows in map order. */
-const SUMMARY_FIELDS = ['title', 'text', 'name', 'startDate', 'dueDate', 'assignee', 'location'];
+/**
+ * Field names worth leading with, most identifying first. Anything else follows in map order.
+ *
+ * `label` is here because two models genuinely call their title that — `EmbedBlock` and
+ * `Relationship` — and a proposal of one used to lead with whatever came first in the map instead.
+ * It read as a bug in the ordering and was one in the *naming*: the backend resolved every
+ * `we://title` to `label` regardless of model, so a task's title never matched `title` either. That
+ * is fixed where it arose (see `NameTables` in `interpretationAdapter.ts`); this entry is what the
+ * list should always have said, for the two models where `label` is the honest word.
+ */
+const SUMMARY_FIELDS = ['title', 'label', 'text', 'name', 'startDate', 'dueDate', 'assignee', 'location'];
 
 /** Flatten a proposal's values into one readable line. */
 /**
@@ -112,14 +148,17 @@ const SUMMARY_FIELDS = ['title', 'text', 'name', 'startDate', 'dueDate', 'assign
 const MAX_SUMMARY_VALUE = 120;
 const MAX_SUMMARY_LENGTH = 400;
 
-function summarise(values: Record<string, unknown>): string {
+const cut = (text: string, limit: number) => (text.length > limit ? `${text.slice(0, limit - 1)}…` : text);
+
+/** The proposed values as rows, identifying field first — the ordering `summarise` then prints in. */
+function fieldsOf(values: Record<string, unknown>): ProposalField[] {
   const named = SUMMARY_FIELDS.filter((field) => values[field] !== undefined && values[field] !== '');
   const rest = Object.keys(values).filter((field) => !SUMMARY_FIELDS.includes(field));
-  const cut = (text: string, limit: number) => (text.length > limit ? `${text.slice(0, limit - 1)}…` : text);
-  const line = [...named, ...rest]
-    .map((field) => `${cut(field, 40)}: ${cut(String(values[field]), MAX_SUMMARY_VALUE)}`)
-    .join(' · ');
-  return cut(line, MAX_SUMMARY_LENGTH);
+  return [...named, ...rest].map((name) => ({ name, value: cut(String(values[name]), MAX_SUMMARY_VALUE) }));
+}
+
+function summarise(fields: ProposalField[]): string {
+  return cut(fields.map((f) => `${cut(f.name, 40)}: ${f.value}`).join(' · '), MAX_SUMMARY_LENGTH);
 }
 
 /**
@@ -240,6 +279,7 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     settings,
     createEntity,
     linkEntity,
+    updateEntity,
     dataset,
     presence,
     selfId,
@@ -329,6 +369,22 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
    * re-reading the whole set and without the row a user is looking at jumping.
    */
   const [proposals, setProposals] = signal<ProposalView[]>([]);
+  /**
+   * Which suggestion is being edited, and what has been typed into it.
+   *
+   * ## Why the draft lives here and not in the panel's `$localState`
+   *
+   * The fields come from the model, so there is no set of names a schema could declare. A community
+   * defines a shape in the morning and a pass proposes one that afternoon; `$localState` names its
+   * fields when the template is *written*, which is strictly too early. This is the same reason
+   * `recordStore` holds its draft in a store and writes it with `setRecordField(name, value)` — one
+   * action serving every control is the only shape that works when the controls come from data.
+   *
+   * One draft rather than one per row: only one card is open at a time, and a map keyed by id would
+   * make "discard what was typed" ambiguous between closing a card and resolving it.
+   */
+  const [editingProposal, setEditingProposal] = signal('');
+  const [proposalDraft, setProposalDraft] = signal<Record<string, string>>({});
   /**
    * Why the standing watch is not running, when it is not.
    *
@@ -579,6 +635,38 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
    * `undefined` when there is no call or no anchor, which the host reads as "the space on screen" —
    * the behaviour everything here had before, and the right one when nothing says otherwise.
    */
+  function closeProposalEdit(): void {
+    setEditingProposal('');
+    setProposalDraft({});
+  }
+
+  /**
+   * What the reviewer actually changed, or null if nothing.
+   *
+   * Only the differences, so accepting an untouched card writes nothing — the draft is seeded from
+   * the proposal, so sending it wholesale would rewrite every field with the value it already had.
+   * That would be invisible on screen and wrong underneath: each write is a link the whole
+   * neighbourhood syncs, and a record would look edited by whoever merely opened it.
+   *
+   * Compared against the *displayed* value, which is truncated (see {@link MAX_SUMMARY_VALUE}). A
+   * value long enough to have been cut therefore reads as changed the moment the card is opened and
+   * accepted — the ellipsis would be committed as the real value. So a field is only counted when
+   * what was typed differs from what was shown **and** what was shown is not itself an elision.
+   */
+  function changedFields(id: string): Record<string, string> | null {
+    const proposal = proposals().find((p) => p.id === id);
+    if (!proposal) return null;
+    const draft = proposalDraft();
+    const changed: Record<string, string> = {};
+    for (const field of proposal.fields) {
+      const typed = draft[field.name];
+      if (typed === undefined || typed === field.value) continue;
+      if (field.value.endsWith('…') && typed === field.value.slice(0, -1)) continue;
+      changed[field.name] = typed;
+    }
+    return Object.keys(changed).length ? changed : null;
+  }
+
   function callTarget(): { dataset: string } | undefined {
     const uri = myCall()?.datasetUri;
     return uri ? { dataset: uri } : undefined;
@@ -673,7 +761,12 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
       // screen, so "proposals here" was answering about wherever the reader had wandered to. The
       // collection narrows it from that space to one conversation.
       const staged = await interpretation.proposals(callTarget(), collection ?? collectionId() ?? undefined);
-      setProposals(staged.map((p) => ({ id: p.id, kind: p.kind, summary: summarise(p.values) })));
+      setProposals(
+        staged.map((p) => {
+          const fields = fieldsOf(p.values);
+          return { id: p.id, kind: p.kind, entity: p.entity ?? '', fields, summary: summarise(fields) };
+        }),
+      );
     } catch {
       setProposals([]);
     }
@@ -1789,6 +1882,23 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     liveCollectionId: () => collectionId() ?? '',
     /** Suggestions staged for review. Empty is the ordinary case — see `refreshProposals`. */
     proposals,
+    /** The suggestion open for editing, or '' when none is. Compare it against a row's own id. */
+    editingProposal,
+    /**
+     * What has been typed into the open draft, keyed by the model's property name.
+     *
+     * Read a field with an index — `modules.transcribe.proposalDraft[field.name]` — because the keys
+     * come from the model and a template cannot name them. Empty when nothing is being edited.
+     */
+    proposalDraft,
+    /**
+     * Whether an edited suggestion can actually be written back on accept.
+     *
+     * False where the host lends no record-update surface, or where the backend could not say which
+     * model the suggestion is of — an edit needs the entity name to write to. Gate the edit control
+     * on it rather than offering one whose Keep would silently discard what was typed.
+     */
+    canEditProposals: () => !!updateEntity,
     /**
      * Why auto-extraction is not running here, or empty when it is.
      *
@@ -1940,15 +2050,63 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
      * a resolved overlay is gone. `false` means somebody else resolved it first — the record is
      * still out of the list either way, so it drops locally without complaint.
      */
+    /**
+     * Keep a suggestion — as proposed, or as edited.
+     *
+     * ## Why the edit is applied *after* the accept, never before
+     *
+     * Accepting means "the LLM's staged value becomes the real, human-owned value, and the overlay
+     * is deleted". So a write made first is a write the accept then overwrites, silently, with the
+     * model's version — the edit would appear to work and be gone a tick later.
+     *
+     * Ordering it this way also lands on the right side of the executor's own rule: deleting the
+     * overlay *is* the lock. Once it is gone the divergence gate treats the record as human-owned,
+     * so a later pass over the same conversation will not quietly overwrite what was typed here.
+     *
+     * There is no window worth worrying about for a `create`, which is the common case: the engine
+     * writes real values whenever no human owns them, so the record has been on the board with the
+     * model's wording since the pass ran. The accept changes nothing visible and the edit lands
+     * immediately after it.
+     *
+     * A failed update leaves the suggestion accepted rather than rolling back, and says so. That is
+     * the honest state — the decision was recorded and only the wording did not land — and the
+     * record is now an ordinary one the reviewer can edit anywhere it appears.
+     */
     acceptProposal: async (id: string) => {
       if (!interpretation) return;
+      const edited = editingProposal() === id ? changedFields(id) : null;
       await interpretation.accept(id, undefined, callTarget());
+      const entity = proposals().find((p) => p.id === id)?.entity;
       setProposals(proposals().filter((p) => p.id !== id));
+      // Only if the draft belonged to *this* card. Keeping one suggestion must not throw away what
+      // was typed into another one that happens to be open beside it.
+      if (editingProposal() === id) closeProposalEdit();
+      if (!edited || !entity || !updateEntity) return;
+      try {
+        // The call's space, exactly as the accept just used — a call outlives the space on screen.
+        await updateEntity(entity, id, edited, callTarget());
+      } catch (error) {
+        console.warn('transcribe: kept the suggestion but could not apply the edit —', error);
+      }
     },
+    /** Open one suggestion for editing, seeded with what the model proposed. */
+    editProposal: (id: string) => {
+      const proposal = proposals().find((p) => p.id === id);
+      if (!proposal) return;
+      setProposalDraft(Object.fromEntries(proposal.fields.map((f) => [f.name, f.value])));
+      setEditingProposal(id);
+    },
+    /** Set one field of the open draft. Takes the name, so one action serves every control. */
+    setProposalField: (name: string, value: string) => setProposalDraft({ ...proposalDraft(), [name]: value }),
+    /** Close the open draft, discarding what was typed. */
+    cancelProposalEdit: () => closeProposalEdit(),
     rejectProposal: async (id: string) => {
       if (!interpretation) return;
       await interpretation.reject(id, undefined, callTarget());
       setProposals(proposals().filter((p) => p.id !== id));
+      // Whatever was typed into it went with it. Leaving the draft open would leave a card's worth
+      // of edits attached to an id that no longer resolves.
+      if (editingProposal() === id) closeProposalEdit();
     },
     /** Write what has been heard so far without waiting for the buffer to fill. */
     flushNow: () => flush(),

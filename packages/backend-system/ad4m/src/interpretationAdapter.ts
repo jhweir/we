@@ -129,24 +129,50 @@ function withTime(turns: TranscriptTurn[]): { speaker: string; text: string }[] 
 }
 
 /**
- * Build predicate → property-name over every shape the perspective knows.
+ * Predicate → property-name, per model, with a flat table for a base whose model is unknown.
  *
- * Flat across classes rather than per class, because an overlay names a base and its predicates but
- * not the class it belongs to, so there is nothing to index by. Collisions are benign in the only
- * way they occur in practice: `we://title` is `title` on `TaskBlock` and on `EventBlock` alike. Two
- * schemas that genuinely disagreed about what one predicate is called would resolve to whichever was
- * registered first — worth knowing, not worth a lookup that cannot be made correct without the class.
+ * ## Why per model, when it used to be flat
+ *
+ * Reading a predicate back to a name is one-to-many, and only the class settles which. Predicates
+ * are shared *on purpose* — `entities/CONVENTIONS.md` says to prefer generic reusable ones, because
+ * that is what lets `?node we://title ?t` span every kind of block — so several models legitimately
+ * name one predicate differently: `we://title` is `title` on eight models and `label` on
+ * `EmbedBlock` and `Relationship`.
+ *
+ * A flat table has to pick one, and picked whichever registered first. `Relationship` is third in
+ * `SPACE_MODELS`, so `we://title` resolved to `label` for **every proposal in the app** — a task's
+ * title was printed under a relationship's field name, and the summary that leads with `title` then
+ * matched nothing and fell through to raw map order. Neither symptom pointed at the cause.
+ *
+ * So the tables are built per model and indexed by the class the base actually belongs to.
+ * {@link flat} remains for a base that could not be classified: it is exactly the old behaviour, and
+ * it is correct for every predicate only one model declares — which is 142 of 146 of them.
  */
-async function predicateNames(perspective: PerspectiveProxy): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
+interface NameTables {
+  /** Model name → its own predicate → name mapping. */
+  byEntity: Map<string, Map<string, string>>;
+  /** First-registered-wins across every model, for a base whose class is unknown. */
+  flat: Map<string, string>;
+}
+
+async function predicateNames(perspective: PerspectiveProxy): Promise<NameTables> {
+  const tables: NameTables = { byEntity: new Map(), flat: new Map() };
+
+  const absorb = (entity: string, properties: { path?: string; name?: string }[]) => {
+    const own = tables.byEntity.get(entity) ?? new Map<string, string>();
+    tables.byEntity.set(entity, own);
+    for (const p of properties) {
+      if (!p.path || !p.name) continue;
+      own.set(p.path, p.name);
+      if (!tables.flat.has(p.path)) tables.flat.set(p.path, p.name);
+    }
+  };
 
   for (const name of getRegisteredEntityNames()) {
     const shape = (
       getEntity(name) as unknown as { generateSHACL?: () => { shape: { properties?: unknown[] } } }
     ).generateSHACL?.().shape;
-    for (const p of (shape?.properties ?? []) as { path?: string; name?: string }[]) {
-      if (p.path && p.name && !map.has(p.path)) map.set(p.path, p.name);
-    }
+    absorb(name, (shape?.properties ?? []) as { path?: string; name?: string }[]);
   }
 
   // Shapes only this perspective has — a module's entities, or a foreign app's. Best-effort: a
@@ -157,15 +183,64 @@ async function predicateNames(perspective: PerspectiveProxy): Promise<Map<string
     for (const shapeName of await perspective.getShaclNames()) {
       if (native.has(shapeName)) continue; // already covered above, without the round trip
       const shape = await perspective.getShacl(shapeName);
-      for (const p of (shape?.properties ?? []) as { path?: string; name?: string }[]) {
-        if (p.path && p.name && !map.has(p.path)) map.set(p.path, p.name);
-      }
+      absorb(shapeName, (shape?.properties ?? []) as { path?: string; name?: string }[]);
     }
   } catch {
     // Leave what we have.
   }
 
-  return map;
+  return tables;
+}
+
+/**
+ * The two hard-wired classes the interpretation machinery instantiates over a base it is
+ * describing, rather than models anybody proposed.
+ *
+ * The overlay is deliberately written **over the same base URI** as the instance it annotates (see
+ * `overlay/mod.rs`: "one extra subject class instantiated over the same base URI"). So asking what
+ * classes a staged base belongs to answers with the record's model *and* `InterpretationOverlay`,
+ * and the ordering between them is by how many triples each requires — which is not a fact anybody
+ * chose and could put the overlay first. Naming a proposal's model `InterpretationOverlay` would be
+ * absurd on screen and would send an edit to a class with none of the fields being edited.
+ */
+const INTERPRETATION_CLASSES = new Set(['InterpretationOverlay', 'InterpretationRun']);
+
+/**
+ * Which model each of these bases is an instance of.
+ *
+ * Answered by the executor, which decides membership structurally — a base belongs to every class
+ * whose required triples it carries — and returns them most specific first. That is the right
+ * question here: a staged `create` is a fully written record (the engine writes real values when no
+ * human owns them and keeps the overlay as provenance), so it carries its model's flags like any
+ * other instance.
+ *
+ * One RPC for the whole list rather than one per proposal, because the review list is a handful of
+ * rows arriving together and a round trip each would make the panel's open cost scale with how
+ * productive the last pass was.
+ *
+ * Degrades to an empty map on **any** failure, which is the honest answer for the two ways this can
+ * go wrong and cannot be told apart from here: an executor predating `subjectClassesOf` refuses the
+ * method, and a working one can still fail transiently. Neither is worth losing the review list
+ * over — a proposal with no model is still a real decision waiting on somebody, and the caller falls
+ * back to the flat name table. Unlike `runtimeSupportsInterpretation` this cannot be probed by
+ * feature-detecting the client: the method exists on every `PerspectiveProxy` we compile against,
+ * so only the call itself can tell us.
+ */
+async function entitiesOf(perspective: PerspectiveProxy, bases: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!bases.length) return out;
+  let classes: Record<string, string[]>;
+  try {
+    classes = await perspective.subjectClassesOf(bases);
+  } catch (error) {
+    if (!isMissingHandler(error)) console.warn('interpretation: could not classify staged records —', error);
+    return out;
+  }
+  for (const [base, names] of Object.entries(classes ?? {})) {
+    const model = (names ?? []).find((name) => !INTERPRETATION_CLASSES.has(name));
+    if (model) out.set(base, model);
+  }
+  return out;
 }
 
 /**
@@ -777,17 +852,26 @@ export function createAd4mInterpretationPort(selfId?: () => string | undefined):
       if (!overlays.length) return [];
 
       const wanted = scope ? await scopeFilter(perspective, scope) : () => true;
-      const names = await predicateNames(perspective);
-      return overlays
-        .filter((o) => wanted(o.base))
-        .map((o) => {
-          const values: Record<string, unknown> = {};
-          for (const [predicate, value] of o.inferred ?? []) {
-            const name = names.get(predicate);
-            if (name) values[name] = decode(value);
-          }
-          return { id: o.base, kind: o.kind, values };
-        });
+      const staged = overlays.filter((o) => wanted(o.base));
+      const [names, entities] = await Promise.all([
+        predicateNames(perspective),
+        entitiesOf(
+          perspective,
+          staged.map((o) => o.base),
+        ),
+      ]);
+      return staged.map((o) => {
+        const entity = entities.get(o.base);
+        // The model's own names where the model is known, the dataset-wide table where it is not.
+        // See `NameTables` for why the difference matters more than it looks.
+        const table = (entity && names.byEntity.get(entity)) || names.flat;
+        const values: Record<string, unknown> = {};
+        for (const [predicate, value] of o.inferred ?? []) {
+          const name = table.get(predicate) ?? names.flat.get(predicate);
+          if (name) values[name] = decode(value);
+        }
+        return { id: o.base, kind: o.kind, ...(entity ? { entity } : {}), values };
+      });
     },
 
     async accept(dataset: DatasetHandle, id: string, property?: string): Promise<boolean> {

@@ -1107,7 +1107,7 @@ describe('staged suggestions', () => {
   });
 
   function interpreterWith(
-    staged: Array<{ id: string; kind: string; values: Record<string, unknown> }>,
+    staged: Array<{ id: string; kind: string; entity?: string; values: Record<string, unknown> }>,
     proposed: string[] = staged.map((s) => s.id),
   ) {
     const resolved: Array<{ action: 'accept' | 'reject'; id: string }> = [];
@@ -1261,6 +1261,145 @@ describe('staged suggestions', () => {
 
     expect(h.store.extractStatus()).toBe('done');
     expect(h.store.proposals()).toEqual([]);
+  });
+
+  it('carries the model a suggestion is of, so a card can name and draw it', async () => {
+    const i = interpreterWith([{ id: 'task-1', kind: 'create', entity: 'TaskBlock', values: { title: 'One' } }]);
+    const h = harness(inCall, { interpretation: i.port });
+    await h.say('hello');
+
+    await h.store.extract();
+
+    expect(h.store.proposals()[0].entity).toBe('TaskBlock');
+  });
+
+  it("says '' rather than nothing when the backend could not classify the base", async () => {
+    /*
+      An executor predating `subjectClassesOf` answers every proposal this way, and the card still
+      has to draw: it falls back to the flat summary. Empty rather than absent so a schema can test
+      it without reading a sometimes-missing property.
+    */
+    const i = interpreterWith([{ id: 'task-1', kind: 'create', values: { title: 'One' } }]);
+    const h = harness(inCall, { interpretation: i.port });
+    await h.say('hello');
+
+    await h.store.extract();
+
+    expect(h.store.proposals()[0].entity).toBe('');
+    expect(h.store.proposals()[0].summary).toBe('title: One');
+  });
+
+  it('offers the values as rows, identifying field first', async () => {
+    // A schema `$each` cannot iterate an object's entries, so the map is unrenderable however
+    // well-shaped it is. The order is the same one `summary` prints in.
+    const i = interpreterWith([
+      { id: 'task-1', kind: 'create', entity: 'TaskBlock', values: { status: 'todo', title: 'One' } },
+    ]);
+    const h = harness(inCall, { interpretation: i.port });
+    await h.say('hello');
+
+    await h.store.extract();
+
+    expect(h.store.proposals()[0].fields).toEqual([
+      { name: 'title', value: 'One' },
+      { name: 'status', value: 'todo' },
+    ]);
+  });
+
+  it('writes an edit after the accept, never before', async () => {
+    /*
+      Accepting makes the model's staged value the real one and deletes the overlay, so a write made
+      first is a write the accept then silently overwrites. Ordering it this way also lands after the
+      overlay is gone, which is what stops a later pass overwriting what was typed.
+    */
+    const order: string[] = [];
+    const i = interpreterWith([
+      { id: 'task-1', kind: 'create', entity: 'TaskBlock', values: { title: 'Shp the docs' } },
+    ]);
+    const accept = i.port.accept;
+    i.port.accept = async (id: string) => {
+      order.push('accept');
+      return accept(id);
+    };
+    const updates: Array<{ entity: string; id: string; fields: Record<string, unknown> }> = [];
+    const h = harness(inCall, {
+      interpretation: i.port,
+      updateEntity: async (entity: string, id: string, fields: Record<string, unknown>) => {
+        order.push('update');
+        updates.push({ entity, id, fields });
+      },
+    });
+    await h.say('hello');
+    await h.store.extract();
+
+    h.store.editProposal('task-1');
+    h.store.setProposalField('title', 'Ship the docs');
+    await h.store.acceptProposal('task-1');
+
+    expect(order).toEqual(['accept', 'update']);
+    expect(updates).toEqual([{ entity: 'TaskBlock', id: 'task-1', fields: { title: 'Ship the docs' } }]);
+  });
+
+  it('writes nothing when the card was opened and not changed', async () => {
+    // The draft is seeded from the proposal, so sending it wholesale would rewrite every field with
+    // the value it already had — invisible on screen, and a link the whole neighbourhood syncs.
+    let wrote = 0;
+    const i = interpreterWith([
+      { id: 'task-1', kind: 'create', entity: 'TaskBlock', values: { title: 'One', status: 'todo' } },
+    ]);
+    const h = harness(inCall, { interpretation: i.port, updateEntity: async () => void wrote++ });
+    await h.say('hello');
+    await h.store.extract();
+
+    h.store.editProposal('task-1');
+    await h.store.acceptProposal('task-1');
+
+    expect(wrote).toBe(0);
+  });
+
+  it('keeps the suggestion accepted when the edit cannot be written', async () => {
+    // The decision was recorded and only the wording did not land. Rolling the accept back would
+    // re-raise a question the reviewer already answered.
+    const i = interpreterWith([{ id: 'task-1', kind: 'create', entity: 'TaskBlock', values: { title: 'One' } }]);
+    const h = harness(inCall, {
+      interpretation: i.port,
+      updateEntity: async () => {
+        throw new Error('offline');
+      },
+    });
+    await h.say('hello');
+    await h.store.extract();
+
+    h.store.editProposal('task-1');
+    h.store.setProposalField('title', 'Two');
+    await h.store.acceptProposal('task-1');
+
+    expect(i.resolved).toEqual([{ action: 'accept', id: 'task-1' }]);
+    expect(h.store.proposals()).toEqual([]);
+  });
+
+  it('forgets the draft when the suggestion it belonged to is rejected', async () => {
+    // Otherwise a card's worth of edits stays attached to an id that no longer resolves.
+    const i = interpreterWith([{ id: 'task-1', kind: 'create', entity: 'TaskBlock', values: { title: 'One' } }]);
+    const h = harness(inCall, { interpretation: i.port, updateEntity: async () => {} });
+    await h.say('hello');
+    await h.store.extract();
+
+    h.store.editProposal('task-1');
+    h.store.setProposalField('title', 'Two');
+    await h.store.rejectProposal('task-1');
+
+    expect(h.store.editingProposal()).toBe('');
+    expect(h.store.proposalDraft()).toEqual({});
+  });
+
+  it('refuses to offer editing where nothing could write the result back', async () => {
+    // A host lending no record-update surface. An edit control here would take the typing and
+    // discard it on Keep, which is worse than not offering one.
+    const i = interpreterWith([{ id: 'task-1', kind: 'create', entity: 'TaskBlock', values: { title: 'One' } }]);
+    const h = harness(inCall, { interpretation: i.port });
+
+    expect(h.store.canEditProposals()).toBe(false);
   });
 });
 

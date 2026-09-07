@@ -119,9 +119,34 @@ export interface InterpretationProposal {
   /** Whether the model authored the whole instance, or proposed changes to an existing one. */
   kind: 'create' | 'update';
   /**
+   * Which model this is a suggestion of — `'TaskBlock'`, or a shape the community defined.
+   *
+   * ## Why a proposal has to say
+   *
+   * Without it a review surface can show the *values* and nothing about what they are: no icon, no
+   * model name, and no way to write an edit back, since every record mutation takes the entity name
+   * first. A reviewer reads "status: todo" with no indication whether they are being offered a task,
+   * an event or something this community invented last week.
+   *
+   * It is also what makes {@link values} legible at all. A predicate is shared across models on
+   * purpose (`we://title` is `title` on eight of them and `label` on two), so reading it back to a
+   * name is one-to-many and only the class settles it. An adapter without the class has to guess,
+   * and guessing wrong is silent: the name it picks is the one a UI prints and an edit writes to.
+   *
+   * Optional because it is not always knowable. A backend that cannot classify an instance, or a
+   * base belonging to a model this dataset has not registered, leaves it absent rather than
+   * inventing one — and a consumer should degrade to showing the values alone rather than refusing
+   * the proposal, which is still a real decision waiting on somebody.
+   */
+  entity?: string;
+  /**
    * Proposed values, keyed by the host's property name (`'title'`) rather than the backend
    * predicate — so a UI can render "title: Ship the docs" without knowing what `we://title` is.
    * Properties the adapter cannot map back to a name are omitted rather than shown raw.
+   *
+   * Resolved against {@link entity} where it is known, so a name is the one *that model* uses. Where
+   * it is not, the mapping falls back to whatever the dataset's shapes agree on, which is right for
+   * the predicates only one model declares and arbitrary for the few that several do.
    */
   values: Record<string, unknown>;
 }
