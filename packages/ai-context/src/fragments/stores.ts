@@ -378,6 +378,7 @@ export const storeEntries: StoreEntry[] = [
       'setSignalTypeRetired',
       'createTaskState',
       'setTaskStateRetired',
+      'reorderTaskStates',
       'upsertSignal',
       'navigateToSpace',
       'openRecordRef',
@@ -1073,6 +1074,8 @@ export function generateStoresText(entries: StoreEntry[]): string {
           'createTaskState(config: { name, semantic?, color? }): names a state this community\u2019s work moves through — "Blocked", "In review". The counterpart to createSignalType one concept along. The FIRST one also writes down the defaults, so adding a state never silently becomes replacing them: a space that had three implicit states and gained one would otherwise have exactly one. Slug derived from the name; it is what tasks store, so it is not editable afterwards',
         setTaskStateRetired:
           'setTaskStateRetired(stateId: string, retired: boolean): withdraws a state from use, or brings it back. Never touches the work sitting in it — a task names its state by slug, so deleting the state would leave the work holding a word nothing defines. The same decision setSignalTypeRetired makes',
+        reorderTaskStates:
+          'reorderTaskStates(orderedIds: string[]): sets the order this community reads its states in — which is the order of a board\u2019s columns. An ordered relation rather than a number on each state, so two people reordering at once converge instead of one write discarding the other. A state the order does not mention still appears, after the ones it does. Pair with we-sortable\u2019s onReorder and pass { $: "arg.detail" }',
         unreadNodeIds:
           'string[] — ids of containers in this space holding something newer than your read marker. The read side of `ReadMarker`: use it for unread dots with `{ "$": "channel.id in spaceStore.unreadNodeIds" }` rather than recomputing a `$latestChild` projection and a comparison per row',
         myMentions:

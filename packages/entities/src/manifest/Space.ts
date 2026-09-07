@@ -3,6 +3,8 @@ import type { CoreEntityDef } from './defs';
 export const Space: CoreEntityDef = {
   base: 'WeNode',
   optional: ['avatar', 'coverImage', 'location', 'url'],
+  // `setTaskStates` is how a column drag writes the community's order — see the relation below.
+  methodRelations: ['taskStates'],
   entity: {
     flag: { predicate: 'we://flag', value: 'we://space' },
     properties: {
@@ -150,6 +152,26 @@ export const Space: CoreEntityDef = {
     },
     relations: {
       location: { target: 'LocationBlock', cardinality: 'one', predicate: 'we://location' },
+      /**
+       * The order this community reads its task states in — and only the order.
+       *
+       * Position hints over a membership defined elsewhere, the same shape a board's `children` have
+       * over the tasks a state gathers, and the same shape AD4M's ordering entries have over the
+       * links they order. A state is a state because a `TaskState` record exists, not because it is
+       * listed here; one that is not listed still appears, after the ones that are, sorted by what it
+       * counts as.
+       *
+       * That is what keeps reordering safe on a shared space. It is a relation rather than a number
+       * on each state, so two people dragging columns at the same moment converge instead of writing
+       * the same position and losing one of the answers — which is the whole reason this relation is
+       * `ordered` and the reason a `position` scalar was refused.
+       */
+      taskStates: {
+        target: 'TaskState',
+        cardinality: 'many',
+        predicate: 'we://task_state_order',
+        ordered: true,
+      },
     },
   },
 };

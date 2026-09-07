@@ -2252,6 +2252,7 @@ Space extends WeNode:
   - shareExtractionDetail: boolean = false [we://share_extraction_detail]
   Relations:
   - location: HasOne → LocationBlock [we://location]
+  - taskStates: HasMany → TaskState [we://task_state_order]
 
 SpacePreference extends WeNode:
   Fields:
@@ -2881,6 +2882,7 @@ SpaceStore:
   - setSignalTypeRetired(signalTypeId: string, retired: boolean): withdraws a signal type from use, or brings it back. Never deletes the signals given with it — a signal names its type by record id while templates resolve it by slug, so DELETING a type strands every reaction ever given and re-creating one with the same slug does not restore them. Retiring is the reversible version: the type stops being offered, existing counts keep working, and un-retiring brings everything back. Filter the offered list with OFFERED_SIGNAL_TYPES from @we/template-kit; leave find()-by-slug unfiltered so history still resolves
   - createTaskStatecreateTaskState(config: { name, semantic?, color? }): names a state this community’s work moves through — "Blocked", "In review". The counterpart to createSignalType one concept along. The FIRST one also writes down the defaults, so adding a state never silently becomes replacing them: a space that had three implicit states and gained one would otherwise have exactly one. Slug derived from the name; it is what tasks store, so it is not editable afterwards
   - setTaskStateRetiredsetTaskStateRetired(stateId: string, retired: boolean): withdraws a state from use, or brings it back. Never touches the work sitting in it — a task names its state by slug, so deleting the state would leave the work holding a word nothing defines. The same decision setSignalTypeRetired makes
+  - reorderTaskStatesreorderTaskStates(orderedIds: string[]): sets the order this community reads its states in — which is the order of a board’s columns. An ordered relation rather than a number on each state, so two people reordering at once converge instead of one write discarding the other. A state the order does not mention still appears, after the ones it does. Pair with we-sortable’s onReorder and pass { $: "arg.detail" }
   - upsertSignal(nodeId: string, signalTypeId: string, value: number): adds or updates a signal on a node; value=0 deletes it
   - navigateToSpace(spaceId: string, view?: string): navigates to a space — accepts a perspective UUID or a neighbourhood CID (sharedUrl without the neighbourhood:// prefix); pre-loads space templates before switching so the template and data arrive together
   - openRecordRef(ref: string): goes to whatever a record reference names — the space, and the record's own page within it. Takes the whole `we:…` reference rather than its parts, so nothing outside the host restates where a record's page lives. A reference naming only a dataset opens the space; a relative one (`we:./…`) resolves against the space on screen; a person has no page, so nothing happens

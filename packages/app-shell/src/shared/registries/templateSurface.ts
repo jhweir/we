@@ -434,6 +434,7 @@ export const TEMPLATE_SURFACE: Record<string, Record<string, Classification>> = 
     */
     createTaskState: action('signals'),
     setTaskStateRetired: action('signals'),
+    reorderTaskStates: action('signals'),
 
     // ── navigation ──
     spaceList: state('navigation'),

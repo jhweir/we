@@ -764,6 +764,11 @@ export interface SpaceStore {
   createTaskState: (config: { name: string; semantic?: 'open' | 'active' | 'done'; color?: string }) => Promise<void>;
   /** Withdraw a state from use, or bring it back. Never touches the work sitting in it. */
   setTaskStateRetired: (stateId: string, retired: boolean) => Promise<void>;
+  /**
+   * Set the order this community reads its states in — the order of a board's columns. An ordered
+   * relation, so two people reordering at once converge rather than one write discarding the other.
+   */
+  reorderTaskStates: (orderedIds: string[]) => Promise<void>;
   upsertSignal: (nodeId: string, signalTypeId: string, value: number) => Promise<void>;
   navigateToSpace: (spaceId: string, view?: string) => Promise<void>;
   openRecordRef: (ref: string) => Promise<void>;
@@ -2278,6 +2283,7 @@ export function SpaceStoreProvider(props: ParentProps) {
   */
   const [ownTaskStates, setOwnTaskStates] = createSignal<TaskStateView[]>([]);
   const [taskStatesLoaded, setTaskStatesLoaded] = createSignal(false);
+  const [taskStateOrder, setTaskStateOrder] = createSignal<string[]>([]);
 
   async function loadTaskStates(): Promise<void> {
     const dataset = datasetStore.currentDataset()?.handle;
@@ -2296,6 +2302,10 @@ export function SpaceStoreProvider(props: ParentProps) {
       await ports.ensure(dataset, TaskState as never);
       const records = await TaskState.findAll(dataset);
       if (datasetStore.currentDataset()?.id !== uuid) return; // navigated away while loading
+      // The community's chosen order, which is a separate fact from which states exist — see
+      // `Space.taskStates`. A state missing from it is still a state; it simply has no position.
+      const order = (currentSpace()?.taskStates as string[] | undefined) ?? [];
+      setTaskStateOrder(Array.isArray(order) ? order : []);
       setOwnTaskStates(
         records.map((r: TaskState) => ({
           id: r.id,
@@ -2338,8 +2348,23 @@ export function SpaceStoreProvider(props: ParentProps) {
           retired: false,
           defined: false,
         }));
+    /*
+      The community's own order where it has one, and what a state *counts as* where it has not.
+
+      Position hints over a membership, one more time: a state the order does not mention is not
+      dropped, it follows the ones it does — which is what lets a newly named state appear at all
+      without anybody having to arrange the columns first.
+    */
+    const chosen = taskStateOrder();
     const rank: Record<string, number> = { open: 0, active: 1, done: 2 };
-    return [...states].sort((a, b) => (rank[a.semantic] ?? 0) - (rank[b.semantic] ?? 0));
+    const at = (state: TaskStateView) => {
+      const i = state.id ? chosen.indexOf(state.id) : -1;
+      return i === -1 ? Number.POSITIVE_INFINITY : i;
+    };
+    return [...states].sort((a, b) => {
+      if (at(a) !== at(b)) return at(a) < at(b) ? -1 : 1;
+      return (rank[a.semantic] ?? 0) - (rank[b.semantic] ?? 0);
+    });
   });
 
   /** The states a person should be offered — the same list, without the withdrawn ones. */
@@ -2432,6 +2457,36 @@ export function SpaceStoreProvider(props: ParentProps) {
     } catch (error) {
       console.error('SpaceStore: could not create task state', error);
       toastService.error('Could not add that state');
+    }
+  }
+
+  /**
+   * Set the order this community reads its states in — what a column drag on the board writes.
+   *
+   * An ordered relation rather than a number on each state, which is the difference between a
+   * reorder that survives two people doing it at once and one where the second write silently
+   * discards the first. It is the same reason a card's position lives on the board rather than on
+   * the task, and the capability the model layer gained for exactly this.
+   *
+   * Writes only the states that exist as records. A space still on the defaults has nothing to
+   * order — they have no ids — so the first act of reordering has to name them first, the same way
+   * the first `createTaskState` does.
+   */
+  async function reorderTaskStates(orderedIds: string[]): Promise<void> {
+    const p = datasetStore.currentDataset()?.handle;
+    const space = currentSpace();
+    if (!p || !space?.id || !Array.isArray(orderedIds)) return;
+    const known = new Set(ownTaskStates().map((state) => state.id));
+    const ids = orderedIds.filter((id) => known.has(id));
+    if (!ids.length) return;
+    try {
+      const record = await Space.findOne(p, { where: { id: space.id } });
+      if (!record) return;
+      await record.setTaskStates(ids);
+      setTaskStateOrder(ids);
+    } catch (error) {
+      console.error('SpaceStore: could not reorder task states', error);
+      toastService.error('Could not save that order');
     }
   }
 
@@ -4019,6 +4074,7 @@ export function SpaceStoreProvider(props: ParentProps) {
     setSignalTypeRetired,
     createTaskState,
     setTaskStateRetired,
+    reorderTaskStates,
     upsertSignal,
     navigateToSpace,
     openRecordRef,

@@ -208,12 +208,41 @@ export const taskStatesSection: SchemaNode = sectionCard({
   },
   children: [
     {
-      // From the store rather than a `$query`, because the list a space *uses* is not the list it
-      // has written down: with none defined it is the defaults, and a query would show nothing at
-      // all on exactly the spaces that most need explaining.
-      type: '$each',
-      props: { items: { $: 'spaceStore.taskStates' }, as: 'state' },
-      children: [stateRow],
+      /*
+        Drag to reorder, which is the order a board's columns appear in.
+
+        Written as an ordered relation on the space rather than a number on each state — so two
+        people reordering at once converge instead of one write discarding the other. That is the
+        same reason a card's position lives on the board rather than on the task.
+
+        Locked until the space has states of its own: the defaults have no records and so nothing to
+        order, and the first state named writes all of them down.
+      */
+      type: 'we-sortable',
+      props: {
+        direction: 'vertical',
+        width: '100%',
+        locked: { $: '!first(spaceStore.taskStates).defined' },
+        onReorder: { $action: 'spaceStore.reorderTaskStates', args: [{ $: 'arg.detail' }] },
+      },
+      children: [
+        {
+          // From the store rather than a `$query`, because the list a space *uses* is not the list
+          // it has written down: with none defined it is the defaults, and a query would show
+          // nothing at all on exactly the spaces that most need explaining.
+          type: '$each',
+          props: { items: { $: 'spaceStore.taskStates' }, as: 'state' },
+          children: [
+            {
+              // `data-we-id` on a native element: a component's props are assigned as DOM
+              // properties, so the attribute the sortable looks for would never exist on one.
+              type: 'div',
+              props: { 'data-we-id': { $: 'state.id' }, style: { width: '100%' } },
+              children: [stateRow],
+            },
+          ],
+        },
+      ],
     },
     createModal,
   ],

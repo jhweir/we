@@ -274,7 +274,11 @@ export interface SpaceRecord extends WeNodeRecord {
   moduleSettings: string;
   shareExtractionDetail: boolean;
   location?: LocationBlockRecord;
+  taskStates: string[];
   setLocation(value: LocationBlockRecord): Promise<unknown>;
+  addTaskStates(value: string | { id: string }, batch?: string): Promise<unknown>;
+  removeTaskStates(value: string | { id: string }, batch?: string): Promise<unknown>;
+  setTaskStates(values: (string | { id: string })[], batch?: string): Promise<unknown>;
 }
 
 export interface SpacePreferenceRecord extends WeNodeRecord {

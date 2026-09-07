@@ -1844,7 +1844,10 @@ export const contextData: ContextData = {
           default: 'false',
         },
       ],
-      relations: [{ name: 'location', kind: 'HasOne', predicate: 'we://location', target: 'LocationBlock' }],
+      relations: [
+        { name: 'location', kind: 'HasOne', predicate: 'we://location', target: 'LocationBlock' },
+        { name: 'taskStates', kind: 'HasMany', predicate: 'we://task_state_order', target: 'TaskState' },
+      ],
     },
     {
       name: 'SpacePreference',
@@ -2845,6 +2848,7 @@ export const contextData: ContextData = {
         'setSignalTypeRetired',
         'createTaskState',
         'setTaskStateRetired',
+        'reorderTaskStates',
         'upsertSignal',
         'navigateToSpace',
         'openRecordRef',

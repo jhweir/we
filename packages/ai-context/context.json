@@ -5114,6 +5114,12 @@
           "kind": "HasOne",
           "predicate": "we://location",
           "target": "LocationBlock"
+        },
+        {
+          "name": "taskStates",
+          "kind": "HasMany",
+          "predicate": "we://task_state_order",
+          "target": "TaskState"
         }
       ]
     },
@@ -7051,6 +7057,7 @@
         "setSignalTypeRetired",
         "createTaskState",
         "setTaskStateRetired",
+        "reorderTaskStates",
         "upsertSignal",
         "navigateToSpace",
         "openRecordRef",
