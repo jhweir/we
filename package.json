@@ -9,7 +9,7 @@
     "validate:seed": "node scripts/validate-seed.cjs",
     "check:source-consumers": "node scripts/check-source-consumers.mjs",
     "validate:schemas": "pnpm --filter @we/schema-shared validate",
-    "prepare": "pnpm --filter @we/cli run bootstrap && husky",
+    "prepare": "pnpm --filter @we/cli run bootstrap && husky && node scripts/install-merge-driver.mjs",
     "clean": "find . -name 'node_modules' -type d -prune -exec rm -rf '{}' + && find . -name 'dist' -type d -prune -exec rm -rf '{}' + && pnpm store prune",
     "build": "pnpm -r --workspace-concurrency=1 run build",
     "build:web": "pnpm --filter '@we/app-web...' --workspace-concurrency=1 run build",
@@ -52,7 +52,16 @@
     "overrides": {
       "@coasys/ad4m": "0.13.0-test-interpretation-2",
       "@coasys/ad4m-connect": "0.13.0-test-interpretation-2",
-      "prettier": "3.9.6"
+      "prettier": "3.9.6",
+      "@xmldom/xmldom": ">=0.9.12",
+      "app-builder-lib": ">=26.15.0",
+      "brace-expansion@<1.1.18": ">=1.1.18",
+      "brace-expansion@>=4.0.0 <5.0.9": ">=5.0.9",
+      "esbuild@>=0.27.3 <0.28.1": ">=0.28.1",
+      "builder-util-runtime": ">=9.7.0",
+      "fast-uri": ">=3.1.6",
+      "qs": ">=6.16.0",
+      "tar": ">=7.5.21"
     }
   }
 }

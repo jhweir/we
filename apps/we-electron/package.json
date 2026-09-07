@@ -37,7 +37,7 @@
     "@we/brand": "workspace:*",
     "@we/cli": "workspace:*",
     "concurrently": "^10.0.5",
-    "electron": "^33.4.11",
+    "electron": "^44.2.0",
     "electron-builder": "^26.15.3",
     "solid-js": "^1.9.15",
     "typescript": "^5.7.2",
