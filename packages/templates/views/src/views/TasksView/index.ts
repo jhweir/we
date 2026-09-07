@@ -210,9 +210,26 @@ const column = (spec: (typeof COLUMNS)[number]): SchemaNode => ({
         `group` is what lets the three columns exchange cards while leaving every other sortable on
         the page — the space sidebar, for one — out of it.
 
-        `index` is deliberately ignored. Ordering within a column needs a conflict-free position
-        (the AD4M CRDT work), and a `position` scalar written now is a shape that design supersedes.
-        So a drag across columns persists and a drag within one is visual until then.
+        `index` is deliberately ignored, so a drag across columns persists and a drag within one is
+        visual only.
+
+        This used to say it was waiting on the AD4M CRDT ordering work. That has landed, and it is
+        not enough — the note was pointing at the wrong thing. Ordering is a property of a
+        *relation's membership*: the array you assign to a relation is the array you get back. A
+        column here is a **query**, `where: { status }` over every `TaskBlock` in the space, and a
+        filtered query has no membership to order. There is nothing for an ordering to attach to.
+
+        What is actually undecided is whether a column is a query or a container. Make it a
+        container — a `CollectionBlock` per column, tasks as its `children`, status expressed by
+        which one holds them — and order comes free, a cross-column drag becomes `moveChild`, and
+        `we-sortable`'s `index` starts meaning something. The cost is that a task then has to be
+        *placed* to appear at all, so a `TaskBlock` written by extraction or by any other surface
+        stops showing up here until something parents it, and `status` becomes a denormalised copy
+        of where it lives. That is a modelling decision about what a board *is*, not a missing
+        capability, and it should be made deliberately rather than arrived at by adding a scalar.
+
+        A `position` scalar remains the wrong answer for the reason it always was: two people
+        reordering the same column write the same numbers and one of them loses.
       */
     {
       type: 'we-sortable',
