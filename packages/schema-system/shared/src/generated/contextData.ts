@@ -222,7 +222,7 @@ export const contextData: ContextData = {
       tagName: 'we-html',
       className: 'Html',
       description:
-        'Renders a raw HTML string safely via DOMPurify sanitization.\n\nUse this instead of `we-text` when content is stored as HTML (e.g. rich-text\neditor output such as Flux messages). The `content` prop accepts any HTML\nfragment; it is sanitized before rendering so XSS payloads are stripped.',
+        'Renders a raw HTML string safely via DOMPurify sanitization.\n\nUse this instead of `we-text` when content is stored as HTML (e.g. rich-text\neditor output such as Flux messages). The `content` prop accepts any HTML\nfragment; it is sanitized before rendering so XSS payloads are stripped.\n\n## SVG animation: CSS keyframes, not SMIL\n\nInline SVG passes through, and so does animation written as CSS — a `<style>` block with\n`@keyframes` inside the SVG, or a `<animateMotion>` following a path. **A SMIL `<animate>` or\n`<set>` element does not**: DOMPurify\'s default allowlist excludes them, so they are removed and\nthe drawing renders static.\n\nThat exclusion is deliberate and stays. `<set attributeName="href" to="javascript:…">` is a real\nXSS vector against an `<a>`, which is precisely the shape of payload this element exists to\nstrip — and SMIL is a dead end besides, deprecated in spirit and unevenly implemented, where CSS\nanimation is neither.\n\nWhat was wrong was not the policy but the silence: an author wrote something reasonable, it\ntypechecked, it validated, and it did nothing, with no diagnostic anywhere. warnAboutSmil\nis the diagnostic. It says what was dropped and what to write instead, once per element, in\ndevelopment only.',
       superclass: 'DesignSystemElement',
       ownProps: [{ name: 'content', type: 'string', optional: false, default: "''" }],
     },
@@ -503,6 +503,7 @@ export const contextData: ContextData = {
         { name: 'maxHeight', type: 'string', optional: false, default: "''" },
         { name: 'maxWidth', type: 'string', optional: false, default: "''" },
         { name: 'pin', type: "'' | 'end'", optional: false, default: "''" },
+        { name: 'jump', type: "'' | 'start' | 'end' | 'both'", optional: false, default: "''" },
       ],
     },
     {
@@ -1116,6 +1117,20 @@ export const contextData: ContextData = {
       ],
       source: 'components',
     },
+    {
+      name: 'Canvas',
+      superclass: 'DesignSystemElement',
+      props: [
+        { name: 'artboard', type: '{ width: number; height: number; }', optional: false },
+        { name: 'fit', type: '"contain" | "none" | "stretch" | "scale"', optional: true },
+        {
+          name: 'onMeasure',
+          type: '((box: { width: number; height: number; scale: number; }) => void)',
+          optional: true,
+        },
+      ],
+      source: 'components',
+    },
     { name: 'Card', superclass: 'DesignSystemElement', props: [], source: 'components' },
     {
       name: 'CodeEditor',
@@ -1351,6 +1366,21 @@ export const contextData: ContextData = {
           optional: true,
         },
         {
+          name: 'onEdgeRetarget',
+          type: '((payload: { id: string; end: "source" | "target"; nodeId: string; nodeType: string; recordId?: string; recordType?: string; }) => void)',
+          optional: true,
+        },
+        {
+          name: 'onEdgeReroute',
+          type: '((payload: { id: string; points: EdgeWaypoint[]; recordId?: string; recordType?: string; }) => void)',
+          optional: true,
+        },
+        {
+          name: 'onEdgeAnchor',
+          type: '((payload: { id: string; end: "source" | "target"; side: "" | "n" | "e" | "s" | "w"; recordId?: string; recordType?: string; }) => void)',
+          optional: true,
+        },
+        {
           name: 'onEdgeCreate',
           type: '((payload: { source: GraphNode; target: GraphNode; sourceId: string; sourceType: string; targetId: string; targetType: string; sourceLabel: string; targetLabel: string; }) => void)',
           optional: true,
@@ -1536,7 +1566,15 @@ export const contextData: ContextData = {
         { name: 'version', type: 'number', predicate: 'we://version', required: false },
         { name: 'textContent', type: 'string', predicate: 'we://text_content', required: false },
       ],
-      relations: [{ name: 'children', kind: 'HasMany', predicate: 'we://children' }],
+      relations: [
+        { name: 'children', kind: 'HasMany', predicate: 'we://children' },
+        {
+          name: 'extractionPasses',
+          kind: 'HasMany',
+          predicate: 'we://extraction_pass_record',
+          target: 'ExtractionPass',
+        },
+      ],
     },
     {
       name: 'DividerBlock',
@@ -1547,6 +1585,17 @@ export const contextData: ContextData = {
         { name: 'version', type: 'number', predicate: 'we://version', required: false },
       ],
       relations: [],
+    },
+    {
+      name: 'EdgeRoute',
+      className: 'EdgeRoute',
+      extends: 'Ad4mModel',
+      fields: [
+        { name: 'sourceAnchor', type: 'string', predicate: 'we://source_anchor', required: false },
+        { name: 'targetAnchor', type: 'string', predicate: 'we://target_anchor', required: false },
+        { name: 'points', type: 'json', predicate: 'we://route_points', required: false },
+      ],
+      relations: [{ name: 'connection', kind: 'HasOne', predicate: 'we://routed_connection' }],
     },
     {
       name: 'EmbedBlock',
@@ -1656,6 +1705,8 @@ export const contextData: ContextData = {
         { name: 'width', type: 'number', predicate: 'we://width', required: false },
         { name: 'height', type: 'number', predicate: 'we://height', required: false },
         { name: 'contentScale', type: 'number', predicate: 'we://content_scale', required: false },
+        { name: 'rotation', type: 'number', predicate: 'we://rotation', required: false },
+        { name: 'z', type: 'number', predicate: 'we://z', required: false },
         { name: 'color', type: 'string', predicate: 'we://color', required: false },
         { name: 'cardShape', type: 'string', predicate: 'we://card_shape', required: false },
       ],
@@ -1905,6 +1956,18 @@ export const contextData: ContextData = {
         { name: 'overrides', type: 'string', predicate: 'we://token_overrides', required: false, default: 'null' },
       ],
       relations: [{ name: 'screenshots', kind: 'HasMany', predicate: 'we://screenshot', target: 'ImageBlock' }],
+    },
+    {
+      name: 'ExtractionPass',
+      className: 'ExtractionPass',
+      extends: 'Ad4mModel',
+      fields: [
+        { name: 'outcome', type: 'string', predicate: 'we://outcome', required: false, default: "'done'" },
+        { name: 'recordCount', type: 'number', predicate: 'we://record_count', required: false },
+        { name: 'targets', type: 'string', predicate: 'we://extraction_targets', required: false },
+        { name: 'error', type: 'string', predicate: 'we://error', required: false },
+      ],
+      relations: [],
     },
     {
       name: 'TypeStyle',
@@ -2363,6 +2426,9 @@ export const contextData: ContextData = {
         'placeOnBoard',
         'removeFromBoard',
         'resizeOnBoard',
+        'anchorOnBoard',
+        'rerouteOnBoard',
+        'retargetOnBoard',
         'setCardStyle',
         'previewCardStyle',
         'setTypeColor',

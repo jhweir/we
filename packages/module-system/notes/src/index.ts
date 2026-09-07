@@ -49,6 +49,7 @@
  * keeps `@we/schema-shared` framework-neutral.
  */
 import { defineModule, type ModuleStoreDeps } from '@we/module-shared';
+import { panelShell } from '@we/schema-kit';
 import { type SchemaNode } from '@we/schema-shared';
 
 import { NOTE_MANIFEST, NOTE_PREDICATES } from './Note';
@@ -119,43 +120,38 @@ const panel: SchemaNode = {
     // for its space — and it arrives with the marketplace, alongside consent. Until then a module's
     // chrome appears in every space, which is fine while modules are first-party and bundled.
     condition: { $: 'datasetStore.currentDataset && modules.notes.open' },
+    /*
+      Fills the box the host gave it, and names itself the way every panel does.
+
+      It used to position itself — `fixed`, `right: 48px`, a hardcoded copy of the module rail's
+      width — which meant it overlaid the space rather than making room in it, sat on top of the
+      editor's controls, and stayed put when a docked call panel took the edge out from under it.
+      All three are the host's job; see `docks` below. The box and the header are `panelShell`'s
+      now; the close button went the same way, to the host's titlebar via `close` on the dock
+      contribution, so every panel has one in one place at one size.
+
+      Spread rather than called plainly, because this root carries a `$queries` of its own — the
+      collection every note hangs off, subscribed once for the whole panel. See `collectionId`.
+    */
     then: {
-      type: 'Column',
-      // The collection every note hangs off, subscribed once for the whole panel — see `collectionId`.
-      $queries: { notesCollection: { entity: 'CollectionBlock', where: { kind: NOTES_KIND }, limit: 1 } },
-      props: {
-        /**
-         * Fills the box the host gave it. It used to position itself — `fixed`, `right: 48px`, a
-         * hardcoded copy of the module rail's width — which meant it overlaid the space rather than
-         * making room in it, sat on top of the editor's controls, and stayed put when a docked call
-         * panel took the edge out from under it. All three are the host's job; see `docks` below.
-         */
-        width: '100%',
-        height: '100%',
-        p: '400',
-        gap: '400',
-        overflow: 'hidden',
-      },
-      children: [
-        // A title and nothing else. The close button was here, drawn by this module inside its own
-        // content; it is on the host's titlebar now, declared by `close` on the dock contribution —
-        // so every panel has one, in one place, at one size.
-        { type: 'we-text', props: { variant: 'heading-sm' }, children: ['Notes'] },
-        {
-          type: 'Column',
-          props: { gap: '300' },
-          $localState: { draft: { type: 'string', initial: '' } },
-          children: [
-            {
-              type: 'we-textarea',
-              props: {
-                value: { $: 'local.draft' },
-                placeholder: 'Jot something down…',
-                rows: 3,
-                onInput: { $setLocal: 'draft', value: { $: 'event.detail' } },
+      ...panelShell({
+        title: 'Notes',
+        children: [
+          {
+            type: 'Column',
+            props: { gap: '300' },
+            $localState: { draft: { type: 'string', initial: '' } },
+            children: [
+              {
+                type: 'we-textarea',
+                props: {
+                  value: { $: 'local.draft' },
+                  placeholder: 'Jot something down…',
+                  rows: 3,
+                  onInput: { $setLocal: 'draft', value: { $: 'event.detail' } },
+                },
               },
-            },
-            /*
+              /*
               Two buttons, identical to look at, because the first note in a space has to make the
               collection before it has somewhere to go.
 
@@ -166,96 +162,96 @@ const panel: SchemaNode = {
               No CRUD wrapper either way: `record.create` is already in the stores bag, and a module
               reaching for its own persistence layer would be duplicating the data port.
             */
-            {
-              type: '$if',
-              props: {
-                condition: collectionId,
-                then: {
-                  type: 'we-button',
-                  props: {
-                    size: 'sm',
-                    onClick: [
-                      {
-                        $action: 'record.create',
-                        args: [
-                          'TextBlock',
-                          { text: { $: 'local.draft' } },
-                          { parent: { id: collectionId, predicate: CHILDREN_PREDICATE } },
-                        ],
-                      },
-                      { $setLocal: 'draft', value: '' },
-                    ],
+              {
+                type: '$if',
+                props: {
+                  condition: collectionId,
+                  then: {
+                    type: 'we-button',
+                    props: {
+                      size: 'sm',
+                      onClick: [
+                        {
+                          $action: 'record.create',
+                          args: [
+                            'TextBlock',
+                            { text: { $: 'local.draft' } },
+                            { parent: { id: collectionId, predicate: CHILDREN_PREDICATE } },
+                          ],
+                        },
+                        { $setLocal: 'draft', value: '' },
+                      ],
+                    },
+                    children: ['Add note'],
                   },
-                  children: ['Add note'],
-                },
-                // First note here. Create the collection, then hang the note off whatever id comes
-                // back — chained rather than fired together, since the second needs the first's
-                // result and two parallel creates would race to make two collections.
-                else: {
-                  type: 'we-button',
-                  props: {
-                    size: 'sm',
-                    onClick: [
-                      {
-                        $action: 'record.create',
-                        // `mode: 'feed'` is what stops `reconcileBlocks` ever running here: notes
-                        // accumulate from whoever is in the space, so treating one writer's tree
-                        // as the whole truth would delete everyone else's.
-                        args: ['CollectionBlock', { kind: NOTES_KIND, type: 'collection', mode: 'feed' }],
-                        onSuccess: [
-                          {
-                            $action: 'record.create',
-                            args: [
-                              'TextBlock',
-                              { text: { $: 'local.draft' } },
-                              { parent: { id: { $: 'result.id' }, predicate: CHILDREN_PREDICATE } },
-                            ],
-                          },
-                          { $setLocal: 'draft', value: '' },
-                        ],
-                      },
-                    ],
+                  // First note here. Create the collection, then hang the note off whatever id comes
+                  // back — chained rather than fired together, since the second needs the first's
+                  // result and two parallel creates would race to make two collections.
+                  else: {
+                    type: 'we-button',
+                    props: {
+                      size: 'sm',
+                      onClick: [
+                        {
+                          $action: 'record.create',
+                          // `mode: 'feed'` is what stops `reconcileBlocks` ever running here: notes
+                          // accumulate from whoever is in the space, so treating one writer's tree
+                          // as the whole truth would delete everyone else's.
+                          args: ['CollectionBlock', { kind: NOTES_KIND, type: 'collection', mode: 'feed' }],
+                          onSuccess: [
+                            {
+                              $action: 'record.create',
+                              args: [
+                                'TextBlock',
+                                { text: { $: 'local.draft' } },
+                                { parent: { id: { $: 'result.id' }, predicate: CHILDREN_PREDICATE } },
+                              ],
+                            },
+                            { $setLocal: 'draft', value: '' },
+                          ],
+                        },
+                      ],
+                    },
+                    children: ['Add note'],
                   },
-                  children: ['Add note'],
                 },
               },
-            },
-          ],
-        },
-        {
-          type: 'we-scroll-area',
-          children: [
-            {
-              type: 'Column',
-              props: { gap: '300' },
-              children: [
-                // The notes themselves — the collection's children, newest first.
-                {
-                  type: '$if',
-                  props: {
-                    condition: collectionId,
-                    then: {
-                      type: '$each',
-                      // Live query — the renderer handles subscription and reactivity, so the module
-                      // needs neither a notes array nor a refresh method. Scoped to the collection
-                      // rather than filtered, because a drill-down from an anchor is the traversal
-                      // the query layer does natively; a `TextBlock` query with no scope would pick
-                      // up every paragraph of every post in the space.
-                      props: {
-                        items: {
-                          $query: {
-                            entity: 'TextBlock',
-                            scope: { anchor: 'CollectionBlock', via: 'children', anchorId: collectionId },
-                            order: { createdAt: 'desc' },
+            ],
+          },
+          {
+            type: 'we-scroll-area',
+            children: [
+              {
+                type: 'Column',
+                props: { gap: '300' },
+                children: [
+                  // The notes themselves — the collection's children, newest first.
+                  {
+                    type: '$if',
+                    props: {
+                      condition: collectionId,
+                      then: {
+                        type: '$each',
+                        // Live query — the renderer handles subscription and reactivity, so the module
+                        // needs neither a notes array nor a refresh method. Scoped to the collection
+                        // rather than filtered, because a drill-down from an anchor is the traversal
+                        // the query layer does natively; a `TextBlock` query with no scope would pick
+                        // up every paragraph of every post in the space.
+                        props: {
+                          items: {
+                            $query: {
+                              entity: 'TextBlock',
+                              scope: { anchor: 'CollectionBlock', via: 'children', anchorId: collectionId },
+                              order: { createdAt: 'desc' },
+                            },
                           },
+                          as: 'note',
                         },
-                        as: 'note',
+                        children: [noteCard('TextBlock')],
                       },
-                      children: [noteCard('TextBlock')],
                     },
                   },
-                },
-                /*
+                  /*
                   Notes written before a note was a `TextBlock`.
 
                   Read, never written. They are shown in the same list rather than behind a "legacy"
@@ -263,16 +259,19 @@ const panel: SchemaNode = {
                   storage change is not their problem. Deleting still works, so the set drains on its
                   own; when it is empty everywhere, this block and `Note.ts` go together.
                 */
-                {
-                  type: '$each',
-                  props: { items: { $query: { entity: 'Note' } }, as: 'note' },
-                  children: [noteCard('Note')],
-                },
-              ],
-            },
-          ],
-        },
-      ],
+                  {
+                    type: '$each',
+                    props: { items: { $query: { entity: 'Note' } }, as: 'note' },
+                    children: [noteCard('Note')],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+      // The collection every note hangs off, subscribed once for the whole panel.
+      $queries: { notesCollection: { entity: 'CollectionBlock', where: { kind: NOTES_KIND }, limit: 1 } },
     },
   },
 };

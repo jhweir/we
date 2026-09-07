@@ -91,6 +91,27 @@ describe('evaluation', () => {
     expect(run("item.role == 'admin'", roots)).toBe(true);
   });
 
+  it('reaches a keyed namespace through an index, not only through a dot', () => {
+    /*
+      `a[b]` is `a.b` with the name computed, and for a while it was not: `readIndex` settled the
+      object first, and settling turns a namespace into `undefined` — so a store keying its answers
+      by an id it cannot enumerate was reachable one way and invisible the other.
+
+      Invisible is the word. `modules.transcribe.extractionFor[<call>].targets` came back undefined,
+      `count(undefined)` is 0, and the extraction panel said "No models are set up for AI extraction
+      here" — a sentence about the space, for a fault in the evaluator. Nothing warned, because a
+      missing path is undefined by design.
+    */
+    const keyed = namespace((key) => ({ targets: [key], canExtract: key !== 'empty' }));
+    const roots = { store: namespace((member) => (member === 'byId' ? markReactive(() => keyed) : undefined)) };
+
+    expect(run("store.byId['we://a-call'].targets", roots)).toEqual(['we://a-call']);
+    expect(run("store.byId['we://a-call'].canExtract", roots)).toBe(true);
+    // The name is an expression, which is the whole reason an index is needed rather than a dot.
+    expect(run('store.byId[item.id].targets', { ...roots, item: { id: 'we://another' } })).toEqual(['we://another']);
+    expect(run("count(store.byId['we://a-call'].targets)", roots)).toBe(1);
+  });
+
   it('is total on bad input', () => {
     expect(run('missing.deep.path')).toBeUndefined();
     expect(run('1 / 0')).toBe(0);

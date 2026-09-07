@@ -1,4 +1,5 @@
 // Layout
+export { type Artboard, Canvas, type CanvasFit, type CanvasProps } from '../../components/layout/Canvas/Canvas.solid';
 export { Card, type CardProps } from '../../components/layout/Card/Card.solid';
 export {
   CollapsedContent,

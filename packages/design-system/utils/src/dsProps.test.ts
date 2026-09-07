@@ -17,9 +17,12 @@ import {
   BASE_LAYOUT_SPECS,
   BASE_TYPOGRAPHY_SPECS,
   buildLayoutStyles,
+  buildStateFragmentStyles,
+  composeTransform,
   declCSS,
   designSystemKeys,
   filterProps,
+  INTERACTIVE_SPECS,
   mapFlexAxes,
   mergeProps,
   parseBorder,
@@ -179,6 +182,58 @@ describe('buildLayoutStyles', () => {
   });
 });
 
+describe('composeTransform', () => {
+  it('says nothing when there is nothing to say', () => {
+    expect(composeTransform({})).toBeUndefined();
+    expect(composeTransform({ transform: '' })).toBeUndefined();
+  });
+
+  it('passes an explicit transform through untouched', () => {
+    expect(composeTransform({ transform: 'skew(4deg)' })).toBe('skew(4deg)');
+  });
+
+  it('reads a bare number as px, and a bare rotation as degrees', () => {
+    expect(composeTransform({ x: 40, y: 120 })).toBe('translate(40px, 120px)');
+    expect(composeTransform({ rotate: -3 })).toBe('rotate(-3deg)');
+  });
+
+  it('keeps one translate when only one axis is given', () => {
+    expect(composeTransform({ x: 40 })).toBe('translate(40px, 0)');
+    expect(composeTransform({ y: 40 })).toBe('translate(0, 40px)');
+  });
+
+  it('places at zero rather than treating it as absent', () => {
+    // `0` is a coordinate, and the falsy-number trap is exactly how a card at the origin ends up
+    // drawn wherever the flow happened to put it.
+    expect(composeTransform({ x: 0, y: 0 })).toBe('translate(0px, 0px)');
+  });
+
+  it('takes a unit-carrying string verbatim', () => {
+    expect(composeTransform({ x: '2rem', rotate: '0.25turn' })).toBe('translate(2rem, 0) rotate(0.25turn)');
+  });
+
+  it('reads a numeric string as a number — an attribute took the long way round', () => {
+    // `<we-image x="40">` arrives here as a string. `40` is not a valid CSS length, so passing it
+    // through verbatim would make the whole declaration invalid and drop the rotation with it.
+    expect(composeTransform({ x: '40', rotate: '-3' })).toBe('translate(40px, 0) rotate(-3deg)');
+  });
+
+  it('places and turns first, then does what the caller asked', () => {
+    // The other order rotates the frame the offsets are measured in, so `x` would mean something
+    // different at every angle.
+    expect(composeTransform({ x: 10, rotate: 5, transform: 'scale(2)' })).toBe(
+      'translate(10px, 0) rotate(5deg) scale(2)',
+    );
+  });
+
+  it('reaches the computed style, which is what tiers and states are built from', () => {
+    expect(buildLayoutStyles({ x: 40, y: 120, rotate: -3 }, 'column').transform).toBe(
+      'translate(40px, 120px) rotate(-3deg)',
+    );
+    expect(buildStateFragmentStyles({ x: 8 }, 'column').transform).toBe('translate(8px, 0)');
+  });
+});
+
 describe('overflow-wrap default', () => {
   /**
    * The bug this exists for: a transcriber emitted one 200-character "word" into a call card, and
@@ -260,5 +315,37 @@ describe('overflow on [part="base"]', () => {
     expect(stateDeclCSS('--we-modal-hover-', '--we-modal-', spec)).toBe(
       'overflow-x: var(--we-modal-hover-overflow-x, var(--we-modal-overflow-x, var(--we-modal-overflow)));',
     );
+  });
+});
+
+describe('what the state and tier axes cover', () => {
+  /*
+    `INTERACTIVE_SPECS` is the surface both varying axes share — the state bags and the tier bags go
+    through the same `toInteractiveVars` pipeline over it. So this table is the answer to "does
+    `mdUpProps: { left: '300px' }` do anything", and the answer is no.
+
+    Locked down rather than merely commented because the failure is silent in every direction: the
+    bag is `Partial<DesignSystemProps>` so it typechecks, the validator accepts any DS prop in a
+    tier bag, and an unwritten variable renders as the base value — which looks exactly like a
+    breakpoint that has not been crossed yet.
+  */
+  const covered = new Set(INTERACTIVE_SPECS.map(([cssProp]) => cssProp));
+
+  it('excludes positioning, on both axes', () => {
+    for (const cssProp of ['position', 'top', 'right', 'bottom', 'left']) {
+      expect(covered.has(cssProp)).toBe(false);
+    }
+  });
+
+  it('covers transform, which is how a tier moves something instead', () => {
+    // The `x`/`y`/`rotate` props compose into this one, so they tier and state for free — and are
+    // the only spelling of "put it there" that does.
+    expect(covered.has('transform')).toBe(true);
+  });
+
+  it('covers the rest of the box a breakpoint usually changes', () => {
+    for (const cssProp of ['width', 'height', 'z-index', 'padding', 'gap', 'font-size']) {
+      expect(covered.has(cssProp)).toBe(true);
+    }
   });
 });

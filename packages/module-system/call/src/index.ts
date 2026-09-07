@@ -686,6 +686,16 @@ const stage: SchemaNode = {
         Padding the wrapper insets the scroller by that padding, so the scrollbar sits 12px in, clear
         of the handle, and the inset stays symmetrical — which a gutter added to one side would not.
       */
+      /*
+        The one panel that does not name itself, and the exception is deliberate.
+
+        Every other panel opens with `panelHeader` — see `@we/schema-kit`. This one draws pictures of
+        people, which need every pixel of the panel they are given, and the height maths is exact:
+        `dockAspect` subtracts `STAGE_PADDING_PX` and `STAGE_GAP_PX` so that "fit to content" lands
+        on a box the tiles fit rather than one that squeezes them, and a header row is a height no
+        schema here could tell it about. A stage of faces is also the one panel nobody has to be
+        told the name of.
+      */
       type: 'Column',
       props: {
         width: '100%',

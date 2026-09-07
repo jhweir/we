@@ -31,6 +31,12 @@ export {
   reifiedEdgeFrom,
 } from './reified';
 export { boardSeed, type BoardSeedOptions, PLACEMENT_UNSET, placementStyle } from './board';
+/*
+  Exported because the board is not the only surface that will ask a set of placements where a node
+  sits — a freeform canvas asks the same question of the same records, and "which of these applies"
+  is a rule rather than a query, so the two must not answer it differently.
+*/
+export { type PlacementRow, placementsFor, resolvePlacement } from './placements';
 export { datasetSeed, querySeed, schemaSeed } from './seeds';
 export type { QuerySeedOptions, SchemaSeedOptions } from './seeds';
 

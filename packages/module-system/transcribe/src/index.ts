@@ -76,6 +76,7 @@ import {
   extractionTargets,
   panel,
   pendingUtterance,
+  SUBJECT_EXPR,
   transcriptFeed,
   transcriptLines,
 } from './Panel.schema';
@@ -151,13 +152,21 @@ export const transcribeModule = defineModule({
    * so what belongs here is everything an interface could reasonably want to place — and the
    * default panel then becomes one arrangement of these rather than the only one.
    *
-   * The capture controls are the exception that proves it: the record button, the close button and
-   * the header are the *panel's* chrome rather than pieces of what this module knows, and an
-   * interface supplying a body writes its own — the workshop's transcript header is a Record button
-   * and a Continue button that exist nowhere in here.
+   * The panel's own chrome is the exception that proves it: the header and the record button are
+   * *the panel's*, not pieces of what this module knows, so an interface supplying a body writes
+   * its own. It should need to far less often than it did — the workshop wrote a body for one
+   * reason, route-awareness, and that now lives in the panel here.
    */
   schemas: {
-    transcriptFeed: { node: transcriptFeed, subject: 'modules.transcribe.collectionId' },
+    /*
+      The feed's subject is the whole route-aware expression, not the bare live id.
+
+      Substitution is whole-token, so the token a consumer replaces has to be the one actually in
+      the tree — and since the feed became route-aware that is `SUBJECT_EXPR`. Naming the live id
+      here would match nothing and a `subject` would silently do nothing, which is the failure mode
+      this map exists to avoid.
+    */
+    transcriptFeed: { node: transcriptFeed, subject: SUBJECT_EXPR },
     transcriptLines: { node: transcriptLines, subject: 'modules.transcribe.collectionId' },
     // Bare nodes rather than `{ node }`: the wrapper exists to name a subject, and these have none.
     captureMeter,

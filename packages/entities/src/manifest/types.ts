@@ -101,6 +101,7 @@ export interface CollectionBlockRecord extends WeNodeRecord {
   version: number;
   textContent: string;
   children: string[];
+  extractionPasses: string[];
   addChildren(value: string | { id: string }, batch?: string): Promise<unknown>;
   removeChildren(value: string | { id: string }, batch?: string): Promise<unknown>;
   setChildren(values: (string | { id: string })[], batch?: string): Promise<unknown>;
@@ -109,6 +110,13 @@ export interface CollectionBlockRecord extends WeNodeRecord {
 export interface DividerBlockRecord extends WeNodeRecord {
   style: string;
   version: number;
+}
+
+export interface EdgeRouteRecord extends RecordInstance {
+  sourceAnchor: string;
+  targetAnchor: string;
+  points: string;
+  connection?: string;
 }
 
 export interface EmbedBlockRecord extends WeNodeRecord {
@@ -180,6 +188,8 @@ export interface PlacementRecord extends RecordInstance {
   width: number;
   height: number;
   contentScale: number;
+  rotation: number;
+  z: number;
   color: string;
   cardShape: string;
   node?: string;
@@ -344,6 +354,13 @@ export interface ThemeRecord extends WeNodeRecord {
   addScreenshots(value: string | { id: string }, batch?: string): Promise<unknown>;
   removeScreenshots(value: string | { id: string }, batch?: string): Promise<unknown>;
   setScreenshots(values: (string | { id: string })[], batch?: string): Promise<unknown>;
+}
+
+export interface ExtractionPassRecord extends RecordInstance {
+  outcome: string;
+  recordCount: number;
+  targets: string;
+  error: string;
 }
 
 export interface TypeStyleRecord extends RecordInstance {

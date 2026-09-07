@@ -422,7 +422,7 @@ function VisualEditorLayer() {
       const updated = replaceNodeInTree(clone as SchemaNode, found.node, patched) as TemplateSchema;
       session.pushSnapshot();
       templateStore.updateTemplate(updated);
-      templateStore.persistCurrentTemplate();
+      void session.commitEdit();
     } catch (e) {
       console.error('[ResizeCommit] error:', e);
     }
@@ -833,7 +833,7 @@ function VisualEditorLayer() {
 
       session.pushSnapshot();
       templateStore.updateTemplate(clone);
-      templateStore.persistCurrentTemplate();
+      void session.commitEdit();
     } catch (err) {
       console.error('[DnD] commit error:', err);
     }
@@ -880,7 +880,7 @@ function VisualEditorLayer() {
 
       session.pushSnapshot();
       templateStore.updateTemplate(clone);
-      templateStore.persistCurrentTemplate();
+      void session.commitEdit();
       visualEditor.onSelect(null);
       setEnteredEachParentId(null);
     } catch (e) {

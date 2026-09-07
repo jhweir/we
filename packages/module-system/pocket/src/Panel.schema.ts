@@ -1,4 +1,4 @@
-import { recordCard } from '@we/schema-kit';
+import { panelHeader, recordCard } from '@we/schema-kit';
 import type { SchemaNode } from '@we/schema-shared';
 
 import { POCKET_PREDICATES } from './entities';
@@ -597,6 +597,50 @@ const breadcrumb: SchemaNode = {
   ],
 };
 
+/**
+ * The panel's name, with the two controls that act on the whole of it.
+ *
+ * This panel used to name itself nowhere: a breadcrumb told you which *folder* you were in, which
+ * only answers "where am I" once you already know what you are looking at, and off the module rail
+ * a panel with no name is identified by an icon somebody has to remember. The trail is a separate
+ * row below, because it changes as you walk and a name that moved with it would not be a name.
+ */
+const title: SchemaNode = panelHeader({
+  title: 'Pocket',
+  aside: {
+    type: 'Row',
+    props: { ay: 'center', gap: '100' },
+    children: [
+      {
+        type: 'we-button',
+        props: {
+          variant: 'ghost',
+          size: 'sm',
+          square: true,
+          title: { $: "local.pocketView == 'grid' ? 'Show as a list' : 'Show as a grid'" },
+          onClick: {
+            $setLocal: 'pocketView',
+            value: { $: "local.pocketView == 'grid' ? 'list' : 'grid'" },
+          },
+        },
+        children: [{ type: 'we-icon', props: { name: { $: "local.pocketView == 'grid' ? 'list' : 'squares-four'" } } }],
+      },
+      {
+        type: 'we-button',
+        props: {
+          variant: 'ghost',
+          size: 'sm',
+          square: true,
+          title: 'New folder',
+          onClick: { $setLocal: 'newFolderOpen', value: true },
+        },
+        children: [{ type: 'we-icon', props: { name: 'folder-plus' } }],
+      },
+    ],
+  },
+});
+
+/** Where in the Pocket you are, and the way back out of it. */
 const header: SchemaNode = {
   type: 'Row',
   props: { ay: 'center', gap: '100', width: '100%' },
@@ -621,31 +665,6 @@ const header: SchemaNode = {
       },
     },
     breadcrumb,
-    {
-      type: 'we-button',
-      props: {
-        variant: 'ghost',
-        size: 'sm',
-        square: true,
-        title: { $: "local.pocketView == 'grid' ? 'Show as a list' : 'Show as a grid'" },
-        onClick: {
-          $setLocal: 'pocketView',
-          value: { $: "local.pocketView == 'grid' ? 'list' : 'grid'" },
-        },
-      },
-      children: [{ type: 'we-icon', props: { name: { $: "local.pocketView == 'grid' ? 'list' : 'squares-four'" } } }],
-    },
-    {
-      type: 'we-button',
-      props: {
-        variant: 'ghost',
-        size: 'sm',
-        square: true,
-        title: 'New folder',
-        onClick: { $setLocal: 'newFolderOpen', value: true },
-      },
-      children: [{ type: 'we-icon', props: { name: 'folder-plus' } }],
-    },
   ],
 };
 
@@ -778,8 +797,9 @@ const panel: SchemaNode = {
             */
             pocketView: { type: 'string', initial: 'list', persist: 'pocket.displayMode' },
           },
-          props: { width: '100%', height: '100%', p: '400', gap: '300', overflow: 'hidden' },
+          props: { width: '100%', height: '100%', p: '300', gap: '300', overflow: 'hidden' },
           children: [
+            title,
             header,
             newFolderForm,
             deleteFolderConfirm,

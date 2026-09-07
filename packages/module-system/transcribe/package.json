@@ -24,6 +24,9 @@
   "files": [
     "dist"
   ],
+  "dependencies": {
+    "@we/schema-kit": "workspace:*"
+  },
   "peerDependencies": {
     "@we/schema-shared": "workspace:*",
     "@we/module-shared": "workspace:*",

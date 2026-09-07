@@ -158,6 +158,17 @@ const DS_PROP_TYPE_OVERRIDES: Record<string, string> = {
   opacity: 'number',
   bgImageOpacity: 'number',
   zIndex: 'string|number',
+  /*
+    Coordinates, and a number is the ordinary way to write one.
+
+    `number | string` classifies as `string` on its own — the general rule is that a union
+    containing `string` is a string, which is right for `SpaceValue | string` and wrong here, where
+    the number is the *primary* spelling and the string is the escape hatch for a unit that is not
+    px. Left to classify itself, every `"x": 620` in a canvas warned.
+  */
+  x: 'string|number',
+  y: 'string|number',
+  rotate: 'string|number',
 };
 
 function classifyPropType(typeText: string): string {

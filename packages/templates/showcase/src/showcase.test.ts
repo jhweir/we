@@ -21,6 +21,9 @@ import { describe, expect, it } from 'vitest';
 
 import * as showcase from './index.ts';
 
+/** The workshop's own name for the call on screen — see `CALL_EXPR` in its schema. */
+const CALL_EXPR = 'routeStore.params.call ? routeStore.params.call : modules.call.callRecordId';
+
 type Route = { path: string; redirect?: string; routes?: Route[] };
 type Schema = {
   meta?: { name?: string; description?: string; icon?: string; role?: string };
@@ -286,27 +289,9 @@ describe('the workshop template’s call selection', () => {
     const json = JSON.stringify(workshop);
 
     expect(json).not.toContain("'danger-text'");
-    expect(json).toContain("modules.transcribe.listening ? 'danger' : 'text-muted'");
+    // The calls list's own dot. The transcript panel's is the module's now — see its
+    // `Panel.schema.test.ts`, which is where that half of this test went.
     expect(json).toContain("modules.call.callRecordId ? 'danger' : 'text-faint'");
-  });
-
-  it('keeps the unsaved line inside the scroll region, with the rows', () => {
-    /*
-      Outside it, the line is pinned to an edge of the panel while a short transcript sits at the
-      other, and the first sentence written appears to leap the gap between them. Inside, it follows
-      the last row whether there are two of them or two hundred.
-
-      `transcriptLines` rather than the module's whole feed, because the feed carries the unsaved
-      line unconditionally and this template has to omit it on a past call — that buffer is this
-      agent's live microphone, and last month's meeting is not what it is saying.
-    */
-    const transcript = JSON.stringify(workshop.meta?.panels?.find((panel) => panel.id === 'transcript'));
-
-    expect(transcript).toContain('transcribe.transcriptLines');
-    expect(transcript).toContain('"pin":"end"');
-    // Gated, where the rows are not: the rows are about the call on screen, the buffer is not.
-    expect(transcript).toContain('transcribe.pendingUtterance');
-    expect(transcript).not.toContain('transcribe.transcriptFeed');
   });
 
   it('draws a card nobody has agreed to yet as unsettled, and offers the decision on it', () => {
@@ -345,21 +330,21 @@ describe('the workshop template’s call selection', () => {
     expect(json).toContain('"id":"reject"');
   });
 
-  it('says what is being extracted, and draws the board and the readout off that same list', () => {
+  it('draws the board off the call’s own list of what is being extracted', () => {
     /*
-      What a space extracts is a community decision, changeable mid-call from the chips this panel
-      places. Everything downstream that named the kinds itself was therefore a bug waiting on one
-      click: `['TaskBlock', 'EventBlock']` was written into the board's `contains` and into the
-      readout's two queries, so turning a third model on produced records in the collection, nothing
-      on the board, and nothing in the readout — with no sign of why in any of the three.
+      What a space extracts is a community decision, changeable mid-call from the chips the
+      extraction panel draws. Anything downstream that named the kinds itself was therefore a bug
+      waiting on one click: `['TaskBlock', 'EventBlock']` was written into the board's `contains`,
+      so turning a third model on produced records in the collection and nothing on the board, with
+      no sign of why.
 
-      One list now, read from the call's own targets rather than the space's: those differ the moment
-      somebody narrows a call, and the call is what these surfaces are about.
+      Read per call rather than for the live one. Those differ the moment somebody narrows a call,
+      and the board is about whichever call the address names — which is exactly the mismatch that
+      made this template's own extraction panel wrong before the module's absorbed it.
     */
     const json = JSON.stringify(workshop);
 
-    expect(json).toContain('transcribe.extractionTargets');
-    expect(json).toContain('modules.transcribe.extractionTargets.map(t, t.entity)');
+    expect(json).toContain(`modules.transcribe.extractionFor[${CALL_EXPR}].targets.map(t, t.entity)`);
     expect(json).not.toContain('"TaskBlock","EventBlock"');
   });
 
@@ -415,22 +400,17 @@ describe('the workshop template’s call selection', () => {
     expect(json).toContain('recordStore.saveRecord');
   });
 
-  it('supplies both of the module’s panels, so neither is drawn twice', () => {
+  it('accounts for both of the module’s panels, so neither is drawn twice', () => {
     /*
       The transcript entry named the module and the extraction entry named nothing, so the module's
       own extraction surface had no counterpart here — it opened *beside* this template's version the
       moment a pass ran. Two entries naming two docks line up one-to-one with what the module
-      contributes, which is what makes "the interface supplies this" mean something.
-
-      The dock names are required now that there are two: without them the host refuses to supply
-      either rather than guessing, because a transcript body inside an extraction panel is a silent
-      wrong answer.
+      contributes, which is what makes placing them mean something.
     */
     const panels = workshop.meta?.panels ?? [];
-    const supplied = panels.filter((panel) => panel.module === 'transcribe');
+    const placed = panels.filter((panel) => panel.module === 'transcribe');
 
-    expect(supplied.map((panel) => panel.dock).sort()).toEqual(['extraction', 'transcript']);
-    for (const panel of supplied) expect(panel.node).toBeTruthy();
+    expect(placed.map((panel) => panel.dock).sort()).toEqual(['extraction', 'transcript']);
   });
 
   it('offers a delete on every card, not only on the unsettled ones', () => {
@@ -463,38 +443,24 @@ describe('the workshop template’s call selection', () => {
     expect(json).toContain('"id":"delete","icon":"trash","title":"Delete","when":{"data.pending":{"exists":false}}');
   });
 
-  it('shows the transcript panel what the microphone is doing, not only what it saved', () => {
+  it('places the transcribe module’s transcript panel rather than writing a second one', () => {
     /*
-      An utterance becomes a row only once the speaker stops, the audio reaches the model and the
-      block lands — seconds in which a feed of saved lines is indistinguishable from a dead
-      microphone. The module's own panel never had that problem because the meter and the unsaved
-      line sit with it; this template supplies its own panel, so it places the same two parts.
+      There was a body here, for one reason: the module's panel read the call being *recorded into*,
+      so placing it would have been one surface about a different meeting beside three about the one
+      on screen. Supplying a body bought that at the price of a second copy of the header, the feed
+      and the gating — and the copy drifted, never gaining the module's coverage readout or its
+      capture status, so this template said less about a failing microphone than the default one did.
 
-      Both gated on being on the live call: they are about the microphone this agent is running
-      now, which says nothing about a past call opened from a link.
-    */
-    const transcript = JSON.stringify(workshop.meta?.panels?.find((panel) => panel.id === 'transcript'));
-
-    expect(transcript).toContain('transcribe.captureMeter');
-    expect(transcript).toContain('transcribe.pendingUtterance');
-    // After the feed, so it stays put outside the feed's own scroll area as the transcript grows.
-    expect(transcript!.indexOf('transcribe.pendingUtterance')).toBeGreaterThan(
-      transcript!.indexOf('transcribe.transcriptFeed'),
-    );
-  });
-
-  it('arranges the transcribe module’s panel rather than placing or duplicating it', () => {
-    /*
-      `module` *and* `node`. The module's own panel reads the call being recorded into, so placing it
-      would be one surface about a different meeting beside three about the one on screen — and
-      declaring a separate panel instead put both on screen at once, since pressing record anywhere
-      opens the module's. Naming the module says "that panel, arranged here": it keeps whether the
-      surface is up, this decides what is in it.
+      Following the address is what a transcript panel should do everywhere, so it moved into the
+      module. What is left here is where the panel goes, which is what a template's panel entry is
+      for. `node` being absent is the assertion: with one, this template owns a copy again.
     */
     const transcript = workshop.meta?.panels?.find((panel) => panel.id === 'transcript');
 
-    expect(transcript?.node).toBeDefined();
     expect(transcript?.module).toBe('transcribe');
+    expect(transcript?.dock).toBe('transcript');
+    expect(transcript?.node).toBeUndefined();
+    expect(transcript?.snap).toBe('left');
   });
 
   it('gives the board a height to be laid out in, the whole way down', () => {

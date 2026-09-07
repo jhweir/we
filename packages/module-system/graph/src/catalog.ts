@@ -72,6 +72,12 @@ export const GRAPH_PLUGIN_CATALOG: PluginCatalog = {
             'Entity holding this board\'s colour per kind of thing — WE passes "TypeStyle". Read onto every node as `boardTypeColor`, for a style rule to pick up with `{ from: "data.boardTypeColor" }`. This is what a board\'s key writes.',
         },
         {
+          name: 'routes',
+          type: 'string',
+          description:
+            'Entity holding how this board draws its connections — WE passes "EdgeRoute". Read onto each edge as `sourceAnchor` / `targetAnchor`, which pin which SIDE of a card a line leaves and arrives on (`n`, `e`, `s`, `w`) instead of letting the geometry decide. Per board, like a placement: the same connection shown on two boards is tidied on each separately. Also carries the points a line is bent through, read onto the edge as `waypoints`. Pair with onEdgeAnchor/recordStore.anchorOnBoard and onEdgeReroute/recordStore.rerouteOnBoard to let people set them.',
+        },
+        {
           name: 'pending',
           type: 'string[]',
           description:
