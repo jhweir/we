@@ -25,6 +25,7 @@
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "clean:deep": "pnpm clean && rm -rf apps/we-tauri/src-tauri/target apps/we-electron/dist-electron",
     "lint:css": "stylelint 'packages/**/src/**/*.css' 'apps/*/src/**/*.css' 'packages/**/src/**/*.scss'",
     "test:coverage": "pnpm -r --no-bail run test -- --coverage"

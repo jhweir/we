@@ -46,6 +46,18 @@ jobs:
       - name: Lint CSS
         run: pnpm lint:css
 
+      # The gap this closes: `pnpm lint` enforces formatting through eslint-plugin-prettier, but
+      # ESLint only reads the files it lints, so markdown, JSON, YAML, HTML and any stylesheet
+      # outside a `src/` directory had a fixer on commit (lint-staged) and no check anywhere.
+      # lint-staged only touches *staged* files, so anything committed before a prettier bump, or
+      # through `--no-verify`, drifted and stayed drifted — 20 files had, by September 2026.
+      #
+      # Same scope as `pnpm format`, so the command that fixes and the gate that checks cannot
+      # disagree about what is in scope. Seconds to run, and in the Lint job rather than Build
+      # because it needs nothing built.
+      - name: Check formatting
+        run: pnpm format:check
+
       # Here rather than in Typecheck, which is where the failure it prevents would surface: this
       # reads package.json and tsconfig.json only, so it needs no build and can answer in seconds
       # while the Build job is still running. Its whole value is naming the package to fix, which
