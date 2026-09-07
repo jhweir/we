@@ -2,6 +2,7 @@ import type { SchemaNode } from '@we/schema-shared';
 import { expr } from '@we/schema-shared';
 import {
   agentByline,
+  anchorScope,
   cardList,
   cardShell,
   emptyState,
@@ -155,6 +156,7 @@ export const callsList: SchemaNode = {
       query: {
         entity: 'CollectionBlock',
         where: { kind: 'call' },
+        scope: anchorScope(),
         limit: 20,
         order: { createdAt: { $: 'local.sortDirection' } },
         // No `include` for the utterances, deliberately — though no longer because it would fail.

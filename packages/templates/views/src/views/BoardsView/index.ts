@@ -1,5 +1,16 @@
 import type { SchemaNode, TemplateSchema } from '@we/schema-shared';
-import { emptyState, field, formModal } from '@we/template-kit';
+import {
+  ANCHOR_ID,
+  anchorBanner,
+  anchorScope,
+  COLUMN_TASKS,
+  emptyState,
+  field,
+  formModal,
+  moveTaskMenu,
+  stateBoard,
+  taskCard,
+} from '@we/template-kit';
 
 /**
  * Boards — the same tasks as the Tasks view, in an order somebody chose.
@@ -36,6 +47,13 @@ import { emptyState, field, formModal } from '@we/template-kit';
  * Local lanes — "Thursday", "Waiting on Ana" — are the additive half of that design and are not
  * built. They need containment membership rather than a query, which the ordered `children` relation
  * already supports, so nothing here has to change to gain them.
+ *
+ * ## Anchoring
+ *
+ * `?anchor=<collection id>` narrows both lists: which boards are shown, and which tasks their
+ * columns draw from. A board made from a call's page belongs to that call and arranges that call's
+ * work, and it is the same parameter and the same `scope` the Tasks and Cards views take. Absent
+ * means the space.
  */
 
 /** The board being read, with the cards somebody has arranged on it, in order. */
@@ -47,160 +65,32 @@ const boardQuery = {
 };
 
 /**
- * Every task in one state.
- *
- * Membership, not arrangement — the column shows these whether or not anybody has positioned them.
- */
-const columnTasks = {
-  entity: 'TaskBlock',
-  where: { status: { $: 'state.slug' } },
-  order: { createdAt: 'asc' },
-  limit: 100,
-};
-
-/**
  * The cards of this column, arranged first and unarranged after.
  *
  * The board's `children` come back in its own order, so filtering them by state yields this column's
  * arrangement directly — no sort, because the order is already the data. Anything in the state that
  * nobody has placed follows, oldest first, which is what "a member with no entry appends" means when
  * a person is looking at it.
+ *
+ * `local.columnTasks` is the per-column subscription `stateBoard` declares; `state` is the column it
+ * binds to. Both are in scope because this expression is evaluated inside the column the fragment
+ * renders.
  */
 const ARRANGED = 'first(local.board).children.filter(c, c.status == state.slug)';
 const ARRANGED_IDS = `${ARRANGED}.map(c, c.id)`;
-const UNARRANGED = `local.columnTasks.filter(t, !(t.id in ${ARRANGED_IDS}))`;
+const UNARRANGED = `${COLUMN_TASKS}.filter(t, !(t.id in ${ARRANGED_IDS}))`;
 const COLUMN_CARDS = `${ARRANGED} + ${UNARRANGED}`;
 
-const HEADING_COLOR =
-  "state.color ? state.color : state.semantic == 'done' ? 'success-text' : state.semantic == 'active' ? 'accent-text' : 'text-muted'";
-
-/** One card. Deliberately the same shape the Tasks view uses, so the two read as one thing. */
-const cardBody: SchemaNode = {
-  type: 'Column',
-  props: { width: '100%', gap: '200', bg: 'surface', r: '300', p: '300', border: '1px solid border' },
-  children: [
-    { type: 'we-text', props: { fontWeight: 'semibold' }, children: [{ $: 'task.title' }] },
-    {
-      type: '$if',
-      props: {
-        condition: { $: 'task.description' },
-        then: {
-          type: 'we-text',
-          props: { fontSize: '200', color: 'text-muted', truncate: true },
-          children: [{ $: 'task.description' }],
-        },
-      },
-    },
-    {
-      type: 'Row',
-      props: { gap: '200', ay: 'center' },
-      children: [
-        {
-          type: '$if',
-          props: {
-            condition: { $: "task.priority != 'medium'" },
-            then: {
-              type: 'we-badge',
-              props: { size: 'xs', variant: { $: "task.priority == 'high' ? 'danger' : 'neutral'" } },
-              children: [{ $: 'task.priority' }],
-            },
-          },
-        },
-        {
-          type: '$if',
-          props: {
-            condition: { $: 'task.assignee' },
-            then: {
-              type: 'we-text',
-              props: { fontSize: '200', color: 'text-muted', ml: 'auto' },
-              children: [{ $: '`@${task.assignee}`' }],
-            },
-          },
-        },
-      ],
-    },
-  ],
-};
-
-/*
-  The draggable box, on a native div rather than the Column.
-
-  A component's non-event props are assigned as DOM *properties*, so the `data-we-id` attribute
-  `we-sortable` looks for would never exist on one — the same reason the Tasks view and the sidebar
-  rail both wrap their rows this way. This div is also the box the drag geometry measures, hence the
-  explicit width.
-*/
-const card: SchemaNode = {
-  type: 'div',
-  props: { 'data-we-id': { $: 'task.id' }, style: { width: '100%', cursor: 'grab' } },
-  children: [cardBody],
-};
-
-/** One column: a state, and the cards in it. */
-const column: SchemaNode = {
-  type: 'Column',
-  $queries: { columnTasks },
-  props: {
-    width: '300px',
-    minHeight: '240px',
-    gap: '300',
-    bg: 'surface-sunken',
-    border: '1px solid border',
-    r: '400',
-    p: '300',
-    ay: 'start',
-  },
-  children: [
-    {
-      type: 'Row',
-      props: { gap: '200', ay: 'center', width: '100%' },
-      children: [
-        {
-          type: 'we-text',
-          props: { variant: 'footnote', uppercase: true, color: { $: HEADING_COLOR } },
-          children: [{ $: 'state.name' }],
-        },
-        {
-          type: 'we-text',
-          props: { variant: 'footnote', color: 'text-muted', ml: 'auto', text: { $: 'count(local.columnTasks)' } },
-        },
-      ],
-    },
-    {
-      type: 'we-sortable',
-      props: {
-        zone: { $: 'state.slug' },
-        group: 'board',
-        gap: 'var(--we-space-300)',
-        // The zone must be the whole trough, or an empty column is a zero-height rectangle nothing
-        // can be dropped into — see the note in the Tasks view.
-        flex: '1',
-        width: '100%',
-        /*
-          Two different events, because a drag within a column and a drag across one change different
-          facts. `onReorder` carries this zone's new order and writes only this board's arrangement.
-          `onMoved` carries the zone landed in — a state — and writes the task's own status, which
-          every other surface reads.
-        */
-        onReorder: {
-          $action: 'spaceStore.arrangeBoardColumn',
-          args: [{ $: 'local.boardId' }, { $: 'arg.detail' }],
-        },
-        onMoved: {
-          $action: 'spaceStore.moveTaskOnBoard',
-          args: [{ $: 'local.boardId' }, { $: 'arg.detail.id' }, { $: 'arg.detail.to' }],
-        },
-      },
-      children: [
-        {
-          type: '$each',
-          props: { items: { $: COLUMN_CARDS }, as: 'task' },
-          children: [card],
-        },
-      ],
-    },
-  ],
-};
+/**
+ * Moving a card by menu.
+ *
+ * The same two writes a cross-column drag makes, reached without a pointer — and the only way out of
+ * the stray column, which has no drop zone because there is no state to drop into.
+ */
+const moveMenu: SchemaNode = moveTaskMenu({
+  $action: 'spaceStore.moveTaskOnBoard',
+  args: [{ $: 'local.boardId' }, { $: 'task.id' }, { $: 'arg.id' }],
+});
 
 const createModal: SchemaNode = formModal({
   open: { $: 'local.createBoardOpen' },
@@ -211,7 +101,9 @@ const createModal: SchemaNode = formModal({
   children: [field({ name: 'boardTitle', label: 'What is this board for?', placeholder: 'Sprint 12' })],
   disabled: { $: '!local.boardTitle' },
   submitLabel: 'Create board',
-  submit: { $action: 'spaceStore.createBoard', args: [{ $: 'local.boardTitle' }] },
+  // The anchor is passed as the parent, so a board made while the view is narrowed belongs to the
+  // container it was made in — otherwise it would be created into a list that does not list it.
+  submit: { $action: 'spaceStore.createBoard', args: [{ $: 'local.boardTitle' }, ANCHOR_ID] },
 });
 
 /** The boards this space has, as a list to pick from. */
@@ -292,16 +184,32 @@ const boardDetail: SchemaNode = {
         },
       ],
     },
-    {
-      type: 'Row',
-      props: { width: '100%', gap: '400', ay: 'start', overflow: 'auto' },
-      children: [{ type: '$each', props: { items: { $: 'spaceStore.taskStates' }, as: 'state' }, children: [column] }],
-    },
-    {
-      type: 'we-text',
-      props: { variant: 'footnote', color: 'text-faint' },
-      children: ['Columns come from this space’s task states. Add or rename them in Settings → Vocabulary.'],
-    },
+    stateBoard({
+      scope: anchorScope(),
+      cards: COLUMN_CARDS,
+      card: taskCard({ actions: moveMenu }),
+      // Two events rather than one, because a drag within a column and a drag across one change
+      // different facts. `onReorder` carries this zone's new order and writes only this board's
+      // arrangement; `onMoved` carries the zone landed in — a state — and writes the task's own
+      // status, which every other surface reads.
+      onReorder: {
+        $action: 'spaceStore.arrangeBoardColumn',
+        args: [{ $: 'local.boardId' }, { $: 'arg.detail' }],
+      },
+      onMoved: {
+        $action: 'spaceStore.moveTaskOnBoard',
+        args: [{ $: 'local.boardId' }, { $: 'arg.detail.id' }, { $: 'arg.detail.to' }],
+      },
+      // A board is a *layout* of work that exists elsewhere, so an empty one is a statement about
+      // the space rather than about the board — hence the same message the Tasks view gives.
+      empty: emptyState({
+        icon: 'check-square',
+        label: 'tasks',
+        message: 'No tasks to arrange yet. Add one from the Tasks view, or record a call.',
+      }),
+      // Its own group, so a board and any other sortable on the page cannot exchange cards.
+      group: 'board',
+    }),
   ],
 };
 
@@ -325,7 +233,13 @@ export const boardsView: TemplateSchema = {
     createBoardOpen: { type: 'boolean', initial: false },
   },
   $queries: {
-    boards: { entity: 'CollectionBlock', where: { kind: 'board' }, order: { createdAt: 'desc' }, limit: 50 },
+    boards: {
+      entity: 'CollectionBlock',
+      where: { kind: 'board' },
+      scope: anchorScope(),
+      order: { createdAt: 'desc' },
+      limit: 50,
+    },
   },
   children: [
     {
@@ -344,6 +258,7 @@ export const boardsView: TemplateSchema = {
             },
           ],
         },
+        anchorBanner({ label: 'boards' }),
         createModal,
         { type: '$if', props: { condition: { $: 'local.boardId' }, then: boardDetail, else: boardList } },
       ],

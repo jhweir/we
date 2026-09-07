@@ -19,11 +19,17 @@
  *
  * ## Ordering
  *
- * Cards are ordered by `createdAt`, and there is no drag-to-reorder. Manual ordering needs a
- * conflict-free position, which is the AD4M CRDT ordering work; a `position` scalar written now
- * would be a shape that design supersedes, and a read-modify-write over an order array would drop
- * whichever of two simultaneous movers lost. Moving a card *between* columns works today, because
- * that is a relink rather than an ordering.
+ * Cards are ordered by `createdAt`, and there is no drag-to-reorder. The conflict-free ordering this
+ * was waiting for has landed — a relation can be declared `ordered`, and two people rearranging it
+ * converge — but it attaches to a *relation's membership*, and a column here reads its cards through
+ * a `scope`, which lowers to a filter by parent link and has no membership to order. A surface that
+ * wants an arrangement reads the column itself and hydrates its `children`, which come back in the
+ * order somebody put them in.
+ *
+ * Not done here, because this is the portable tier and the caller supplies both the cards and what a
+ * move means. A `position` scalar remains the wrong answer either way: two people reordering one
+ * column write the same numbers and one of them loses. Moving a card *between* columns works today,
+ * because that is a relink rather than an ordering.
  */
 import type { SchemaNode, SchemaProp } from '@we/schema-shared';
 
@@ -153,9 +159,9 @@ export function kanbanBoard(opts: KanbanBoardOptions): SchemaNode {
  *
  * A relink rather than a field write: the card is removed from this column's `children` and added
  * to the target's. Presented as a menu rather than as drag-and-drop because dragging needs a drop
- * target, a pointer behaviour and an ordering to drop *into*, and the last of those is the piece
- * waiting on CRDT ordering. A menu moves a card correctly today and keeps working when dragging
- * arrives beside it.
+ * target and a pointer behaviour, and a menu is the path that also works from a keyboard.
+ * `we-sortable` supplies the other one where a caller wants it — see `stateBoard` in
+ * `@we/template-kit`, which pairs the two — and this keeps working beside it.
  */
 export function moveCardMenu(card: string, column: string, onMove: KanbanBoardOptions['onMove']): SchemaNode {
   return {

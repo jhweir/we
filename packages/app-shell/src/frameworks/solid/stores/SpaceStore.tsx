@@ -579,7 +579,7 @@ export interface SpaceStore {
    */
   moveChild: (childId: string, fromId: string, toId: string) => Promise<void>;
   /** Make a board — a collection whose ordered children are the cards somebody has arranged. */
-  createBoard: (title: string) => Promise<string>;
+  createBoard: (title: string, parentId?: string) => Promise<string>;
   /**
    * Record the order somebody dragged one column into. The ids of that column, in their new order;
    * every other column keeps its own.
@@ -1773,12 +1773,24 @@ export function SpaceStoreProvider(props: ParentProps) {
    * field that must be right. `reconcileBlocks` refuses anything not `'document'` precisely because
    * running it over a feed deletes every child the editing agent's tree omits, and on a shared board
    * that is everyone else's cards.
+   *
+   * `parentId` puts the board inside another collection — a call's record, so the board belongs to
+   * the gathering it came out of. The board still arranges tasks from wherever they are; what the
+   * parent decides is where the *board* is listed, which is what an anchored Boards view reads. A
+   * board created while a view is narrowed and left loose in the space would vanish from the list it
+   * was created in.
    */
-  async function createBoard(title: string): Promise<string> {
+  async function createBoard(title: string, parentId?: string): Promise<string> {
     const p = datasetStore.currentDataset()?.handle;
     if (!p || !title.trim()) return '';
     try {
       const board = await CollectionBlock.create(p, { kind: 'board', mode: 'feed', title: title.trim(), type: '' });
+      if (parentId) {
+        const parent = await CollectionBlock.findOne(p, { where: { id: parentId } });
+        // A parent that has gone leaves the board loose rather than failing the create: the board is
+        // already made, and losing it to report a missing container helps nobody.
+        if (parent) await parent.addChildren(board.id);
+      }
       return board.id;
     } catch (error) {
       console.error('SpaceStore: could not create board', error);

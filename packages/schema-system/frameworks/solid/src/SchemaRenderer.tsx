@@ -17,6 +17,7 @@ import {
   REACTIVE_ACCESSOR,
   resolveProp,
   resolveQueryProp,
+  scopeIsAnchored,
   validateField,
 } from '@we/schema-shared';
 import { batch, createEffect, createMemo, createSignal, For, JSX, onCleanup, Show } from 'solid-js';
@@ -269,6 +270,10 @@ function createQuerySignal(
       if (prunedWhere === undefined) delete resolvedParams.where;
       else resolvedParams.where = prunedWhere;
     }
+    // And the same rule for the anchor a scope narrows to: unresolved means "don't narrow", not
+    // "narrow to the children of nothing". A view that reads its anchor from a URL parameter carries
+    // the scope unconditionally and is unanchored when nobody named one.
+    if (resolvedParams.scope !== undefined && !scopeIsAnchored(resolvedParams.scope)) delete resolvedParams.scope;
     const resolvedInclude =
       descriptor.include !== undefined
         ? (deepResolveTokens(descriptor.include, stores, context) as Record<string, boolean | Record<string, unknown>>)
@@ -821,6 +826,7 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
             if (prunedWhere === undefined) delete resolvedParams.where;
             else resolvedParams.where = prunedWhere;
           }
+          if (resolvedParams.scope !== undefined && !scopeIsAnchored(resolvedParams.scope)) delete resolvedParams.scope;
           const resolvedInclude =
             descriptor.include !== undefined
               ? (deepResolveTokens(descriptor.include, stores, effectiveContext) as Record<
