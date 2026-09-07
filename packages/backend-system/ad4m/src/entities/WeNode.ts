@@ -4,7 +4,13 @@ import { Signal } from './Signal';
 
 @Model({ name: 'WeNode' })
 export class WeNode extends Ad4mModel {
-  @HasMany({ through: 'we://comment' })
+  /*
+    `polymorphic` on the relations that hold records, and deliberately absent from the two that hold
+    DIDs — see WE_NODE_RELATIONS in @we/entities for why the split is not arbitrary. This class is
+    hand-written rather than generated, so it is the one place the manifest's answer is repeated by
+    hand; `coreManifest.test.ts` holds the two in step, since SHACL does not carry the answer.
+  */
+  @HasMany({ through: 'we://comment', polymorphic: true })
   comments: string[] = [];
 
   @HasMany(() => Signal, { through: 'we://signal' })
@@ -43,12 +49,15 @@ export class WeNode extends Ad4mModel {
    * becomes a full scan.
    *
    * Untyped, mirroring `comments` rather than `signals`: core mints the predicate and stays agnostic
-   * about the other end. The cost is that `include: { calls: true }` will not work (include needs a
-   * known target class) — a drill-down via `scope` does, which is what listing a node's calls needs.
-   * Typing it would mean importing `CollectionBlock` here, and since `CollectionBlock extends WeNode`
-   * that is an evaluation-order cycle waiting to happen.
+   * about the other end. Typing it would mean importing `CollectionBlock` here, and since
+   * `CollectionBlock extends WeNode` that is an evaluation-order cycle waiting to happen.
+   *
+   * `include: { calls: true }` used to be unavailable for exactly that reason — include had no
+   * target class to hydrate into, so listing a node's calls meant a `scope` drill-down. Reading each
+   * member as the class it actually is removes the requirement, so both routes now work and the
+   * drill-down is a choice rather than the only option.
    */
-  @HasMany({ through: 'we://call' })
+  @HasMany({ through: 'we://call', polymorphic: true })
   calls: string[] = [];
 
   /**

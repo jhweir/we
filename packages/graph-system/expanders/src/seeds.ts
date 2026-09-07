@@ -87,8 +87,8 @@ export function querySeed(defaults: { reified?: ReifiedEdgeMap } = {}): SeedSour
       if (seedingAnEdge) {
         for (const row of rows) {
           const resolved = reifiedEdgeFrom(row, options.entity, reified![options.entity], dataset, shapes, 'query');
-          if (!resolved) {
-            context.warn(`${options.entity} ${String(row.id)} is missing an endpoint — skipped`);
+          if ('reason' in resolved) {
+            context.warn(`${options.entity} ${String(row.id)} not drawn: ${resolved.reason}`);
             continue;
           }
           nodes.push(...resolved.nodes);

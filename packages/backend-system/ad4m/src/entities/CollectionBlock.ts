@@ -105,7 +105,21 @@ export class CollectionBlock extends WeNode {
   @Property({ through: 'we://text_content' })
   textContent: string = '';
 
-  @HasMany({ through: 'we://children' })
+  /**
+   * What is in this collection, in the order somebody put it there.
+   *
+   * `ordered` because the sequence is authored: a person dragged the image above the paragraph,
+   * and reading the blocks back in a different order does not show them a differently-sorted
+   * post, it shows them a different post. Until it was declared, the order held only by accident
+   * — a save rewrote every child link, so their timestamps came out in array order and reading
+   * by timestamp looked like reading the author's sequence. That accident survives one editor
+   * and not two.
+   *
+   * The target is empty because a collection holds text, images, tasks, further collections and
+   * whatever a community has since defined — which also makes it polymorphic by default, so
+   * each child is read as the class it actually is rather than as a bare reference.
+   */
+  @HasMany({ through: 'we://children', ordering: { strategy: 'linkedList' }, polymorphic: true })
   children: string[] = [];
 
   /**

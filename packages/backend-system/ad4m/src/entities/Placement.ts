@@ -99,6 +99,6 @@ export class Placement extends Ad4mModel {
    * and the board wants the id anyway: it queries the placed records by type, in batches, and
    * matches them up here.
    */
-  @HasOne({ through: 'we://placed_node' })
+  @HasOne({ through: 'we://placed_node', polymorphic: true })
   node?: string;
 }

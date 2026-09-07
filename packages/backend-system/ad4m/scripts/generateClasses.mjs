@@ -28,6 +28,9 @@ import { fileURLToPath } from 'node:url';
 // Run via tsx (`pnpm generate:classes`), which resolves the manifest's TS modules directly.
 const here = dirname(fileURLToPath(import.meta.url));
 const { CORE_DEFS } = await import(resolve(here, '../../../entities/src/manifest/index.ts'));
+// Imported rather than reimplemented: the default for an untyped relation is stated once, so a
+// generated class and a compiled one cannot disagree about which relations are polymorphic.
+const { resolvesPolymorphically } = await import(resolve(here, '../../shared/src/manifest.ts'));
 
 const ENTITY_DIR = resolve(here, '../src/entities');
 const MANIFEST_DIR = resolve(here, '../../../entities/src/manifest');
@@ -75,6 +78,21 @@ function propertyDecorator(spec) {
   if (spec.readAs === 'dataUri') opts.push('transform: fileToDataUri');
   if (spec.interpretationHint !== undefined) opts.push(`interpretationHint: ${q(spec.interpretationHint)}`);
   return `@Property({ ${opts.join(', ')} })`;
+}
+
+/**
+ * The options half of a relation's decorator, shared by both cardinalities.
+ *
+ * `ordering` is where the manifest's `ordered` becomes an AD4M mechanism: the declaration says the
+ * members are in a chosen order, and the strategy naming how that order survives two people editing
+ * at once is this backend's to pick. `polymorphic` is resolved through `resolvesPolymorphically`
+ * rather than tested against an empty target here, so the default lives in one place.
+ */
+function relationOptions(spec) {
+  const opts = [`through: ${q(spec.predicate)}`];
+  if (spec.cardinality === 'many' && spec.ordered) opts.push(`ordering: { strategy: 'linkedList' }`);
+  if (resolvesPolymorphically(spec)) opts.push('polymorphic: true');
+  return `{ ${opts.join(', ')} }`;
 }
 
 function fieldLine(name, spec, def) {
@@ -169,14 +187,14 @@ function emitEntity(name, def) {
       // gets no `set<Name>` companion for the same reason: the accessor's whole signature is its
       // target type.
       const decorator = spec.target
-        ? `@HasOne(() => ${spec.target}, { through: ${q(spec.predicate)} })`
-        : `@HasOne({ through: ${q(spec.predicate)} })`;
+        ? `@HasOne(() => ${spec.target}, ${relationOptions(spec)})`
+        : `@HasOne(${relationOptions(spec)})`;
       L.push(`  ${decorator}`);
       L.push(`  ${rname}?: ${spec.target ? spec.target : 'string'};`);
     } else {
       const decorator = spec.target
-        ? `@HasMany(() => ${spec.target}, { through: ${q(spec.predicate)} })`
-        : `@HasMany({ through: ${q(spec.predicate)} })`;
+        ? `@HasMany(() => ${spec.target}, ${relationOptions(spec)})`
+        : `@HasMany(${relationOptions(spec)})`;
       const fieldType = def.typedArrays?.includes(rname) ? `${spec.target}[]` : 'string[]';
       L.push(`  ${decorator}`);
       L.push(`  ${rname}: ${fieldType} = [];`);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { compileQuery, type FlatQuery, irToFlatQuery, whereUsesCombinator } from './queryCompiler';
+import { compileQuery, type FlatQuery, irToFlatQuery } from './queryCompiler';
 import { validateQueryIR } from './queryIR';
 
 describe('compileQuery', () => {
@@ -43,6 +43,31 @@ describe('compileQuery', () => {
         { field: 'd', op: 'contains', value: 'z' },
         { field: 'e', op: 'exists', value: true },
       ],
+    });
+  });
+
+  it('maps some/none to a relation quantifier rather than a comparison against an operator object', () => {
+    // The IR has carried `{ rel, some/none }` from the start and no flat spelling could reach it, so
+    // "posts with no comments" was not expressible at all — a caller fetched everything with its
+    // children and counted in JS.
+    expect(compileQuery({ entity: 'Post', where: { comments: { none: {} } } }).ir.filter).toEqual({
+      rel: 'comments',
+      op: 'none',
+    });
+    expect(compileQuery({ entity: 'Post', where: { comments: { some: { body: 'spam' } } } }).ir.filter).toEqual({
+      rel: 'comments',
+      op: 'some',
+      where: { field: 'body', op: 'eq', value: 'spam' },
+    });
+  });
+
+  it('reads a scalar operator object as a comparison, not a quantifier', () => {
+    // The two are told apart by the operator name alone — this compiler takes no manifest — so a
+    // key carrying `contains` stays a field compare even when it names something relation-shaped.
+    expect(compileQuery({ entity: 'Post', where: { comments: { contains: 'x' } } }).ir.filter).toEqual({
+      field: 'comments',
+      op: 'contains',
+      value: 'x',
     });
   });
 
@@ -125,8 +150,9 @@ describe('irToFlatQuery', () => {
     expect(() =>
       irToFlatQuery({ irVersion: 1, entity: 'Post', filter: { field: 'likes', op: 'gt', value: 5 } }),
     ).toThrow(/operator "gt"/);
-    expect(() => irToFlatQuery({ irVersion: 1, entity: 'Post', filter: { rel: 'signals', op: 'some' } })).toThrow(
-      /relation filters/,
+    // A relation `exists` is the one quantifier with no flat spelling — `some`/`none` lower fine.
+    expect(() => irToFlatQuery({ irVersion: 1, entity: 'Post', filter: { rel: 'signals', op: 'exists' } })).toThrow(
+      /relation `exists`/,
     );
     expect(() =>
       irToFlatQuery({
@@ -157,6 +183,13 @@ describe('irToFlatQuery', () => {
     { entity: 'Post', include: { $myLike: { from: 'signals', where: { author: 'did:me' }, limit: 1 } } },
     { entity: 'Post', subscribe: false, order: { createdAt: 'desc', title: 'asc' } },
     { entity: 'Channel', include: { conversations: { include: { messages: { limit: 20 } } } } },
+    // Relation quantifiers, which the flat dialect could not express at all until now: "has none",
+    // "has at least one", and one whose nested clause is itself a compound where.
+    { entity: 'Post', where: { comments: { none: {} } } },
+    { entity: 'Post', where: { comments: { some: {} } } },
+    { entity: 'Post', where: { comments: { some: { body: { contains: 'spam' }, hidden: false } } } },
+    // Alongside a scalar condition, which is the shape a real feed uses.
+    { entity: 'Post', where: { kind: 'post', signals: { some: { signalTypeId: 'like' } } }, limit: 20 },
   ];
 
   it('round-trips legacy → IR → legacy → IR without drift for every representative shape', () => {
@@ -168,39 +201,22 @@ describe('irToFlatQuery', () => {
   });
 });
 
-describe('whereUsesCombinator', () => {
+describe('lowering a where clause back to the flat dialect', () => {
   const irOf = (where: Record<string, unknown>) => compileQuery({ entity: 'Post', where }).ir;
-  const filterOf = (where: Record<string, unknown>) => irOf(where).filter;
   const flatOf = (where: Record<string, unknown>) => irToFlatQuery(irOf(where));
 
-  it('is false for an implicit conjunction — sibling where keys merge back to sibling keys', () => {
-    // The regression this guards: `where: { a, b }` compiles to an `and` node, so testing
-    // `'and' in filter` on the IR wrongly reports a combinator for the most ordinary query
-    // shape there is — and that flagged a capability gap on every multi-key filter + sort.
+  it('merges an implicit conjunction back to sibling keys', () => {
+    // `where: { a, b }` compiles to an `and` node and has to come back out as sibling keys rather
+    // than an explicit AND — the most ordinary query shape there is, and the one a backend handles
+    // natively. This used to matter for a sort degradation that is now gone; the merge itself is
+    // still what keeps a round trip lossless.
     const where = { type: 'root', textContent: { contains: 'x' } };
-    expect(filterOf(where)).toHaveProperty('and');
+    expect(irOf(where).filter).toHaveProperty('and');
     expect(flatOf(where)).toMatchObject({ where: { type: 'root', textContent: { contains: 'x' } } });
-    expect(whereUsesCombinator(filterOf(where))).toBe(false);
   });
 
-  it('is false for a single field condition, and for no filter at all', () => {
-    expect(whereUsesCombinator(filterOf({ type: 'root' }))).toBe(false);
-    expect(whereUsesCombinator(undefined)).toBe(false);
-  });
-
-  it('is true for an explicit OR / NOT that survives lowering', () => {
-    expect(whereUsesCombinator(filterOf({ OR: [{ a: 1 }, { b: 2 }] }))).toBe(true);
-    expect(whereUsesCombinator(filterOf({ NOT: { a: 1 } }))).toBe(true);
-  });
-
-  it('is true for a conjunction that collides on a key (lowers to an explicit AND)', () => {
-    // Same key on both branches cannot merge into sibling keys, so `whereFromFilter` emits `AND`.
-    const where = { AND: [{ title: { contains: 'a' } }, { title: { contains: 'b' } }] };
-    expect(flatOf(where)).toHaveProperty('where.AND');
-    expect(whereUsesCombinator(filterOf(where))).toBe(true);
-  });
-
-  it('is true when a nested OR is merged in among sibling keys', () => {
-    expect(whereUsesCombinator(filterOf({ type: 'root', OR: [{ a: 1 }, { b: 2 }] }))).toBe(true);
+  it('emits an explicit AND when the branches collide on a key', () => {
+    // Same key on both branches cannot merge into sibling keys without one silently winning.
+    expect(flatOf({ AND: [{ title: { contains: 'a' } }, { title: { contains: 'b' } }] })).toHaveProperty('where.AND');
   });
 });
