@@ -104,6 +104,29 @@ export interface PropertySchema {
   control?: 'textarea' | 'date' | 'datetime' | 'color' | 'url';
 }
 
+/**
+ * A typed edge between two entities.
+ *
+ * **What belongs here, and what does not.** `PropertySchema` documents each of its fields at length
+ * and this one has historically not, which leaves no stated test for a new field — so here it is,
+ * written before the next one is added rather than argued about afterwards.
+ *
+ * A field belongs on the manifest when it describes **what the relation is**: its target, whether it
+ * holds one thing or many, whether the sequence its members are in was chosen by somebody. Every
+ * consumer of the manifest can act on a fact of that kind, and there are more of them than the query
+ * layer — `include` resolution and validation, derived record forms, interpretation hints, the graph
+ * engine's schema walk, and the generated context an LLM authors templates against. A fact stated
+ * here reaches all of them at once.
+ *
+ * A field does **not** belong here when it describes *how* some engine delivers that fact — a CRDT
+ * strategy name, an index hint, a predicate layout. Those are meaningful only to the component that
+ * implements them, are unreadable noise to every other consumer, and have a natural home in the
+ * adapter that owns the mechanism. The two are easy to tell apart by asking whether a reader who
+ * knows nothing about storage could still say what the field means for the data.
+ *
+ * So: "this collection has an order somebody chose" is a fact and belongs here; "that order is
+ * maintained as a linked list" is a mechanism and does not.
+ */
 export interface RelationSchema {
   /**
    * Target entity name — must be a key in `EntityManifest.entities`, or empty for an untyped

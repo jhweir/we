@@ -5,8 +5,16 @@
  * is just the neutral `irToFlatQuery` (in `@we/schema-shared`). What's AD4M-*specific* — and lives
  * here, not in the agnostic renderer — is the capability profile (`ad4mCapabilities`) plus the two
  * conditional degradations that no capability boolean can express (see `plan` below). `planQuery`
- * uses the profile to route anything AD4M can't push down to the compute-up fallback (`executeQueryIR`)
- * instead of silently mis-executing it.
+ * uses the profile to classify anything AD4M can't push down, so that nothing is silently
+ * mis-executed.
+ *
+ * **What a classification then does is the renderer's business, and only two outcomes exist**, in
+ * `compileQueryOptions` (`@we/schema-solid`'s `SchemaRenderer`): a `degraded` gap warns once per
+ * entity/feature and runs; *every other* gap calls `onError` and returns null, so the query does not
+ * run at all. Read the rest of this file with that in mind — `compute-up` names an *intent* (a gap
+ * something could fake in JS) and no such fallback is wired on this path, so it behaves today
+ * exactly as `unsupported` does. `executeQueryIR` is the in-memory backend's own engine, not a
+ * fallback this adapter reaches for; an earlier version of this comment said otherwise.
  *
  * What's native (verified against AD4M's `Where`/`Order` types and coasys/ad4m #867/#868):
  * - Scalar operators eq / not(→ne,nin) / lt / lte / gt / gte / contains, plus OR/AND/NOT combinators.
@@ -14,7 +22,9 @@
  * - Sort by property, by a relation path, and by a projection count — but **one sort key only**
  *   (the SPARQL pagination pushdown is single-key), and only with a `limit`/`offset`.
  *
- * Deliberately routed to the compute-up fallback (not native):
+ * Classified `compute-up` — not native, and so (per the note above) currently refused rather than
+ * faked. A template using one gets an error and no rows, which is the honest outcome but not the
+ * intended one:
  * - `startsWith`/`endsWith` operators, sum/min/max/avg aggregates, and — the confirmed gap —
  *   **filtering by a related model's property** (`{ rel, some/none }`): AD4M's `where` has no
  *   relation quantifier, so `relationFilters` is false.
