@@ -578,6 +578,15 @@ export interface SpaceStore {
    * `we://children` edges; the child itself is untouched.
    */
   moveChild: (childId: string, fromId: string, toId: string) => Promise<void>;
+  /** Make a board — a collection whose ordered children are the cards somebody has arranged. */
+  createBoard: (title: string) => Promise<string>;
+  /**
+   * Record the order somebody dragged one column into. The ids of that column, in their new order;
+   * every other column keeps its own.
+   */
+  arrangeBoardColumn: (boardId: string, orderedIds: string[]) => Promise<void>;
+  /** Put a task in a state and give it a position on this board. Two facts, two writes. */
+  moveTaskOnBoard: (boardId: string, taskId: string, statusSlug: string) => Promise<void>;
   /**
    * Join or leave a node's participant roster — an RSVP. Writes only this agent's own entry, which
    * is what keeps the roster conflict-free without coordination.
@@ -1748,6 +1757,88 @@ export function SpaceStoreProvider(props: ParentProps) {
     } catch (error) {
       console.error('SpaceStore: could not move child between collections', error);
       toastService.error('Could not move that item');
+    }
+  }
+
+  /**
+   * Make a board.
+   *
+   * A `CollectionBlock` like a call or a notes collection, so it inherits comments, signals, the
+   * feed and `deleteCollection` — and `mode: 'feed'` rather than `'document'`, which is the one
+   * field that must be right. `reconcileBlocks` refuses anything not `'document'` precisely because
+   * running it over a feed deletes every child the editing agent's tree omits, and on a shared board
+   * that is everyone else's cards.
+   */
+  async function createBoard(title: string): Promise<string> {
+    const p = datasetStore.currentDataset()?.handle;
+    if (!p || !title.trim()) return '';
+    try {
+      const board = await CollectionBlock.create(p, { kind: 'board', mode: 'feed', title: title.trim(), type: '' });
+      return board.id;
+    } catch (error) {
+      console.error('SpaceStore: could not create board', error);
+      toastService.error('Could not create that board');
+      return '';
+    }
+  }
+
+  /**
+   * Record the order somebody dragged one column into.
+   *
+   * A board's `children` are **position hints over a membership the state defines**, not the
+   * membership itself — the same relationship AD4M's ordering entries have to the data links they
+   * order, one level up. A task appears in a column because its status matches; where it sits in
+   * that column is this list. A task nobody has arranged is not in it and appends, which is the
+   * behaviour the ordered relation already gives for a member with no entry.
+   *
+   * That split is why a board can never hide work. Take the board away and every task is still in
+   * its state; take a task out of `children` and it still shows, merely unpositioned.
+   *
+   * **Only the moved column's order is written.** Columns are independent — the global list matters
+   * only through each column's filter of it — so any arrangement preserving every column's relative
+   * order is equivalent, and moving the column's ids to the front is the cheapest one that does.
+   * Rewriting the whole board on every drag would touch cards nobody moved.
+   */
+  async function arrangeBoardColumn(boardId: string, orderedIds: string[]): Promise<void> {
+    const p = datasetStore.currentDataset()?.handle;
+    if (!p || !boardId || !Array.isArray(orderedIds) || !orderedIds.length) return;
+    try {
+      const board = await CollectionBlock.findOne(p, { where: { id: boardId } });
+      if (!board) return;
+      const current = Array.isArray(board.children) ? (board.children as string[]) : [];
+      const moved = new Set(orderedIds);
+      await board.setChildren([...orderedIds, ...current.filter((id) => !moved.has(id))]);
+    } catch (error) {
+      console.error('SpaceStore: could not save the board arrangement', error);
+      toastService.error('Could not save that arrangement');
+    }
+  }
+
+  /**
+   * Put a task in a state, and give it a position on the board it was dropped on.
+   *
+   * Two writes because they are two facts. The state is a property of the work and is what every
+   * other surface reads; the position is a property of this board and nobody else's. A task dragged
+   * between columns has changed both, and a task dragged on one board keeps whatever position it has
+   * on another.
+   */
+  async function moveTaskOnBoard(boardId: string, taskId: string, statusSlug: string): Promise<void> {
+    const p = datasetStore.currentDataset()?.handle;
+    if (!p || !taskId || !statusSlug) return;
+    try {
+      const task = await getEntitiesForPerspective('TaskBlock', p)?.findOne(p, { where: { id: taskId } });
+      if (task) {
+        (task as Record<string, unknown>).status = statusSlug;
+        await (task as { save: () => Promise<unknown> }).save();
+      }
+      if (boardId) {
+        const board = await CollectionBlock.findOne(p, { where: { id: boardId } });
+        const current = Array.isArray(board?.children) ? (board!.children as string[]) : [];
+        if (board && !current.includes(taskId)) await board.addChildren(taskId);
+      }
+    } catch (error) {
+      console.error('SpaceStore: could not move that task', error);
+      toastService.error('Could not move that task');
     }
   }
 
@@ -3881,6 +3972,9 @@ export function SpaceStoreProvider(props: ParentProps) {
     createPost,
     updatePost,
     moveChild,
+    createBoard,
+    arrangeBoardColumn,
+    moveTaskOnBoard,
     setAttending,
     mutedDids,
     mutedAgents,

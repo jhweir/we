@@ -367,6 +367,9 @@ export const storeEntries: StoreEntry[] = [
       'createPost',
       'updatePost',
       'deleteCollection',
+      'createBoard',
+      'arrangeBoardColumn',
+      'moveTaskOnBoard',
       'updateSpaceImage',
       'updateSpaceMeta',
       'setSpaceDefaultTemplate',
@@ -1054,6 +1057,12 @@ export function generateStoresText(entries: StoreEntry[]): string {
           '(postId: string, editorState: unknown): reconciles an edited post against its existing blocks — updates/reuses blocks whose id survived the edit, creates new ones, deletes ones no longer present',
         deleteCollection:
           '(collectionId: string): permanently deletes a CollectionBlock and everything inside it, recursively. Kind-agnostic — a post, a call record and a notes collection are the same shape, so this is the one delete for all of them',
+        createBoard:
+          'createBoard(title: string): makes a board — a CollectionBlock whose ordered children are the cards somebody has arranged. Returns its id. Its columns come from the space\u2019s task states, so nothing about the board decides what the columns are',
+        arrangeBoardColumn:
+          'arrangeBoardColumn(boardId: string, orderedIds: string[]): records the order somebody dragged ONE column into — the ids of that column in their new order. A board\u2019s children are position hints over a membership the state defines, so a task not in the list simply appends. Pair with we-sortable\u2019s onReorder and pass { $: "arg.detail" }',
+        moveTaskOnBoard:
+          'moveTaskOnBoard(boardId: string, taskId: string, statusSlug: string): puts a task in a state and gives it a position on this board. Two writes because they are two facts — the state is a property of the work that every surface reads, the position is this board\u2019s alone. Pair with we-sortable\u2019s onMoved',
         updateSpaceImage:
           '(field: "avatar" | "coverImage", imageFile: File, spaceUuid?): uploads and sets the space avatar or cover image',
         createSignalType:

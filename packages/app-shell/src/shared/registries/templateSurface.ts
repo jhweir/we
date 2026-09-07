@@ -411,6 +411,11 @@ export const TEMPLATE_SURFACE: Record<string, Record<string, Classification>> = 
     setAgentMuted: action('content'),
     getSubgroupMessages: action('content'),
     exportCallTranscript: action('content'),
+    // A board is a collection like a call, and arranging one is content work rather than
+    // administration: any member may make one and drag cards on it.
+    createBoard: action('content'),
+    arrangeBoardColumn: action('content'),
+    moveTaskOnBoard: action('content'),
 
     // ── signals ──
     createSignalType: action('signals'),

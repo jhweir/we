@@ -23,6 +23,7 @@
 import type { TemplateSchema } from '@we/schema-shared';
 
 import { aboutView } from './views/AboutView/index.ts';
+import { boardsView } from './views/BoardsView/index.ts';
 import { calendarView } from './views/CalendarView/index.ts';
 import { cardsView } from './views/CardsView/index.ts';
 import { fluxView } from './views/FluxView/index.ts';
@@ -30,7 +31,7 @@ import { globeView } from './views/GlobeView/index.ts';
 import { graphView } from './views/GraphView/index.ts';
 import { tasksView } from './views/TasksView/index.ts';
 
-export { aboutView, calendarView, cardsView, fluxView, globeView, graphView, tasksView };
+export { aboutView, boardsView, calendarView, cardsView, fluxView, globeView, graphView, tasksView };
 export { RECORD_ROUTE_PATH, recordPage } from './views/RecordPage';
 
 /**
@@ -46,6 +47,7 @@ export const BUILT_IN_VIEWS: Record<string, TemplateSchema> = {
   graph: graphView,
   globe: globeView,
   tasks: tasksView,
+  boards: boardsView,
   calendar: calendarView,
   flux: fluxView,
 };
