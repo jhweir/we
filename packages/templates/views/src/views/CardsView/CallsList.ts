@@ -54,10 +54,12 @@ const callQueries = { utterances: utterancesQuery };
  * `EventBlock`, so a community that defined a `Sighting` and had one extracted saw the record land
  * in the space and never appear on the call it came out of.
  *
- * A drill-down through `children` rather than an `include`, for the reason the transcript below
- * gives: `CollectionBlock.children` is an *untyped* `@HasMany`, so `include` has no target class to
- * resolve and dies on it. `scope` is the supported traversal and it takes the child type, which is
- * exactly the thing being varied here.
+ * A drill-down through `children` rather than an `include`, and the reason has changed since this
+ * was written. It used to be that `include` had no target class to resolve on an untyped relation
+ * and died on it; that relation is read polymorphically now and an include works. The drill-down
+ * stays because it takes the **child type**, which is the thing being varied here — an include
+ * would return every child of the call and leave the filtering to the template, which is the same
+ * work moved somewhere it reads worse.
  */
 const findingsQuery = {
   entity: { $: 'target' },
@@ -155,12 +157,11 @@ export const callsList: SchemaNode = {
         where: { kind: 'call' },
         limit: 20,
         order: { createdAt: { $: 'local.sortDirection' } },
-        // No `include` for the utterances, deliberately. `CollectionBlock.children` is an
-        // *untyped* `@HasMany` — it has to be, since children are heterogeneous (TextBlock,
-        // ImageBlock, …) and there is no single target class to name. `include` resolves the
-        // target class to hydrate it, so on an untyped relation it resolves to '' and the
-        // query dies with "No SHACL shape stored for class ''". A scope drill-down is the
-        // supported traversal for this, and it is what the body below uses.
+        // No `include` for the utterances, deliberately — though no longer because it would fail.
+        // `children` is untyped and is read polymorphically, so an include resolves now. It is
+        // omitted because this is a *list* of calls: hydrating every utterance of every call to
+        // render a row that shows none of them is work nobody asked for. The body below drills into
+        // the one call somebody opened.
       },
       as: 'call',
       // Not search-aware: the header's search box filters the other lists, but this query ignores
