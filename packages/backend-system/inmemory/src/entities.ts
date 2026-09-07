@@ -181,6 +181,10 @@ export function compileEntities(manifest: EntityManifest, runtime: EntityRuntime
         target: info.target,
         cardinality,
         foreignKey: info.foreignKey,
+        // The write path already records the ids in the order they were assigned, on the parent row
+        // under the relation's own name; without this the engine re-derived membership from the
+        // foreign key and handed back whichever order the child table happened to be in.
+        ...(spec.ordered ? { ordered: true } : {}),
       } satisfies InMemoryRelation;
     }
     relationsByEntity[name] = infos;

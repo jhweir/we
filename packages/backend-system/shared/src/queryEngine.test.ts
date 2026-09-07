@@ -246,6 +246,60 @@ describe('untyped relations', () => {
   });
 });
 
+describe('an ordered relation', () => {
+  // Children deliberately sit in the table in an order nobody chose, with the parent recording the
+  // order somebody did choose. Reading by foreign key alone gives the first; that is the bug.
+  const ordered: InMemoryDataset = {
+    tables: {
+      Collection: [{ id: 'c1', children: ['b3', 'b1', 'b2'] }],
+      Block: [
+        { id: 'b1', collectionId: 'c1', text: 'first written' },
+        { id: 'b2', collectionId: 'c1', text: 'second written' },
+        { id: 'b3', collectionId: 'c1', text: 'third written' },
+      ],
+    },
+    relations: {
+      Collection: { children: { target: 'Block', cardinality: 'many', foreignKey: 'collectionId', ordered: true } },
+    },
+  };
+
+  const childrenOf = (data: InMemoryDataset) =>
+    (executeQueryIR({ irVersion: 1, entity: 'Collection', include: { children: true } }, data)[0] as any).children.map(
+      (c: { id: string }) => c.id,
+    );
+
+  it('reads back in the order the parent recorded, not the order the members were written', () => {
+    expect(childrenOf(ordered)).toEqual(['b3', 'b1', 'b2']);
+  });
+
+  it('keeps a member the order does not mention, at the end', () => {
+    // Position and membership are separate facts, so an unlisted member is still a member. This is
+    // the partially-migrated collection: some order written, the rest not yet.
+    const partial = structuredClone(ordered);
+    partial.tables.Block.push({ id: 'b4', collectionId: 'c1', text: 'never positioned' });
+    expect(childrenOf(partial)).toEqual(['b3', 'b1', 'b2', 'b4']);
+  });
+
+  it('ignores an id in the order that is no longer a member', () => {
+    const stale = structuredClone(ordered);
+    (stale.tables.Collection[0].children as string[]).unshift('deleted');
+    expect(childrenOf(stale)).toEqual(['b3', 'b1', 'b2']);
+  });
+
+  it('reads exactly as before when no order has been recorded', () => {
+    // The migration case: a collection that predates ordering must not change what it shows.
+    const unwritten = structuredClone(ordered);
+    delete unwritten.tables.Collection[0].children;
+    expect(childrenOf(unwritten)).toEqual(['b1', 'b2', 'b3']);
+  });
+
+  it('leaves an unordered relation alone', () => {
+    const unordered = structuredClone(ordered);
+    delete unordered.relations!.Collection.children.ordered;
+    expect(childrenOf(unordered)).toEqual(['b1', 'b2', 'b3']);
+  });
+});
+
 /**
  * The engine has always evaluated relation quantifiers and nothing could reach them: the flat
  * dialect had no spelling, so `compileQuery` never produced one. These drive the whole chain a

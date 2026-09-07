@@ -16,6 +16,14 @@ export interface InMemoryRelation {
   cardinality: 'one' | 'many';
   /** hasOne: fk on this row → target.id. hasMany: fk on target rows → this row.id. */
   foreignKey: string;
+  /**
+   * The members are in an order somebody chose — see `RelationSchema.ordered`.
+   *
+   * Membership still comes from the foreign key; this only says that when the parent row carries an
+   * id list for the relation, that list decides the sequence. Two facts rather than one, which is
+   * what lets a member with no entry in the list still be a member.
+   */
+  ordered?: boolean;
 }
 
 export interface InMemoryDataset {
@@ -80,7 +88,30 @@ function relatedRows(
     rel.cardinality === 'one'
       ? targetRows.filter((r) => r.id === row[rel.foreignKey])
       : targetRows.filter((r) => r[rel.foreignKey] === row.id);
-  return { rows, rel };
+  return { rows: rel.ordered ? inDeclaredOrder(rows, row[relName]) : rows, rel };
+}
+
+/**
+ * Put a collection's members in the sequence its parent recorded.
+ *
+ * The parent row already holds the ids in the order they were assigned; membership is decided
+ * separately, by the foreign key. Keeping the two apart is what makes this degrade the way the rest
+ * of the system does: an id in the list that is no longer a member is inert, and a member the list
+ * does not mention is not dropped — it goes to the end, keeping its existing relative position,
+ * which is the same answer an unordered read would have given for it.
+ *
+ * So a collection whose order has never been written reads exactly as it does today, and one whose
+ * order is partial reads as "the part somebody arranged, then the rest".
+ */
+function inDeclaredOrder(rows: Row[], order: unknown): Row[] {
+  if (!Array.isArray(order) || !order.length) return rows;
+  const position = new Map(order.map((id, i) => [id, i]));
+  // Compared rather than subtracted: an unlisted member's position is "after everything listed",
+  // and `Infinity - Infinity` is NaN, which would make the comparator incoherent for the very case
+  // this has to get right — two members that the order says nothing about. Sort is stable, so
+  // returning 0 for that pair is what keeps their existing relative order.
+  const at = (r: Row) => position.get(r.id) ?? Number.POSITIVE_INFINITY;
+  return [...rows].sort((a, b) => (at(a) === at(b) ? 0 : at(a) < at(b) ? -1 : 1));
 }
 
 // ─── filter ─────────────────────────────────────────────────────────────────────
