@@ -46,6 +46,31 @@ describe('compileQuery', () => {
     });
   });
 
+  it('maps some/none to a relation quantifier rather than a comparison against an operator object', () => {
+    // The IR has carried `{ rel, some/none }` from the start and no flat spelling could reach it, so
+    // "posts with no comments" was not expressible at all — a caller fetched everything with its
+    // children and counted in JS.
+    expect(compileQuery({ entity: 'Post', where: { comments: { none: {} } } }).ir.filter).toEqual({
+      rel: 'comments',
+      op: 'none',
+    });
+    expect(compileQuery({ entity: 'Post', where: { comments: { some: { body: 'spam' } } } }).ir.filter).toEqual({
+      rel: 'comments',
+      op: 'some',
+      where: { field: 'body', op: 'eq', value: 'spam' },
+    });
+  });
+
+  it('reads a scalar operator object as a comparison, not a quantifier', () => {
+    // The two are told apart by the operator name alone — this compiler takes no manifest — so a
+    // key carrying `contains` stays a field compare even when it names something relation-shaped.
+    expect(compileQuery({ entity: 'Post', where: { comments: { contains: 'x' } } }).ir.filter).toEqual({
+      field: 'comments',
+      op: 'contains',
+      value: 'x',
+    });
+  });
+
   it('maps a count-projection to a top-level aggregate (alias keeps the $ for round-trip reads)', () => {
     const { ir, unsupported } = compileQuery({
       entity: 'Post',
@@ -125,8 +150,9 @@ describe('irToFlatQuery', () => {
     expect(() =>
       irToFlatQuery({ irVersion: 1, entity: 'Post', filter: { field: 'likes', op: 'gt', value: 5 } }),
     ).toThrow(/operator "gt"/);
-    expect(() => irToFlatQuery({ irVersion: 1, entity: 'Post', filter: { rel: 'signals', op: 'some' } })).toThrow(
-      /relation filters/,
+    // A relation `exists` is the one quantifier with no flat spelling — `some`/`none` lower fine.
+    expect(() => irToFlatQuery({ irVersion: 1, entity: 'Post', filter: { rel: 'signals', op: 'exists' } })).toThrow(
+      /relation `exists`/,
     );
     expect(() =>
       irToFlatQuery({
@@ -157,6 +183,13 @@ describe('irToFlatQuery', () => {
     { entity: 'Post', include: { $myLike: { from: 'signals', where: { author: 'did:me' }, limit: 1 } } },
     { entity: 'Post', subscribe: false, order: { createdAt: 'desc', title: 'asc' } },
     { entity: 'Channel', include: { conversations: { include: { messages: { limit: 20 } } } } },
+    // Relation quantifiers, which the flat dialect could not express at all until now: "has none",
+    // "has at least one", and one whose nested clause is itself a compound where.
+    { entity: 'Post', where: { comments: { none: {} } } },
+    { entity: 'Post', where: { comments: { some: {} } } },
+    { entity: 'Post', where: { comments: { some: { body: { contains: 'spam' }, hidden: false } } } },
+    // Alongside a scalar condition, which is the shape a real feed uses.
+    { entity: 'Post', where: { kind: 'post', signals: { some: { signalTypeId: 'like' } } }, limit: 20 },
   ];
 
   it('round-trips legacy → IR → legacy → IR without drift for every representative shape', () => {

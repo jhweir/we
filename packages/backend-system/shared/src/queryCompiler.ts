@@ -38,9 +38,34 @@ export interface CompileResult {
 
 // ─── where → Filter tree ────────────────────────────────────────────────────────
 
-function fieldCondition(field: string, cond: unknown): Filter {
+/**
+ * One key of a flat `where` — a scalar comparison, or a quantifier over a relation.
+ *
+ * The two are told apart by the **operator name**, not by asking the manifest whether the key names
+ * a relation: this compiler takes no manifest, and threading one in to answer a question the
+ * operator already answers would put the same knowledge in two places. So `some`/`none` are what
+ * make a key a relation quantifier, and a scalar property can never be compared with them.
+ *
+ * `exists` deliberately stays a scalar operator even against a relation, where it keeps meaning what
+ * it always has. On a to-many that is very nearly `some: {}`, and the overlap is harmless — an
+ * author reaching for a quantifier writes the quantifier.
+ */
+function leafCondition(field: string, cond: unknown): Filter {
   if (cond !== null && typeof cond === 'object' && !Array.isArray(cond)) {
     const c = cond as Record<string, unknown>;
+    // `{ comments: { some: {} } }` — has at least one; `{ some: { body: 'spam' } }` — has one that
+    // matches. An empty clause is "any", so the nested where is dropped rather than compiled to a
+    // filter that matches everything.
+    for (const op of ['some', 'none'] as const) {
+      if (op in c) {
+        const nested = c[op];
+        const where =
+          nested && typeof nested === 'object' && Object.keys(nested).length
+            ? translateWhere(nested as Record<string, unknown>)
+            : undefined;
+        return { rel: field, op, ...(where ? { where } : {}) };
+      }
+    }
     if ('contains' in c) return { field, op: 'contains', value: c.contains as Scalar };
     // `startsWith`/`endsWith` were in the IR and the engine from the start and unreachable from a
     // flat where clause, so a prefix match fell through to the equality below and compared a field
@@ -70,7 +95,7 @@ function translateWhere(where: Record<string, unknown>): Filter | undefined {
       const f = translateWhere(cond as Record<string, unknown>);
       if (f) clauses.push({ not: f });
     } else {
-      clauses.push(fieldCondition(key, cond));
+      clauses.push(leafCondition(key, cond));
     }
   }
   if (clauses.length === 0) return undefined;
@@ -177,7 +202,7 @@ export function compileQuery(query: FlatQuery): CompileResult {
 // A `EntityClass` ORM (AD4M's `Ad4mModel.query`/`findAll`, the in-memory harness backend) speaks the
 // flat `$query` dialect (`{ where, order, limit, offset, include, parent }`), so lowering the IR is
 // just this projection back to it. It only emits shapes that dialect expresses; a feature it can't (a
-// non-native operator, a to-many relation filter, a non-`count` aggregate) throws, because the adapter
+// non-native operator, a relation `exists`, a non-`count` aggregate) throws, because the adapter
 // should have routed that to the compute-up fallback via `planQuery` rather than pushing it down.
 // Round-tripping `flat → IR → flat` re-derives the identical IR — the losslessness guarantee this rests on.
 
@@ -220,7 +245,12 @@ function whereFromFilter(filter: Filter): Record<string, unknown> {
   if ('or' in filter) return { OR: filter.or.map(whereFromFilter) };
   if ('not' in filter) return { NOT: whereFromFilter(filter.not) };
   if ('rel' in filter) {
-    throw new Error('irToFlatQuery: relation filters are not expressible in the flat where clause');
+    // `exists` has no flat quantifier spelling of its own — it is the scalar operator, which a flat
+    // where reaches by naming the field directly. Only `some`/`none` round-trip through here.
+    if (filter.op === 'exists') {
+      throw new Error('irToFlatQuery: a relation `exists` filter has no flat spelling — use `some`');
+    }
+    return { [filter.rel]: { [filter.op]: filter.where ? whereFromFilter(filter.where) : {} } };
   }
   return { [filter.field]: conditionFromLeaf(filter.op, filter.value) };
 }
@@ -244,8 +274,8 @@ export function whereUsesCombinator(filter: Filter | undefined): boolean {
     const where = whereFromFilter(filter);
     return 'OR' in where || 'AND' in where || 'NOT' in where;
   } catch {
-    // Not lowerable to a flat where (e.g. a relation filter). That is reported as its own
-    // capability gap by the planner; it is not a sort-pushdown degradation.
+    // Not lowerable to a flat where — a relation `exists`, which has no quantifier spelling. That is
+    // reported as its own capability gap by the planner; it is not a sort-pushdown degradation.
     return false;
   }
 }

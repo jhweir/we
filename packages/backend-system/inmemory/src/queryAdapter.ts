@@ -30,7 +30,11 @@ export const inMemoryCapabilities: AdapterCapabilities = {
   // until the compiler learned to translate them.
   operators: ['eq', 'ne', 'lt', 'lte', 'gt', 'gte', 'in', 'nin', 'contains', 'startsWith', 'endsWith', 'exists'],
   booleanCombinators: true,
-  relationFilters: false,
+  // Declared for the same reason `startsWith`/`endsWith` are: `matchesFilter` in the shared engine
+  // has always evaluated `{ rel, some/none }`, and this adapter *is* that engine. It read `false`
+  // only because nothing could reach the operator from a flat where clause until the compiler
+  // learned to translate it — so the profile was describing the dialect's gap, not this backend's.
+  relationFilters: true,
   scope: true,
   include: { supported: true },
   aggregate: ['count'],

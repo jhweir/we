@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- result rows are Record<string, unknown>; tests cast to read hydrated relations */
 import { describe, expect, it } from 'vitest';
 
+import { compileQuery } from './queryCompiler';
 import { executeQueryIR, type InMemoryDataset } from './queryEngine';
 import type { QueryIR } from './queryIR';
 
@@ -242,5 +243,45 @@ describe('untyped relations', () => {
     );
     expect((rows[0].$cover as { id: string }).id).toBe('i1');
     expect((rows[1].$cover as { id: string }).id).toBe('i2');
+  });
+});
+
+/**
+ * The engine has always evaluated relation quantifiers and nothing could reach them: the flat
+ * dialect had no spelling, so `compileQuery` never produced one. These drive the whole chain a
+ * template now takes — a flat `where` in, rows out — rather than handing the engine an IR built by
+ * hand, because the half that was missing is the translation and an IR fixture would skip it.
+ */
+describe('relation quantifiers, from the flat where a template writes', () => {
+  const run = (where: Record<string, unknown>) => ids(executeQueryIR(compileQuery({ entity: 'Post', where }).ir, data));
+
+  it('finds records with none of a relation, and with any of it', () => {
+    // p3 is the only post nobody signalled — previously answerable only by fetching every post with
+    // its signals and counting client-side.
+    expect(run({ signals: { none: {} } })).toEqual(['p3']);
+    expect(run({ signals: { some: {} } })).toEqual(['p1', 'p2']);
+  });
+
+  it('filters on a property of the related record', () => {
+    expect(run({ signals: { some: { signalTypeId: 'star' } } })).toEqual(['p2']);
+    // "nobody starred this" is the negation of the above, not of `some: {}` — p1 has signals, just
+    // no stars, so it belongs in the answer.
+    expect(run({ signals: { none: { signalTypeId: 'star' } } })).toEqual(['p1', 'p3']);
+  });
+
+  it('composes with a scalar condition on the parent', () => {
+    expect(run({ title: { contains: 'graph' }, signals: { some: { signalTypeId: 'like' } } })).toEqual(['p1']);
+  });
+
+  it('reaches a relation of the related record', () => {
+    // Agents who wrote something somebody liked — a quantifier whose nested clause is itself one.
+    expect(
+      ids(
+        executeQueryIR(
+          compileQuery({ entity: 'Agent', where: { posts: { some: { signals: { some: {} } } } } }).ir,
+          data,
+        ),
+      ),
+    ).toEqual(['a1', 'a2']);
   });
 });
