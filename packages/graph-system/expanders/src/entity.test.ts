@@ -276,6 +276,55 @@ describe('reified edges', () => {
     expect(warnings.join(' ')).toContain('endpoint');
   });
 
+  it('reads an untyped endpoint from what it says it is, when nothing recorded its type', async () => {
+    /*
+      The case seen in a real space: a `Relationship` whose `sourceType`/`targetType` were never
+      written — an extraction pass can create one without them — and every such edge was skipped as
+      "missing an endpoint" though both ends existed and were perfectly readable. The endpoints are
+      read polymorphically now, so each arrives carrying its own class, and the stored copy stops
+      being the only place the type can come from.
+    */
+    const UNTYPED = { Connection: { source: 'source', target: 'target', sourceType: 'sourceType' } };
+    const shapes: EntityShape[] = [
+      ...SHAPES,
+      {
+        name: 'Connection',
+        properties: [{ name: 'label', type: 'string' }],
+        // Untyped both ends, as a hand-drawn or extracted connection is.
+        relations: [
+          { name: 'source', target: '', cardinality: 'one' },
+          { name: 'target', target: '', cardinality: 'one' },
+        ],
+      },
+    ];
+    const warnings: string[] = [];
+    const context = {
+      // The backward pass asks once per endpoint relation, and the backend answers only for the one
+      // that actually points at this node — here `source`, since the connection's source is the Post.
+      query: async (request: ExpanderQuery) =>
+        request.entity === 'Connection' && request.scope?.via === 'source'
+          ? [
+              {
+                id: 'c1',
+                label: 'contradicts',
+                // No `sourceType`/`targetType` on the row at all.
+                source: { id: 'p1', title: 'Hello', __subjectClass: 'Post' },
+                target: { id: 'a1', name: 'James', __subjectClass: 'Agent' },
+              },
+            ]
+          : [],
+      defaultDataset: () => 'ds',
+      models: () => shapes,
+      warn: (m: string) => warnings.push(m),
+    } as ExpanderContext;
+
+    const result = await entityExpander({ reified: UNTYPED }).expand({ id: POST, direction: 'in' }, context);
+
+    expect(warnings).toEqual([]);
+    expect(result.edges).toHaveLength(1);
+    expect(result.nodes.map((n) => n.type).sort()).toEqual(['Agent', 'Post']);
+  });
+
   it('leaves the entity as an ordinary node when nothing declares it reified', async () => {
     // The distinction is configuration, not inference: a Comment with author and post is a node
     // people want to read, and only the person modelling the space knows which is which.

@@ -18,7 +18,7 @@
  * person modelling the space knows which is which, so the template says.
  */
 import type { EntityShape, GraphEdge, GraphNode } from '@we/graph-protocol';
-import { entityAddress } from '@we/graph-protocol';
+import { entityAddress, nodeTypeOf } from '@we/graph-protocol';
 
 import { labelProperty, placeholder, rowToNode } from './nodes';
 
@@ -134,15 +134,22 @@ export function reifiedEdgeFrom(
 
   /*
     An endpoint's type comes from the relation's declared target, or — where the relation is
-    untyped — from a property on the row.
+    untyped — from a property on the row, or from what the endpoint itself says it is.
 
-    Both are needed and neither is a fallback for the other. A schema-declared relationship
+    The first two are not fallbacks for each other. A schema-declared relationship
     (`SemanticRelationship.tag` → `Topic`) knows its target class and stores no copy of it, which is
     right: the schema is the authority and a stored duplicate could drift from it. A drawn one has
-    no declared target at all, so the row is the only place the type can live.
+    no declared target at all, so the row is the only place the type could live.
+
+    The third rescues a case neither of the others can. `sourceType`/`targetType` are written by
+    whoever creates the relationship, and not every writer does — an extraction pass can produce a
+    `Relationship` without them, and every such edge was skipped as "missing an endpoint" though both
+    ends existed and were perfectly readable. Now that these relations are read polymorphically the
+    endpoint arrives already classified, so the type is in hand without the round trip the stored
+    copy exists to avoid. Last rather than first: a writer that recorded the type meant it.
   */
-  const sourceEntity = sourceRelation.target || readType(row, spec.sourceType);
-  const targetEntity = targetRelation.target || readType(row, spec.targetType);
+  const sourceEntity = sourceRelation.target || readType(row, spec.sourceType) || nodeTypeOf(row[spec.source]);
+  const targetEntity = targetRelation.target || readType(row, spec.targetType) || nodeTypeOf(row[spec.target]);
   if (!sourceEntity || !targetEntity) return null;
 
   const from = endpoint(row[spec.source], sourceEntity, dataset, shapes, sourceId);
