@@ -178,6 +178,7 @@ export type {
   TypedWhere,
   WriteProperties,
 } from './recordContract';
+export { RECORD_TYPE_KEY, recordTypeOf } from './recordContract';
 export type { LanguageModelPort } from './languageModel';
 export type { TranscriptionRecord, TranscriptionPort, TranscriptionStream, TranscriptionTuning } from './transcription';
 export type {

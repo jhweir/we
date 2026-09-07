@@ -166,3 +166,27 @@ export function addressKind(address: string): NodeKind | null {
       return null;
   }
 }
+
+/**
+ * The key a record read through a heterogeneous relation carries its entity type under.
+ *
+ * The engine turns records into nodes and a node's address needs its type, so a mixed bag of
+ * members — a collection's children, the two ends of a drawn connection — is unusable without
+ * this. It sits beside {@link entityAddress} because that is the question it answers: not "what is
+ * this record" in the abstract, but "what do I address it as".
+ *
+ * **Restated here rather than imported.** The authority is `RECORD_TYPE_KEY` in
+ * `@we/backend-shared`, which is itself recording a wire format the executor chooses; this package
+ * deliberately depends on nothing but itself, and buying a dependency on the whole backend contract
+ * to share one string would trade a real architectural boundary for a small duplication. The two
+ * are held equal by a test in `@we/app-shell`, which is the nearest package that sees both — so a
+ * drift fails a build rather than quietly turning every polymorphic member into an untyped row.
+ */
+export const NODE_TYPE_KEY = '__subjectClass';
+
+/** The entity type of a record read through a heterogeneous relation, or undefined if absent. */
+export function nodeTypeOf(row: unknown): string | undefined {
+  if (!row || typeof row !== 'object') return undefined;
+  const value = (row as Record<string, unknown>)[NODE_TYPE_KEY];
+  return typeof value === 'string' && value ? value : undefined;
+}

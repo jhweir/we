@@ -8,6 +8,7 @@
  * foreign key) — the minimal shape any in-memory dataset can provide.
  */
 import type { Aggregation, Filter, IncludeMap, Op, QueryIR, Scalar, Scope, SortKey } from './queryIR';
+import { RECORD_TYPE_KEY } from './recordContract';
 
 export type Row = Record<string, unknown> & { id: string | number };
 
@@ -83,7 +84,15 @@ function relatedRows(
   // "of any type". A collection holding text, images and embeds is exactly that, and reading it as
   // an empty table made every cover-image projection resolve to null — so a media grid, which drops
   // posts with no image rather than showing blank tiles, rendered as nothing at all.
-  const targetRows = rel.target ? (data.tables[rel.target] ?? []) : Object.values(data.tables).flat();
+  // A polymorphic read has to say what each member turned out to be, under the key the record
+  // contract names — a consumer holding a mixed bag can do nothing with it otherwise. Free here,
+  // where a row's class is simply the table it is in; the structural classification that makes this
+  // hard elsewhere has no counterpart.
+  const targetRows = rel.target
+    ? (data.tables[rel.target] ?? [])
+    : Object.entries(data.tables).flatMap(([entity, rows]) =>
+        rows.map((r) => (r[RECORD_TYPE_KEY] ? r : { ...r, [RECORD_TYPE_KEY]: entity })),
+      );
   const rows =
     rel.cardinality === 'one'
       ? targetRows.filter((r) => r.id === row[rel.foreignKey])
