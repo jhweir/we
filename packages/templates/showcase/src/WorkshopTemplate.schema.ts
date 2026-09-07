@@ -758,7 +758,15 @@ const board: SchemaNode = {
         // any points somebody bent it through. Per board, like a placement — the same claim shown
         // elsewhere keeps its own shape there.
         routes: 'EdgeRoute',
-        pending: { $: 'modules.transcribe.proposals.map(p, p.id)' },
+        /*
+          This board's call, not "the live one".
+
+          It read the flat list, which was the live call's — so a board opened on a past call marked
+          whatever the current one had staged, and after a restart marked nothing at all, because
+          the flat list was only filled by a pass settling or by the transcriber adopting a record.
+          Neither happens on a fresh boot, so every suggestion came back looking already accepted.
+        */
+        pending: { $: `modules.transcribe.proposalsFor[${CALL_EXPR}].map(p, p.id)` },
       },
     },
     // Nothing opens automatically: a card's own blocks are fragments of it, not more cards.

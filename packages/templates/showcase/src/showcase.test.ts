@@ -302,7 +302,7 @@ describe('the workshop template’s call selection', () => {
     */
     const json = JSON.stringify(workshop);
 
-    expect(json).toContain('modules.transcribe.proposals.map(p, p.id)');
+    expect(json).toContain('modules.transcribe.proposalsFor[');
     /*
       `data.pending`, with the prefix — the thing that was wrong the first time.
 

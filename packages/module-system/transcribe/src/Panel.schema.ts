@@ -65,6 +65,17 @@ const VIEWING_LIVE = { $: 'routeStore.params.call ? false : true' };
 export const EXTRACTION_SUBJECT_EXPR = 'routeStore.params.call ? routeStore.params.call : modules.transcribe.callId';
 const EXTRACTION_SUBJECT = { $: EXTRACTION_SUBJECT_EXPR };
 
+/**
+ * What is staged on the call this panel is showing, waiting on somebody.
+ *
+ * Keyed on the subject rather than read as "the live call's", which is what it used to be. Two
+ * things were wrong with that and only one was visible: a panel opened on a *past* call listed
+ * whatever the live one had staged, and — the reported symptom — reopening any call after a restart
+ * listed nothing at all, because the flat list was only ever filled by a pass settling or by the
+ * transcriber adopting a record, and neither happens on a fresh boot. Reading a key fetches it.
+ */
+const PROPOSALS = `modules.transcribe.proposalsFor[${EXTRACTION_SUBJECT_EXPR}]`;
+
 /** The entity names this call may have extracted, ticked or not — what the results list groups by. */
 const EXTRACTION_TARGET_ENTITIES = `modules.transcribe.extractionFor[${EXTRACTION_SUBJECT_EXPR}].targets.map(t, t.entity)`;
 
@@ -455,7 +466,7 @@ const proposalEditor: SchemaNode = {
 const proposals: SchemaNode = {
   type: '$if',
   props: {
-    condition: { $: 'count(modules.transcribe.proposals)' },
+    condition: { $: `count(${PROPOSALS})` },
     then: {
       type: 'Column',
       // `flex: '0 1 auto'` with `minHeight: '0'`: take the room the cards want, give it back when
@@ -468,7 +479,7 @@ const proposals: SchemaNode = {
           aside: {
             type: 'we-badge',
             props: { size: 'xs', variant: 'warning' },
-            children: [{ $: 'count(modules.transcribe.proposals)' }],
+            children: [{ $: `count(${PROPOSALS})` }],
           },
         }),
         {
@@ -481,7 +492,7 @@ const proposals: SchemaNode = {
               children: [
                 {
                   type: '$each',
-                  props: { items: { $: 'modules.transcribe.proposals' }, as: 'proposal' },
+                  props: { items: { $: PROPOSALS }, as: 'proposal' },
                   children: [
                     {
                       type: 'we-alert',
@@ -1106,7 +1117,7 @@ const extractedRows: SchemaNode = {
           */
           type: '$each',
           props: {
-            items: { $: 'local.found.filter(r, !(r.id in modules.transcribe.proposals.map(p, p.id)))' },
+            items: { $: `local.found.filter(r, !(r.id in ${PROPOSALS}.map(p, p.id)))` },
             as: 'item',
           },
           children: [

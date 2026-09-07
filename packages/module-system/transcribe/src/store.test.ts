@@ -1393,6 +1393,71 @@ describe('staged suggestions', () => {
     expect(h.store.proposalDraft()).toEqual({});
   });
 
+  /**
+   * Reopening a call in a session that has not extracted anything.
+   *
+   * The reported bug, and it read as data loss: after a restart the records were on the board and
+   * the review list was empty, so every suggestion looked as though somebody had already accepted
+   * it. Nothing had — the list was only ever filled by a pass settling in the activity feed or by
+   * the transcriber adopting a record to write into, and neither of those happens on a fresh boot.
+   * The feed is a live subscription that starts empty, and a collection is adopted only when this
+   * agent is about to write into it.
+   */
+  it('fetches what is staged on a call the first time anybody asks about it', async () => {
+    const i = interpreterWith([{ id: 'task-1', kind: 'create', entity: 'TaskBlock', values: { title: 'One' } }]);
+    const h = harness(inCall, { interpretation: i.port });
+
+    // No extract(), no words said — exactly the state a restart leaves the store in.
+    const byId = h.store.proposalsFor() as { get: (key: string) => unknown[] };
+    expect(byId.get('call-1')).toEqual([]);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(byId.get('call-1').map((p) => (p as { id: string }).id)).toEqual(['task-1']);
+  });
+
+  it('asks the backend once per call however often the list is read', async () => {
+    // The read is what triggers the fetch, and a panel re-reads it every frame. Without the guard
+    // that is a round trip per frame, for an answer that cannot have changed.
+    let asked = 0;
+    const i = interpreterWith([{ id: 'task-1', kind: 'create', entity: 'TaskBlock', values: { title: 'One' } }]);
+    const port = { ...i.port, proposals: async () => (asked++, [{ id: 'task-1', kind: 'create', values: {} }]) };
+    const h = harness(inCall, { interpretation: port });
+
+    const byId = h.store.proposalsFor() as { get: (key: string) => unknown[] };
+    byId.get('call-1');
+    byId.get('call-1');
+    await Promise.resolve();
+    byId.get('call-1');
+
+    expect(asked).toBe(1);
+  });
+
+  it('keeps each call’s suggestions apart', async () => {
+    // A panel opened on a past call used to list whatever the live one had staged, because there
+    // was one flat list and it belonged to whichever conversation last filled it.
+    const port = {
+      available: () => true,
+      runOnCollection: async () => ({ turns: 0, ids: [], proposed: [] }),
+      proposals: async (_target: unknown, collection?: string) =>
+        collection === 'call-1'
+          ? [{ id: 'task-1', kind: 'create', values: {} }]
+          : [{ id: 'task-2', kind: 'create', values: {} }],
+      accept: async () => true,
+      reject: async () => true,
+    };
+    const h = harness(inCall, { interpretation: port });
+
+    const byId = h.store.proposalsFor() as { get: (key: string) => unknown[] };
+    byId.get('call-1');
+    byId.get('call-2');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(byId.get('call-1').map((p) => (p as { id: string }).id)).toEqual(['task-1']);
+    expect(byId.get('call-2').map((p) => (p as { id: string }).id)).toEqual(['task-2']);
+  });
+
   it('refuses to offer editing where nothing could write the result back', async () => {
     // A host lending no record-update surface. An edit control here would take the typing and
     // discard it on Keep, which is worse than not offering one.

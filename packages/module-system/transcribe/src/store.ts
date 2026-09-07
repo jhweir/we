@@ -368,7 +368,30 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
    * update without a second: accepting the third of five should leave four, immediately, without
    * re-reading the whole set and without the row a user is looking at jumping.
    */
-  const [proposals, setProposals] = signal<ProposalView[]>([]);
+  /**
+   * Staged suggestions, per conversation — `''` holding the whole dataset's, for outside a call.
+   *
+   * ## Why this is keyed, and why it fetches on being read
+   *
+   * It was one flat list loaded from two places: a pass settling in the activity feed, and the
+   * transcriber adopting a call's record. Both are *events during a session*, and neither happens on
+   * a fresh boot — the activity feed is a live subscription that starts empty, and a collection is
+   * adopted only when this agent is about to write into it. So reopening a call after a restart
+   * showed no suggestions at all: the records were on the board looking settled, and the review list
+   * was empty. They had not been accepted; nothing had asked for them.
+   *
+   * Keyed, because the surface reading it is about whichever call is *on screen* — the live one
+   * usually, and a past one whenever somebody opened it from a link — and there is no way for an
+   * expression to pass an argument to a store member. The same reason `extractionFor` is keyed, and
+   * the same `namespace` mechanism.
+   *
+   * Fetched on first read of a key rather than from an effect, because only the reader knows which
+   * call it is asking about: a past call named in the address is not a fact the store has any other
+   * way to learn. `$agent` demand-fetches a profile from a DID for exactly this reason.
+   */
+  const [proposalsByCall, setProposalsByCall] = signal<Record<string, ProposalView[]>>({});
+  /** Keys already asked about, so a read in a render loop is one fetch and not one per frame. */
+  const proposalsRequested = new Set<string>();
   /**
    * Which suggestion is being edited, and what has been typed into it.
    *
@@ -654,7 +677,7 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
    * what was typed differs from what was shown **and** what was shown is not itself an elision.
    */
   function changedFields(id: string): Record<string, string> | null {
-    const proposal = proposals().find((p) => p.id === id);
+    const proposal = allProposals().find((p) => p.id === id);
     if (!proposal) return null;
     const draft = proposalDraft();
     const changed: Record<string, string> = {};
@@ -756,21 +779,57 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
    */
   async function loadProposals(collection?: string): Promise<void> {
     if (!interpretation) return;
+    const key = collection ?? collectionId() ?? '';
+    proposalsRequested.add(key);
     try {
       // The call's space, for the same reason the writes use it: a call outlives the space on
       // screen, so "proposals here" was answering about wherever the reader had wandered to. The
       // collection narrows it from that space to one conversation.
-      const staged = await interpretation.proposals(callTarget(), collection ?? collectionId() ?? undefined);
-      setProposals(
-        staged.map((p) => {
-          const fields = fieldsOf(p.values);
-          return { id: p.id, kind: p.kind, entity: p.entity ?? '', fields, summary: summarise(fields) };
-        }),
-      );
+      const staged = await interpretation.proposals(callTarget(), key || undefined);
+      const rows = staged.map((p) => {
+        const fields = fieldsOf(p.values);
+        return { id: p.id, kind: p.kind, entity: p.entity ?? '', fields, summary: summarise(fields) };
+      });
+      setProposalsByCall({ ...proposalsByCall(), [key]: rows });
     } catch {
-      setProposals([]);
+      /*
+        Left as it was rather than emptied.
+
+        This runs after a pass that already succeeded, and on a demand read that may be one of
+        several. Clearing on a failed fetch would take a list somebody is part-way through reviewing
+        off the screen because an unrelated read timed out — and the next settled pass, or the next
+        time the key is asked about, refills it.
+      */
+      if (!(key in proposalsByCall())) setProposalsByCall({ ...proposalsByCall(), [key]: [] });
     }
   }
+
+  /**
+   * The suggestions staged on one conversation, fetching them the first time anybody asks.
+   *
+   * The read is what triggers the load, so a panel that opens on a call nobody has extracted this
+   * session still fills — which is the whole point, and what a restart used to lose.
+   */
+  function proposalsFor(collection: string): ProposalView[] {
+    const key = collection ?? '';
+    if (!proposalsRequested.has(key)) void loadProposals(key);
+    return proposalsByCall()[key] ?? [];
+  }
+
+  /** Drop a resolved suggestion from wherever it was listed — see `acceptProposal`. */
+  function forgetProposal(id: string): void {
+    const next: Record<string, ProposalView[]> = {};
+    for (const [key, rows] of Object.entries(proposalsByCall())) next[key] = rows.filter((p) => p.id !== id);
+    setProposalsByCall(next);
+  }
+
+  /**
+   * Every suggestion currently known about, across the calls that have been asked about.
+   *
+   * What `acceptProposal` looks an id up in: the id arrives from a card, and which key that card was
+   * rendered under is not something the action is told.
+   */
+  const allProposals = (): ProposalView[] => Object.values(proposalsByCall()).flat();
 
   /*
     Re-read the staged suggestions whenever a pass settles — anybody's, not just a press of ours.
@@ -1880,8 +1939,28 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
      * missing field are the same falsy value and would make an unrelated absent id look live.
      */
     liveCollectionId: () => collectionId() ?? '',
-    /** Suggestions staged for review. Empty is the ordinary case — see `refreshProposals`. */
-    proposals,
+    /**
+     * Suggestions staged on one conversation — `modules.transcribe.proposalsFor[<id>]`.
+     *
+     * Keyed for `extractionFor`'s reason: the surface asking is about whichever call is on screen,
+     * and an expression cannot pass an argument to a store member. Reading a key it has not seen
+     * fetches it, which is what makes a review list fill after a restart — see `proposalsByCall`.
+     *
+     * An empty key asks about the whole space, which is the honest answer outside a call.
+     */
+    proposalsFor: () => namespace((key: string) => proposalsFor(key)),
+    /**
+     * The same, for the call this agent is in.
+     *
+     * Nothing in this repo reads it any more — both surfaces that did now name the call they are
+     * about. It stays because this is the spelling a template already installed would be using, and
+     * it is the one that was *wrong* in the way this keying fixes: pointed at the live call it is
+     * now correct rather than merely unscoped, so an old template improves instead of breaking.
+     *
+     * Not a member to reach for in something new. A surface that can be about a past call should say
+     * which call it means, which is `proposalsFor`.
+     */
+    proposals: () => proposalsFor(targetCollection()),
     /** The suggestion open for editing, or '' when none is. Compare it against a row's own id. */
     editingProposal,
     /**
@@ -2041,7 +2120,13 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
      */
     extractCollection: (collection: string) => runExtraction(collection),
     /** Re-read what is staged. Called after a pass; exposed so a panel can refresh on open. */
-    refreshProposals: () => loadProposals(),
+    /**
+     * Re-read what is staged on a call, or on the live one when given nothing.
+     *
+     * Rarely needed now that reading a key fetches it: this is for asking *again* — after a pass
+     * somebody else ran, or a card that looks stale. It bypasses the once-per-key guard on purpose.
+     */
+    refreshProposals: (collection?: string) => loadProposals(collection),
     /**
      * Keep a suggestion, or drop it.
      *
@@ -2076,8 +2161,8 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
       if (!interpretation) return;
       const edited = editingProposal() === id ? changedFields(id) : null;
       await interpretation.accept(id, undefined, callTarget());
-      const entity = proposals().find((p) => p.id === id)?.entity;
-      setProposals(proposals().filter((p) => p.id !== id));
+      const entity = allProposals().find((p) => p.id === id)?.entity;
+      forgetProposal(id);
       // Only if the draft belonged to *this* card. Keeping one suggestion must not throw away what
       // was typed into another one that happens to be open beside it.
       if (editingProposal() === id) closeProposalEdit();
@@ -2091,7 +2176,7 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     },
     /** Open one suggestion for editing, seeded with what the model proposed. */
     editProposal: (id: string) => {
-      const proposal = proposals().find((p) => p.id === id);
+      const proposal = allProposals().find((p) => p.id === id);
       if (!proposal) return;
       setProposalDraft(Object.fromEntries(proposal.fields.map((f) => [f.name, f.value])));
       setEditingProposal(id);
@@ -2103,7 +2188,7 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     rejectProposal: async (id: string) => {
       if (!interpretation) return;
       await interpretation.reject(id, undefined, callTarget());
-      setProposals(proposals().filter((p) => p.id !== id));
+      forgetProposal(id);
       // Whatever was typed into it went with it. Leaving the draft open would leave a card's worth
       // of edits attached to an id that no longer resolves.
       if (editingProposal() === id) closeProposalEdit();
