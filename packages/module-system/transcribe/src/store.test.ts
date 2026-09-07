@@ -1458,6 +1458,76 @@ describe('staged suggestions', () => {
     expect(byId.get('call-2').map((p) => (p as { id: string }).id)).toEqual(['task-2']);
   });
 
+  it('asks about no call at all rather than about every call at once', async () => {
+    /*
+      An empty key used to mean "everything staged in the dataset". The port offers that and it is
+      the honest answer for a surface genuinely about a dataset — but the extraction panel is about a
+      conversation, so outside a call it listed every suggestion the space had ever accumulated, in
+      one list, with no way to tell which came from where or to act on one from where the reader was.
+    */
+    let asked = 0;
+    const port = {
+      available: () => true,
+      runOnCollection: async () => ({ turns: 0, ids: [], proposed: [] }),
+      proposals: async () => (asked++, [{ id: 'task-1', kind: 'create', values: {} }]),
+      accept: async () => true,
+      reject: async () => true,
+    };
+    const h = harness([], { interpretation: port });
+
+    const byId = h.store.proposalsFor() as { get: (key: string) => unknown[] };
+    expect(byId.get('')).toEqual([]);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(asked).toBe(0);
+    expect(byId.get('')).toEqual([]);
+  });
+
+  it('keeps a card marked while its call is being switched away from', async () => {
+    /*
+      The marker asks whether anybody has agreed to a record, which is true or false wherever it is
+      drawn. Keyed per call it flashed: the outgoing call's cards stay on the board for the moment
+      its replacement is queried, and against the incoming call's list — empty, nothing having
+      fetched it — every one of them rendered as settled.
+    */
+    const port = {
+      available: () => true,
+      runOnCollection: async () => ({ turns: 0, ids: [], proposed: [] }),
+      proposals: async (_target: unknown, collection?: string) =>
+        collection === 'call-1' ? [{ id: 'task-1', kind: 'create', values: {} }] : [],
+      accept: async () => true,
+      reject: async () => true,
+    };
+    const h = harness(inCall, { interpretation: port });
+
+    const byId = h.store.proposalsFor() as { get: (key: string) => unknown[] };
+    byId.get('call-1');
+    await Promise.resolve();
+    await Promise.resolve();
+    // Switching: the new call is asked about and has nothing, while call-1's card is still drawn.
+    byId.get('call-2');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(byId.get('call-2')).toEqual([]);
+    expect(h.store.pendingIds()).toEqual(['task-1']);
+  });
+
+  it('stops marking a card once its suggestion is resolved', async () => {
+    // The union only ever loses an entry to a real decision, so nothing can un-mark a card that is
+    // still waiting — which is the property that makes it safe to answer from across calls.
+    const i = interpreterWith([{ id: 'task-1', kind: 'create', entity: 'TaskBlock', values: { title: 'One' } }]);
+    const h = harness(inCall, { interpretation: i.port });
+    await h.say('hello');
+    await h.store.extract();
+    expect(h.store.pendingIds()).toEqual(['task-1']);
+
+    await h.store.rejectProposal('task-1');
+
+    expect(h.store.pendingIds()).toEqual([]);
+  });
+
   it('refuses to offer editing where nothing could write the result back', async () => {
     // A host lending no record-update surface. An edit control here would take the typing and
     // discard it on Keep, which is worse than not offering one.

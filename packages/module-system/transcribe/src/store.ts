@@ -779,13 +779,32 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
    */
   async function loadProposals(collection?: string): Promise<void> {
     if (!interpretation) return;
-    const key = collection ?? collectionId() ?? '';
+    /*
+      `targetCollection`, not `collectionId`, when the caller names nothing.
+
+      `collectionId` is what this agent is *writing into* and stays null until somebody speaks, so a
+      refresh during a call that had not been talked in yet fell through to the unscoped key — and
+      asked about the whole space. `targetCollection` falls back to the call's own record, which
+      exists from its first second and is the id every surface here already keys on.
+    */
+    const key = collection ?? targetCollection();
+    /*
+      No call, nothing to review.
+
+      An empty key used to ask the backend for everything staged in the dataset. The port offers
+      that, and it is the honest answer for a surface that is genuinely about a dataset — but there
+      is no such surface here, and what it produced was a panel outside a call listing suggestions
+      from every conversation the space has ever had, with no way to tell which was which. It is
+      also the exact hazard `loadProposals` was narrowed to avoid: an unscoped read hands a stale
+      proposal to a reader who has no way to act on it from where they are.
+    */
+    if (!key) return;
     proposalsRequested.add(key);
     try {
       // The call's space, for the same reason the writes use it: a call outlives the space on
       // screen, so "proposals here" was answering about wherever the reader had wandered to. The
       // collection narrows it from that space to one conversation.
-      const staged = await interpretation.proposals(callTarget(), key || undefined);
+      const staged = await interpretation.proposals(callTarget(), key);
       const rows = staged.map((p) => {
         const fields = fieldsOf(p.values);
         return { id: p.id, kind: p.kind, entity: p.entity ?? '', fields, summary: summarise(fields) };
@@ -812,9 +831,31 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
    */
   function proposalsFor(collection: string): ProposalView[] {
     const key = collection ?? '';
+    // No call named, nothing to review — and nothing fetched. See `loadProposals`.
+    if (!key) return [];
     if (!proposalsRequested.has(key)) void loadProposals(key);
     return proposalsByCall()[key] ?? [];
   }
+
+  /**
+   * Every id still awaiting a decision, across every call asked about so far.
+   *
+   * ## Why a card's marker is not keyed and the review list is
+   *
+   * They answer different questions. "Which decisions am I being asked to make" is about a
+   * conversation, and belongs to whichever call is on screen. "Has anybody agreed to this record
+   * yet" is about the **record**, and is true or false wherever it is drawn.
+   *
+   * Keying the marker made switching calls flash: the outgoing call's cards stay on the board for
+   * the moment its replacement is being queried, and against the incoming call's list — empty, since
+   * nothing has fetched it yet — every one of them rendered as settled. They were never settled;
+   * they were being asked the wrong question. Answered from the union they stay marked until they
+   * leave the board, which is what somebody watching them expects.
+   *
+   * Only ever loses an entry when it is genuinely resolved, so nothing here can un-mark a card that
+   * is still waiting.
+   */
+  const pendingIds = (): string[] => allProposals().map((p) => p.id);
 
   /** Drop a resolved suggestion from wherever it was listed — see `acceptProposal`. */
   function forgetProposal(id: string): void {
@@ -1949,6 +1990,15 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
      * An empty key asks about the whole space, which is the honest answer outside a call.
      */
     proposalsFor: () => namespace((key: string) => proposalsFor(key)),
+    /**
+     * Every record still awaiting a decision, by id — what marks a card as a suggestion.
+     *
+     * Not keyed, deliberately, and `pendingIds` in the store says why at length: whether anybody has
+     * agreed to a record is a fact about the record, where which decisions somebody is being *asked*
+     * for is a fact about a conversation. A board asks the first question and a review list the
+     * second, and keying the first made switching calls flash every outgoing card as settled.
+     */
+    pendingIds,
     /**
      * The same, for the call this agent is in.
      *

@@ -759,14 +759,20 @@ const board: SchemaNode = {
         // elsewhere keeps its own shape there.
         routes: 'EdgeRoute',
         /*
-          This board's call, not "the live one".
+          Whether anybody has agreed to a record yet — which is a fact about the record, not about
+          the call being looked at.
 
-          It read the flat list, which was the live call's — so a board opened on a past call marked
-          whatever the current one had staged, and after a restart marked nothing at all, because
-          the flat list was only filled by a pass settling or by the transcriber adopting a record.
-          Neither happens on a fresh boot, so every suggestion came back looking already accepted.
+          It read a flat list that was really the live call's, so after a restart it marked nothing
+          at all and every suggestion came back looking already accepted. Keying it per call fixed
+          that and introduced a smaller version of the same lie: the outgoing call's cards stay on
+          the board for the moment its replacement is being queried, and against the incoming call's
+          list — empty, nothing having fetched it yet — every one of them flashed as settled.
+
+          `pendingIds` is the union, and asks the question the marker actually means. The panel's
+          review list stays keyed, because "which decisions am I being asked for" *is* about a
+          conversation.
         */
-        pending: { $: `modules.transcribe.proposalsFor[${CALL_EXPR}].map(p, p.id)` },
+        pending: { $: 'modules.transcribe.pendingIds' },
       },
     },
     // Nothing opens automatically: a card's own blocks are fragments of it, not more cards.

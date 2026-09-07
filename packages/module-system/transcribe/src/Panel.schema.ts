@@ -464,204 +464,234 @@ const proposalEditor: SchemaNode = {
  * record that was mostly right.
  */
 const proposals: SchemaNode = {
+  /*
+    Nothing at all outside a call, and the gate is a node rather than a clause.
+
+    Unscoped, this listed everything staged anywhere in the space — every conversation the community
+    has ever had, in one undifferentiated list, with no way to tell which suggestion came from where
+    and no way to act on one from a panel that is about no call in particular. Reviewing across calls
+    may be worth building one day; it is a surface of its own, with its own grouping and its own
+    sense of where a decision lands, and it is not this one wearing no scope.
+
+    Nested rather than `EXTRACTION_SUBJECT && count(…)`, because the inner condition *reads* the
+    list, and a read is what fetches it. One expression would have asked the backend the very
+    question this gate exists to stop being asked.
+  */
   type: '$if',
   props: {
-    condition: { $: `count(${PROPOSALS})` },
+    condition: EXTRACTION_SUBJECT,
     then: {
-      type: 'Column',
-      // `flex: '0 1 auto'` with `minHeight: '0'`: take the room the cards want, give it back when
-      // the panel is short. Without the minimum this section cannot shrink and the results list
-      // below it pays for every suggestion.
-      props: { gap: '200', flex: '0 1 auto', minHeight: '0' },
-      children: [
-        sectionLabel({
-          label: 'Awaiting your call',
-          aside: {
-            type: 'we-badge',
-            props: { size: 'xs', variant: 'warning' },
-            children: [{ $: `count(${PROPOSALS})` }],
-          },
-        }),
-        {
-          type: 'we-scroll-area',
-          props: { flex: '1', minHeight: '0' },
+      type: '$if',
+      props: {
+        condition: { $: `count(${PROPOSALS})` },
+        then: {
+          type: 'Column',
+          // `flex: '0 1 auto'` with `minHeight: '0'`: take the room the cards want, give it back when
+          // the panel is short. Without the minimum this section cannot shrink and the results list
+          // below it pays for every suggestion.
+          props: { gap: '200', flex: '0 1 auto', minHeight: '0' },
           children: [
+            sectionLabel({
+              label: 'Awaiting your call',
+              aside: {
+                type: 'we-badge',
+                props: { size: 'xs', variant: 'warning' },
+                children: [{ $: `count(${PROPOSALS})` }],
+              },
+            }),
             {
-              type: 'Grid',
-              props: { minChildWidth: '240px', gap: '200', width: '100%' },
+              type: 'we-scroll-area',
+              props: { flex: '1', minHeight: '0' },
               children: [
                 {
-                  type: '$each',
-                  props: { items: { $: PROPOSALS }, as: 'proposal' },
+                  type: 'Grid',
+                  props: { minChildWidth: '240px', gap: '200', width: '100%' },
                   children: [
                     {
-                      type: 'we-alert',
-                      props: { variant: 'warning', appearance: 'accent', r: '300', px: '300', py: '300', gap: '300' },
+                      type: '$each',
+                      props: { items: { $: PROPOSALS }, as: 'proposal' },
                       children: [
                         {
-                          type: 'Column',
-                          props: { gap: '200', width: '100%' },
+                          type: 'we-alert',
+                          props: {
+                            variant: 'warning',
+                            appearance: 'accent',
+                            r: '300',
+                            px: '300',
+                            py: '300',
+                            gap: '300',
+                          },
                           children: [
-                            /*
+                            {
+                              type: 'Column',
+                              props: { gap: '200', width: '100%' },
+                              children: [
+                                /*
                               What kind of thing is being offered, in the model's own words and icon.
 
                               Absent where the backend could not classify the base — an executor
                               predating `subjectClassesOf` answers that way for everything — and the
                               card falls back to the flat summary below rather than to a blank box.
                             */
-                            {
-                              type: '$if',
-                              props: {
-                                condition: { $: `${DISPLAY}.label` },
-                                then: {
-                                  type: 'Row',
-                                  props: { gap: '100', ay: 'center' },
-                                  children: [
-                                    {
-                                      type: '$if',
-                                      props: {
-                                        condition: { $: `${DISPLAY}.icon` },
-                                        then: {
-                                          type: 'we-icon',
-                                          props: { size: 'xs', name: { $: `${DISPLAY}.icon` }, color: 'text-muted' },
+                                {
+                                  type: '$if',
+                                  props: {
+                                    condition: { $: `${DISPLAY}.label` },
+                                    then: {
+                                      type: 'Row',
+                                      props: { gap: '100', ay: 'center' },
+                                      children: [
+                                        {
+                                          type: '$if',
+                                          props: {
+                                            condition: { $: `${DISPLAY}.icon` },
+                                            then: {
+                                              type: 'we-icon',
+                                              props: {
+                                                size: 'xs',
+                                                name: { $: `${DISPLAY}.icon` },
+                                                color: 'text-muted',
+                                              },
+                                            },
+                                          },
                                         },
-                                      },
+                                        {
+                                          type: 'we-text',
+                                          props: {
+                                            variant: 'footnote',
+                                            color: 'text-muted',
+                                            uppercase: true,
+                                            truncate: true,
+                                          },
+                                          children: [{ $: `${DISPLAY}.label` }],
+                                        },
+                                      ],
                                     },
-                                    {
-                                      type: 'we-text',
-                                      props: {
-                                        variant: 'footnote',
-                                        color: 'text-muted',
-                                        uppercase: true,
-                                        truncate: true,
-                                      },
-                                      children: [{ $: `${DISPLAY}.label` }],
-                                    },
-                                  ],
+                                  },
                                 },
-                              },
-                            },
-                            {
-                              // Editing, or reading. The controls replace the card's body rather than
-                              // sitting under it, so the thing being changed is the thing on screen.
-                              type: '$if',
-                              props: {
-                                condition: { $: 'modules.transcribe.editingProposal == proposal.id' },
-                                then: { type: 'Column', props: { gap: '200' }, children: [proposalEditor] },
-                                else: {
-                                  type: 'Column',
-                                  props: { gap: '100' },
-                                  children: [
-                                    /*
+                                {
+                                  // Editing, or reading. The controls replace the card's body rather than
+                                  // sitting under it, so the thing being changed is the thing on screen.
+                                  type: '$if',
+                                  props: {
+                                    condition: { $: 'modules.transcribe.editingProposal == proposal.id' },
+                                    then: { type: 'Column', props: { gap: '200' }, children: [proposalEditor] },
+                                    else: {
+                                      type: 'Column',
+                                      props: { gap: '100' },
+                                      children: [
+                                        /*
                                       The model's title property, drawn as one — the whole reason this
                                       stopped being a run-on line of `field: value` pairs.
 
                                       Falls back to the flat summary where there is no model to ask,
                                       which is the one case a card cannot do better than the old one.
                                     */
-                                    {
-                                      type: '$if',
-                                      props: {
-                                        condition: { $: `${DISPLAY}.title` },
-                                        then: {
-                                          type: 'we-text',
-                                          props: { variant: 'footnote', fontWeight: '600' },
-                                          children: [roleValue('title')],
+                                        {
+                                          type: '$if',
+                                          props: {
+                                            condition: { $: `${DISPLAY}.title` },
+                                            then: {
+                                              type: 'we-text',
+                                              props: { variant: 'footnote', fontWeight: '600' },
+                                              children: [roleValue('title')],
+                                            },
+                                            else: {
+                                              type: 'we-text',
+                                              props: { variant: 'footnote' },
+                                              children: [{ $: 'proposal.summary' }],
+                                            },
+                                          },
                                         },
-                                        else: {
-                                          type: 'we-text',
-                                          props: { variant: 'footnote' },
-                                          children: [{ $: 'proposal.summary' }],
+                                        {
+                                          type: '$if',
+                                          props: {
+                                            condition: { $: `${DISPLAY}.summary && ${roleValue('summary').$}` },
+                                            then: {
+                                              type: 'we-text',
+                                              props: { variant: 'footnote', color: 'text-muted' },
+                                              children: [roleValue('summary')],
+                                            },
+                                          },
                                         },
-                                      },
-                                    },
-                                    {
-                                      type: '$if',
-                                      props: {
-                                        condition: { $: `${DISPLAY}.summary && ${roleValue('summary').$}` },
-                                        then: {
-                                          type: 'we-text',
-                                          props: { variant: 'footnote', color: 'text-muted' },
-                                          children: [roleValue('summary')],
+                                        {
+                                          type: '$if',
+                                          props: { condition: { $: `${DISPLAY}.label` }, then: proposalDetail },
                                         },
-                                      },
-                                    },
-                                    {
-                                      type: '$if',
-                                      props: { condition: { $: `${DISPLAY}.label` }, then: proposalDetail },
-                                    },
-                                  ],
-                                },
-                              },
-                            },
-                            {
-                              type: 'Row',
-                              props: { gap: '200', ay: 'center', wrap: true },
-                              children: [
-                                {
-                                  type: 'we-button',
-                                  props: {
-                                    size: 'xs',
-                                    variant: 'secondary',
-                                    onClick: {
-                                      $action: 'modules.transcribe.acceptProposal',
-                                      args: [{ $: 'proposal.id' }],
+                                      ],
                                     },
                                   },
-                                  children: ['Keep'],
                                 },
                                 {
-                                  type: 'we-button',
-                                  props: {
-                                    size: 'xs',
-                                    variant: 'ghost',
-                                    onClick: {
-                                      $action: 'modules.transcribe.rejectProposal',
-                                      args: [{ $: 'proposal.id' }],
+                                  type: 'Row',
+                                  props: { gap: '200', ay: 'center', wrap: true },
+                                  children: [
+                                    {
+                                      type: 'we-button',
+                                      props: {
+                                        size: 'xs',
+                                        variant: 'secondary',
+                                        onClick: {
+                                          $action: 'modules.transcribe.acceptProposal',
+                                          args: [{ $: 'proposal.id' }],
+                                        },
+                                      },
+                                      children: ['Keep'],
                                     },
-                                  },
-                                  children: ['Discard'],
-                                },
-                                {
-                                  /*
+                                    {
+                                      type: 'we-button',
+                                      props: {
+                                        size: 'xs',
+                                        variant: 'ghost',
+                                        onClick: {
+                                          $action: 'modules.transcribe.rejectProposal',
+                                          args: [{ $: 'proposal.id' }],
+                                        },
+                                      },
+                                      children: ['Discard'],
+                                    },
+                                    {
+                                      /*
                                     Offered only where an edit could actually be written back: the
                                     host has to lend a record-update surface and the backend has to
                                     have said which model this is. Without either, Keep would take
                                     the typing and silently drop it.
                                   */
-                                  type: '$if',
-                                  props: {
-                                    condition: {
-                                      $: 'modules.transcribe.canEditProposals && proposal.entity',
-                                    },
-                                    then: {
                                       type: '$if',
                                       props: {
-                                        condition: { $: 'modules.transcribe.editingProposal == proposal.id' },
-                                        then: {
-                                          type: 'we-button',
-                                          props: {
-                                            size: 'xs',
-                                            variant: 'ghost',
-                                            onClick: { $action: 'modules.transcribe.cancelProposalEdit' },
-                                          },
-                                          children: ['Cancel'],
+                                        condition: {
+                                          $: 'modules.transcribe.canEditProposals && proposal.entity',
                                         },
-                                        else: {
-                                          type: 'we-button',
+                                        then: {
+                                          type: '$if',
                                           props: {
-                                            size: 'xs',
-                                            variant: 'ghost',
-                                            onClick: {
-                                              $action: 'modules.transcribe.editProposal',
-                                              args: [{ $: 'proposal.id' }],
+                                            condition: { $: 'modules.transcribe.editingProposal == proposal.id' },
+                                            then: {
+                                              type: 'we-button',
+                                              props: {
+                                                size: 'xs',
+                                                variant: 'ghost',
+                                                onClick: { $action: 'modules.transcribe.cancelProposalEdit' },
+                                              },
+                                              children: ['Cancel'],
+                                            },
+                                            else: {
+                                              type: 'we-button',
+                                              props: {
+                                                size: 'xs',
+                                                variant: 'ghost',
+                                                onClick: {
+                                                  $action: 'modules.transcribe.editProposal',
+                                                  args: [{ $: 'proposal.id' }],
+                                                },
+                                              },
+                                              children: ['Edit'],
                                             },
                                           },
-                                          children: ['Edit'],
                                         },
                                       },
                                     },
-                                  },
+                                  ],
                                 },
                               ],
                             },
@@ -675,7 +705,7 @@ const proposals: SchemaNode = {
             },
           ],
         },
-      ],
+      },
     },
   },
 };
@@ -1117,7 +1147,7 @@ const extractedRows: SchemaNode = {
           */
           type: '$each',
           props: {
-            items: { $: `local.found.filter(r, !(r.id in ${PROPOSALS}.map(p, p.id)))` },
+            items: { $: 'local.found.filter(r, !(r.id in modules.transcribe.pendingIds))' },
             as: 'item',
           },
           children: [
