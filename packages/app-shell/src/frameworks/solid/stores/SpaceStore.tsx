@@ -2255,6 +2255,50 @@ export function SpaceStoreProvider(props: ParentProps) {
   const offeredTaskStates = createMemo<TaskStateView[]>(() => taskStates().filter((s) => !s.retired));
 
   /**
+   * Tell extraction which states this space actually uses.
+   *
+   * A model fills `TaskBlock.status` from the vocabulary it is shown, and what it is shown is the
+   * hint on the *stored shape* — which the executor reads instead of the model class, so a space is
+   * already the override point (see `interpretationHints.ts`). Without this, a community could add
+   * "Blocked", get a Blocked column, and watch extraction keep writing the three defaults forever,
+   * because nothing connected naming a state to telling the model it existed.
+   *
+   * Only for a space that has defined its own states. One using the defaults already matches the
+   * declared hint, so writing it would customise every space to say what it already said — and a
+   * customised hint stops receiving improvements from releases, which is a real cost to pay for a
+   * no-op.
+   *
+   * Withdrawn states are left out: a state nobody may pick is not one a model should write.
+   *
+   * Known limitation, and it is the one `interpretationHints.ts` documents for every hint: a
+   * *structural* shape refresh — the model gaining a property in a release — rewrites the shape
+   * graph and drops customised hints with it. This is re-derived the next time a state changes
+   * rather than watched for, because the alternative is a read on every space open to check whether
+   * a hint the community may never have touched still says what we last wrote.
+   */
+  async function syncTaskStateHint(): Promise<void> {
+    const dataset = datasetStore.currentDataset()?.handle;
+    const ports = session.backendPorts()?.schemas;
+    const offered = offeredTaskStates().filter((state) => state.defined);
+    if (!dataset || !ports || !offered.length) return;
+    const list = offered.map((state) => `"${state.slug}"`).join(', ');
+    const open = offered.find((state) => state.semantic === 'open');
+    try {
+      await ports.setInterpretationHints(dataset, 'TaskBlock', {
+        propHints: {
+          'we://status': `Exactly one of: ${list}.${
+            open ? ` Use "${open.slug}" unless the speaker says work has begun.` : ''
+          }`,
+        },
+      });
+    } catch (error) {
+      // A space whose shape predates the property, or a peer without write access. The states still
+      // work; extraction just keeps using the vocabulary it already had.
+      console.warn('SpaceStore: could not update the extraction hint for task states', error);
+    }
+  }
+
+  /**
    * Name a state this community's work moves through.
    *
    * **The first one writes the defaults too.** A space with no states resolves to the three
@@ -2293,6 +2337,7 @@ export function SpaceStoreProvider(props: ParentProps) {
         color: config.color ?? '',
       });
       await loadTaskStates();
+      await syncTaskStateHint();
     } catch (error) {
       console.error('SpaceStore: could not create task state', error);
       toastService.error('Could not add that state');
@@ -2316,6 +2361,7 @@ export function SpaceStoreProvider(props: ParentProps) {
       record.retired = retired;
       await record.save();
       await loadTaskStates();
+      await syncTaskStateHint();
     } catch (error) {
       console.error('SpaceStore: could not update task state', error);
       toastService.error('Could not update that state');
