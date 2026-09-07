@@ -183,8 +183,17 @@ export function createAd4mDataBindings(
  *
  * The pin itself is currently a test tag rather than a release, which is worth knowing when reading
  * "verified": what was verified was that build.
+ *
+ * This one was hand-published from `dev` at **54a3fd956** — the merge of coasys/ad4m#927, which
+ * completes the eight-PR model-layer series — under npm's `dev` tag rather than `latest`. The SHA
+ * matters more here than usual: a hand-published version corresponds to no git tag, so it is the
+ * only thing tying this string to a build. And the executor binary is never published at all (WE
+ * runs the one at `ad4m/target/release/`, per `seed-runtime.json`), so the Rust half — which is
+ * where five of those eight PRs live — is pinned by that SHA and by nothing else. A core built
+ * from this commit against an executor built from another is exactly the skew this constant exists
+ * to make visible, and npm cannot catch it.
  */
-export const VERIFIED_AGAINST_AD4M = '0.13.0-test-interpretation-2';
+export const VERIFIED_AGAINST_AD4M = '0.13.0-test-model-layer';
 
 export const ad4mCapabilities: AdapterCapabilities = {
   operators: ['eq', 'ne', 'lt', 'lte', 'gt', 'gte', 'in', 'nin', 'contains', 'exists'],
