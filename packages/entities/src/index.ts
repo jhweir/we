@@ -99,7 +99,7 @@ export type TextBlock = M.TextBlockRecord;
 export const TextBlock = defineEntity('TextBlock') as unknown as EntityStatic<M.TextBlockRecord>;
 export type VideoBlock = M.VideoBlockRecord;
 export const VideoBlock = defineEntity('VideoBlock') as unknown as EntityStatic<M.VideoBlockRecord>;
-export { FILE_STORAGE_LANGUAGE, PREDICATES } from './constants';
+export { DEFAULT_TASK_STATES, FILE_STORAGE_LANGUAGE, PREDICATES } from './constants';
 export {
   asFileField,
   dataURItoBlob,

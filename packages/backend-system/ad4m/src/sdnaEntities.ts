@@ -32,6 +32,7 @@ import {
   SpaceTemplatePreference,
   TagBlock,
   TaskBlock,
+  TaskState,
   Template,
   TextBlock,
   Theme,
@@ -515,6 +516,7 @@ export const SPACE_MODELS = [
   SignalType,
   TagBlock,
   TaskBlock,
+  TaskState,
   TextBlock,
   VideoBlock,
 ] as const;
