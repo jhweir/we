@@ -1243,6 +1243,12 @@
           "type": "'xs' | 'sm' | 'md' | 'lg' | 'xl'",
           "optional": false,
           "default": "'md'"
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "optional": false,
+          "default": "''"
         }
       ]
     },

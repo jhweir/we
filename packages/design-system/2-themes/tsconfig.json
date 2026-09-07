@@ -1,13 +1,9 @@
 {
+  "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "declaration": true,
     "outDir": "dist",
     "rootDir": "src",
-    "strict": true,
-    "skipLibCheck": true,
     "isolatedModules": true,
     // The theme-selector guard reads the primitives' source from disk.
     "types": ["node"]

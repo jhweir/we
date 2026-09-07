@@ -466,6 +466,7 @@ export const contextData: ContextData = {
           default: "'primary'",
         },
         { name: 'size', type: "'xs' | 'sm' | 'md' | 'lg' | 'xl'", optional: false, default: "'md'" },
+        { name: 'label', type: 'string', optional: false, default: "''" },
       ],
     },
     {
