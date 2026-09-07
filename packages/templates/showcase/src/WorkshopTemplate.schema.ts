@@ -1076,7 +1076,7 @@ const boardRoute: RouteSchema = { path: '/board', ...boardBody };
 /** The states a task moves through. `status` is a closed vocabulary the model fills from. */
 const COLUMNS = [
   { status: 'todo', label: 'To do', color: 'text-muted' },
-  { status: 'in-progress', label: 'In progress', color: 'accent-text' },
+  { status: 'doing', label: 'Doing', color: 'accent-text' },
   { status: 'done', label: 'Done', color: 'success-text' },
 ];
 

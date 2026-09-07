@@ -36,7 +36,7 @@ import { emptyState, field, formModal } from '@we/template-kit';
  */
 const COLUMNS = [
   { status: 'todo', label: 'To do', color: 'text-muted' },
-  { status: 'in-progress', label: 'In progress', color: 'accent-text' },
+  { status: 'doing', label: 'Doing', color: 'accent-text' },
   { status: 'done', label: 'Done', color: 'success-text' },
 ] as const;
 

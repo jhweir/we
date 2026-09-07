@@ -41,6 +41,6 @@ export const PREDICATES = {
  */
 export const DEFAULT_TASK_STATES = [
   { slug: 'todo', name: 'To do', semantic: 'open', color: '' },
-  { slug: 'in-progress', name: 'In progress', semantic: 'active', color: '' },
+  { slug: 'doing', name: 'Doing', semantic: 'active', color: '' },
   { slug: 'done', name: 'Done', semantic: 'done', color: '' },
 ] as const;
