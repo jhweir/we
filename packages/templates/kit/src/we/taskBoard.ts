@@ -51,10 +51,29 @@ import type { QueryStateField, SchemaNode, SchemaProp } from '@we/schema-shared'
 
 import { agentByline } from './agentByline.ts';
 
-/** The board being read, with its columns and their cards — one query for the whole structure. */
+/** The board record, read for one thing: the order it puts its columns in. */
 const BOARD = 'first(local.board)';
-/** The columns, in the order this board reads them. */
-const COLUMNS = `${BOARD}.children`;
+
+/**
+ * The columns, as records, in the order the board puts them.
+ *
+ * Two subscriptions rather than one, and the split is what makes the board update at all.
+ *
+ * A card moving between columns changes a **column's** links. The board's own links are untouched —
+ * its children are the columns, and they are the same columns in the same order — so a subscription
+ * on the board is not obliged to re-run, and a card hydrated through the board's `include` could
+ * stay as it was until something else happened to invalidate the query. That showed up as a move
+ * that did not appear until the route was left and come back to, and as a card drawn in two columns
+ * at once because two parts of one render disagreed about which column held it.
+ *
+ * So each subscription now covers exactly what changes under it: the board for the column *order*,
+ * which changes only when columns are added, removed or rearranged; and the columns themselves for
+ * their contents, where a record whose own links changed is a record the query is watching.
+ *
+ * The board is still the source of order, because a `scope` lowers to a filter by parent link and
+ * loses it — only reading the ordered relation gives the sequence back.
+ */
+const COLUMNS = `${BOARD}.children.map(c, find(local.columns, { id: c.id })).filter(k, k.id)`;
 
 /**
  * Whether a card is positioned somewhere on this board that currently shows it.
@@ -428,8 +447,17 @@ function columnCards(opts: TaskBoardOptions): SchemaNode {
 function column(opts: TaskBoardOptions): SchemaNode {
   return {
     type: 'div',
-    // The column is an item of the board's own sortable, so it carries the id that one drags by.
-    props: { 'data-we-id': { $: 'col.id' }, style: { flex: '0 0 auto' } },
+    /*
+      The column is an item of the board's own sortable, so it carries the id that one drags by — and
+      the *whole* column drags, not a grip on its heading.
+
+      No `data-we-handle`, because nesting already arbitrates: the cards' sortable sits inside this
+      element and claims the press through `dragSession` before this one sees it. So pressing a card
+      drags the card, and pressing anywhere else — the heading, the padding, the empty trough below
+      the cards — drags the column. A handle was narrower than that and, worse, invisible: nothing on
+      screen said the heading could be dragged at all, which is what `cursor: grab` now says.
+    */
+    props: { 'data-we-id': { $: 'col.id' }, style: { flex: '0 0 auto', cursor: 'grab' } },
     children: [
       {
         type: 'Column',
@@ -457,94 +485,81 @@ function column(opts: TaskBoardOptions): SchemaNode {
         },
         children: [
           {
-            /*
-              The grab area for reordering columns, on a native div for the reason `data-we-id` is:
-              a component's non-event props are assigned as DOM *properties*, so the attribute
-              `we-sortable` looks for would never exist on a `Row`. Without a handle a press on a
-              *card* would start dragging the whole column, since an item with none drags from
-              anywhere.
-            */
-            type: 'div',
-            props: { 'data-we-handle': true, style: { width: '100%' } },
+            type: 'Row',
+            props: { gap: '200', ay: 'center', width: '100%' },
             children: [
               {
-                type: 'Row',
-                props: { gap: '200', ay: 'center', width: '100%' },
-                children: [
-                  {
-                    type: 'we-text',
+                type: 'we-text',
+                props: {
+                  variant: 'footnote',
+                  uppercase: true,
+                  truncate: true,
+                  // A lane claims no shared meaning, so it takes no state colour.
+                  color: { $: `col.slug ? (${HEADING_COLOR}) : 'text-muted'` },
+                },
+                children: [{ $: 'col.title' }],
+              },
+              // Says which columns propagate and which do not, at the only moment it matters.
+              {
+                type: '$if',
+                props: {
+                  condition: { $: '!col.slug' },
+                  then: {
+                    type: 'we-badge',
                     props: {
-                      variant: 'footnote',
-                      uppercase: true,
-                      truncate: true,
-                      // A lane claims no shared meaning, so it takes no state colour.
-                      color: { $: `col.slug ? (${HEADING_COLOR}) : 'text-muted'` },
+                      size: 'xs',
+                      variant: 'neutral',
+                      title: 'A lane on this board only — dropping a card here changes no state',
                     },
-                    children: [{ $: 'col.title' }],
+                    children: ['lane'],
                   },
-                  // Says which columns propagate and which do not, at the only moment it matters.
-                  {
-                    type: '$if',
-                    props: {
-                      condition: { $: '!col.slug' },
-                      then: {
-                        type: 'we-badge',
-                        props: {
-                          size: 'xs',
-                          variant: 'neutral',
-                          title: 'A lane on this board only — dropping a card here changes no state',
+                },
+              },
+              {
+                type: 'we-text',
+                props: {
+                  variant: 'footnote',
+                  color: 'text-muted',
+                  ml: 'auto',
+                  text: { $: `count(${ARRANGED_EXPR}) + count(${unarrangedExpr(opts)})` },
+                },
+              },
+              {
+                type: 'we-button',
+                props: {
+                  variant: 'ghost',
+                  size: 'xs',
+                  square: true,
+                  title: { $: '`Add a card to ${col.title}`' },
+                  onClick: { $setLocal: 'addOpen', value: true },
+                },
+                children: [{ type: 'we-icon', props: { name: 'plus' } }],
+              },
+              {
+                type: 'DropdownMenu',
+                props: {
+                  triggerIcon: 'dots-three',
+                  triggerTitle: 'Column options',
+                  size: 'xs',
+                  items: [
+                    { id: 'rename', label: 'Rename' },
+                    { id: 'remove', label: 'Remove column', variant: 'danger' },
+                  ],
+                  onSelect: [
+                    {
+                      $if: {
+                        condition: { $: "arg.id == 'rename'" },
+                        then: { $setLocal: 'renameOpen', value: true },
+                        // Removing takes the column record and nothing else: the cards keep their
+                        // state, so they reappear in another column bound to it or in Unplaced.
+                        else: {
+                          $action: 'spaceStore.removeBoardColumn',
+                          args: [opts.boardId, { $: 'col.id' }],
                         },
-                        children: ['lane'],
                       },
                     },
-                  },
-                  {
-                    type: 'we-text',
-                    props: {
-                      variant: 'footnote',
-                      color: 'text-muted',
-                      ml: 'auto',
-                      text: { $: `count(${ARRANGED_EXPR}) + count(${unarrangedExpr(opts)})` },
-                    },
-                  },
-                  {
-                    type: 'we-button',
-                    props: {
-                      variant: 'ghost',
-                      size: 'xs',
-                      square: true,
-                      title: { $: '`Add a card to ${col.title}`' },
-                      onClick: { $setLocal: 'addOpen', value: true },
-                    },
-                    children: [{ type: 'we-icon', props: { name: 'plus' } }],
-                  },
-                  {
-                    type: 'DropdownMenu',
-                    props: {
-                      triggerIcon: 'dots-three',
-                      triggerTitle: 'Column options',
-                      size: 'xs',
-                      items: [
-                        { id: 'rename', label: 'Rename' },
-                        { id: 'remove', label: 'Remove column', variant: 'danger' },
-                      ],
-                      onSelect: [
-                        {
-                          $if: {
-                            condition: { $: "arg.id == 'rename'" },
-                            then: { $setLocal: 'renameOpen', value: true },
-                            // Removing takes the column record and nothing else: the cards keep their
-                            // state, so they reappear in another column bound to it or in Unplaced.
-                            else: {
-                              $action: 'spaceStore.removeBoardColumn',
-                              args: [opts.boardId, { $: 'col.id' }],
-                            },
-                          },
-                        },
-                      ],
-                    },
-                  },
-                ],
+                  ],
+                },
               },
             ],
           },
@@ -679,20 +694,30 @@ export function taskBoard(opts: TaskBoardOptions): SchemaNode {
     /*
       Two subscriptions for the whole board.
 
-      `board` brings the structure back in one query — the columns in order, each carrying the ids it
-      has arranged — which is what lets a column ask about its siblings (is this card placed
-      somewhere else?) without a query per column. `allTasks` is the membership side: everything in
-      scope, which each bound column filters by its own slug and which the arranged ids resolve
-      against.
+      `board` and `columns` together bring the structure back — the order from one, the contents from
+      the other, for the reason `COLUMNS` gives. Between them a column can ask about its siblings (is
+      this card placed somewhere else?) without a query per column. `allTasks` is the membership
+      side: everything in scope, which each bound column filters by its own slug and which the
+      arranged ids resolve against.
     */
     $queries: {
+      /*
+        The board, for the order of its columns and nothing else — see `COLUMNS`. One level of
+        `include`, because a second hop through a polymorphic relation cannot be hydrated: the ORM
+        does not know what class the columns are until it has read them.
+      */
       board: {
         entity: 'CollectionBlock',
         where: { id: opts.boardId as Record<string, unknown> },
-        // One level only — see `ARRANGED` for why a second hop through a polymorphic relation
-        // cannot be hydrated. The columns come back as records; their cards come back as ids.
         include: { children: true },
         limit: 1,
+      },
+      /* The columns as records of their own, so a change to one is a change this query is watching. */
+      columns: {
+        entity: 'CollectionBlock',
+        where: { kind: 'column' },
+        scope: { anchor: 'CollectionBlock', via: 'children', anchorId: opts.boardId as Record<string, unknown> },
+        limit: 50,
       },
       allTasks: {
         entity: 'TaskBlock',

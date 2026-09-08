@@ -37,8 +37,17 @@ const UNPLACED_CURATED = unplacedExpr(CURATED);
 
 type Row = Record<string, unknown>;
 
-/** The board as the queries hand it over: columns hydrated, their children still ids. */
-const board = (columns: Row[]) => [{ id: 'b1', children: columns }];
+/**
+ * The two subscriptions, as the queries hand them over.
+ *
+ * `board` carries the column *order* and `columns` carries their contents — two queries rather than
+ * one because a card moving between columns changes a column's links and not the board's, so a
+ * subscription on the board is not obliged to re-run. See `COLUMNS` in the fragment.
+ *
+ * A column's own `children` are ids, not records: the board is read one level deep, because a second
+ * hop through a polymorphic relation cannot be hydrated.
+ */
+const boardWith = (columns: Row[]) => ({ board: [{ id: 'b1', children: columns }], columns });
 
 const evaluate = (source: string, roots: Record<string, unknown>) =>
   evaluateExpression(parseExpression(source), {
@@ -56,7 +65,7 @@ const orphan = { id: 't4', title: 'Four', status: 'archived' };
 
 describe('what a bound column shows', () => {
   const col = { id: 'c1', slug: 'todo', children: ['t1'] };
-  const local = { board: board([col]), allTasks: [todo, doing] };
+  const local = { ...boardWith([col]), allTasks: [todo, doing] };
 
   it('lists the cards it has arranged, resolved from the ids it holds', () => {
     // The regression guard for the nested include: a column's children are ids, and the cards are
@@ -86,7 +95,7 @@ describe('what a bound column shows', () => {
   it('drops a stale hint, and does not let it hide the card', () => {
     const stale = { id: 'c1', slug: 'todo', children: ['t2'] };
     const doingCol = { id: 'c2', slug: 'doing', children: [] as string[] };
-    const local = { board: board([stale, doingCol]), allTasks: [doing] };
+    const local = { ...boardWith([stale, doingCol]), allTasks: [doing] };
     expect(evaluate(ARRANGED_EXPR, { col: stale, local })).toEqual([]);
     expect(evaluate(UNARRANGED_EXPR, { col: doingCol, local })).toEqual([doing]);
   });
@@ -100,7 +109,7 @@ describe('what a bound column shows', () => {
 describe('what a local lane shows', () => {
   const lane = { id: 'c9', slug: '', children: ['t3'] };
   const doneCol = { id: 'c3', slug: 'done', children: [] as string[] };
-  const local = { board: board([lane, doneCol]), allTasks: [done] };
+  const local = { ...boardWith([lane, doneCol]), allTasks: [done] };
 
   it('shows only what somebody put there, whatever its state', () => {
     expect(evaluate(ARRANGED_EXPR, { col: lane, local })).toEqual([done]);
@@ -120,7 +129,7 @@ describe('what a local lane shows', () => {
 describe('the unplaced column', () => {
   it('catches work whose state no column here names', () => {
     const col = { id: 'c1', slug: 'todo', children: [] as string[] };
-    const local = { board: board([col]), allTasks: [todo, orphan] };
+    const local = { ...boardWith([col]), allTasks: [todo, orphan] };
     expect(evaluate(UNPLACED_EXPR, { local })).toEqual([orphan]);
   });
 
@@ -135,7 +144,7 @@ describe('the unplaced column', () => {
     every board. The view gates on `boardLoaded` so this reads as "loading", never as "empty".
   */
   it('shows nothing when there is no board record, rather than everything', () => {
-    const local = { board: [] as Row[], allTasks: [todo, doing] };
+    const local = { board: [] as Row[], columns: [] as Row[], allTasks: [todo, doing] };
     expect(evaluate(UNPLACED_CURATED, { local })).toEqual([]);
   });
 
@@ -146,13 +155,13 @@ describe('the unplaced column', () => {
     that the gate and this expression are known to depend on each other.
   */
   it('a gathering board relies on the view’s loaded gate, not on this', () => {
-    const local = { board: [] as Row[], allTasks: [todo, doing] };
+    const local = { board: [] as Row[], columns: [] as Row[], allTasks: [todo, doing] };
     expect(evaluate(UNPLACED_EXPR, { local })).toEqual([todo, doing]);
   });
 
   it('leaves placed work alone', () => {
     const col = { id: 'c1', slug: 'todo', children: ['t1'] };
-    const local = { board: board([col]), allTasks: [todo] };
+    const local = { ...boardWith([col]), allTasks: [todo] };
     expect(evaluate(UNPLACED_EXPR, { local })).toEqual([]);
   });
 });
@@ -164,7 +173,7 @@ describe('the lists are lists', () => {
   */
   it('every card expression answers with an array', () => {
     const col = { id: 'c1', slug: 'todo', children: ['t1'] };
-    const local = { board: board([col]), allTasks: [todo, orphan] };
+    const local = { ...boardWith([col]), allTasks: [todo, orphan] };
     for (const source of [ARRANGED_EXPR, UNARRANGED_EXPR]) {
       expect(Array.isArray(evaluate(source, { col, local }))).toBe(true);
     }
@@ -179,7 +188,7 @@ describe('what a board draws from', () => {
   it('a gathering board draws from everything in scope', () => {
     // Everything draws the space; a container's board draws that container's work, which the query's
     // own scope has already narrowed. Both are told they gather by the view that opened them.
-    const local = { board: board([col]), allTasks: [todo] };
+    const local = { ...boardWith([col]), allTasks: [todo] };
     expect(evaluate(UNARRANGED_EXPR, { col, local })).toEqual([todo]);
   });
 
@@ -189,13 +198,13 @@ describe('what a board draws from', () => {
     headings, which is what a hiring pipeline and a content calendar are not.
   */
   it('a board somebody made gathers nothing', () => {
-    const local = { board: board([col]), allTasks: [todo] };
+    const local = { ...boardWith([col]), allTasks: [todo] };
     expect(evaluate(UNARRANGED_CURATED, { col, local })).toEqual([]);
     expect(evaluate(UNPLACED_CURATED, { local })).toEqual([]);
   });
 
   it('but does show what it holds', () => {
-    const local = { board: board([held]), allTasks: [todo] };
+    const local = { ...boardWith([held]), allTasks: [todo] };
     expect(evaluate(ARRANGED_EXPR, { col: held, local })).toEqual([todo]);
   });
 
@@ -206,20 +215,20 @@ describe('what a board draws from', () => {
   it('follows a member whose state changed to another of its columns', () => {
     const doneCol = { id: 'c2', slug: 'done', children: [] as string[] };
     const moved = { id: 't1', title: 'One', status: 'done' };
-    const local = { board: board([held, doneCol]), allTasks: [moved] };
+    const local = { ...boardWith([held, doneCol]), allTasks: [moved] };
     expect(evaluate(ARRANGED_EXPR, { col: held, local })).toEqual([]);
     expect(evaluate(UNARRANGED_CURATED, { col: doneCol, local })).toEqual([moved]);
   });
 
   it('keeps a member whose state no column here names, in Unplaced', () => {
     const moved = { id: 't1', title: 'One', status: 'archived' };
-    const local = { board: board([held]), allTasks: [moved] };
+    const local = { ...boardWith([held]), allTasks: [moved] };
     expect(evaluate(UNPLACED_CURATED, { local })).toEqual([moved]);
   });
 
   it('never lets a made board hide work — a non-member is simply not its business', () => {
     // The card is still on Everything, which is what makes curating safe.
-    const local = { board: board([held]), allTasks: [todo, doing] };
+    const local = { ...boardWith([held]), allTasks: [todo, doing] };
     const shown = [
       ...(evaluate(ARRANGED_EXPR, { col: held, local }) as Row[]),
       ...(evaluate(UNARRANGED_CURATED, { col: held, local }) as Row[]),
