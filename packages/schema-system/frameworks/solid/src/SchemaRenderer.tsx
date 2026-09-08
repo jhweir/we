@@ -133,6 +133,9 @@ function logSubscriptionDiff(entity: string, previous: unknown[] | null, next: u
     if (!was) continue;
     for (const [key, value] of Object.entries(row)) {
       // Scalars only: a relation comes back as an array of ids and its own record's push reports it.
+      // And nothing `_`-prefixed — `Ad4mModel` keeps its dirty-tracking snapshot there, which reads
+      // as `_snapshot: [object Object] → null` and looks alarmingly like data going missing.
+      if (key.startsWith('_')) continue;
       if (value !== null && typeof value === 'object') continue;
       if (was[key] !== value) changed.push(`${id}.${key}: ${String(was[key])} → ${String(value)}`);
     }
