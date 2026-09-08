@@ -685,6 +685,26 @@ function unplacedColumn(opts: TaskBoardOptions): SchemaNode {
               gap: 'var(--we-space-300)',
               width: '100%',
               flex: '1',
+              /*
+                The drop is reported on the zone the card *left*, so this column needs its own
+                handler — its events no longer bubble to a shared one above, which is what stops a
+                card drag rewriting the board's columns.
+
+                `from` is `'unplaced'`, which resolves to no record, so nothing is unlinked: there was
+                no placement to undo. What matters is the target, which adds the card and — being a
+                bound column — writes its state, so a card here because it was `blocked` on a board
+                with no blocked column becomes `todo` by being dropped in To do. That is the rescue
+                this column exists for.
+              */
+              onMoved: {
+                $action: 'spaceStore.moveCardToColumn',
+                args: [
+                  { $: 'arg.detail.from' },
+                  { $: 'arg.detail.to' },
+                  { $: 'arg.detail.id' },
+                  { $: 'arg.detail.ids' },
+                ],
+              },
             },
             children: [
               {
