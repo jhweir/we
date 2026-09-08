@@ -803,16 +803,15 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
       // being able to.
       if (result.proposed.length) await loadProposals(collection);
       /*
-        A pass that produced something means this call may now have work to arrange, so make sure it
-        has a board. The host decides whether one is warranted — it is once the collection holds a
-        task, not for a call that produced only an event — so this asks after every non-empty pass
-        and lets the rule live in one place.
+        A pass that produced something is a pass the host may want to act on — attach what it left
+        loose, give the call a board once it holds a task. What exactly follows is the host's rule
+        and lives in one place; this only says that a pass settled here.
 
-        Not awaited into the status: the pass is done and reported, and a board that could not be
-        made is not a failed extraction. Deliberately here rather than when somebody opens the board:
-        a pass runs on one node, where opening a route runs on everybody's.
+        Not awaited into the status: the pass is done and reported, and whatever follows failing is
+        not a failed extraction. Deliberately here rather than when somebody opens a route: a pass
+        runs on one node, where opening a route runs on everybody's.
       */
-      if (result.ids.length) void interpretation.ensureBoard?.(collection);
+      if (result.ids.length) void interpretation.passSettled?.(collection);
     } catch (error) {
       setExtractError(error instanceof Error ? error.message : String(error));
       setExtractedId(collection);
@@ -1144,29 +1143,22 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
   let watched: string | null = null;
 
   /**
-   * Attach whatever a standing pass left unattached, and make sure the call has a board for it.
+   * Tell the host a pass has settled on this collection, so it can do whatever follows.
    *
    * Two moments make a pass known to this client and they cover opposite orderings, so both call
    * this. **Adopting** a collection catches a pass that ran while nobody was here. A pass
    * **settling** catches one that runs while somebody is — which is the ordinary case for a fresh
    * call, where adoption happens before there is anything to arrange.
    *
-   * Reconcile first: the host decides whether a board is warranted by looking for tasks on the
-   * collection, and the reconcile is what attaches them. Neither step is worth an error — a board
-   * that could not be made is not a failed extraction — and both are no-ops when there is nothing to
-   * do, so calling this more often than strictly necessary costs a round trip and changes nothing.
+   * What follows is the host's — see `passSettled` on the contract — and it is idempotent, so
+   * calling this more often than strictly necessary costs a round trip and changes nothing.
    */
   async function settleCollection(collection: string): Promise<void> {
     if (!collection) return;
     try {
-      await interpretation?.reconcileCollection?.(collection);
+      await interpretation?.passSettled?.(collection);
     } catch {
-      // Repair is best-effort; the pass itself already succeeded.
-    }
-    try {
-      await interpretation?.ensureBoard?.(collection);
-    } catch {
-      // As above: no board is a worse day, not a failure to report.
+      // Best-effort: the pass itself already succeeded, and the host reports its own failures.
     }
   }
 
@@ -1183,10 +1175,10 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     // conversation reads its own list — or the space's, when nobody has touched it.
     setCollectionId(next);
     void syncWatch(next);
-    // Repair anything a standing pass minted while nobody was here to attach it — see
-    // `reconcileCollection`. Adopting a collection is the moment somebody is about to look at it.
-    if (next && typeof interpretation?.reconcileCollection === 'function') {
-      // The host resolves what to repair, as it does for every other pass over this collection.
+    // Tell the host a pass may have settled here while nobody was watching — see `passSettled`.
+    // Adopting a collection is the moment somebody is about to look at it.
+    if (next && typeof interpretation?.passSettled === 'function') {
+      // The host decides what follows, as it does for every other pass over this collection.
       void settleCollection(next);
       // And whatever a standing pass staged while nobody was here to see it. The settled-pass effect
       // covers a call being watched right now; the activity feed expires, so opening an older call

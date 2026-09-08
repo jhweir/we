@@ -329,9 +329,25 @@ export function createModuleStoreDeps(framework: {
         await services.unwatchCollection?.(collectionId);
       },
       reconcileCollection: async (collectionId) => (await services.reconcileCollection?.(collectionId)) ?? 0,
-      // Empty on a host that does not do boards, which a module reads as "nothing to arrange" — the
-      // same shape `reconcileCollection` uses for a backend that parents its own results.
-      ensureBoard: async (collectionId) => (await services.ensureBoardFor?.(collectionId)) ?? '',
+      /*
+        What follows a pass, in order: attach what it left unattached, then — the host deciding
+        whether the collection now holds a task — give it a board. The reconcile goes first because
+        the board question is answered by looking for tasks on the collection, and the reconcile is
+        what attaches them. Each half is best-effort on its own: a board that could not be made is not
+        a failed extraction, and neither is worth an error reaching the module.
+      */
+      passSettled: async (collectionId) => {
+        try {
+          await services.reconcileCollection?.(collectionId);
+        } catch (error) {
+          console.warn('moduleHostServices: could not reconcile a settled pass', error);
+        }
+        try {
+          await services.ensureBoardFor?.(collectionId);
+        } catch (error) {
+          console.warn('moduleHostServices: could not prepare a board for a settled pass', error);
+        }
+      },
       /*
         Reads through on every call rather than capturing, like every accessor here — a module store
         outlives a space switch, and a captured array would keep showing the passes of the space the

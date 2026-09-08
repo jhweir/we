@@ -1243,21 +1243,24 @@ export interface ModuleInterpretationAccess {
    */
   reconcileCollection: (collectionId: string) => Promise<number>;
   /**
-   * Make sure this collection has a board, now that a pass has left work on it. Returns its id.
+   * A pass has left records on this collection; let the host do whatever follows from that.
    *
-   * Called after a pass rather than when somebody opens a board, because creating one writes records
-   * into a space everybody shares and doing that as a side effect of *navigating* means every member
-   * who opened the tab races to create the same board. A pass runs on exactly one node.
+   * Named for what happened rather than for what follows, because what follows is the host's
+   * business and changes: today it attaches anything the pass left unattached and, once the
+   * collection holds a task, gives it a board to be arranged on; tomorrow it may notify somebody.
+   * A module that knew the list would have to be told each time the list grew — and the first
+   * spelling of this, `ensureBoard`, put a surface's name into a capability's contract.
    *
-   * The host decides whether a board is warranted — it is, once the collection holds a task, and not
-   * for a call that produced only an event — so a module may call this after any pass and need not
-   * know the rule. It is a no-op with an empty answer when there is nothing to arrange.
+   * Called after a pass rather than when somebody opens a route, because what follows can write
+   * records into a space everybody shares, and doing that as a side effect of *navigating* means
+   * every member who opened the tab races to write the same thing. A pass runs on exactly one node.
    *
-   * A collection and nothing else, like every member here: the dataset is the host's to resolve, and
-   * it resolves the same one the pass just wrote into, so a board cannot land somewhere its cards
-   * did not.
+   * Idempotent, and a no-op when there is nothing to do, so a module may call it after any pass, on
+   * adopting a collection, and again when a standing pass settles, without keeping count. A
+   * collection and nothing else, like every member here: the dataset is the host's to resolve, and it
+   * resolves the same one the pass just wrote into.
    */
-  ensureBoard: (collectionId: string) => Promise<string>;
+  passSettled: (collectionId: string) => Promise<void>;
   /**
    * What extraction is doing in this space right now — this agent's passes and its peers'.
    *
