@@ -766,6 +766,12 @@ export function taskBoard(opts: TaskBoardOptions): SchemaNode {
         ...(opts.where && { where: opts.where }),
         scope: { anchor: 'CollectionBlock', via: 'children', anchorId: { $: ANCHOR } },
         order: { createdAt: 'asc' },
+        /*
+          Not asked until the board has answered. The anchor is read off the board record, and an
+          unresolved anchor is pruned — which widens the query to the whole space. Without this the
+          pool ran once unscoped, drew everybody's work, and re-ran narrowed a frame later.
+        */
+        when: { $: 'local.boardLoaded' },
       },
     },
     children: [
@@ -774,42 +780,64 @@ export function taskBoard(opts: TaskBoardOptions): SchemaNode {
         type: '$if',
         props: {
           /*
-            The columns decide whether there is a board to show, not the work. A made board is meant
-            to start empty, so the honest answer for a board with no columns is the empty state — once
-            the query has actually answered, which `boardLoaded` says.
+            Nothing is shown until all three subscriptions have answered, and then the board fades in
+            once, in its final shape. Each subscription answering at its own moment was three states
+            on the way to one: the empty state (board in, columns not yet), then whatever the pool held
+            before it narrowed, then the board. A spinner for the wait and a fade for the arrival, so
+            what a person sees change is the board appearing rather than the board correcting itself.
           */
-          condition: { $: `count(${VIEW}.columns)` },
+          condition: { $: 'local.boardLoaded && local.columnsLoaded && local.poolLoaded' },
+          enterTransition: { type: 'fade', duration: 250 },
           then: {
-            type: 'Row',
-            props: { width: '100%', gap: '400', ay: 'start', overflowX: 'auto' },
-            children: [
-              {
-                type: 'we-sortable',
-                props: {
-                  // The columns are themselves a sortable, in its own group so a card can never be
-                  // dropped among them.
-                  direction: 'horizontal',
-                  zone: 'columns',
-                  group: 'board-columns',
-                  gap: 'var(--we-space-400)',
-                  ay: 'start',
-                  onReorder: {
-                    $action: 'spaceStore.reorderBoardColumns',
-                    args: [opts.boardId, { $: 'arg.detail' }],
-                  },
-                },
+            type: '$if',
+            props: {
+              /*
+                The columns decide whether there is a board to show, not the work. A made board is
+                meant to start empty, so the honest answer for a board with no columns is the empty
+                state — and by now every query has answered, so it is an answer.
+              */
+              condition: { $: `count(${VIEW}.columns)` },
+              then: {
+                type: 'Row',
+                props: { width: '100%', gap: '400', ay: 'start', overflowX: 'auto' },
                 children: [
-                  { type: '$each', props: { items: { $: `${VIEW}.columns` }, as: 'col' }, children: [column(opts)] },
+                  {
+                    type: 'we-sortable',
+                    props: {
+                      // The columns are themselves a sortable, in its own group so a card can never
+                      // be dropped among them.
+                      direction: 'horizontal',
+                      zone: 'columns',
+                      group: 'board-columns',
+                      gap: 'var(--we-space-400)',
+                      ay: 'start',
+                      onReorder: {
+                        $action: 'spaceStore.reorderBoardColumns',
+                        args: [opts.boardId, { $: 'arg.detail' }],
+                      },
+                    },
+                    children: [
+                      {
+                        type: '$each',
+                        props: { items: { $: `${VIEW}.columns` }, as: 'col' },
+                        children: [column(opts)],
+                      },
+                    ],
+                  },
+                  // Outside the sortable, because it is not one of the board's columns: it has no
+                  // record and no id to reorder, and inside it looked draggable and did nothing.
+                  ...(opts.lanesOnly ? [] : [unplacedColumn(opts)]),
                 ],
               },
-              // Outside the sortable, because it is not one of the board's columns: it has no record
-              // and no id to reorder, and inside it looked draggable and did nothing.
-              ...(opts.lanesOnly ? [] : [unplacedColumn(opts)]),
-            ],
+              else: opts.empty,
+            },
           },
-          // Gated on the *board* having answered: an empty first frame is not an empty board, and
-          // the pool arriving says nothing about whether the columns have.
-          else: { type: '$if', props: { condition: { $: 'local.boardLoaded' }, then: opts.empty } },
+          // The same height as a column, so the board does not jump when it arrives.
+          else: {
+            type: 'Column',
+            props: { width: '100%', minHeight: '240px', ax: 'center', ay: 'center' },
+            children: [{ type: 'we-spinner', props: { size: 'lg' } }],
+          },
         },
       },
       {

@@ -23,6 +23,15 @@ describe('the task board', () => {
     // in Unplaced, it vanished.
     expect(queries.pool.limit).toBeUndefined();
     expect(queries.columns.limit).toBeUndefined();
+    // And the pool waits for the board: its anchor is read off the board record, and an unresolved
+    // anchor would be pruned into "the whole space" for a frame.
+    expect(queries.pool.when).toEqual({ $: 'local.boardLoaded' });
+  });
+
+  it('holds a loading state until every subscription has answered, then fades the board in', () => {
+    expect(json).toContain('"condition":{"$":"local.boardLoaded && local.columnsLoaded && local.poolLoaded"}');
+    expect(json).toContain('"enterTransition":{"type":"fade"');
+    expect(json).toContain('"type":"we-spinner"');
   });
 
   it('reads every list off the host function rather than computing one in an expression', () => {

@@ -13,7 +13,7 @@ export function resolveQueryProp(value: unknown): QueryDescriptor {
   const { $query } = value as { $query: Record<string, unknown> };
   // Neutral authoring grammar all the way through: `entity` + `dataset`. `where`/`order`/`include`/
   // `limit` flow through in `params`, compiled to the IR downstream.
-  const { entity, subscribe: sub, dataset, include, ...params } = $query;
+  const { entity, subscribe: sub, dataset, include, when, ...params } = $query;
   return {
     // Left as authored. A name goes through untouched; an expression is resolved by the framework
     // layer, which is the only place a row's bindings exist — see `QueryDescriptor.entity`.
@@ -22,6 +22,8 @@ export function resolveQueryProp(value: unknown): QueryDescriptor {
     subscribe: sub !== false,
     dataset: dataset as string | undefined,
     ...(include !== undefined && { include: include as Record<string, boolean | Record<string, unknown>> }),
+    // Not a param: the backend never sees it. The framework layer reads it before asking.
+    ...(when !== undefined && { when }),
   };
 }
 

@@ -81,6 +81,8 @@ const zQuery = z.object({
     .optional(),
   subscribe: z.boolean().optional(),
   dataset: z.string().optional(),
+  // Run only while this expression is truthy — a query that waits for another's answer.
+  when: z.record(z.string(), z.unknown()).optional(),
 });
 
 const zQueryToken = z.object({ $query: zQuery }).strict();

@@ -345,6 +345,19 @@ function createQuerySignal(
       return;
     }
 
+    // A query that waits — see `QueryToken.when`. Read inside the effect, so the moment the
+    // condition turns true the query is asked; until then it has not been, which is what `Loaded`
+    // staying false says. Different from an unresolved `where` operand, which is pruned and the
+    // query asked anyway: pruning widens, and a scope that is about to exist must not be widened.
+    if (descriptor.when !== undefined) {
+      const ready = deepResolveTokens(descriptor.when, stores, context);
+      if (!ready) {
+        setItems(reconcile([]));
+        setLoaded(false);
+        return;
+      }
+    }
+
     // Dataset-scoped model lookup: prefer a dataset-specific dynamic model, fall back to the global
     // registry.
     // The dataset stays opaque here: the host derives whatever key its per-dataset model registry
