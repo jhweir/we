@@ -706,6 +706,13 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     if (settled === settledSeen) return;
     settledSeen = settled;
     void loadProposals();
+    /*
+      And the same for the board. A fresh call is adopted *before* it has produced anything, so the
+      hook on adoption finds nothing to arrange and does nothing — which left an auto-extracted call
+      showing an empty tasks route and an offer to make a board by hand. This is the moment the work
+      exists, and it is the same moment this effect already exists to notice.
+    */
+    void settleCollection(collectionId() ?? '');
   });
 
   /**
@@ -1137,6 +1144,33 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
   let watched: string | null = null;
 
   /**
+   * Attach whatever a standing pass left unattached, and make sure the call has a board for it.
+   *
+   * Two moments make a pass known to this client and they cover opposite orderings, so both call
+   * this. **Adopting** a collection catches a pass that ran while nobody was here. A pass
+   * **settling** catches one that runs while somebody is — which is the ordinary case for a fresh
+   * call, where adoption happens before there is anything to arrange.
+   *
+   * Reconcile first: the host decides whether a board is warranted by looking for tasks on the
+   * collection, and the reconcile is what attaches them. Neither step is worth an error — a board
+   * that could not be made is not a failed extraction — and both are no-ops when there is nothing to
+   * do, so calling this more often than strictly necessary costs a round trip and changes nothing.
+   */
+  async function settleCollection(collection: string): Promise<void> {
+    if (!collection) return;
+    try {
+      await interpretation?.reconcileCollection?.(collection);
+    } catch {
+      // Repair is best-effort; the pass itself already succeeded.
+    }
+    try {
+      await interpretation?.ensureBoard?.(collection);
+    } catch {
+      // As above: no board is a worse day, not a failure to report.
+    }
+  }
+
+  /**
    * Set the collection, and move the watch with it.
    *
    * One function rather than an effect over the signal, because the watch has to follow every
@@ -1153,24 +1187,7 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     // `reconcileCollection`. Adopting a collection is the moment somebody is about to look at it.
     if (next && typeof interpretation?.reconcileCollection === 'function') {
       // The host resolves what to repair, as it does for every other pass over this collection.
-      void interpretation
-        .reconcileCollection(next)
-        .catch(() => 0)
-        /*
-          And make sure the call has somewhere to arrange what a pass produced.
-
-          The hook in `runExtraction` covers a pass somebody pressed for; a **standing** pass runs on
-          the backend with no client in the loop, so nothing here ever sees it complete. Adopting the
-          collection is the first moment WE knows about it, and it is already where what a pass left
-          behind gets repaired — after the reconcile rather than beside it, because the host decides
-          whether a board is warranted by looking for tasks, and the reconcile is what attaches them.
-
-          Every participant adopting the call asks, which is fine: the answer is a single-valued
-          `board` link on the collection, so concurrent askers converge on one canonical board rather
-          than each getting their own.
-        */
-        .then(() => interpretation?.ensureBoard?.(next))
-        .catch(() => '');
+      void settleCollection(next);
       // And whatever a standing pass staged while nobody was here to see it. The settled-pass effect
       // covers a call being watched right now; the activity feed expires, so opening an older call
       // needs its own read.
