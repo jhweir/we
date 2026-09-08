@@ -2313,10 +2313,6 @@ export function SpaceStoreProvider(props: ParentProps) {
       await ports.ensure(dataset, TaskState as never);
       const records = dedupeBySlug(await TaskState.findAll(dataset));
       if (datasetStore.currentDataset()?.id !== uuid) return; // navigated away while loading
-      // The community's chosen order, which is a separate fact from which states exist — see
-      // `Space.taskStates`. A state missing from it is still a state; it simply has no position.
-      const order = (currentSpace()?.taskStates as string[] | undefined) ?? [];
-      setTaskStateOrder(Array.isArray(order) ? order : []);
       setOwnTaskStates(
         records.map((r: TaskState) => ({
           id: r.id,
@@ -2341,6 +2337,58 @@ export function SpaceStoreProvider(props: ParentProps) {
     void datasetStore.currentDataset()?.id;
     void loadTaskStates();
   });
+
+  /**
+   * The community's chosen order — a separate fact from which states exist, see `Space.taskStates`.
+   *
+   * Read through an `include` on a fresh fetch rather than off the subscribed space record. The
+   * subscription's copy is whatever the last push carried, and reading it right after a write handed
+   * back the order from *before* the write — the list snapped to the old arrangement, then never
+   * caught up, since nothing re-read it when the push arrived. A hydrated include goes through the
+   * executor's ordered read, so what comes back is the arrangement as every peer would read it.
+   *
+   * Re-run whenever the space record changes, which is how a peer's reorder reaches this screen, and
+   * how this agent's own write is confirmed after `reorderTaskStates` has already shown it.
+   */
+  async function loadTaskStateOrder(spaceId: string): Promise<void> {
+    const dataset = datasetStore.currentDataset()?.handle;
+    if (!dataset) return;
+    try {
+      const record = await Space.findOne(dataset, { where: { id: spaceId }, include: { taskStates: true } });
+      if (currentSpace()?.id !== spaceId) return; // moved on while loading
+      const rows = (Array.isArray(record?.taskStates) ? record.taskStates : []) as unknown as (
+        { id?: string } | string
+      )[];
+      setTaskStateOrder(rows.map((row) => (typeof row === 'string' ? row : (row?.id ?? ''))).filter(Boolean));
+    } catch (error) {
+      console.warn('SpaceStore: could not read the task state order', error);
+    }
+  }
+
+  createEffect(() => {
+    const space = currentSpace();
+    if (!space?.id) {
+      setTaskStateOrder([]);
+      return;
+    }
+    void loadTaskStateOrder(space.id);
+  });
+
+  /**
+   * The row objects the list rendered last time, by slug, so a recompute hands back the same object
+   * for a state that has not changed. The renderer keys `$each` rows by reference: a fresh object per
+   * state per recompute remounted every row — the flash — and with it the sortable's own bookkeeping.
+   */
+  let renderedTaskStates = new Map<string, TaskStateView>();
+  const sameState = (a: TaskStateView, b: TaskStateView) =>
+    a.id === b.id &&
+    a.name === b.name &&
+    a.slug === b.slug &&
+    a.semantic === b.semantic &&
+    a.color === b.color &&
+    a.icon === b.icon &&
+    a.retired === b.retired &&
+    a.defined === b.defined;
 
   /**
    * The states this space uses — its own records, and beneath them every default nobody has
@@ -2385,10 +2433,19 @@ export function SpaceStoreProvider(props: ParentProps) {
       const i = state.id ? chosen.indexOf(state.id) : -1;
       return i === -1 ? Number.POSITIVE_INFINITY : i;
     };
-    return states.sort((a, b) => {
+    const sorted = states.sort((a, b) => {
       if (at(a) !== at(b)) return at(a) < at(b) ? -1 : 1;
       return (rank[a.semantic] ?? 0) - (rank[b.semantic] ?? 0);
     });
+    const next = new Map<string, TaskStateView>();
+    const stable = sorted.map((state) => {
+      const previous = renderedTaskStates.get(state.slug);
+      const view = previous && sameState(previous, state) ? previous : state;
+      next.set(state.slug, view);
+      return view;
+    });
+    renderedTaskStates = next;
+    return stable;
   });
 
   /** The states a person should be offered — the same list, without the withdrawn ones. */
@@ -2544,8 +2601,10 @@ export function SpaceStoreProvider(props: ParentProps) {
       }
       const record = await Space.findOne(p, { where: { id: space.id } });
       if (!record) return;
-      await record.setTaskStates(ids);
+      // Shown before it is written, and kept until the space record's next push re-reads the order
+      // the executor holds — which is this one, or a peer's concurrent one that beat it.
       setTaskStateOrder(ids);
+      await record.setTaskStates(ids);
       await loadTaskStates();
     } catch (error) {
       console.error('SpaceStore: could not reorder task states', error);
