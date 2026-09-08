@@ -402,3 +402,76 @@ describe('$query token', () => {
     expect(el?.textContent).toContain('Arrived');
   });
 });
+
+describe('$queries reading each other', () => {
+  /*
+    A query's where or scope may read a sibling declared before it. The board reads its pool's anchor
+    off the board record — `first(local.board).gathers` — and before this the sibling was undeclared
+    at the moment the pool was created, so the anchor resolved to nothing, the scope was dropped, and
+    the board drew the whole space. Not reactive either: an undeclared name is not a signal read.
+  */
+  it('re-runs a later query when the earlier one it reads answers', async () => {
+    const boards = createMockBuilder();
+    const tasks = createMockBuilder();
+    const Board = { query: vi.fn(() => boards), findAll: vi.fn() };
+    const Task = { query: vi.fn(() => tasks), findAll: vi.fn() };
+    const stores = {
+      $currentDataset: () => ({ uuid: 'test-perspective' }),
+      $getEntity: (name: string) => (name === 'Board' ? Board : Task),
+    };
+
+    const node: SchemaNode = {
+      type: 'DataDisplay',
+      $queries: {
+        board: { entity: 'Board', limit: 1 },
+        pool: { entity: 'Task', where: { parent: { $: 'first(local.board).gathers' } } },
+      },
+      props: { data: { $: 'local.pool' } },
+    };
+
+    render(() => <RenderSchema node={node} stores={asStores(stores)} registry={registry} />);
+    await tick();
+
+    // Before the board answers, the operand is unresolved and the condition is pruned rather than
+    // sent with a hole in it.
+    expect(Task.query).toHaveBeenCalledTimes(1);
+    expect((Task.query.mock.calls[0] as unknown[])[1]).not.toHaveProperty('where');
+
+    boards.push([{ id: 'b1', gathers: 'call-1' }]);
+    await tick();
+
+    // The pool re-ran with the anchor the board carries.
+    expect(Task.query).toHaveBeenCalledTimes(2);
+    expect((Task.query.mock.calls[1] as unknown[])[1]).toMatchObject({ where: { parent: 'call-1' } });
+  });
+
+  it('works whichever of the two is declared first', async () => {
+    const boards = createMockBuilder();
+    const tasks = createMockBuilder();
+    const Board = { query: vi.fn(() => boards), findAll: vi.fn() };
+    const Task = { query: vi.fn(() => tasks), findAll: vi.fn() };
+    const stores = {
+      $currentDataset: () => ({ uuid: 'test-perspective' }),
+      $getEntity: (name: string) => (name === 'Board' ? Board : Task),
+    };
+
+    const node: SchemaNode = {
+      type: 'DataDisplay',
+      $queries: {
+        pool: { entity: 'Task', where: { parent: { $: 'first(local.board).gathers' } } },
+        board: { entity: 'Board', limit: 1 },
+      },
+      props: { data: { $: 'local.pool' } },
+    };
+
+    render(() => <RenderSchema node={node} stores={asStores(stores)} registry={registry} />);
+    await tick();
+    boards.push([{ id: 'b1', gathers: 'call-1' }]);
+    await tick();
+
+    // Every accessor exists before any query's effect first runs, so the order the entries were
+    // written in is not a rule an author has to know.
+    expect(Task.query).toHaveBeenCalledTimes(2);
+    expect((Task.query.mock.calls[1] as unknown[])[1]).toMatchObject({ where: { parent: 'call-1' } });
+  });
+});

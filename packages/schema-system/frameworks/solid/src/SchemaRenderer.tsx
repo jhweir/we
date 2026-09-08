@@ -685,9 +685,34 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
     // `<name>Loaded` — false until the first result set (or error) — so a
     // template can hold a skeleton instead of flashing its empty state.
     const queryAccessors: Record<string, () => unknown> = {};
-    for (const [name, field] of Object.entries(node.$queries as Record<string, QueryStateField>)) {
+    /*
+      A query may read the results of the queries declared before it.
+
+      Each entry's `where` and `scope` are resolved against the context it is created with, and
+      before this the accessors were merged into `$local` only after the whole list had been made —
+      so a query whose anchor was `first(local.board).gathers` read `local.board` as undeclared, got
+      nothing, dropped its scope, and drew the whole space. Not a frame to wait through: an
+      undeclared name is not a reactive read, so nothing re-ran it when the board arrived.
+
+      The names are declared up front as accessors that look the real one up at read time. Every
+      accessor exists before any query's effect first runs — effects are deferred past the
+      synchronous creation of the whole list — so a read inside one query's effect reaches the
+      other's signal whichever was declared first, is tracked by it, and re-runs the reader when it
+      answers. Declaration order does not matter, and the test says so.
+    */
+    const entries = Object.entries(node.$queries as Record<string, QueryStateField>);
+    const forward: Record<string, () => unknown> = {};
+    for (const [name] of entries) {
+      forward[name] = () => queryAccessors[name]?.() ?? [];
+      forward[`${name}Loaded`] = () => queryAccessors[`${name}Loaded`]?.() ?? false;
+    }
+    const queryContext = {
+      ...effectiveContext,
+      $local: { ...((effectiveContext.$local as Record<string, unknown>) ?? {}), ...forward },
+    };
+    for (const [name, field] of entries) {
       const descriptor = resolveQueryProp({ $query: field });
-      const accessor = createQuerySignal(descriptor, stores, effectiveContext);
+      const accessor = createQuerySignal(descriptor, stores, queryContext);
       queryAccessors[name] = accessor;
       queryAccessors[`${name}Loaded`] = accessor.loaded;
     }
