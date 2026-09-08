@@ -1930,7 +1930,13 @@ export function SpaceStoreProvider(props: ParentProps) {
         CollectionBlock.findOne(p, { where: { id: columnId } }),
       ]);
       if (board) await board.removeChildren(columnId);
-      if (column) await column.delete();
+      /*
+        Only an actual column is deleted. `findOne` resolves an id to a `CollectionBlock` whatever
+        the record turns out to be, so a board whose children got polluted — see
+        `reorderBoardColumns` — would otherwise have "remove this column" delete a *task*. Taking it
+        off the board is right either way; destroying the record is only right for a column.
+      */
+      if (column?.kind === 'column') await column.delete();
     } catch (error) {
       console.error('SpaceStore: could not remove that column', error);
       toastService.error('Could not remove that column');
@@ -1959,7 +1965,16 @@ export function SpaceStoreProvider(props: ParentProps) {
     }
   }
 
-  /** The order this board reads its columns in. Ordered `children`, so two draggers converge. */
+  /**
+   * The order this board reads its columns in. Ordered `children`, so two draggers converge.
+   *
+   * **Only ids the board already holds are written.** A board's children are its columns, and
+   * anything else in that list renders as a column — so a caller handing over the wrong list does
+   * not misfile something, it invents structure. That happened: `we-sortable` dispatched its events
+   * with `bubbles: true`, so reordering *cards* inside a column reached the columns' own sortable,
+   * which wrote three task ids here and drew them as three empty columns. The primitive no longer
+   * bubbles, and this refuses to write what it is not given.
+   */
   async function reorderBoardColumns(boardId: string, orderedIds: string[]): Promise<void> {
     const p = datasetStore.currentDataset()?.handle;
     if (!p || !boardId || !Array.isArray(orderedIds) || !orderedIds.length) return;
@@ -1967,8 +1982,11 @@ export function SpaceStoreProvider(props: ParentProps) {
       const board = await CollectionBlock.findOne(p, { where: { id: boardId } });
       if (!board) return;
       const current = Array.isArray(board.children) ? (board.children as string[]) : [];
-      const moved = new Set(orderedIds);
-      await board.setChildren([...orderedIds, ...current.filter((id) => !moved.has(id))]);
+      const known = new Set(current);
+      const ordered = orderedIds.filter((id) => known.has(id));
+      if (!ordered.length) return;
+      const moved = new Set(ordered);
+      await board.setChildren([...ordered, ...current.filter((id) => !moved.has(id))]);
     } catch (error) {
       console.error('SpaceStore: could not reorder the columns', error);
       toastService.error('Could not save that order');

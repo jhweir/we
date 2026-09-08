@@ -575,12 +575,27 @@ export default class Sortable extends DesignSystemElement {
       index: insertAt,
       ids,
     };
-    this.dispatchEvent(new CustomEvent('moved', { detail, bubbles: true, composed: true }));
+    /*
+      These do **not** bubble, for the reason `we-drop-zone`'s do not: the innermost sortable owns
+      the drag, and that decision has to survive the DOM.
+
+      Nesting is the whole point of the design — a sortable inside an item of another sortable is
+      just a zone inside a zone — so an ancestor receiving its descendant's `reorder` is not an edge
+      case, it is the ordinary arrangement. And the payload is *ids of the inner list*, which an
+      outer handler will read as ids of its own: a kanban board whose columns are sortable and whose
+      cards are sortable wrote three task ids into the board's own children on the first card
+      reorder, and rendered them as three empty columns.
+
+      Nothing loses anything by this. The event is dispatched on the host element, which is the
+      element a consumer binds `onReorder` to; bubbling only ever offered it to somebody who should
+      not have been listening.
+    */
+    this.dispatchEvent(new CustomEvent('moved', { detail, bubbles: false, composed: true }));
 
     // The single-list specialisation. A reorderable sidebar wants the new order and nothing else,
     // and would otherwise have to filter out every cross-zone move to get it.
     if (sameZone) {
-      this.dispatchEvent(new CustomEvent('reorder', { detail: ids, bubbles: true, composed: true }));
+      this.dispatchEvent(new CustomEvent('reorder', { detail: ids, bubbles: false, composed: true }));
     }
   }
 

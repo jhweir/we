@@ -190,6 +190,35 @@ describe('nesting', () => {
     const { move } = drag(outer, itemsOf(outer)[0], { x: 100, y: 150 });
     expect(move?.to ?? 'outer').toBe('outer');
   });
+
+  /*
+    A nested sortable's events must not reach the sortable it sits inside.
+
+    They bubbled once, and the consequence was not a stray listener but corrupted data: on a kanban
+    board whose columns are sortable and whose cards are sortable, reordering three cards delivered
+    those three *card* ids to the columns' own `reorder` handler, which wrote them into the board's
+    children and drew three empty columns. An outer handler cannot tell whose ids it is holding, so
+    the only place to settle it is here.
+  */
+  it('keeps a nested zone’s events to itself', async () => {
+    const outer = await makeZone({ zone: 'outer', group: 'columns', items: ['a'], top: 0 });
+    const inner = await makeZone({ zone: 'inner', group: 'cards', items: ['b', 'c'], top: 0 });
+    itemsOf(outer)[0].appendChild(inner);
+    stubRect(outer, { top: 0, bottom: 400, left: 0, right: 200 });
+    stubRect(inner, { top: 0, bottom: 200, left: 0, right: 200 });
+
+    const seen: unknown[] = [];
+    outer.addEventListener('reorder', (event) => seen.push((event as CustomEvent).detail));
+    outer.addEventListener('moved', (event) => seen.push((event as CustomEvent).detail));
+
+    const own: unknown[] = [];
+    inner.addEventListener('reorder', (event) => own.push((event as CustomEvent).detail));
+
+    // Reorder within the inner zone: its own handler hears it, the outer one hears nothing.
+    drag(inner, itemsOf(inner)[1], { x: 100, y: 10 });
+    expect(own).toEqual([['c', 'b']]);
+    expect(seen).toEqual([]);
+  });
 });
 
 describe('keyboard', () => {
