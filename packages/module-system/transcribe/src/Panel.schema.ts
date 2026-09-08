@@ -1584,6 +1584,19 @@ export const transcriptLines: SchemaNode = {
                 {
                   type: 'Column',
                   props: { bg: 'surface-sunken', r: '300', p: '300', gap: '100' },
+                  /*
+                    Per row, which is what makes this a local rather than store state.
+
+                    `$localState` on a node inside `$each` is created per row, so each line owns
+                    whether it is being mended and the words being typed into it — no id to compare
+                    against, and no way for two rows to disagree. The proposal editor needed a store
+                    draft because *which fields exist* comes from the model; here the field is
+                    `text` and nothing else, which is exactly the case locals are for.
+                  */
+                  $localState: {
+                    mending: { type: 'boolean', initial: false },
+                    draft: { type: 'string', initial: '' },
+                  },
                   children: [
                     {
                       type: 'Row',
@@ -1615,9 +1628,113 @@ export const transcriptLines: SchemaNode = {
                             color: 'text-faint',
                           },
                         },
+                        /*
+                          What this line is, where it is not simply what somebody said.
+
+                          Only ever shown for the two that are not plain speech, because a badge on
+                          every row would be noise on the ordinary case and teach people to stop
+                          reading it. `spoken` is the silent default; the reader's assumption is
+                          already right, and the mark exists for where it would not be.
+                        */
+                        {
+                          type: '$if',
+                          props: {
+                            condition: { $: "utterance.source == 'typed' || utterance.source == 'corrected'" },
+                            then: {
+                              type: 'we-badge',
+                              props: { size: 'xs', variant: 'neutral' },
+                              children: [{ $: "utterance.source == 'typed' ? 'typed' : 'corrected'" }],
+                            },
+                          },
+                        },
+                        /*
+                          The correction affordance, on the row it corrects.
+
+                          Offered on every line rather than only your own: a recogniser mishears
+                          names and jargon, and whoever notices is usually not the speaker. See
+                          `editUtterance` for what that costs and what is recorded about it.
+                        */
+                        {
+                          type: '$if',
+                          props: {
+                            condition: { $: '!local.mending' },
+                            then: {
+                              type: 'we-button',
+                              props: {
+                                size: 'xs',
+                                variant: 'bare',
+                                color: 'text-faint',
+                                title: 'Fix these words',
+                                onClick: [
+                                  // Seeded on the press rather than at mount, so a row reopened
+                                  // after a cancel starts from the words as they now stand.
+                                  { $setLocal: 'draft', value: { $: 'utterance.text' } },
+                                  { $setLocal: 'mending', value: true },
+                                ],
+                              },
+                              children: [{ type: 'we-icon', props: { size: 'xs', name: 'pencil-simple' } }],
+                            },
+                          },
+                        },
                       ],
                     },
-                    { type: 'we-text', props: { color: 'text' }, children: [{ $: 'utterance.text' }] },
+                    {
+                      // Reading, or mending. The field replaces the words rather than sitting under
+                      // them, so what is being changed is the thing on screen.
+                      type: '$if',
+                      props: {
+                        condition: { $: 'local.mending' },
+                        then: {
+                          type: 'Column',
+                          props: { gap: '200' },
+                          children: [
+                            {
+                              type: 'we-textarea',
+                              props: {
+                                size: 'sm',
+                                rows: 2,
+                                value: { $: 'local.draft' },
+                                onInput: { $setLocal: 'draft', value: { $: 'event.detail' } },
+                              },
+                            },
+                            {
+                              type: 'Row',
+                              props: { gap: '200', ay: 'center' },
+                              children: [
+                                {
+                                  type: 'we-button',
+                                  props: {
+                                    size: 'xs',
+                                    variant: 'success',
+                                    gap: '100',
+                                    disabled: { $: '!trim(local.draft)' },
+                                    onClick: {
+                                      $action: 'modules.transcribe.editUtterance',
+                                      args: [{ $: 'utterance.id' }, { $: 'local.draft' }, { $: 'utterance.source' }],
+                                      // Closed on success only: a failed write leaves the words on
+                                      // screen to try again with, rather than discarding them and
+                                      // showing the line unchanged as though nothing was attempted.
+                                      onSuccess: [{ $setLocal: 'mending', value: false }],
+                                    },
+                                  },
+                                  children: [{ type: 'we-icon', props: { name: 'check' } }, 'Save'],
+                                },
+                                {
+                                  type: 'we-button',
+                                  props: {
+                                    size: 'xs',
+                                    variant: 'ghost',
+                                    onClick: { $setLocal: 'mending', value: false },
+                                  },
+                                  children: ['Cancel'],
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                        else: { type: 'we-text', props: { color: 'text' }, children: [{ $: 'utterance.text' }] },
+                      },
+                    },
                   ],
                 },
               ],
@@ -1803,6 +1920,74 @@ export const pendingUtterance: SchemaNode = {
 };
 
 /**
+ * Typing something into the transcript.
+ *
+ * ## Why this belongs in the timeline rather than beside it
+ *
+ * Somebody typing during a meeting is contributing to the record of it — a name the recogniser will
+ * not catch, a decision nobody said aloud, a correction to their own point. Kept in a separate list
+ * that would be a second document to read alongside the first; the whole value is that it lands at
+ * the moment it was written, among what was being said then. So it is a `TextBlock` in the same
+ * collection, and `source` is what stops it passing as speech — see the field's own note.
+ *
+ * ## Why it is here and not in the panel's chrome
+ *
+ * Inside the scroll region, after the unsaved line, so it sits where the next thing to arrive will
+ * appear and moves down with it. `pin: 'end'` then keeps the composer in view while somebody is at
+ * the tail, which is where somebody typing is.
+ *
+ * Only on the live call. A past call is a record of a conversation that finished, and adding to its
+ * timeline now would date a remark to a meeting it was not made in — the same reason
+ * `pendingUtterance` gates itself.
+ *
+ * Named as a part, for `captureMeter`'s reason: an interface arranging the module's pieces itself
+ * would otherwise have the transcript and no way to write into it.
+ */
+export const transcriptComposer: SchemaNode = {
+  type: '$if',
+  props: {
+    condition: { $: 'modules.transcribe.callId && !routeStore.params.call' },
+    then: {
+      type: 'Row',
+      props: { gap: '200', ay: 'end', width: '100%' },
+      $localState: { comment: { type: 'string', initial: '' } },
+      children: [
+        {
+          type: 'we-textarea',
+          props: {
+            size: 'sm',
+            rows: 1,
+            flex: '1',
+            minWidth: '0',
+            placeholder: 'Add a note to the transcript…',
+            value: { $: 'local.comment' },
+            onInput: { $setLocal: 'comment', value: { $: 'event.detail' } },
+          },
+        },
+        {
+          type: 'we-button',
+          props: {
+            size: 'sm',
+            variant: 'secondary',
+            flexShrink: '0',
+            title: 'Add this to the transcript',
+            disabled: { $: '!trim(local.comment)' },
+            onClick: {
+              $action: 'modules.transcribe.addComment',
+              args: [{ $: 'local.comment' }],
+              // Cleared on success only — a failed write keeps what was typed rather than
+              // swallowing it and leaving an empty box as the only report.
+              onSuccess: [{ $setLocal: 'comment', value: '' }],
+            },
+          },
+          children: [{ type: 'we-icon', props: { name: 'paper-plane-tilt' } }],
+        },
+      ],
+    },
+  },
+};
+
+/**
  * The transcript as almost everything wants it: the saved lines and the one being said, scrolling
  * together and following the tail.
  *
@@ -1838,6 +2023,7 @@ export const transcriptFeed: SchemaNode = {
           props: { id: 'transcribe.transcriptLines', subject: SUBJECT },
         },
         pendingUtterance,
+        transcriptComposer,
       ],
     },
   ],

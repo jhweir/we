@@ -53,6 +53,18 @@ export interface TranscriptTurn {
   text: string;
   /** ISO-8601. */
   timestamp: string;
+  /**
+   * How this turn came to be — `spoken`, `typed` or `corrected`, and empty where nothing said.
+   *
+   * "Who said it" stopped being the whole story once a person could type into a transcript or mend
+   * what the recogniser heard. A consumer that renders or exports these is asserting somebody's
+   * words, and this is what lets it be accurate about which of them were spoken aloud.
+   *
+   * Optional, and ignorable. A backend that has no use for it drops it exactly as it always did,
+   * and a turn from a writer that does not set it is unchanged — which is every turn written before
+   * `TextBlock.source` existed. See that field for the three values and why they are recorded.
+   */
+  source?: string;
 }
 
 /** Where interpreted instances go, and what may be created. */

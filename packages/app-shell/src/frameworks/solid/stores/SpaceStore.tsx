@@ -2221,7 +2221,21 @@ export function SpaceStoreProvider(props: ParentProps) {
         return profile ? displayName(profile, did) : did;
       };
 
-      const lines = turns.map((turn) => `${nameFor(turn.speaker)}, ${turn.timestamp}: ${turn.text}`);
+      /*
+        A text file has no badges, so what is not speech has to say so in words.
+
+        Every line here reads as a quotation — a name, a time, and what they said — and two kinds of
+        line in a transcript are not: one somebody typed into it, and one a human has since mended.
+        Unmarked they would both pass as verbatim, in the artefact most likely to be quoted back or
+        filed somewhere, and long after anybody remembers which was which.
+
+        Marked only where there is something to say. `spoken`, and a turn from before the field
+        existed, are the silent case — an annotation on every line would be noise on the ordinary
+        one, and the reader's assumption is already right there.
+      */
+      const mark = (turn: { source?: string }): string =>
+        turn.source === 'typed' ? ' (typed)' : turn.source === 'corrected' ? ' (corrected)' : '';
+      const lines = turns.map((turn) => `${nameFor(turn.speaker)}, ${turn.timestamp}${mark(turn)}: ${turn.text}`);
 
       if (!lines.length) {
         toastService.warning('This call has no transcript to export.');

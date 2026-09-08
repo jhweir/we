@@ -1904,3 +1904,114 @@ describe('turning automatic extraction off for one call', () => {
     expect(set).toEqual([]);
   });
 });
+
+/**
+ * Writing into a transcript by hand — a note typed during a call, and a line the recogniser
+ * misheard.
+ *
+ * Both put text in the same timeline a microphone writes into, which is the point: a remark typed
+ * during a meeting belongs at the moment it was typed, among what was being said then. What must
+ * not follow is the record claiming somebody *said* it — see `TextBlock.source`.
+ */
+describe('typing into a transcript', () => {
+  let inCall: Peer[];
+
+  beforeEach(() => {
+    inCall = [peer(ME, { type: 'call', id: CALL, record: RECORD })];
+  });
+
+  it('marks what a microphone heard as spoken', async () => {
+    // The one writer allowed to say so, and the reason the other two marks mean anything.
+    const h = harness(inCall);
+
+    await h.say('hello there');
+
+    expect(h.created.find((c) => c.entity === 'TextBlock')?.fields.source).toBe('spoken');
+  });
+
+  it('writes a typed note into the same timeline, saying it was typed', async () => {
+    const h = harness(inCall);
+
+    await h.store.addComment('  Sam is joining late  ');
+
+    const block = h.created.find((c) => c.entity === 'TextBlock');
+    expect(block?.fields).toEqual({ text: 'Sam is joining late', source: 'typed' });
+    // Into the call's own record, which exists from its first second — a note does not require
+    // somebody to have spoken first.
+    expect(block?.options?.parent).toEqual({ id: RECORD, predicate: 'we://children' });
+  });
+
+  it('writes nothing for an empty note', async () => {
+    const h = harness(inCall);
+
+    await h.store.addComment('   ');
+
+    expect(h.created.filter((c) => c.entity === 'TextBlock')).toEqual([]);
+  });
+
+  it('has nowhere to put a note outside a call, and does not invent one', async () => {
+    const h = harness([]);
+
+    await h.store.addComment('a thought');
+
+    expect(h.created.filter((c) => c.entity === 'TextBlock')).toEqual([]);
+  });
+});
+
+describe('mending a line somebody misheard', () => {
+  let inCall: Peer[];
+  let updates: Array<{ entity: string; id: string; fields: Record<string, unknown> }>;
+  let deps: Record<string, unknown>;
+
+  beforeEach(() => {
+    inCall = [peer(ME, { type: 'call', id: CALL, record: RECORD })];
+    updates = [];
+    deps = {
+      updateEntity: async (entity: string, id: string, fields: Record<string, unknown>) => {
+        updates.push({ entity, id, fields });
+      },
+    };
+  });
+
+  it('records that a heard line is no longer verbatim', async () => {
+    /*
+      The whole reason the mark exists: a mended line that still reads as a quotation is a claim
+      nobody checked, in a record other people rely on.
+    */
+    const h = harness(inCall, deps);
+
+    await h.store.editUtterance('block-1', 'Siobhan is joining late', 'spoken');
+
+    expect(updates).toEqual([
+      { entity: 'TextBlock', id: 'block-1', fields: { text: 'Siobhan is joining late', source: 'corrected' } },
+    ]);
+  });
+
+  it('leaves a typed note typed when its author fixes it', async () => {
+    // Correcting your own writing is not a correction *of a transcript*, and calling it one would
+    // put a mark on the ordinary act of fixing a typo.
+    const h = harness(inCall, deps);
+
+    await h.store.editUtterance('block-1', 'Sam is joining late', 'typed');
+
+    expect(updates[0].fields).toEqual({ text: 'Sam is joining late' });
+  });
+
+  it('does not un-correct a line corrected once already', async () => {
+    const h = harness(inCall, deps);
+
+    await h.store.editUtterance('block-1', 'third go', 'corrected');
+
+    expect(updates[0].fields).toEqual({ text: 'third go' });
+  });
+
+  it('refuses to write an empty line over what was said', async () => {
+    // Emptying an utterance is not a correction, and the row would then render as a blank quote
+    // with a byline — worse than the misheard words it replaced.
+    const h = harness(inCall, deps);
+
+    await h.store.editUtterance('block-1', '   ', 'spoken');
+
+    expect(updates).toEqual([]);
+  });
+});

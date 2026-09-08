@@ -30,6 +30,17 @@ const FLUSH_AFTER_MS = 3_000;
 export const CHILDREN_PREDICATE = 'we://children';
 
 /**
+ * How a line in a transcript came to be — the three values of `TextBlock.source`.
+ *
+ * Named here rather than written as literals because three surfaces have to agree on them: the
+ * transcriber writes one, the panel draws by them, and an edit moves between them. See the field's
+ * own note for why a transcript that cannot tell speech from typing is making a claim.
+ */
+export const SPOKEN = 'spoken';
+export const TYPED = 'typed';
+export const CORRECTED = 'corrected';
+
+/**
  * The activity this module publishes so peers can converge on one record per call.
  *
  * Its own type rather than a field on the call activity, which keeps the two modules mutually
@@ -1075,7 +1086,10 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
       const dataset = myCall()?.datasetUri ?? undefined;
       await createEntity?.(
         'TextBlock',
-        { text },
+        // `spoken`, because a recogniser heard it — the one writer that may say so. Everything else
+        // in this timeline is a person typing, and a transcript that cannot tell them apart claims
+        // somebody said what they wrote. See `TextBlock.source`.
+        { text, source: SPOKEN },
         { parent: { id: slot.id, predicate: CHILDREN_PREDICATE }, ...(dataset ? { dataset } : {}) },
       );
       await recordSelfParticipation(slot.id, dataset);
@@ -2287,6 +2301,66 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
       // Whatever was typed into it went with it. Leaving the draft open would leave a card's worth
       // of edits attached to an id that no longer resolves.
       if (editingProposal() === id) closeProposalEdit();
+    },
+    /**
+     * Write something a person typed into the transcript, at the moment they typed it.
+     *
+     * ## Why it is the same kind of record as an utterance
+     *
+     * A transcript is one timeline ordered by `createdAt`, and a schema cannot merge two queries
+     * into one — so a comment kept in its own entity could only ever be listed *beside* the
+     * conversation rather than *in* it, which is not what somebody typing during a meeting means.
+     * It is a `TextBlock` among the utterances, and `source` is what stops it passing as one.
+     *
+     * Attribution stays correct for free: the writer is the author, exactly as a speaker is the
+     * author of what their own microphone heard.
+     *
+     * Written into the **call's** space rather than the space on screen, for the reason every other
+     * write here is: a call outlives the reader's navigation, and a comment landing in whichever
+     * space somebody had wandered to would be a note about a meeting, filed somewhere else.
+     */
+    addComment: async (text: string) => {
+      const words = String(text ?? '').trim();
+      if (!words || !createEntity) return;
+      // The call's own record, which exists from its first second — a comment does not need
+      // somebody to have spoken first, and `collectionId` is null until they have.
+      const collection = targetCollection();
+      if (!collection) return;
+      const dataset = myCall()?.datasetUri ?? undefined;
+      await createEntity(
+        'TextBlock',
+        { text: words, source: TYPED },
+        { parent: { id: collection, predicate: CHILDREN_PREDICATE }, ...(dataset ? { dataset } : {}) },
+      );
+      await recordSelfParticipation(collection, dataset);
+    },
+    /**
+     * Fix the words on a line of the transcript.
+     *
+     * ## Why anybody may, and what is recorded
+     *
+     * A recogniser mishears names, jargon and anybody with a cold, and the person best placed to
+     * fix it is whoever notices — often not the speaker. A shared record every member can write to
+     * makes that possible already; refusing it in the UI would only mean the transcript stays wrong.
+     *
+     * What is not acceptable is the correction being invisible. A mended line that still reads as a
+     * verbatim quote is a claim nobody checked, so `spoken` becomes `corrected` and the panel says
+     * so. Editing something `typed` leaves it `typed` — correcting your own writing is not a
+     * correction *of a transcript* — and something already `corrected` stays that way.
+     *
+     * `was` is passed in rather than read, because a module's data surface is write-only by design
+     * (see `transcriptTurns`) and the panel is holding the row already.
+     */
+    editUtterance: async (id: string, text: string, was?: string) => {
+      const words = String(text ?? '').trim();
+      if (!id || !words || !updateEntity) return;
+      await updateEntity(
+        'TextBlock',
+        id,
+        { text: words, ...(was === SPOKEN ? { source: CORRECTED } : {}) },
+        // The call's space, as every other write here. `callTarget` answers with it or undefined.
+        callTarget(),
+      );
     },
     /** Write what has been heard so far without waiting for the buffer to fill. */
     flushNow: () => flush(),

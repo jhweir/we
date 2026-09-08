@@ -1949,6 +1949,7 @@ export const contextData: ContextData = {
         { name: 'direction', type: 'string', predicate: 'we://direction', required: false },
         { name: 'text', type: 'string', predicate: 'we://text', required: false },
         { name: 'marks', type: 'json', predicate: 'we://marks', required: false },
+        { name: 'source', type: 'string', predicate: 'we://text_source', required: false },
         { name: 'version', type: 'number', predicate: 'we://version', required: false },
       ],
       relations: [],

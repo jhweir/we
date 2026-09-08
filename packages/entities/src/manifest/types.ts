@@ -358,6 +358,7 @@ export interface TextBlockRecord extends WeNodeRecord {
   direction: string;
   text: string;
   marks: string;
+  source: string;
   version: number;
 }
 

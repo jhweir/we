@@ -5480,6 +5480,12 @@
           "required": false
         },
         {
+          "name": "source",
+          "type": "string",
+          "predicate": "we://text_source",
+          "required": false
+        },
+        {
           "name": "version",
           "type": "number",
           "predicate": "we://version",

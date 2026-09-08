@@ -2357,6 +2357,7 @@ TextBlock extends WeNode:
   - direction: string [we://direction]
   - text: string [we://text]
   - marks: json [we://marks]
+  - source: string [we://text_source]
   - version: number [we://version]
 
 Topic extends WeNode:

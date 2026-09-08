@@ -77,6 +77,7 @@ import {
   panel,
   pendingUtterance,
   SUBJECT_EXPR,
+  transcriptComposer,
   transcriptFeed,
   transcriptLines,
 } from './Panel.schema';
@@ -91,6 +92,7 @@ export {
   extractionTargets,
   panel,
   pendingUtterance,
+  transcriptComposer,
   transcriptFeed,
   transcriptLines,
 } from './Panel.schema';
@@ -169,6 +171,9 @@ export const transcribeModule = defineModule({
     transcriptFeed: { node: transcriptFeed, subject: SUBJECT_EXPR },
     transcriptLines: { node: transcriptLines, subject: 'modules.transcribe.collectionId' },
     // Bare nodes rather than `{ node }`: the wrapper exists to name a subject, and these have none.
+    // The composer writes into the live call by construction — it is about this agent typing now,
+    // not about whichever call is being read — so there is no subject to point elsewhere.
+    transcriptComposer,
     captureMeter,
     captureStatus,
     coverage,
