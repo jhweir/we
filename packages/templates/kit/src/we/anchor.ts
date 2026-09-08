@@ -128,3 +128,26 @@ export function anchorBanner(opts: AnchorBannerOptions): SchemaNode {
     },
   };
 }
+
+/**
+ * The predicate a `CollectionBlock`'s children hang off. The one place a schema needs to name it.
+ */
+const CHILDREN_PREDICATE = 'we://children';
+
+/**
+ * The options a `record.create` needs to put what it makes *inside* the anchored container.
+ *
+ * The write half of {@link anchorScope}, and it has to exist for the same reason the scope does: a
+ * narrowed view that could not create into what it is narrowed to would make a task, congratulate
+ * itself, and show nothing — the record is real and in the space, but not in the container being
+ * looked at.
+ *
+ * Resolves to `{}` when there is no anchor, which `record.create` treats as no options at all, so
+ * the same call serves both cases. Pass an expression naming a different anchor where a template has
+ * one of its own — the Workshop names the call it is about rather than a URL parameter.
+ */
+export function anchorParent(anchorExpr = `routeStore.params.${ANCHOR_PARAM}`): { $: string } {
+  return {
+    $: `(${anchorExpr}) ? { parent: { id: ${anchorExpr}, predicate: '${CHILDREN_PREDICATE}' } } : {}`,
+  };
+}

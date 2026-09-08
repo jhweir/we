@@ -54,7 +54,16 @@
  *   *joins a call* when there is not one. Placed, never opened.
  */
 import type { RouteSchema, SchemaNode, SchemaProp, TemplateSchema } from '@we/schema-shared';
-import { agentByline, emptyState, panelHeader, recordFormModal } from '@we/template-kit';
+import {
+  anchorParent,
+  anchorScope,
+  emptyState,
+  moveTaskMenu,
+  panelHeader,
+  recordFormModal,
+  stateBoard,
+  taskCard,
+} from '@we/template-kit';
 
 /**
  * The call on screen — **named in the address**, or the one being recorded when it names none.
@@ -1073,23 +1082,34 @@ const canvasBody: Omit<RouteSchema, 'path'> = {
 
 const canvasRoute: RouteSchema = { path: '/canvas', ...canvasBody };
 
-/** The states a task moves through. `status` is a closed vocabulary the model fills from. */
-const COLUMNS = [
-  { status: 'todo', label: 'To do', color: 'text-muted' },
-  { status: 'doing', label: 'Doing', color: 'accent-text' },
-  { status: 'done', label: 'Done', color: 'success-text' },
-];
-
 /**
- * The tasks, by state.
+ * The tasks, by state — scoped to the call this workshop is about.
  *
- * Read off `status` rather than off containment, which is the distinction `TasksView` already draws
- * and is worth keeping: a kanban canvas's columns are collections and moving a card is a relink,
- * while a task's state is a property of the task. Extraction fills `status`, so these columns are
- * populated by the conversation rather than by anyone dragging.
+ * ## The board is `stateBoard`, not a fourth copy of one
  *
- * Every task in the space, not only this call's — the point of the list is what is outstanding, and
- * a task does not stop being outstanding because the meeting it came from ended.
+ * Columns, cards, the trough, the drop zones, the move menu and the column for work whose state
+ * nothing recognises all come from `@we/template-kit`, which is the same board WE's own Tasks and
+ * Boards views render. This route used to hold its own — three hardcoded columns, no drag, and no
+ * sight of a state a community had invented — which is exactly what a shared fragment is for.
+ *
+ * Columns are the community's `TaskState` vocabulary, so a space that names "Blocked" gets a column
+ * here too. Read off `status` rather than off containment, which is the distinction `TasksView`
+ * draws and is worth keeping: a kanban canvas's columns are collections and moving a card is a
+ * relink, while a task's state is a property of the task. Extraction fills `status`, so these
+ * columns are populated by the conversation rather than by anyone dragging.
+ *
+ * ## Scoped to the call, which is a reversal
+ *
+ * This used to show every task in the space, on the argument that a task does not stop being
+ * outstanding because the meeting it came from ended. True, and beside the point *here*: every
+ * other surface of this template is about the call the address names — the canvas draws that call's
+ * records, the transcript is that call's, the nav carries `?call=` from page to page — so a list
+ * that quietly widened to the whole space was the one page that did not answer the question the
+ * rest of the template was asking.
+ *
+ * The space-wide reading is not lost; it is the Tasks *view*, one click away and unscoped by
+ * default. With no call selected this is unscoped too, because `scope` is dropped when its anchor
+ * does not resolve — so "everything outstanding" is what an unaddressed workshop still shows.
  */
 const tasksRoute: RouteSchema = {
   path: '/tasks',
@@ -1097,100 +1117,36 @@ const tasksRoute: RouteSchema = {
   props: { width: '100%', minHeight: '100%', ax: 'center', px: '400', pt: '900', pb: '600' },
   children: [
     {
-      type: 'Grid',
-      props: { width: '100%', maxWidth: 'var(--we-layout-lg)', minChildWidth: '260px', gap: '400' },
+      type: 'Column',
+      props: { width: '100%', maxWidth: 'var(--we-layout-lg)' },
       children: [
-        {
-          type: '$each',
-          props: { items: COLUMNS, as: 'column' },
-          children: [
-            {
-              type: 'Column',
-              props: { gap: '300', bg: 'surface', r: '400', border: '1px solid border', p: '400' },
-              $queries: {
-                tasks: { entity: 'TaskBlock', where: { status: { $: 'column.status' } }, order: { createdAt: 'desc' } },
-              },
-              children: [
-                {
-                  type: 'Row',
-                  props: { ay: 'center', gap: '200' },
-                  children: [
-                    {
-                      type: 'we-text',
-                      props: { variant: 'label', color: { $: 'column.color' } },
-                      children: [{ $: 'column.label' }],
-                    },
-                    {
-                      type: 'we-badge',
-                      props: { size: 'xs' },
-                      children: [{ $: 'count(local.tasks)' }],
-                    },
-                  ],
-                },
-                {
-                  type: '$if',
-                  props: {
-                    condition: { $: 'count(local.tasks)' },
-                    then: {
-                      type: 'Column',
-                      props: { gap: '300' },
-                      children: [
-                        {
-                          type: '$each',
-                          props: { items: { $: 'local.tasks' }, as: 'task' },
-                          children: [
-                            {
-                              type: 'Column',
-                              props: { gap: '200', bg: 'surface-sunken', r: '300', p: '300' },
-                              children: [
-                                { type: 'we-text', props: { fontWeight: 'medium' }, children: [{ $: 'task.title' }] },
-                                {
-                                  type: '$if',
-                                  props: {
-                                    condition: { $: 'task.description' },
-                                    then: {
-                                      type: 'we-text',
-                                      props: { variant: 'footnote', color: 'text-muted' },
-                                      children: [{ $: 'task.description' }],
-                                    },
-                                  },
-                                },
-                                {
-                                  type: 'Row',
-                                  props: { ay: 'center', ax: 'between', gap: '200', wrap: true },
-                                  children: [
-                                    // Who wrote it — which for an extracted task is whoever's node
-                                    // ran the pass, so it answers "where did this come from".
-                                    agentByline({ did: { $: 'task.author' }, as: 'author', avatarSize: 'xxs' }),
-                                    {
-                                      type: '$if',
-                                      props: {
-                                        condition: { $: 'task.dueDate' },
-                                        then: {
-                                          type: 'we-timestamp',
-                                          props: { value: { $: 'task.dueDate' }, fontSize: '100', color: 'text-faint' },
-                                        },
-                                      },
-                                    },
-                                  ],
-                                },
-                              ],
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    else: {
-                      type: 'we-text',
-                      props: { variant: 'footnote', color: 'text-faint', italic: true },
-                      children: ['Nothing here.'],
-                    },
-                  },
-                },
-              ],
+        stateBoard({
+          // The call, not the URL's `anchor`: this template has its own address for what it is
+          // about, and `anchorScope` takes whichever expression names the container.
+          scope: anchorScope(CALL),
+          createOptions: anchorParent(CALL_EXPR),
+          card: taskCard({
+            // Who ran the pass that wrote it — the provenance question this template exists around.
+            byline: true,
+            actions: moveTaskMenu({
+              $action: 'record.update',
+              args: ['TaskBlock', { $: 'task.id' }, { status: { $: 'arg.id' } }],
+            }),
+          }),
+          // No board to arrange onto, so no `onReorder` — a cross-column drop writes the task's
+          // own state, which every other surface reads.
+          onMoved: {
+            $action: 'record.update',
+            args: ['TaskBlock', { $: 'arg.detail.id' }, { status: { $: 'arg.detail.to' } }],
+          },
+          empty: emptyState({
+            icon: 'check-square',
+            label: 'tasks',
+            message: {
+              $: `${CALL_EXPR} ? 'Nothing to do from this call yet. Tasks appear here as the conversation commits to them.' : 'No tasks yet. Start a call — extraction writes down the work people commit to.'`,
             },
-          ],
-        },
+          }),
+        }),
       ],
     },
   ],
@@ -1337,7 +1293,13 @@ const eventsRoute: RouteSchema = {
         day: { type: 'string', initial: '' },
       },
       $queries: {
-        events: { entity: 'EventBlock', order: { startDate: 'asc' }, limit: 200 },
+        /*
+          Scoped to the call this workshop is about, exactly as the tasks list is — and for the
+          reason given there: every other surface of this template answers about the call the
+          address names, so a list that quietly widened to the whole space was the odd one out.
+          Unscoped when no call is selected, since a scope whose anchor does not resolve is dropped.
+        */
+        events: { entity: 'EventBlock', scope: anchorScope(CALL), order: { startDate: 'asc' }, limit: 200 },
       },
       children: [
         // ── The month, with the way through them either side ──────────────────

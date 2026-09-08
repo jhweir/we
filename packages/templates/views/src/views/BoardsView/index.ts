@@ -2,6 +2,7 @@ import type { SchemaNode, TemplateSchema } from '@we/schema-shared';
 import {
   ANCHOR_ID,
   anchorBanner,
+  anchorParent,
   anchorScope,
   COLUMN_TASKS,
   emptyState,
@@ -186,6 +187,7 @@ const boardDetail: SchemaNode = {
     },
     stateBoard({
       scope: anchorScope(),
+      createOptions: anchorParent(),
       cards: COLUMN_CARDS,
       card: taskCard({ actions: moveMenu }),
       // Two events rather than one, because a drag within a column and a drag across one change
@@ -201,11 +203,13 @@ const boardDetail: SchemaNode = {
         args: [{ $: 'local.boardId' }, { $: 'arg.detail.id' }, { $: 'arg.detail.to' }],
       },
       // A board is a *layout* of work that exists elsewhere, so an empty one is a statement about
-      // the space rather than about the board — hence the same message the Tasks view gives.
+      // the space rather than about the board. It still says where the nearest `+` is: a board with
+      // no columns showing is the one place a person cannot see that each column has one.
       empty: emptyState({
         icon: 'check-square',
         label: 'tasks',
-        message: 'No tasks to arrange yet. Add one from the Tasks view, or record a call.',
+        message:
+          'No tasks to arrange yet. Add one to a column, or record a call — extraction writes down the work people commit to.',
       }),
       // Its own group, so a board and any other sortable on the page cannot exchange cards.
       group: 'board',

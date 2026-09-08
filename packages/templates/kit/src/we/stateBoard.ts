@@ -27,7 +27,10 @@
  * drag rearranged. A surface with no board to write to omits both and gets a board that can still be
  * dragged across columns, because that is a state change rather than an arrangement.
  */
+import { field, formModal } from '@we/schema-kit';
 import type { QueryStateField, SchemaNode, SchemaProp } from '@we/schema-shared';
+
+import { agentByline } from './agentByline.ts';
 
 /** Every task in the state a column stands for, oldest first — the default `cards` expression. */
 export const COLUMN_TASKS = 'local.columnTasks';
@@ -47,6 +50,15 @@ export interface TaskCardOptions {
   actions?: SchemaNode;
   /** Context key the card reads. Defaults to `'task'`, which is what {@link stateBoard} binds. */
   as?: string;
+  /**
+   * Show who wrote the task.
+   *
+   * Off by default, because on a space's own board every card is the community's and a row of
+   * identical faces says nothing. It earns its place where the *provenance* is the question: for an
+   * extracted task the author is whichever agent's node ran the pass, so the byline answers "where
+   * did this come from" on a surface built around a conversation.
+   */
+  byline?: boolean;
 }
 
 /**
@@ -111,6 +123,7 @@ export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
               },
             },
           },
+          ...(opts.byline ? [agentByline({ did: { $: `${as}.author` }, as: 'author', avatarSize: 'xxs' })] : []),
           ...(opts.actions ? [{ type: 'Row', props: { ml: 'auto' }, children: [opts.actions] }] : []),
         ],
       },
@@ -166,6 +179,14 @@ export interface StateBoardOptions {
   /** Controls on each card — usually {@link moveTaskMenu}. */
   actions?: SchemaNode;
   /**
+   * Extra options for the `record.create` a column's quick-add makes — usually `anchorParent()`.
+   *
+   * A narrowed board has to create *into* what it is narrowed to, or the task is made, the modal
+   * closes, and nothing appears: the record is real and in the space, and not among the children
+   * being shown. Omit on a board that is never narrowed.
+   */
+  createOptions?: SchemaProp;
+  /**
    * `we-sortable` group name. Defaults to `'tasks'`.
    *
    * What lets this board's columns exchange cards while leaving every other sortable on the page —
@@ -194,10 +215,49 @@ function columnQuery(opts: StateBoardOptions): QueryStateField {
   };
 }
 
+/**
+ * Adding a task to the column you are looking at.
+ *
+ * A quick-add per column rather than one form with a state picker, because on a board the column
+ * *is* the answer to "what state" — asking again in a dropdown, having just been told by which `+`
+ * was pressed, is a question with its answer already in it. `status` comes from the column, so
+ * there is one field to fill in.
+ *
+ * The drafts live on the modal, which is mounted only while open — so closing discards them with no
+ * `onSuccess` clearing to forget. And because the modal is inside the `$each` over states, each
+ * column has its own instance and its own `addOpen`, which is what makes per-column state possible
+ * without a name per column: `$localState` names are fixed when a schema is written, and the columns
+ * are data.
+ */
+function addTaskModal(opts: StateBoardOptions): SchemaNode {
+  return formModal({
+    open: { $: 'local.addOpen' },
+    close: { $setLocal: 'addOpen', value: false },
+    // Names the column, so a modal opened from the wrong `+` is obvious before anything is typed.
+    title: { $: '`New task in ${state.name}`' },
+    size: 'sm',
+    localState: { addTitle: { type: 'string', initial: '' } },
+    children: [field({ name: 'addTitle', label: 'What needs doing?', placeholder: 'Ship the docs' })],
+    disabled: { $: '!local.addTitle' },
+    submitLabel: 'Add task',
+    submit: {
+      $action: 'record.create',
+      args: [
+        'TaskBlock',
+        { title: { $: 'local.addTitle' }, status: { $: 'state.slug' } },
+        ...(opts.createOptions ? [opts.createOptions] : []),
+      ],
+      onSuccess: [{ $setLocal: 'addOpen', value: false }],
+    },
+  });
+}
+
 function column(opts: StateBoardOptions): SchemaNode {
   return {
     type: 'Column',
     $queries: { columnTasks: columnQuery(opts) },
+    // One per column, because the modal is inside the `$each` — see `addTaskModal`.
+    $localState: { addOpen: { type: 'boolean', initial: false } },
     props: {
       /*
         A column has to read as a *trough* even when it is empty, or a board with one card in it
@@ -236,8 +296,20 @@ function column(opts: StateBoardOptions): SchemaNode {
               text: { $: `count(${COLUMN_TASKS})` },
             },
           },
+          {
+            type: 'we-button',
+            props: {
+              variant: 'ghost',
+              size: 'xs',
+              square: true,
+              title: { $: '`Add a task to ${state.name}`' },
+              onClick: { $setLocal: 'addOpen', value: true },
+            },
+            children: [{ type: 'we-icon', props: { name: 'plus' } }],
+          },
         ],
       },
+      addTaskModal(opts),
       {
         type: 'we-sortable',
         props: {

@@ -1,6 +1,7 @@
 import type { SchemaNode, TemplateSchema } from '@we/schema-shared';
 import {
   anchorBanner,
+  anchorParent,
   anchorScope,
   emptyState,
   field,
@@ -105,6 +106,9 @@ const composer: SchemaNode = formModal({
         description: { $: 'local.draftDescription' },
         status: { $: 'local.draftStatus' },
       },
+      // Into the anchored container when the route names one, so a task added to a narrowed view
+      // appears on it rather than only in the space. Resolves to no options when unanchored.
+      anchorParent(),
     ],
   },
 });
@@ -145,6 +149,9 @@ export const tasksView: TemplateSchema = {
         composer,
         stateBoard({
           scope: anchorScope(),
+          // A column's quick-add creates into the anchored container when there is one, so a task
+          // added to a narrowed board appears on it.
+          createOptions: anchorParent(),
           card: taskCard({ actions: moveMenu }),
           // No `onReorder`: see the note above. A cross-column drop writes the task's own state,
           // which is a property of the work rather than of any board.
