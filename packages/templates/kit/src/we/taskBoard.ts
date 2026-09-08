@@ -100,7 +100,28 @@ export interface TaskCardOptions {
    * task the author is whichever agent's node ran the pass.
    */
   byline?: boolean;
+  /**
+   * Mark a card that extraction has proposed and nobody has agreed to — an expression, per row.
+   *
+   * A staged record is in the graph, so it answers the board's query exactly as an accepted one
+   * does, and a staged *update* to a record that exists changes nothing about the record until
+   * somebody presses Keep. Without this a suggestion was indistinguishable from a decision, and a
+   * card in Done with a proposal to move it to Blocked simply sat in Done. The canvas marks the same
+   * cards the same way; see {@link PENDING} for the default.
+   */
+  pending?: string;
 }
+
+/**
+ * The records extraction has proposed and nobody has resolved — the transcribe module's list, by id.
+ *
+ * A module namespace resolves to nothing where the module is not installed, and a map over nothing
+ * is an empty list, so a board on a deployment without extraction marks nothing and asks nothing.
+ */
+export const PENDING = 'modules.transcribe.proposals.map(p, p.id)';
+
+/** What the proposal on the card in scope says — its staged values, as one line. */
+const proposalSummary = (as: string) => `find(modules.transcribe.proposals, { id: ${as}.id }).summary`;
 
 /**
  * One task, as a card.
@@ -110,11 +131,53 @@ export interface TaskCardOptions {
  */
 export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
   const as = opts.as ?? 'card';
+  const pending = opts.pending ?? 'false';
   return {
     type: 'Column',
-    props: { width: '100%', gap: '200', bg: 'surface', r: '300', p: '300', border: '1px solid border' },
+    props: {
+      width: '100%',
+      gap: '200',
+      bg: 'surface',
+      r: '300',
+      p: '300',
+      // A suggestion looks like one: dimmed, with a dashed edge, the way the canvas draws it.
+      border: { $: `(${pending}) ? '1px dashed border-strong' : '1px solid border'` },
+      opacity: { $: `(${pending}) ? 0.75 : 1` },
+    },
     children: [
       { type: 'we-text', props: { fontWeight: 'semibold' }, children: [{ $: `${as}.title` }] },
+      /*
+        The proposal, in its own words. For a staged *update* this is the part that matters: the card
+        shows the record as it is, and this line shows what extraction would change — "status:
+        blocked" under a card sitting in Done — so Keep and Discard are decisions about something a
+        person can see.
+      */
+      {
+        type: '$if',
+        props: {
+          condition: { $: `(${pending}) && ${proposalSummary(as)}` },
+          then: {
+            type: 'Row',
+            props: { gap: '200', ay: 'start' },
+            children: [
+              {
+                type: 'we-badge',
+                props: {
+                  size: 'xs',
+                  variant: 'warning',
+                  title: 'Extraction proposed this; nobody has agreed to it yet',
+                },
+                children: ['suggested'],
+              },
+              {
+                type: 'we-text',
+                props: { fontSize: '200', color: 'text-muted' },
+                children: [{ $: proposalSummary(as) }],
+              },
+            ],
+          },
+        },
+      },
       {
         type: '$if',
         props: {
@@ -184,7 +247,54 @@ export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
             },
           },
           ...(opts.byline ? [agentByline({ did: { $: `${as}.author` }, as: 'author', avatarSize: 'xxs' })] : []),
-          ...(opts.actions ? [{ type: 'Row', props: { ml: 'auto' }, children: [opts.actions] }] : []),
+          {
+            type: 'Row',
+            props: { ml: 'auto', gap: '100', ay: 'center' },
+            children: [
+              /*
+                Keep and Discard, on the card, where the work is — the same two the canvas offers and
+                the same actions behind them. Neither asks first: keeping writes what was proposed,
+                discarding removes something nobody agreed to, and a dialog in front of either is a
+                question about a question. Deleting an accepted card stays where it was, on the
+                card's own page, behind the host's confirmation.
+              */
+              {
+                type: '$if',
+                props: {
+                  condition: { $: pending },
+                  then: {
+                    type: 'Row',
+                    props: { gap: '100', ay: 'center' },
+                    children: [
+                      {
+                        type: 'we-button',
+                        props: {
+                          variant: 'primary',
+                          size: 'xs',
+                          square: true,
+                          title: 'Keep this',
+                          onClick: { $action: 'modules.transcribe.acceptProposal', args: [{ $: `${as}.id` }] },
+                        },
+                        children: [{ type: 'we-icon', props: { name: 'check' } }],
+                      },
+                      {
+                        type: 'we-button',
+                        props: {
+                          variant: 'ghost',
+                          size: 'xs',
+                          square: true,
+                          title: 'Discard this',
+                          onClick: { $action: 'modules.transcribe.rejectProposal', args: [{ $: `${as}.id` }] },
+                        },
+                        children: [{ type: 'we-icon', props: { name: 'x', color: 'danger-text' } }],
+                      },
+                    ],
+                  },
+                },
+              },
+              ...(opts.actions ? [opts.actions] : []),
+            ],
+          },
         ],
       },
     ],
@@ -360,7 +470,12 @@ function draggable(card: SchemaNode, as: string): SchemaNode {
 function columnCards(opts: TaskBoardOptions): SchemaNode {
   const card = opts.card
     ? opts.card('card')
-    : taskCard({ actions: moveTaskMenu('col.id'), byline: opts.byline, showState: `${CELL}.lane` });
+    : taskCard({
+        actions: moveTaskMenu('col.id'),
+        byline: opts.byline,
+        showState: `${CELL}.lane`,
+        pending: `card.id in (${PENDING})`,
+      });
   return {
     type: 'we-sortable',
     props: {
@@ -546,7 +661,12 @@ function column(opts: TaskBoardOptions): SchemaNode {
 function unplacedColumn(opts: TaskBoardOptions): SchemaNode {
   const card = opts.card
     ? opts.card('card')
-    : taskCard({ actions: moveTaskMenu("''"), byline: opts.byline, showState: 'true' });
+    : taskCard({
+        actions: moveTaskMenu("''"),
+        byline: opts.byline,
+        showState: 'true',
+        pending: `card.id in (${PENDING})`,
+      });
   return {
     type: '$if',
     props: {

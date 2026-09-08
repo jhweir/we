@@ -34,6 +34,14 @@ describe('the task board', () => {
     expect(json).toContain('"type":"we-spinner"');
   });
 
+  it('marks a proposed card and offers Keep and Discard on it, through the transcribe module', () => {
+    // A staged record answers the board's query like an accepted one; the proposal list is the only
+    // thing that knows the difference, and the canvas already reads it the same way.
+    expect(json).toContain('modules.transcribe.proposals.map(p, p.id)');
+    expect(json).toContain('"$action":"modules.transcribe.acceptProposal"');
+    expect(json).toContain('"$action":"modules.transcribe.rejectProposal"');
+  });
+
   it('reads every list off the host function rather than computing one in an expression', () => {
     expect(json).toContain('arrangedBoard({');
     expect(json).not.toMatch(/\.filter\([a-z], [^)]*status/);
