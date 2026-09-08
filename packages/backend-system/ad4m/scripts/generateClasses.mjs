@@ -133,7 +133,13 @@ function emitEntity(name, def) {
   const manyMethods = (def.methodRelations ?? []).filter((r) => e.relations[r]?.cardinality === 'many');
   if (manyMethods.length) ad4mImports.add('HasManyMethods');
 
-  for (const [, r] of relations) if (r.target) addRelative(`./${r.target}`, r.target);
+  /*
+    A relation onto the entity's own class needs no import — the class is right here. Emitting one
+    produced `import { CollectionBlock } from './CollectionBlock'` inside `CollectionBlock.ts`, which
+    TypeScript reads as a redeclaration rather than a self-reference. Reached the moment a collection
+    gained a relation to another collection: `CollectionBlock.board`.
+  */
+  for (const [, r] of relations) if (r.target && r.target !== name) addRelative(`./${r.target}`, r.target);
 
   const L = [];
   L.push('/**');

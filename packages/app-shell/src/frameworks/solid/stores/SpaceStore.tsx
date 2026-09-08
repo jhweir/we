@@ -579,11 +579,7 @@ export interface SpaceStore {
    */
   moveChild: (childId: string, fromId: string, toId: string) => Promise<void>;
   /** Make a board — a collection whose ordered children are its columns, seeded from the vocabulary. */
-  createBoard: (
-    title: string,
-    parentId?: string,
-    options?: { space?: boolean; anchor?: boolean; dataset?: string },
-  ) => Promise<string>;
+  createBoard: (title: string, parentId?: string, options?: { dataset?: string }) => Promise<string>;
   /** The board for a container, or the space's own, making it if nobody has yet. Returns its id. */
   openBoardFor: (anchorId?: string, title?: string, dataset?: string) => Promise<string>;
   /** Make sure a container has a board, but only once it holds a task. What extraction calls. */
@@ -1807,14 +1803,11 @@ export function SpaceStoreProvider(props: ParentProps) {
    * column, which is what that column is for — and the board's own "add column" offers the state.
    *
    * `parentId` puts the board inside another collection — a call's record, so the board belongs to
-   * the gathering it came out of. `type: 'space'` marks the one board standing for the whole space,
-   * which is how the Boards view labels it and how `openBoardFor` finds it again.
+   * the gathering it came out of. Which board is the *canonical* one for a container is not marked
+   * here: it is the container's `board` relation, set by `openBoardFor`. A call may hold any number
+   * of boards, all of them its children; one of them is the one it points at.
    */
-  async function createBoard(
-    title: string,
-    parentId?: string,
-    options?: { space?: boolean; anchor?: boolean; dataset?: string },
-  ): Promise<string> {
+  async function createBoard(title: string, parentId?: string, options?: { dataset?: string }): Promise<string> {
     const p = datasetFor(options?.dataset);
     if (!p || !title.trim()) return '';
     try {
@@ -1822,7 +1815,7 @@ export function SpaceStoreProvider(props: ParentProps) {
         kind: 'board',
         mode: 'feed',
         title: title.trim(),
-        type: options?.space ? 'space' : options?.anchor ? 'anchor' : '',
+        type: '',
       });
       /*
         Seeded from what the community actually uses, so a new board opens looking like every other
@@ -1870,22 +1863,29 @@ export function SpaceStoreProvider(props: ParentProps) {
     const p = datasetFor(dataset);
     if (!p) return '';
     try {
+      /*
+        The container points at its board, rather than the board carrying a marker saying it is the
+        one. A marker cannot stop two boards claiming it — two members pressing this at the same
+        moment on two nodes would make two — where a single-valued link converges on one and leaves
+        the other as an ordinary board in the list.
+      */
       if (anchorId) {
-        const anchor = await CollectionBlock.findOne(p, { where: { id: anchorId }, include: { children: true } });
-        const children = (anchor?.children ?? []) as unknown as CollectionBlock[];
-        const found = children.find((child) => child?.kind === 'board');
-        if (found) return found.id;
-      } else {
-        // A positive match on `type`, never `{ not: '' }`: an unwritten property is absent rather
-        // than empty on AD4M, so a negated compare excludes every ordinary board as well.
-        const space = await CollectionBlock.findOne(p, { where: { kind: 'board', type: 'space' } });
-        if (space) return space.id;
+        const anchor = await CollectionBlock.findOne(p, { where: { id: anchorId }, include: { board: true } });
+        if (!anchor) return '';
+        const existing = anchor.board as unknown as CollectionBlock | undefined;
+        if (existing?.id) return existing.id;
+        const made = await createBoard(title?.trim() || 'This call', anchorId, { dataset });
+        if (made) await anchor.setBoard({ id: made } as CollectionBlock);
+        return made;
       }
-      return await createBoard(title?.trim() || 'Everything', anchorId, {
-        space: !anchorId,
-        anchor: !!anchorId,
-        dataset,
-      });
+
+      const space = await Space.findOne(p, { include: { board: true } });
+      if (!space) return '';
+      const existing = space.board as unknown as CollectionBlock | undefined;
+      if (existing?.id) return existing.id;
+      const made = await createBoard(title?.trim() || 'Everything', undefined, { dataset });
+      if (made) await space.setBoard({ id: made } as CollectionBlock);
+      return made;
     } catch (error) {
       console.error('SpaceStore: could not open that board', error);
       toastService.error('Could not open that board');
@@ -1896,12 +1896,10 @@ export function SpaceStoreProvider(props: ParentProps) {
   /**
    * The dataset a board write means: the one named, or the space on screen.
    *
-   * Named by URI or id rather than assumed, because a board is not always made where the reader is
-   * looking. Extraction runs wherever the election lands, and a call survives navigation — the
-   * transcribe module already names the call's own dataset for every write it makes, precisely so a
-   * member who wanders into another space does not have their transcript follow them. A board
-   * created for that call has to obey the same rule, and resolving the *current* dataset would make
-   * this the one write in that path that follows the screen instead of the call.
+   * Named rather than assumed, because a board is not always made where the reader is looking — the
+   * extraction hook runs wherever the election landed. It resolves the same dataset
+   * `interpretCollection` does, which is the one the pass just wrote its records into, so a board
+   * cannot land somewhere its own cards did not.
    */
   function datasetFor(uri?: string): DatasetProxy | undefined {
     if (!uri) return datasetStore.currentDataset()?.handle;
@@ -1922,11 +1920,14 @@ export function SpaceStoreProvider(props: ParentProps) {
     const p = datasetFor(dataset);
     if (!p || !collectionId) return '';
     try {
-      const anchor = await CollectionBlock.findOne(p, { where: { id: collectionId }, include: { children: true } });
+      const anchor = await CollectionBlock.findOne(p, {
+        where: { id: collectionId },
+        include: { children: true, board: true },
+      });
       if (!anchor) return '';
+      const existing = anchor.board as unknown as CollectionBlock | undefined;
+      if (existing?.id) return existing.id;
       const children = (anchor.children ?? []) as unknown as CollectionBlock[];
-      const existing = children.find((child) => child?.kind === 'board');
-      if (existing) return existing.id;
 
       // A bare list of ids is native on this backend — it pushes down to a VALUES clause — so this
       // asks "are any of these children tasks?" in one round trip rather than hydrating them all.

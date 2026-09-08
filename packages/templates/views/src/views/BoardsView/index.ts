@@ -36,6 +36,16 @@ import { ANCHOR_ID, anchorBanner, anchorScope, emptyState, field, formModal, tas
  * cards to that container's work. A board made while narrowed belongs to it. Absent means the space.
  */
 
+/**
+ * The board its container calls its own — the space's, or the anchored container's.
+ *
+ * Which board is canonical is a fact about the **container**, so it is read from `Space.board` and
+ * `CollectionBlock.board` rather than from a marker on the board. A marker could not stop two boards
+ * claiming it; a single-valued link converges, and the board that loses the race is simply an
+ * ordinary one in the list.
+ */
+const CANONICAL = `(${ANCHOR_ID.$} ? first(local.anchorRow).board.id : first(local.spaceRow).board.id)`;
+
 /** The boards to choose from. Anchored, this is one container's; otherwise the space's. */
 const boardsQuery = {
   entity: 'CollectionBlock',
@@ -90,17 +100,17 @@ const boardRow: SchemaNode = {
       children: [
         {
           type: 'we-icon',
-          props: { name: { $: "board.type == 'space' ? 'squares-four' : 'kanban'" }, color: 'accent-text' },
+          props: { name: { $: `board.id == ${CANONICAL} ? 'squares-four' : 'kanban'` }, color: 'accent-text' },
         },
         { type: 'we-text', props: { fontWeight: 'semibold' }, children: [{ $: 'board.title' }] },
         {
           type: '$if',
           props: {
-            condition: { $: "board.type == 'space'" },
+            condition: { $: `board.id == ${CANONICAL}` },
             then: {
               type: 'we-text',
               props: { variant: 'footnote', color: 'text-muted', ml: 'auto' },
-              children: ['Everything in this space'],
+              children: [{ $: `${ANCHOR_ID.$} ? 'Everything from here' : 'Everything in this space'` }],
             },
           },
         },
@@ -124,7 +134,7 @@ const boardList: SchemaNode = {
     {
       type: '$if',
       props: {
-        condition: { $: `!(${ANCHOR_ID.$}) && !count(local.boards.filter(b, b.type == 'space'))` },
+        condition: { $: `!(${ANCHOR_ID.$}) && !first(local.spaceRow).board.id` },
         then: {
           type: 'we-button',
           props: {
@@ -208,6 +218,9 @@ const boardDetail: SchemaNode = {
       boardId: { $: 'local.boardId' },
       scope: anchorScope(),
       anchorId: ANCHOR_ID,
+      // Gathering is a fact about the container, so the view answers it — the fragment cannot see a
+      // link pointing at the board it was handed.
+      gathers: `local.boardId == ${CANONICAL}`,
       empty: emptyState({
         icon: 'check-square',
         label: 'work',
@@ -237,7 +250,19 @@ export const boardsView: TemplateSchema = {
     boardId: { type: 'string', initial: '', syncParam: { name: 'board', push: true } },
     createBoardOpen: { type: 'boolean', initial: false },
   },
-  $queries: { boards: boardsQuery },
+  /*
+    The boards to choose from, and which of them their container calls its own.
+
+    `spaceRow` is the space's `board` relation — one row, always meaningful. `anchorRow` is the same
+    question for the container a narrowed view is anchored to, and is only *read* while anchored: an
+    unresolved `where` is pruned rather than sent, so unanchored it answers with an arbitrary
+    collection, which the `ANCHOR_ID &&` guard below keeps harmless.
+  */
+  $queries: {
+    boards: boardsQuery,
+    spaceRow: { entity: 'Space', include: { board: true }, limit: 1 },
+    anchorRow: { entity: 'CollectionBlock', where: { id: ANCHOR_ID }, include: { board: true }, limit: 1 },
+  },
   children: [
     {
       type: 'Column',

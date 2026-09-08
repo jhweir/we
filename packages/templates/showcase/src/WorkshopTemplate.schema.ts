@@ -1099,14 +1099,13 @@ const tasksRoute: RouteSchema = {
   props: { width: '100%', minHeight: '100%', ax: 'center', px: '400', pt: '900', pb: '600' },
   // Which board this call has, if any. Its own query rather than the fragment's, because the choice
   // between "open it" and "make one" is made out here, before there is an id to render.
+  /*
+    Which board this call calls its own, if any — its `board` relation rather than "the first board
+    parented to it". A call may hold several; one of them is the one extraction lands on, and only
+    the call can say which.
+  */
   $queries: {
-    callBoards: {
-      entity: 'CollectionBlock',
-      where: { kind: 'board' },
-      scope: anchorScope(CALL),
-      order: { createdAt: 'asc' },
-      limit: 1,
-    },
+    callRow: { entity: 'CollectionBlock', where: { id: CALL }, include: { board: true }, limit: 1 },
   },
   children: [
     {
@@ -1116,11 +1115,13 @@ const tasksRoute: RouteSchema = {
         {
           type: '$if',
           props: {
-            condition: { $: 'count(local.callBoards)' },
+            condition: { $: 'first(local.callRow).board.id' },
             then: taskBoard({
-              boardId: { $: 'first(local.callBoards).id' },
+              boardId: { $: 'first(local.callRow).board.id' },
               scope: anchorScope(CALL),
               anchorId: CALL,
+              // The call's own board, so it gathers what the conversation produced.
+              gathers: 'true',
               // Who ran the pass that wrote it — the provenance question this template is built
               // around, and the reason its cards carry a byline where a space's board does not.
               byline: true,

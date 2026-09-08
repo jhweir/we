@@ -35,16 +35,26 @@ A board's **candidate cards** and a column's **membership** are different questi
 them was a real bug: every board showed the whole space, so a hiring pipeline and a content calendar
 were one card set with different column headings.
 
-| Board                              | `type`   | Its cards                                        |
-| ---------------------------------- | -------- | ------------------------------------------------ |
-| **Everything**                     | `space`  | all work in the space — the catch-all            |
-| **A container's board** (a call's) | `anchor` | that container's work, so extraction lands on it |
-| **One somebody made**              | _(none)_ | only what somebody put on it                     |
+| Board                              | How it is known                                 | Its cards                                        |
+| ---------------------------------- | ----------------------------------------------- | ------------------------------------------------ |
+| **Everything**                     | `Space.board`                                   | all work in the space — the catch-all            |
+| **A container's board** (a call's) | `CollectionBlock.board`                         | that container's work, so extraction lands on it |
+| **One somebody made**              | a `kind: 'board'` child of wherever it was made | only what somebody put on it                     |
 
 A made board's **membership is the union of its columns' children** — no separate relation to keep in
 step. Placing a card anywhere on the board makes it a member; which _column_ shows it is still its
 `status`, so a member marked done elsewhere moves to that board's done column rather than falling off
 it, and one whose state no column here names drops to Unplaced.
+
+**Which board is canonical is a fact about its container**, not a marker on the board — `Space.board`
+and `CollectionBlock.board`, both HasOne. A marker could not stop two boards claiming to be the one:
+two members pressing the button at the same moment on two nodes would produce two, and the code would
+have to pick a winner on read. A single-valued link converges by construction, and the board that
+loses is simply an ordinary board in the list. It also reads correctly — "the board for this call" is
+something the _call_ knows.
+
+A container may hold **any number of boards**. All of them are its children and all are listed
+together; the relation says which one extraction lands on and which one gathers.
 
 **Curating is safe only because Everything exists.** It gathers, it is unanchored, and nothing in the
 space can hide from it — so a card nobody has triaged is always somewhere, and every other board is
@@ -165,9 +175,10 @@ ids and no types, so one query decides it — after an LLM round trip, where its
 `ensureBoardFor`, and `ModuleInterpretationAccess.ensureBoard` for the module-facing half, which
 names a collection and nothing else like every other member of that surface.
 
-That race still exists for two people clicking at the same moment on two nodes, and it is inherent —
-there is no coordination point. The read-side rule is: **if two exist, the earliest `createdAt`
-wins**; the other is listed as an ordinary board and can be deleted.
+Two people clicking at the same moment on two nodes still create two records — there is no
+coordination point — but only one is ever _the_ board, because `Space.board` and
+`CollectionBlock.board` are single-valued and converge. The loser is indistinguishable from a board
+somebody made, which is a harmless outcome rather than one needing a rule nobody would remember.
 
 ## Rules that are easy to break
 
@@ -191,6 +202,11 @@ deleted. Render nothing for it rather than a hole.
 `slug` earns a scalar because it is queried and compared. A WIP limit, a per-board colour override, a
 collapsed-by-default flag are all single-setter config and belong in a bag — not in three more
 columns on `CollectionBlock`, which its own docstring warns against.
+
+**And `type` is not the place for any of it.** It is the _structural_ node type that the serializer
+round-trips; semantic values there are the mistake its own documentation names, citing the transcribe
+module writing `tag: 'transcript'` into `TextBlock.style`. Which board is canonical was briefly
+`type: 'space'` / `type: 'anchor'` and is a relation now, which is both correct and convergent.
 
 ## What is not built, and how it fits
 

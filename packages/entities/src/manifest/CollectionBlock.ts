@@ -8,6 +8,16 @@ export const CollectionBlock: CoreEntityDef = {
     flag: { predicate: 'we://flag', value: 'we://collection_block' },
     properties: {
       editorState: { type: 'string', predicate: 'we://editor_state', format: 'file', default: null },
+      /**
+       * The **structural** node type — `root` for a composition, `collection` for a nested one — which
+       * the serializer round-trips.
+       *
+       * Semantic values do not belong here; that is `kind`. Boards briefly marked which one was
+       * canonical with `type: 'space'` and `type: 'anchor'`, which is the mistake this field's own
+       * documentation names (see `kind`, and the transcribe module writing `tag: 'transcript'` into
+       * `TextBlock.style`). It is a relation now — `CollectionBlock.board` and `Space.board` — which
+       * also converges where a marker could not.
+       */
       type: { type: 'string', predicate: 'we://type', default: '' },
       /**
        * What this collection *is* — `'call'`, `'notes'`, later `'board'`. Semantic, and deliberately
@@ -117,6 +127,20 @@ export const CollectionBlock: CoreEntityDef = {
        * each child is read as the class it actually is rather than as a bare reference.
        */
       children: { target: '', cardinality: 'many', predicate: 'we://children', ordered: true },
+      /**
+       * The board this collection's work is arranged on — the canonical one, where it has several.
+       *
+       * A fact about the **collection**, not about the board: "the board for this call" is something
+       * the call knows, the way `taskStates` is something a space knows. Declared rather than marked
+       * with a value on the board, because a marker cannot stop two boards claiming to be the one —
+       * two members pressing the button at the same moment on two nodes would produce two — where a
+       * single-valued link converges and the loser is simply an ordinary board in the list.
+       *
+       * Distinct from being *in* `children`. A call may hold any number of boards, all of them its
+       * children and all listed together; this says which of them extraction lands on and which
+       * gathers the call's work rather than only holding what somebody put there.
+       */
+      board: { target: 'CollectionBlock', cardinality: 'one', predicate: 'we://board' },
       /**
        * Every time a model was asked to read this collection — see {@link ExtractionPass}.
        *

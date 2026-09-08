@@ -2088,6 +2088,7 @@ CollectionBlock extends WeNode:
   - textContent: string [we://text_content]
   Relations:
   - children: HasMany [we://children]
+  - board: HasOne → CollectionBlock [we://board]
   - extractionPasses: HasMany → ExtractionPass [we://extraction_pass_record]
 
 DividerBlock extends WeNode:
@@ -2261,6 +2262,7 @@ Space extends WeNode:
   - shareExtractionDetail: boolean = false [we://share_extraction_detail]
   Relations:
   - location: HasOne → LocationBlock [we://location]
+  - board: HasOne → CollectionBlock [we://board]
   - taskStates: HasMany → TaskState [we://task_state_order]
 
 SpacePreference extends WeNode:

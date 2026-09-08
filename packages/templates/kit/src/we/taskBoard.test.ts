@@ -16,17 +16,29 @@
 import { evaluateExpression, getFunction, parseExpression } from '@we/schema-shared';
 import { describe, expect, it } from 'vitest';
 
-import { ARRANGED_EXPR, PLACED_EXPR, UNARRANGED_EXPR, UNPLACED_EXPR } from './taskBoard.ts';
+import { ARRANGED_EXPR, PLACED_EXPR, unarrangedExpr, unplacedExpr } from './taskBoard.ts';
+
+/*
+  Whether a board gathers is the caller's to say — it is a fact about the board's *container*, which
+  the board record cannot see. These stand in for the two callers: the Boards view comparing the open
+  board against `Space.board` / the anchor's `board`, and a made board passing nothing.
+*/
+const board_ = (gathers?: string): Parameters<typeof unarrangedExpr>[0] => ({
+  boardId: { $: 'local.boardId' },
+  empty: { type: 'Column' },
+  ...(gathers ? { gathers } : {}),
+});
+const GATHERING = board_('true');
+const CURATED = board_();
+const UNARRANGED_EXPR = unarrangedExpr(GATHERING);
+const UNPLACED_EXPR = unplacedExpr(GATHERING);
+const UNARRANGED_CURATED = unarrangedExpr(CURATED);
+const UNPLACED_CURATED = unplacedExpr(CURATED);
 
 type Row = Record<string, unknown>;
 
-/**
- * The board as the queries hand it over: columns hydrated, their children still ids.
- *
- * `type` decides whether it gathers. `'space'` is Everything and `'anchor'` is a container's own;
- * anything else is a board somebody made, which shows only what it holds.
- */
-const board = (columns: Row[], type = 'space') => [{ id: 'b1', type, children: columns }];
+/** The board as the queries hand it over: columns hydrated, their children still ids. */
+const board = (columns: Row[]) => [{ id: 'b1', children: columns }];
 
 const evaluate = (source: string, roots: Record<string, unknown>) =>
   evaluateExpression(parseExpression(source), {
@@ -124,7 +136,18 @@ describe('the unplaced column', () => {
   */
   it('shows nothing when there is no board record, rather than everything', () => {
     const local = { board: [] as Row[], allTasks: [todo, doing] };
-    expect(evaluate(UNPLACED_EXPR, { local })).toEqual([]);
+    expect(evaluate(UNPLACED_CURATED, { local })).toEqual([]);
+  });
+
+  /*
+    A gathering board with no record would answer with everything, and that is fine because it is
+    never asked: with no board there are no columns, and the view renders the empty state — gated on
+    `boardLoaded`, so an unanswered query reads as loading rather than as an empty board. Asserted so
+    that the gate and this expression are known to depend on each other.
+  */
+  it('a gathering board relies on the view’s loaded gate, not on this', () => {
+    const local = { board: [] as Row[], allTasks: [todo, doing] };
+    expect(evaluate(UNPLACED_EXPR, { local })).toEqual([todo, doing]);
   });
 
   it('leaves placed work alone', () => {
@@ -153,14 +176,10 @@ describe('what a board draws from', () => {
   const col = { id: 'c1', slug: 'todo', children: [] as string[] };
   const held = { id: 'c1', slug: 'todo', children: ['t1'] };
 
-  it('Everything gathers the whole space', () => {
-    const local = { board: board([col], 'space'), allTasks: [todo] };
-    expect(evaluate(UNARRANGED_EXPR, { col, local })).toEqual([todo]);
-  });
-
-  it('a container’s board gathers that container’s work', () => {
-    // `allTasks` is already scoped to the container by the query; the type is what says it gathers.
-    const local = { board: board([col], 'anchor'), allTasks: [todo] };
+  it('a gathering board draws from everything in scope', () => {
+    // Everything draws the space; a container's board draws that container's work, which the query's
+    // own scope has already narrowed. Both are told they gather by the view that opened them.
+    const local = { board: board([col]), allTasks: [todo] };
     expect(evaluate(UNARRANGED_EXPR, { col, local })).toEqual([todo]);
   });
 
@@ -170,13 +189,13 @@ describe('what a board draws from', () => {
     headings, which is what a hiring pipeline and a content calendar are not.
   */
   it('a board somebody made gathers nothing', () => {
-    const local = { board: board([col], ''), allTasks: [todo] };
-    expect(evaluate(UNARRANGED_EXPR, { col, local })).toEqual([]);
-    expect(evaluate(UNPLACED_EXPR, { local })).toEqual([]);
+    const local = { board: board([col]), allTasks: [todo] };
+    expect(evaluate(UNARRANGED_CURATED, { col, local })).toEqual([]);
+    expect(evaluate(UNPLACED_CURATED, { local })).toEqual([]);
   });
 
   it('but does show what it holds', () => {
-    const local = { board: board([held], ''), allTasks: [todo] };
+    const local = { board: board([held]), allTasks: [todo] };
     expect(evaluate(ARRANGED_EXPR, { col: held, local })).toEqual([todo]);
   });
 
@@ -187,24 +206,24 @@ describe('what a board draws from', () => {
   it('follows a member whose state changed to another of its columns', () => {
     const doneCol = { id: 'c2', slug: 'done', children: [] as string[] };
     const moved = { id: 't1', title: 'One', status: 'done' };
-    const local = { board: board([held, doneCol], ''), allTasks: [moved] };
+    const local = { board: board([held, doneCol]), allTasks: [moved] };
     expect(evaluate(ARRANGED_EXPR, { col: held, local })).toEqual([]);
-    expect(evaluate(UNARRANGED_EXPR, { col: doneCol, local })).toEqual([moved]);
+    expect(evaluate(UNARRANGED_CURATED, { col: doneCol, local })).toEqual([moved]);
   });
 
   it('keeps a member whose state no column here names, in Unplaced', () => {
     const moved = { id: 't1', title: 'One', status: 'archived' };
-    const local = { board: board([held], ''), allTasks: [moved] };
-    expect(evaluate(UNPLACED_EXPR, { local })).toEqual([moved]);
+    const local = { board: board([held]), allTasks: [moved] };
+    expect(evaluate(UNPLACED_CURATED, { local })).toEqual([moved]);
   });
 
   it('never lets a made board hide work — a non-member is simply not its business', () => {
     // The card is still on Everything, which is what makes curating safe.
-    const local = { board: board([held], ''), allTasks: [todo, doing] };
+    const local = { board: board([held]), allTasks: [todo, doing] };
     const shown = [
       ...(evaluate(ARRANGED_EXPR, { col: held, local }) as Row[]),
-      ...(evaluate(UNARRANGED_EXPR, { col: held, local }) as Row[]),
-      ...(evaluate(UNPLACED_EXPR, { local }) as Row[]),
+      ...(evaluate(UNARRANGED_CURATED, { col: held, local }) as Row[]),
+      ...(evaluate(UNPLACED_CURATED, { local }) as Row[]),
     ].map((row) => row.id);
     expect(shown).toEqual(['t1']);
   });

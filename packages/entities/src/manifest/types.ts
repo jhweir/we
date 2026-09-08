@@ -103,10 +103,12 @@ export interface CollectionBlockRecord extends WeNodeRecord {
   version: number;
   textContent: string;
   children: string[];
+  board?: CollectionBlockRecord;
   extractionPasses: string[];
   addChildren(value: string | { id: string }, batch?: string): Promise<unknown>;
   removeChildren(value: string | { id: string }, batch?: string): Promise<unknown>;
   setChildren(values: (string | { id: string })[], batch?: string): Promise<unknown>;
+  setBoard(value: CollectionBlockRecord): Promise<unknown>;
 }
 
 export interface DividerBlockRecord extends WeNodeRecord {
@@ -275,8 +277,10 @@ export interface SpaceRecord extends WeNodeRecord {
   moduleSettings: string;
   shareExtractionDetail: boolean;
   location?: LocationBlockRecord;
+  board?: CollectionBlockRecord;
   taskStates: string[];
   setLocation(value: LocationBlockRecord): Promise<unknown>;
+  setBoard(value: CollectionBlockRecord): Promise<unknown>;
   addTaskStates(value: string | { id: string }, batch?: string): Promise<unknown>;
   removeTaskStates(value: string | { id: string }, batch?: string): Promise<unknown>;
   setTaskStates(values: (string | { id: string })[], batch?: string): Promise<unknown>;

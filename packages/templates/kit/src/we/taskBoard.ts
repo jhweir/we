@@ -70,19 +70,22 @@ export const PLACED_EXPR = `${COLUMNS}.exists(k, (!k.slug || k.slug == t.status)
 /**
  * Whether this board draws work in, or only shows what somebody put on it.
  *
- * Two of the three kinds gather. **Everything** (`type: 'space'`) is the space's catch-all: nothing
- * in the space can hide from it, which is the property that lets every other board be curated.
- * **A container's board** (`type: 'anchor'`, a call's) gathers that container's work, so a pass that
- * extracts three tasks puts them on it without anyone placing anything.
+ * Two kinds gather. **Everything** is the space's catch-all: nothing in the space can hide from it,
+ * which is the property that lets every other board be curated. **A container's board** — a call's —
+ * gathers that container's work, so a pass that extracts three tasks puts them on it without anyone
+ * placing anything.
  *
  * A board somebody *made* gathers nothing. That is the difference between a workstream and a view of
  * everything: a hiring board and a content calendar hold different work, and a board that showed the
  * whole space would make every board a duplicate of every other with different column headings.
  *
- * Nothing is lost by curating, because Everything is still showing it. That is the whole reason the
- * catch-all has to exist and has to gather.
+ * Supplied by the caller rather than read off the board, because which board is canonical is a fact
+ * about its **container** — `Space.board`, `CollectionBlock.board` — and the board record cannot see
+ * a link pointing at it. A marker on the board would be visible from here and is the design this
+ * replaced: it could not stop two boards claiming to be the one, where a single-valued link
+ * converges.
  */
-const GATHERS = `${BOARD}.type == 'space' || ${BOARD}.type == 'anchor'`;
+const gathersOf = (opts: TaskBoardOptions) => (opts.gathers ? `(${opts.gathers})` : 'false');
 
 /**
  * The work this board could show: everything in scope, or only what it holds.
@@ -92,7 +95,8 @@ const GATHERS = `${BOARD}.type == 'space' || ${BOARD}.type == 'anchor'`;
  * which *column* shows it is still its `status`, so a member marked done elsewhere moves to this
  * board's done column rather than disappearing from it.
  */
-const POOL = `(${GATHERS}) ? local.allTasks : local.allTasks.filter(m, ${COLUMNS}.exists(k, m.id in k.children))`;
+const poolOf = (opts: TaskBoardOptions) =>
+  `${gathersOf(opts)} ? local.allTasks : local.allTasks.filter(m, ${COLUMNS}.exists(k, m.id in k.children))`;
 
 /**
  * The cards somebody has arranged in this column: its own children, minus any stale hint.
@@ -117,7 +121,8 @@ export const ARRANGED_EXPR = `col.children.map(i, find(local.allTasks, { id: i }
  *
  * Empty for a lane, which gathers nothing — that is the whole difference between the two kinds.
  */
-export const UNARRANGED_EXPR = `col.slug ? (${POOL}).filter(t, t.status == col.slug && !(${PLACED_EXPR})) : []`;
+export const unarrangedExpr = (opts: TaskBoardOptions) =>
+  `col.slug ? (${poolOf(opts)}).filter(t, t.status == col.slug && !(${PLACED_EXPR})) : []`;
 
 /**
  * Work this board has nowhere to put: a state no column here names.
@@ -127,7 +132,8 @@ export const UNARRANGED_EXPR = `col.slug ? (${POOL}).filter(t, t.status == col.s
  * cause, the work is real and somebody has to be able to reach it. Filtering it out would be tidier
  * and would hide work, which is the one failure this whole design exists to prevent.
  */
-export const UNPLACED_EXPR = `(${POOL}).filter(t, !(${PLACED_EXPR}) && !${COLUMNS}.exists(k, k.slug == t.status))`;
+export const unplacedExpr = (opts: TaskBoardOptions) =>
+  `(${poolOf(opts)}).filter(t, !(${PLACED_EXPR}) && !${COLUMNS}.exists(k, k.slug == t.status))`;
 
 /**
  * The colour a column heading takes when the community has not chosen one.
@@ -262,6 +268,13 @@ export interface TaskBoardOptions {
   empty: SchemaNode;
   /** Show the author on each card — see {@link TaskCardOptions.byline}. */
   byline?: boolean;
+  /**
+   * Whether this board draws work in — an expression. Omit for a board somebody made.
+   *
+   * True for the space's own board and for a container's, which are the two the container points at
+   * through `Space.board` / `CollectionBlock.board`. See {@link gathersOf}.
+   */
+  gathers?: string;
 }
 
 /**
@@ -406,7 +419,7 @@ function columnCards(opts: TaskBoardOptions): SchemaNode {
     */
     children: [
       { type: '$each', props: { items: { $: ARRANGED_EXPR }, as: 'task' }, children: [draggable] },
-      { type: '$each', props: { items: { $: UNARRANGED_EXPR }, as: 'task' }, children: [draggable] },
+      { type: '$each', props: { items: { $: unarrangedExpr(opts) }, as: 'task' }, children: [draggable] },
     ],
   };
 }
@@ -491,7 +504,7 @@ function column(opts: TaskBoardOptions): SchemaNode {
                       variant: 'footnote',
                       color: 'text-muted',
                       ml: 'auto',
-                      text: { $: `count(${ARRANGED_EXPR}) + count(${UNARRANGED_EXPR})` },
+                      text: { $: `count(${ARRANGED_EXPR}) + count(${unarrangedExpr(opts)})` },
                     },
                   },
                   {
@@ -549,7 +562,7 @@ function unplacedColumn(opts: TaskBoardOptions): SchemaNode {
   return {
     type: '$if',
     props: {
-      condition: { $: `count(${UNPLACED_EXPR})` },
+      condition: { $: `count(${unplacedExpr(opts)})` },
       then: {
         type: 'Column',
         props: {
@@ -575,7 +588,12 @@ function unplacedColumn(opts: TaskBoardOptions): SchemaNode {
               },
               {
                 type: 'we-text',
-                props: { variant: 'footnote', color: 'text-muted', ml: 'auto', text: { $: `count(${UNPLACED_EXPR})` } },
+                props: {
+                  variant: 'footnote',
+                  color: 'text-muted',
+                  ml: 'auto',
+                  text: { $: `count(${unplacedExpr(opts)})` },
+                },
               },
             ],
           },
@@ -591,7 +609,7 @@ function unplacedColumn(opts: TaskBoardOptions): SchemaNode {
           */
           {
             type: '$each',
-            props: { items: { $: UNPLACED_EXPR }, as: 'task' },
+            props: { items: { $: unplacedExpr(opts) }, as: 'task' },
             children: [taskCard({ actions: moveTaskMenu("''"), byline: opts.byline })],
           },
         ],

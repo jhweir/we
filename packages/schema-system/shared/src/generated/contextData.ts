@@ -1570,6 +1570,7 @@ export const contextData: ContextData = {
       ],
       relations: [
         { name: 'children', kind: 'HasMany', predicate: 'we://children' },
+        { name: 'board', kind: 'HasOne', predicate: 'we://board', target: 'CollectionBlock' },
         {
           name: 'extractionPasses',
           kind: 'HasMany',
@@ -1847,6 +1848,7 @@ export const contextData: ContextData = {
       ],
       relations: [
         { name: 'location', kind: 'HasOne', predicate: 'we://location', target: 'LocationBlock' },
+        { name: 'board', kind: 'HasOne', predicate: 'we://board', target: 'CollectionBlock' },
         { name: 'taskStates', kind: 'HasMany', predicate: 'we://task_state_order', target: 'TaskState' },
       ],
     },

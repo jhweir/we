@@ -4259,6 +4259,12 @@
           "predicate": "we://children"
         },
         {
+          "name": "board",
+          "kind": "HasOne",
+          "predicate": "we://board",
+          "target": "CollectionBlock"
+        },
+        {
           "name": "extractionPasses",
           "kind": "HasMany",
           "predicate": "we://extraction_pass_record",
@@ -5120,6 +5126,12 @@
           "kind": "HasOne",
           "predicate": "we://location",
           "target": "LocationBlock"
+        },
+        {
+          "name": "board",
+          "kind": "HasOne",
+          "predicate": "we://board",
+          "target": "CollectionBlock"
         },
         {
           "name": "taskStates",
