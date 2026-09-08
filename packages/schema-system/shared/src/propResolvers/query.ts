@@ -37,6 +37,12 @@ export function resolveQueryProp(value: unknown): QueryDescriptor {
  * this yet", not "send a filter with a hole in it" — the effect re-runs and
  * applies the real filter once the value exists.
  *
+ * **Only `undefined` is unresolved.** An empty string is a value, and it stays — which is not what
+ * {@link scopeIsAnchored} does one field along, and the asymmetry is deliberate. Widening a scope is
+ * what an unanchored view wants; widening an *identity* is never what anybody wants, so a template
+ * asking about a record it has no id for must be gated rather than quietly answered with whichever
+ * record the backend happened to return first.
+ *
  * Returns the pruned clause, or `undefined` when nothing survives.
  */
 export function pruneUnresolvedWhere(where: Record<string, unknown>): Record<string, unknown> | undefined {

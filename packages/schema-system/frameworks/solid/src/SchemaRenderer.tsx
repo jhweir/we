@@ -167,6 +167,42 @@ function logSubscriptionDiff(entity: string, previous: unknown[] | null, next: u
 /** Degradations already reported, keyed `entity:feature` — a reactive re-run must not respam. */
 const warnedDegradations = new Set<string>();
 
+const warnedEmptyIds = new Set<string>();
+
+/**
+ * Say so when a query asks for the record with no id.
+ *
+ * `pruneUnresolvedWhere` drops an operand that is `undefined`; an empty string is a value and stays,
+ * which is right — `''` is a real value for plenty of fields. For `id` it is not: no record has it,
+ * and it is what a `$localState` field or a store accessor answers when nothing has been chosen yet
+ * (`modules.call.callRecordId` returns `''` by design, so that every surface reading it gets a
+ * string).
+ *
+ * What reaches the screen without this is a SPARQL parse error. The AD4M executor builds a `VALUES`
+ * clause, drops the id for not being an IRI, and refuses the now-empty data block — "expected UNDEF"
+ * — naming neither the template, the entity nor the field.
+ *
+ * Reported rather than repaired, because no repair here is right. Pruning `''` would mean "do not
+ * narrow by id", which answers with an arbitrary record and draws somebody else's data with nothing
+ * on screen saying so; refusing the query outright needs a "matches nothing" the query IR has no way
+ * to express. The fix is always the same and belongs to the author: gate the query on having an id.
+ *
+ * Once per entity, like the degradation warnings above — a query re-runs on every reactive change,
+ * and a warning per frame is a warning nobody reads.
+ */
+function warnOnEmptyId(entity: string, where: unknown): void {
+  if (!(import.meta as { env?: { DEV?: boolean } }).env?.DEV) return;
+  if (!where || typeof where !== 'object') return;
+  if ((where as Record<string, unknown>).id !== '') return;
+  if (warnedEmptyIds.has(entity)) return;
+  warnedEmptyIds.add(entity);
+  console.warn(
+    `[query] "${entity}" asks for id "" — no record has it, and the backend will refuse the query. ` +
+      'Gate the query on having an id: an empty one cannot be pruned, because "do not narrow by id" ' +
+      'would answer with an arbitrary record.',
+  );
+}
+
 /**
  * Report a query failure through the host's `$onError` (a toast, in the AD4M app), falling back to
  * `console.error` when no reporter is injected.
@@ -224,6 +260,7 @@ function routeQueryThroughIR(
   onError: (msg: string) => void,
 ): Record<string, unknown> | null {
   try {
+    warnOnEmptyId(entity, options.where);
     const { ir, unsupported } = compileQuery({ entity, ...options } as FlatQuery);
     if (unsupported.length > 0) {
       onError(`Query on "${entity}" uses features the query IR cannot express: ${unsupported.join(', ')}`);

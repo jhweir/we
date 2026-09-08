@@ -1093,20 +1093,37 @@ const canvasRoute: RouteSchema = { path: '/canvas', ...canvasBody };
  * effect of opening the route: this is a shared space, and every member who opened the tab would
  * otherwise race to create the same board.
  */
+/**
+ * What this route shows when it has no board to show.
+ *
+ * Two situations, and they are not the same one: nobody has chosen a call, or this call has not been
+ * given a board. Each says its own sentence, and only the second offers an action — so the icon is
+ * gradient where there is something to do and flat where there is not, since a dead end that looks
+ * like an invitation is worse than one that looks like a dead end.
+ */
+function tasksGate(message: string, action?: SchemaNode): SchemaNode {
+  return {
+    type: 'Column',
+    props: { width: '100%', ax: 'center', ay: 'center', gap: '400', p: '600' },
+    children: [
+      {
+        type: 'we-icon',
+        props: { name: 'kanban', size: 'xl', ...(action ? { gradient: 'primary' } : { color: 'text-faint' }) },
+      },
+      {
+        type: 'we-text',
+        props: { variant: 'body', textAlign: 'center', maxWidth: 'var(--we-layout-xs)', color: 'text-muted' },
+        children: [message],
+      },
+      ...(action ? [action] : []),
+    ],
+  };
+}
+
 const tasksRoute: RouteSchema = {
   path: '/tasks',
   type: 'Column',
   props: { width: '100%', minHeight: '100%', ax: 'center', px: '400', pt: '900', pb: '600' },
-  // Which board this call has, if any. Its own query rather than the fragment's, because the choice
-  // between "open it" and "make one" is made out here, before there is an id to render.
-  /*
-    Which board this call calls its own, if any — its `board` relation rather than "the first board
-    parented to it". A call may hold several; one of them is the one extraction lands on, and only
-    the call can say which.
-  */
-  $queries: {
-    callRow: { entity: 'CollectionBlock', where: { id: CALL }, include: { board: true }, limit: 1 },
-  },
   children: [
     {
       type: 'Column',
@@ -1115,55 +1132,72 @@ const tasksRoute: RouteSchema = {
         {
           type: '$if',
           props: {
-            condition: { $: 'first(local.callRow).board.id' },
-            then: taskBoard({
-              boardId: { $: 'first(local.callRow).board.id' },
-              scope: anchorScope(CALL),
-              anchorId: CALL,
-              // The call's own board, so it gathers what the conversation produced.
-              gathers: 'true',
-              // Who ran the pass that wrote it — the provenance question this template is built
-              // around, and the reason its cards carry a byline where a space's board does not.
-              byline: true,
-              empty: emptyState({
-                icon: 'check-square',
-                label: 'work',
-                message:
-                  'Nothing from this call yet. Cards appear here as the conversation commits to things — or add one to a column.',
-              }),
-            }),
-            else: {
+            /*
+              Nothing is asked about a call until there is one, and that gate is load-bearing.
+
+              `pruneUnresolvedWhere` drops a `where` operand that is `undefined`, and
+              `modules.call.callRecordId` deliberately answers `''` rather than undefined so that every
+              surface reading it gets a string. So an ungated `where: { id: '' }` survived pruning and
+              was sent, and the backend built its `VALUES` clause with that one id dropped for not
+              being an IRI — leaving the clause empty, which is not parseable SPARQL: *Query is not
+              valid read-only SPARQL … expected UNDEF*.
+
+              Teaching the pruner to drop `''` would have silenced that and been the wrong repair. An
+              absent operand means "do not narrow", so the query would have answered with an
+              *arbitrary* collection and this route would have drawn some other call's board with
+              nothing on screen saying so — the same hazard the Boards view guards its `anchorRow`
+              against. `scopeIsAnchored` can read `''` as absent precisely because widening a scope is
+              what an unanchored view wants; widening an identity is never what anybody wants.
+            */
+            condition: CALL,
+            then: {
               type: 'Column',
-              props: { width: '100%', ax: 'center', ay: 'center', gap: '400', p: '600' },
+              props: { width: '100%', gap: '400' },
+              /*
+                Which board this call calls its own, if any — its `board` relation rather than "the
+                first board parented to it". A call may hold several; one of them is the one
+                extraction lands on, and only the call can say which. Its own query rather than the
+                fragment's, because the choice between "open it" and "make one" is made out here,
+                before there is an id to render.
+              */
+              $queries: {
+                callRow: { entity: 'CollectionBlock', where: { id: CALL }, include: { board: true }, limit: 1 },
+              },
               children: [
-                {
-                  type: 'we-icon',
-                  props: { name: 'kanban', size: 'xl', gradient: { $: `${CALL_EXPR} ? 'primary' : ''` } },
-                },
-                {
-                  type: 'we-text',
-                  props: { variant: 'body', textAlign: 'center', maxWidth: 'var(--we-layout-xs)', color: 'text-muted' },
-                  children: [
-                    {
-                      $: `${CALL_EXPR} ? 'This call has no board yet. Making one arranges the work it produced — it never moves anything.' : 'Choose a call to see the work it produced.'`,
-                    },
-                  ],
-                },
                 {
                   type: '$if',
                   props: {
-                    condition: CALL,
-                    then: {
-                      type: 'we-button',
-                      props: {
-                        onClick: { $action: 'spaceStore.openBoardFor', args: [CALL, 'This call'] },
+                    condition: { $: 'first(local.callRow).board.id' },
+                    then: taskBoard({
+                      boardId: { $: 'first(local.callRow).board.id' },
+                      scope: anchorScope(CALL),
+                      anchorId: CALL,
+                      // The call's own board, so it gathers what the conversation produced.
+                      gathers: 'true',
+                      // Who ran the pass that wrote it — the provenance question this template is
+                      // built around, and the reason its cards carry a byline where a space's board
+                      // does not.
+                      byline: true,
+                      empty: emptyState({
+                        icon: 'check-square',
+                        label: 'work',
+                        message:
+                          'Nothing from this call yet. Cards appear here as the conversation commits to things — or add one to a column.',
+                      }),
+                    }),
+                    else: tasksGate(
+                      'This call has no board yet. Making one arranges the work it produced — it never moves anything.',
+                      {
+                        type: 'we-button',
+                        props: { onClick: { $action: 'spaceStore.openBoardFor', args: [CALL, 'This call'] } },
+                        children: ['Make a board for this call'],
                       },
-                      children: ['Make a board for this call'],
-                    },
+                    ),
                   },
                 },
               ],
             },
+            else: tasksGate('Choose a call to see the work it produced.'),
           },
         },
       ],
