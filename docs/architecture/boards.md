@@ -29,6 +29,32 @@ Board      CollectionBlock { kind: 'board' }        ordered children ⇒ column 
       └─ TaskBlock…
 ```
 
+## Three kinds of board, and which of them gather
+
+A board's **candidate cards** and a column's **membership** are different questions, and conflating
+them was a real bug: every board showed the whole space, so a hiring pipeline and a content calendar
+were one card set with different column headings.
+
+| Board                              | `type`   | Its cards                                        |
+| ---------------------------------- | -------- | ------------------------------------------------ |
+| **Everything**                     | `space`  | all work in the space — the catch-all            |
+| **A container's board** (a call's) | `anchor` | that container's work, so extraction lands on it |
+| **One somebody made**              | _(none)_ | only what somebody put on it                     |
+
+A made board's **membership is the union of its columns' children** — no separate relation to keep in
+step. Placing a card anywhere on the board makes it a member; which _column_ shows it is still its
+`status`, so a member marked done elsewhere moves to that board's done column rather than falling off
+it, and one whose state no column here names drops to Unplaced.
+
+**Curating is safe only because Everything exists.** It gathers, it is unanchored, and nothing in the
+space can hide from it — so a card nobody has triaged is always somewhere, and every other board is
+free to hold only what it is about. That is the whole reason the catch-all is a _board_ rather than a
+fallback inside every board. It is also why a board with no record shows **nothing** rather than
+everything: the view gates on `boardLoaded`, so that state reads as loading, and an empty made board
+stays distinguishable from a broken one.
+
+## Two kinds of column
+
 A column carries a **`slug`**: the `status` value it stands for. That single field is what makes a
 column one of two quite different things.
 
@@ -48,7 +74,7 @@ matter is **promoted** by naming it in Settings → Vocabulary, which makes it a
 A card placed in a lane is excluded from the status columns **on that board only**, or it would
 appear twice.
 
-## Why membership is a query and not containment
+## Why a _gathering_ board's membership is a query and not containment
 
 The obvious design is pure containment: a card is in To-do because To-do's `children` holds a link
 to it. It is rejected, and not because the link is hard to write — an extraction pass knows which
@@ -125,12 +151,19 @@ cards nobody touched, which claims positions and can overwrite somebody else's c
 ## Boards a person does not create
 
 - **Everything** — the space's own board, `type: 'space'`. Made the first time somebody opens it.
-- **A call's board** — parented to the call's collection, so an anchored Boards view lists it and the
-  Workshop's tasks route finds it.
+- **A call's board** — `type: 'anchor'`, parented to the call's collection, so an anchored Boards view
+  lists it and the Workshop's tasks route finds it. Made by **the first extraction pass that leaves
+  the call holding a task** — not when somebody opens the route.
 
-Both are **find-or-create on a click**, never on a route mounting. Creating a board writes records
-into a space everybody shares, and doing that as a side effect of navigating would have every member
-who opened the tab racing to create the same board.
+Neither is created on a route mounting. Writing records into a space everybody shares as a side
+effect of navigating would have every member who opened the tab racing to create the same board; a
+pass runs on exactly one node, and Everything is made by a deliberate click.
+
+The rule for a call's board is "once it holds a task" rather than "once a pass produced anything", so
+an events-only call does not get an empty kanban nobody can explain. `InterpretationResult` carries
+ids and no types, so one query decides it — after an LLM round trip, where its cost is nothing. See
+`ensureBoardFor`, and `ModuleInterpretationAccess.ensureBoard` for the module-facing half, which
+names a collection and nothing else like every other member of that surface.
 
 That race still exists for two people clicking at the same moment on two nodes, and it is inherent —
 there is no coordination point. The read-side rule is: **if two exist, the earliest `createdAt`
@@ -167,6 +200,16 @@ columns on `CollectionBlock`, which its own docstring warns against.
   all. Arbitrary named rows need row records and a second binding on the group — additive, not a
   restructure.
 - **WIP limits, per-board filters, saved views.** Single-setter config; see the table above.
+- **Moving cards between boards in bulk.** The add-card modal pulls one card in at a time. The Pocket
+  is the right surface for several, and is closed to a template on purpose: `modules.pocket.gather`
+  is chrome-only because the Pocket writes to the agent's own root dataset, and a space template
+  arriving from a stranger must not file things there or enumerate what somebody keeps. The
+  interaction it leaves open — a button that opens the panel, and the person drags the card in —
+  needs drag arbitration `we-draggable` and `we-sortable` do not have, since both claim
+  `pointerdown`.
+- **"On no board yet".** Everything shows all the work but cannot distinguish a card nobody has
+  triaged from one already on three boards. That filter is a cross-board question an expression
+  cannot cheaply ask; it wants a store accessor, and is worth building when somebody feels the lack.
 - **Sub-tasks.** `TaskBlock` has no `children`; it would need one, or a parent link. Nothing about
   the board changes.
 
