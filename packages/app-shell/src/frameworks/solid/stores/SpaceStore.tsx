@@ -2143,6 +2143,9 @@ export function SpaceStoreProvider(props: ParentProps) {
         if (task) {
           (task as Record<string, unknown>).status = to.slug;
           await (task as { save: () => Promise<unknown> }).save();
+          // Development only: the write half of the picture the renderer's `[query]` lines give.
+          // Together they say whether a status that reached the backend came back to the screen.
+          if (import.meta.env.DEV) console.info(`[board] wrote status ${to.slug} to ${cardId}`);
         }
       }
     } catch (error) {

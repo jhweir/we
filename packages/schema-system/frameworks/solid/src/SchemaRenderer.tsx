@@ -100,6 +100,64 @@ function composeHandlers(handlers: unknown[]): (...args: unknown[]) => void {
 }
 
 /**
+ * What a subscription push actually carried — development only.
+ *
+ * Diagnostic for the class of bug where a write lands, a refresh shows it, and the screen does not:
+ * somewhere between the executor deciding a result set changed and Solid re-rendering, the change
+ * stops. This says which side of that line the problem is on, which is otherwise guesswork.
+ *
+ * Reports the *difference* rather than the rows — added and removed ids, and per surviving row the
+ * scalar fields whose values moved — because a query of two hundred tasks logged in full is
+ * unreadable and the interesting thing is always one field. A push that changed nothing is reported
+ * too, since "arrived and was identical" and "never arrived" have different causes and look the same
+ * from the screen.
+ *
+ * Pair with ad4m's own `[ModelQueryBuilder.subscribe]` lines, which say whether a push arrived at all
+ * and whether its fingerprint check suppressed it — both are `console.info`, so the browser console
+ * needs its Verbose level on to show either.
+ */
+function logSubscriptionDiff(entity: string, previous: unknown[] | null, next: unknown[]): void {
+  // Read through a cast rather than `import.meta.env.DEV` directly: this package carries no bundler
+  // types, and a diagnostic is not a reason to make the renderer depend on one. Absent reads as
+  // production, so a host that does not define it gets nothing.
+  if (!(import.meta as { env?: { DEV?: boolean } }).env?.DEV) return;
+  const rowsOf = (rows: unknown[]) =>
+    new Map(rows.map((row) => [String((row as { id?: unknown }).id ?? ''), row as Record<string, unknown>]));
+  const before = rowsOf(previous ?? []);
+  const after = rowsOf(next);
+  const added = [...after.keys()].filter((id) => !before.has(id));
+  const removed = [...before.keys()].filter((id) => !after.has(id));
+  const changed: string[] = [];
+  for (const [id, row] of after) {
+    const was = before.get(id);
+    if (!was) continue;
+    for (const [key, value] of Object.entries(row)) {
+      // Scalars only: a relation comes back as an array of ids and its own record's push reports it.
+      if (value !== null && typeof value === 'object') continue;
+      if (was[key] !== value) changed.push(`${id}.${key}: ${String(was[key])} → ${String(value)}`);
+    }
+  }
+  if (!previous) {
+    console.info(`[query] ${entity} ← first result, ${next.length} rows`);
+    return;
+  }
+  if (!added.length && !removed.length && !changed.length) {
+    console.info(`[query] ${entity} ← push with no difference (${next.length} rows)`);
+    return;
+  }
+  console.info(
+    `[query] ${entity} ←`,
+    [
+      added.length ? `+${added.length}` : '',
+      removed.length ? `-${removed.length}` : '',
+      changed.length ? changed.join(', ') : '',
+    ]
+      .filter(Boolean)
+      .join(' '),
+  );
+}
+
+/**
  * Create a reactive signal that subscribes to a $query and updates with results.
  * Must be called within a Solid reactive owner (component or createRoot).
  */
@@ -314,13 +372,21 @@ function createQuerySignal(
         subscribe: (cb: (results: unknown[]) => void) => Promise<unknown[]>;
         dispose: () => void;
       };
+      // Development only, and only what changed — see `logSubscriptionDiff`.
+      let seen: unknown[] | null = null;
       builder
         .subscribe((results) => {
-          setItems(reconcile(normalise(results), { key: 'id', merge: true }));
+          const rows = normalise(results);
+          logSubscriptionDiff(String(entity), seen, rows);
+          seen = rows;
+          setItems(reconcile(rows, { key: 'id', merge: true }));
           setLoaded(true);
         })
         .then((initial) => {
-          setItems(reconcile(normalise(initial), { key: 'id', merge: true }));
+          const rows = normalise(initial);
+          logSubscriptionDiff(String(entity), seen, rows);
+          seen = rows;
+          setItems(reconcile(rows, { key: 'id', merge: true }));
           setLoaded(true);
         })
         .catch((err) => {

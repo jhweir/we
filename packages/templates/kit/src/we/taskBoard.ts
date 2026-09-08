@@ -171,6 +171,16 @@ export interface TaskCardOptions {
   /** Context key the card reads. Defaults to `'task'`, which is what {@link taskBoard} binds. */
   as?: string;
   /**
+   * When to show the card's state on it — an expression, evaluated per row. Omit for never.
+   *
+   * A bound column *is* the state, so a badge there would repeat the column's own heading on every
+   * card. The two places it is worth showing are the ones where the column says nothing about it: a
+   * **lane**, which claims no state and deliberately leaves a card's alone, and the **unplaced**
+   * column, whose whole meaning is "no column here names this card's state". Those are exactly the
+   * cards whose state is otherwise invisible.
+   */
+  showState?: string;
+  /**
    * Show who wrote the task.
    *
    * Off by default: on a community's own board every card is the community's and a row of identical
@@ -238,6 +248,26 @@ export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
                 type: 'we-text',
                 props: { fontSize: '200', color: 'text-muted' },
                 children: [{ $: '`@${' + as + '.assignee}`' }],
+              },
+            },
+          },
+          // The card's state, where the caller says the column does not already give it away.
+          {
+            type: '$if',
+            props: {
+              condition: { $: `(${opts.showState ?? 'false'}) && ${as}.status` },
+              then: {
+                type: 'we-badge',
+                props: {
+                  size: 'xs',
+                  variant: 'neutral',
+                  title: 'The state this work is in — a lane does not change it',
+                },
+                children: [
+                  {
+                    $: `find(spaceStore.taskStates, { slug: ${as}.status }).name ?? ${as}.status`,
+                  },
+                ],
               },
             },
           },
@@ -389,7 +419,7 @@ const renameModal: SchemaNode = formModal({
 
 /** The cards of one column, in a drop zone. Shared by every column, bound or lane. */
 function columnCards(opts: TaskBoardOptions): SchemaNode {
-  const card = taskCard({ actions: moveTaskMenu('col.id'), byline: opts.byline });
+  const card = taskCard({ actions: moveTaskMenu('col.id'), byline: opts.byline, showState: '!col.slug' });
   /*
     The draggable box, on a native div rather than on the card.
 
@@ -625,7 +655,7 @@ function unplacedColumn(opts: TaskBoardOptions): SchemaNode {
           {
             type: '$each',
             props: { items: { $: unplacedExpr(opts) }, as: 'task' },
-            children: [taskCard({ actions: moveTaskMenu("''"), byline: opts.byline })],
+            children: [taskCard({ actions: moveTaskMenu("''"), byline: opts.byline, showState: 'true' })],
           },
         ],
       },
