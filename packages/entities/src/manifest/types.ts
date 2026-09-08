@@ -17,7 +17,7 @@ export type { RecordInstance, WeNodeRecord };
 export type SignalMode = 'toggle' | 'vote' | 'rating' | 'slider';
 export type SignalAggregate = 'count' | 'mean' | 'sum' | 'median';
 export type SignalSemantic = 'approval' | 'quality' | 'relevance' | 'agreement' | 'custom';
-export type TaskStateSemantic = 'open' | 'active' | 'done';
+export type TaskStateSemantic = 'open' | 'active' | 'blocked' | 'done' | 'cancelled';
 
 export interface AgentSettingsRecord extends RecordInstance {
   currentTemplateId: string;
@@ -322,7 +322,7 @@ export interface TaskStateRecord extends WeNodeRecord {
   description: string;
   icon: string;
   color: string;
-  semantic: 'open' | 'active' | 'done';
+  semantic: 'open' | 'active' | 'blocked' | 'done' | 'cancelled';
   retired: boolean;
   schemaVersion: number;
 }

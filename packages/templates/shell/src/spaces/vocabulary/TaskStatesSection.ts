@@ -47,6 +47,7 @@ const createModal: SchemaNode = formModal({
     stateName: { type: 'string', initial: '' },
     stateSemantic: { type: 'string', initial: 'open' },
     stateColor: { type: 'string', initial: '' },
+    stateIcon: { type: 'string', initial: '' },
   },
   children: [
     field({
@@ -54,16 +55,36 @@ const createModal: SchemaNode = formModal({
       label: 'Name',
       placeholder: 'Blocked',
     }),
-    labelled('Counts as', {
+    /*
+      What the rest of the app should read this as — not what it is called, and not literally what
+      stage of work it is.
+
+      These used to read "Not started / Being worked on / Finished", which asked about *history* and
+      made naming "Blocked" confusing: blocked work has started, so nothing fitted. The question is
+      whether work in this state is outstanding, and if so whether anybody is on it, which every
+      state answers cleanly.
+    */
+    labelled('The rest of the app reads this as', {
       type: 'we-select',
       props: {
         value: { $: 'local.stateSemantic' },
         onChange: { $setLocal: 'stateSemantic', value: { $: 'event.detail' } },
         options: [
-          { label: 'Not started', value: 'open' },
+          { label: 'Still to do — nobody on it', value: 'open' },
           { label: 'Being worked on', value: 'active' },
+          { label: 'Stuck — waiting on something', value: 'blocked' },
           { label: 'Finished', value: 'done' },
+          { label: 'Dropped — not finished, not outstanding', value: 'cancelled' },
         ],
+      },
+    }),
+    // The vocabulary's own field, which nothing offered a way to set. A state with an icon reads at a
+    // glance on a board heading; one without falls back to a shape derived from its semantic.
+    labelled('Icon', {
+      type: 'we-icon-picker',
+      props: {
+        value: { $: 'local.stateIcon' },
+        onChange: { $setLocal: 'stateIcon', value: { $: 'event.detail' } },
       },
     }),
     {
@@ -94,14 +115,39 @@ const createModal: SchemaNode = formModal({
         name: { $: 'local.stateName' },
         semantic: { $: 'local.stateSemantic' },
         color: { $: 'local.stateColor' },
+        icon: { $: 'local.stateIcon' },
       },
     ],
   },
 });
 
-/** How a semantic reads when it is not the state's own name. */
+/**
+ * How a semantic reads when it is not the state's own name.
+ *
+ * Every chain over `semantic` in the app ends in the outstanding branch rather than in an error, so a
+ * value a peer's older code does not recognise reads as "still to do" — right for `blocked`, and for
+ * `cancelled` an over-count of outstanding work rather than finished work quietly disappearing.
+ */
 const SEMANTIC_LABEL =
-  "state.semantic == 'done' ? 'finished' : state.semantic == 'active' ? 'in flight' : 'not started'";
+  "state.semantic == 'done' ? 'finished' : " +
+  "state.semantic == 'cancelled' ? 'dropped' : " +
+  "state.semantic == 'active' ? 'in flight' : " +
+  "state.semantic == 'blocked' ? 'stuck' : 'not started'";
+
+/** The shape a state takes when nobody has picked an icon for it. */
+const SEMANTIC_ICON =
+  "state.semantic == 'done' ? 'check-circle' : " +
+  "state.semantic == 'cancelled' ? 'x-circle' : " +
+  "state.semantic == 'active' ? 'circle-half' : " +
+  "state.semantic == 'blocked' ? 'warning-circle' : 'circle'";
+
+/** And the colour, where the community has not chosen one. */
+const SEMANTIC_COLOR =
+  'state.color ? state.color : ' +
+  "state.semantic == 'done' ? 'success-text' : " +
+  "state.semantic == 'cancelled' ? 'text-faint' : " +
+  "state.semantic == 'active' ? 'accent-text' : " +
+  "state.semantic == 'blocked' ? 'warning-text' : 'text-muted'";
 
 const stateRow: SchemaNode = {
   type: 'Row',
@@ -110,12 +156,9 @@ const stateRow: SchemaNode = {
     {
       type: 'we-icon',
       props: {
-        name: {
-          $: "state.semantic == 'done' ? 'check-circle' : state.semantic == 'active' ? 'circle-half' : 'circle'",
-        },
-        color: {
-          $: "state.color ? state.color : state.semantic == 'done' ? 'success-text' : state.semantic == 'active' ? 'accent-text' : 'text-muted'",
-        },
+        // The community's own icon where it chose one, and the semantic's shape where it did not.
+        name: { $: `state.icon ? state.icon : ${SEMANTIC_ICON}` },
+        color: { $: SEMANTIC_COLOR },
       },
     },
     {

@@ -8,7 +8,7 @@ import { Flag, Model, Property } from '@coasys/ad4m';
 
 import { WeNode } from './WeNode';
 
-export type TaskStateSemantic = 'open' | 'active' | 'done';
+export type TaskStateSemantic = 'open' | 'active' | 'blocked' | 'done' | 'cancelled';
 
 /**
  * A state a community's work can be in — "To do", "Blocked", "In review".
@@ -75,11 +75,31 @@ export class TaskState extends WeNode {
   color: string = '';
 
   /**
-   * What this state *is*, for everything that has not learned the community's word for it.
+   * What this state means to anything that never learned this community's words.
    *
-   * `open` — not started. `active` — being worked on. `done` — finished, and the only one that
-   * answers "is this outstanding?" negatively. A state that fits none of them is `open`, which
-   * is the safe default: counting unfinished work as unfinished is the failure that shows.
+   * Five values, and the number is set by the questions that have to be answerable from outside
+   * the space rather than by the vocabulary communities happen to use — that list is endless.
+   *
+   * | Question | Answered by |
+   * |---|---|
+   * | Is this outstanding? | `open`, `active`, `blocked` — and not `done`, `cancelled` |
+   * | Is anybody on it? | `active` |
+   * | Is it stuck? | `blocked` |
+   * | Was it actually completed? | `done`, and not `cancelled` |
+   *
+   * There were three. `blocked` and `cancelled` were added because the three collapsed two
+   * distinctions communities reach for immediately and nothing could recover: "Blocked" had to
+   * claim it had not started, which is false, and "Cancelled" had to claim it was finished, which
+   * would make any count of completed work wrong. Settings → Vocabulary offered "Blocked" as its
+   * own example of a state worth naming, so the contradiction shipped.
+   *
+   * A sixth would need a sixth question. *In review* (a stage of flow, so `active`) and *Archived*
+   * (finished, or no longer relevant) are judgement calls rather than gaps.
+   *
+   * Every consumer is written as a fallback chain ending in the outstanding branch, so a peer on
+   * older code reading `blocked` sees outstanding-and-nobody-on-it, which is right, and reading
+   * `cancelled` over-counts outstanding work rather than hiding finished work. Visibly misfiled
+   * rather than silently gone, which is the rule the unplaced column follows too.
    */
   @Property({ through: 'we://semantic' })
   semantic: TaskStateSemantic = 'open';

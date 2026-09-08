@@ -42,7 +42,7 @@ import type { CoreEntityDef } from './defs';
 export const TaskState: CoreEntityDef = {
   base: 'WeNode',
   unions: {
-    semantic: { alias: 'TaskStateSemantic', values: ['open', 'active', 'done'] },
+    semantic: { alias: 'TaskStateSemantic', values: ['open', 'active', 'blocked', 'done', 'cancelled'] },
   },
   entity: {
     flag: { predicate: 'we://flag', value: 'we://task_state' },
@@ -64,7 +64,39 @@ export const TaskState: CoreEntityDef = {
        * answers "is this outstanding?" negatively. A state that fits none of them is `open`, which
        * is the safe default: counting unfinished work as unfinished is the failure that shows.
        */
-      semantic: { type: 'string', predicate: 'we://semantic', default: 'open', options: ['open', 'active', 'done'] },
+      /**
+       * What this state means to anything that never learned this community's words.
+       *
+       * Five values, and the number is set by the questions that have to be answerable from outside
+       * the space rather than by the vocabulary communities happen to use — that list is endless.
+       *
+       * | Question | Answered by |
+       * |---|---|
+       * | Is this outstanding? | `open`, `active`, `blocked` — and not `done`, `cancelled` |
+       * | Is anybody on it? | `active` |
+       * | Is it stuck? | `blocked` |
+       * | Was it actually completed? | `done`, and not `cancelled` |
+       *
+       * There were three. `blocked` and `cancelled` were added because the three collapsed two
+       * distinctions communities reach for immediately and nothing could recover: "Blocked" had to
+       * claim it had not started, which is false, and "Cancelled" had to claim it was finished, which
+       * would make any count of completed work wrong. Settings → Vocabulary offered "Blocked" as its
+       * own example of a state worth naming, so the contradiction shipped.
+       *
+       * A sixth would need a sixth question. *In review* (a stage of flow, so `active`) and *Archived*
+       * (finished, or no longer relevant) are judgement calls rather than gaps.
+       *
+       * Every consumer is written as a fallback chain ending in the outstanding branch, so a peer on
+       * older code reading `blocked` sees outstanding-and-nobody-on-it, which is right, and reading
+       * `cancelled` over-counts outstanding work rather than hiding finished work. Visibly misfiled
+       * rather than silently gone, which is the rule the unplaced column follows too.
+       */
+      semantic: {
+        type: 'string',
+        predicate: 'we://semantic',
+        default: 'open',
+        options: ['open', 'active', 'blocked', 'done', 'cancelled'],
+      },
       /** Withdrawn from use without stranding the work in it — see `SignalType.retired`. */
       retired: { type: 'boolean', predicate: 'we://retired', default: false },
       schemaVersion: { type: 'number', predicate: 'we://schema_version', default: 1 },

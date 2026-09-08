@@ -160,10 +160,16 @@ export const unplacedExpr = (opts: TaskBoardOptions) =>
  * Looked up by slug rather than stored on the column, so a state recoloured in the vocabulary
  * recolours every board at once — the colour is a fact about the state, not about this board.
  */
+const STATE = 'find(spaceStore.taskStates, { slug: col.slug })';
 const HEADING_COLOR =
-  'find(spaceStore.taskStates, { slug: col.slug }).color ? find(spaceStore.taskStates, { slug: col.slug }).color : ' +
-  "find(spaceStore.taskStates, { slug: col.slug }).semantic == 'done' ? 'success-text' : " +
-  "find(spaceStore.taskStates, { slug: col.slug }).semantic == 'active' ? 'accent-text' : 'text-muted'";
+  `${STATE}.color ? ${STATE}.color : ` +
+  `${STATE}.semantic == 'done' ? 'success-text' : ` +
+  `${STATE}.semantic == 'cancelled' ? 'text-faint' : ` +
+  `${STATE}.semantic == 'active' ? 'accent-text' : ` +
+  `${STATE}.semantic == 'blocked' ? 'warning-text' : 'text-muted'`;
+
+/** The community's own icon for this column's state, where it chose one. */
+const HEADING_ICON = `${STATE}.icon`;
 
 export interface TaskCardOptions {
   /** Controls shown at the end of the card's meta row — usually {@link moveTaskMenu}. */
@@ -518,6 +524,17 @@ function column(opts: TaskBoardOptions): SchemaNode {
             type: 'Row',
             props: { gap: '200', ay: 'center', width: '100%' },
             children: [
+              // The state's own icon, where the community picked one. A lane has no state and so none.
+              {
+                type: '$if',
+                props: {
+                  condition: { $: `col.slug && ${HEADING_ICON}` },
+                  then: {
+                    type: 'we-icon',
+                    props: { name: { $: HEADING_ICON }, size: 'xs', color: { $: HEADING_COLOR } },
+                  },
+                },
+              },
               {
                 type: 'we-text',
                 props: {
@@ -648,14 +665,40 @@ function unplacedColumn(opts: TaskBoardOptions): SchemaNode {
             children: ['This board has no column for the state these are in. Move them somewhere it does.'],
           },
           /*
-            No drop zone, deliberately: there is no state to drop *into*, so a zone here could only
-            take a card and do nothing with it. The card's own menu is the way out, which makes this
-            column self-clearing — rescue the work and it disappears.
+            A zone you can drag *out* of and never into.
+
+            `locked` refuses incoming drops while leaving the press that starts a drag alone, which is
+            exactly the asymmetry this column wants: there is no state to drop *into* here, so taking
+            a card would mean taking it and doing nothing. It used to have no zone at all, on that
+            reasoning — but the reasoning was one-directional. Dragging a card *out* is the whole
+            rescue, and without it the only way out was the menu, which puts a card at the end of its
+            new column and needs a second drag to place it.
+
+            The card's menu stays for the keyboard.
           */
           {
-            type: '$each',
-            props: { items: { $: unplacedExpr(opts) }, as: 'task' },
-            children: [taskCard({ actions: moveTaskMenu("''"), byline: opts.byline, showState: 'true' })],
+            type: 'we-sortable',
+            props: {
+              zone: 'unplaced',
+              group: 'board-cards',
+              locked: true,
+              gap: 'var(--we-space-300)',
+              width: '100%',
+              flex: '1',
+            },
+            children: [
+              {
+                type: '$each',
+                props: { items: { $: unplacedExpr(opts) }, as: 'task' },
+                children: [
+                  {
+                    type: 'div',
+                    props: { 'data-we-id': { $: 'task.id' }, style: { width: '100%', cursor: 'grab' } },
+                    children: [taskCard({ actions: moveTaskMenu("''"), byline: opts.byline, showState: 'true' })],
+                  },
+                ],
+              },
+            ],
           },
         ],
       },
@@ -773,24 +816,33 @@ export function taskBoard(opts: TaskBoardOptions): SchemaNode {
           */
           condition: { $: `count(${COLUMNS})` },
           then: {
-            type: 'we-sortable',
-            props: {
-              // The columns are themselves a sortable, in its own group so a card can never be
-              // dropped among them. Each column drags by its heading — see the handle there.
-              direction: 'horizontal',
-              zone: 'columns',
-              group: 'board-columns',
-              gap: 'var(--we-space-400)',
-              width: '100%',
-              ay: 'start',
-              overflowX: 'auto',
-              onReorder: {
-                $action: 'spaceStore.reorderBoardColumns',
-                args: [opts.boardId, { $: 'arg.detail' }],
-              },
-            },
+            type: 'Row',
+            props: { width: '100%', gap: '400', ay: 'start', overflowX: 'auto' },
             children: [
-              { type: '$each', props: { items: { $: COLUMNS }, as: 'col' }, children: [column(opts)] },
+              {
+                type: 'we-sortable',
+                props: {
+                  // The columns are themselves a sortable, in its own group so a card can never be
+                  // dropped among them.
+                  direction: 'horizontal',
+                  zone: 'columns',
+                  group: 'board-columns',
+                  gap: 'var(--we-space-400)',
+                  ay: 'start',
+                  onReorder: {
+                    $action: 'spaceStore.reorderBoardColumns',
+                    args: [opts.boardId, { $: 'arg.detail' }],
+                  },
+                },
+                children: [{ type: '$each', props: { items: { $: COLUMNS }, as: 'col' }, children: [column(opts)] }],
+              },
+              /*
+                Outside the sortable, because it is not one of the board's columns.
+
+                `we-sortable` treats every child as an item, so sitting inside it made this look
+                draggable — it picked up, showed a drop line, and then did nothing, because it has no
+                record and no id to reorder. A column with no id is not a column.
+              */
               unplacedColumn(opts),
             ],
           },

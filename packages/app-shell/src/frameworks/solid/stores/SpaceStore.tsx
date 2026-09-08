@@ -269,8 +269,11 @@ export interface TaskStateView {
   name: string;
   /** What `TaskBlock.status` holds. */
   slug: string;
-  semantic: 'open' | 'active' | 'done';
+  /** See `TaskState.semantic` — five values, sized by the questions answerable from outside a space. */
+  semantic: 'open' | 'active' | 'blocked' | 'done' | 'cancelled';
   color: string;
+  /** The community's own icon, empty where it has not chosen one. */
+  icon: string;
   retired: boolean;
   defined: boolean;
 }
@@ -772,7 +775,12 @@ export interface SpaceStore {
    * Name a state this community's work moves through. The first one also writes down the defaults,
    * so adding a state never silently becomes replacing them.
    */
-  createTaskState: (config: { name: string; semantic?: 'open' | 'active' | 'done'; color?: string }) => Promise<void>;
+  createTaskState: (config: {
+    name: string;
+    semantic?: TaskStateView['semantic'];
+    color?: string;
+    icon?: string;
+  }) => Promise<void>;
   /** Withdraw a state from use, or bring it back. Never touches the work sitting in it. */
   setTaskStateRetired: (stateId: string, retired: boolean) => Promise<void>;
   /**
@@ -2660,6 +2668,7 @@ export function SpaceStoreProvider(props: ParentProps) {
           slug: r.slug || deriveSlug(r.name || ''),
           semantic: (r.semantic || 'open') as TaskStateView['semantic'],
           color: r.color || '',
+          icon: r.icon || '',
           retired: Boolean(r.retired),
           defined: true,
         })),
@@ -2690,6 +2699,7 @@ export function SpaceStoreProvider(props: ParentProps) {
       ? own
       : DEFAULT_TASK_STATES.map((d) => ({
           ...d,
+          icon: '',
           id: '',
           semantic: d.semantic as TaskStateView['semantic'],
           retired: false,
@@ -2703,7 +2713,10 @@ export function SpaceStoreProvider(props: ParentProps) {
       without anybody having to arrange the columns first.
     */
     const chosen = taskStateOrder();
-    const rank: Record<string, number> = { open: 0, active: 1, done: 2 };
+    // Reading order for a state nobody has positioned: what is coming, what is happening, what is
+    // stuck, what is finished, what was dropped. An unrecognised value sorts first, with the
+    // outstanding work, which is where something nobody can read belongs.
+    const rank: Record<string, number> = { open: 0, active: 1, blocked: 2, done: 3, cancelled: 4 };
     const at = (state: TaskStateView) => {
       const i = state.id ? chosen.indexOf(state.id) : -1;
       return i === -1 ? Number.POSITIVE_INFINITY : i;
@@ -2745,12 +2758,25 @@ export function SpaceStoreProvider(props: ParentProps) {
     const offered = offeredTaskStates().filter((state) => state.defined);
     if (!dataset || !ports || !offered.length) return;
     const list = offered.map((state) => `"${state.slug}"`).join(', ');
-    const open = offered.find((state) => state.semantic === 'open');
+    /*
+      Where a task lands when the conversation does not say.
+
+      **The community's first column**, not "the first state that counts as open" — which is what
+      this used to say, and which any second open state could take over. Naming "Blocked" as open and
+      dragging it to the front would have had extraction filing new work as blocked, which nobody
+      would predict from either action.
+
+      Reading it as the first column makes it something the community can *see* and change: the
+      leftmost column of the board is where new work arrives. `offered` is already in their order.
+      Blocked and cancelled are refused outright — whatever is at the front, an extraction pass has no
+      business declaring work stuck or dropped before anybody has looked at it.
+    */
+    const entry = offered.find((state) => state.semantic === 'open' || state.semantic === 'active');
     try {
       await ports.setInterpretationHints(dataset, 'TaskBlock', {
         propHints: {
           'we://status': `Exactly one of: ${list}.${
-            open ? ` Use "${open.slug}" unless the speaker says work has begun.` : ''
+            entry ? ` Use "${entry.slug}" unless the speaker says work has begun.` : ''
           }`,
         },
       });
@@ -2778,6 +2804,7 @@ export function SpaceStoreProvider(props: ParentProps) {
     name: string;
     semantic?: TaskStateView['semantic'];
     color?: string;
+    icon?: string;
   }): Promise<void> {
     const p = datasetStore.currentDataset()?.handle;
     if (!p || !config.name?.trim()) return;
@@ -2798,6 +2825,7 @@ export function SpaceStoreProvider(props: ParentProps) {
         slug,
         semantic: config.semantic ?? 'open',
         color: config.color ?? '',
+        icon: config.icon ?? '',
       });
       await loadTaskStates();
       await syncTaskStateHint();
