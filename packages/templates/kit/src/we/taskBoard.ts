@@ -65,17 +65,32 @@ const COLUMNS = `${BOARD}.children`;
  * from the board entirely. Reading "placed" as *placed somewhere that shows it* means the card falls
  * back to being unarranged in whichever column its state now names.
  */
-const PLACED = `${COLUMNS}.exists(k, (!k.slug || k.slug == t.status) && k.children.exists(c, c.id == t.id))`;
+export const PLACED_EXPR = `${COLUMNS}.exists(k, (!k.slug || k.slug == t.status) && t.id in k.children)`;
 
-/** The cards somebody has arranged in this column: its own children, minus any stale hint. */
-const ARRANGED = `col.slug ? col.children.filter(c, c.status == col.slug) : col.children`;
+/**
+ * The cards somebody has arranged in this column: its own children, minus any stale hint.
+ *
+ * `col.children` comes back as **ids**, not records, and deliberately so. The board is read with
+ * `include: { children: true }`, which hydrates the columns — but a second hop to hydrate *their*
+ * children cannot work: `children` is polymorphic, so the ORM does not know what class the columns
+ * are until it has read them, and therefore cannot look up the relation metadata for the level
+ * below. A nested include here fails at the backend with "the relation declares no target class".
+ *
+ * So the ids are resolved against `local.allTasks`, which this board is already subscribed to. That
+ * is cheaper as well as possible: the tasks are hydrated once rather than twice.
+ *
+ * An id that resolves to nothing drops out — a card outside this board's scope, or one deleted since
+ * the hint was written. `c.id &&` is what does it, since reading a field off nothing is `undefined`
+ * rather than an error.
+ */
+export const ARRANGED_EXPR = `col.children.map(i, find(local.allTasks, { id: i })).filter(c, c.id && (!col.slug || c.status == col.slug))`;
 
 /**
  * The cards this column's state gathers that nobody has positioned.
  *
  * Empty for a lane, which gathers nothing — that is the whole difference between the two kinds.
  */
-const UNARRANGED = `col.slug ? local.allTasks.filter(t, t.status == col.slug && !(${PLACED})) : []`;
+export const UNARRANGED_EXPR = `col.slug ? local.allTasks.filter(t, t.status == col.slug && !(${PLACED_EXPR})) : []`;
 
 /**
  * Work this board has nowhere to put: a state no column here names.
@@ -85,7 +100,7 @@ const UNARRANGED = `col.slug ? local.allTasks.filter(t, t.status == col.slug && 
  * cause, the work is real and somebody has to be able to reach it. Filtering it out would be tidier
  * and would hide work, which is the one failure this whole design exists to prevent.
  */
-const UNPLACED = `local.allTasks.filter(t, !(${PLACED}) && !${COLUMNS}.exists(k, k.slug == t.status))`;
+export const UNPLACED_EXPR = `local.allTasks.filter(t, !(${PLACED_EXPR}) && !${COLUMNS}.exists(k, k.slug == t.status))`;
 
 /**
  * The colour a column heading takes when the community has not chosen one.
@@ -309,8 +324,8 @@ function columnCards(opts: TaskBoardOptions): SchemaNode {
       primitive reads, and needs no addition to the grammar.
     */
     children: [
-      { type: '$each', props: { items: { $: ARRANGED }, as: 'task' }, children: [draggable] },
-      { type: '$each', props: { items: { $: UNARRANGED }, as: 'task' }, children: [draggable] },
+      { type: '$each', props: { items: { $: ARRANGED_EXPR }, as: 'task' }, children: [draggable] },
+      { type: '$each', props: { items: { $: UNARRANGED_EXPR }, as: 'task' }, children: [draggable] },
     ],
   };
 }
@@ -395,7 +410,7 @@ function column(opts: TaskBoardOptions): SchemaNode {
                       variant: 'footnote',
                       color: 'text-muted',
                       ml: 'auto',
-                      text: { $: `count(${ARRANGED}) + count(${UNARRANGED})` },
+                      text: { $: `count(${ARRANGED_EXPR}) + count(${UNARRANGED_EXPR})` },
                     },
                   },
                   {
@@ -453,7 +468,7 @@ function unplacedColumn(opts: TaskBoardOptions): SchemaNode {
   return {
     type: '$if',
     props: {
-      condition: { $: `count(${UNPLACED})` },
+      condition: { $: `count(${UNPLACED_EXPR})` },
       then: {
         type: 'Column',
         props: {
@@ -479,7 +494,7 @@ function unplacedColumn(opts: TaskBoardOptions): SchemaNode {
               },
               {
                 type: 'we-text',
-                props: { variant: 'footnote', color: 'text-muted', ml: 'auto', text: { $: `count(${UNPLACED})` } },
+                props: { variant: 'footnote', color: 'text-muted', ml: 'auto', text: { $: `count(${UNPLACED_EXPR})` } },
               },
             ],
           },
@@ -495,7 +510,7 @@ function unplacedColumn(opts: TaskBoardOptions): SchemaNode {
           */
           {
             type: '$each',
-            props: { items: { $: UNPLACED }, as: 'task' },
+            props: { items: { $: UNPLACED_EXPR }, as: 'task' },
             children: [taskCard({ actions: moveTaskMenu("''"), byline: opts.byline })],
           },
         ],
@@ -565,19 +580,19 @@ export function taskBoard(opts: TaskBoardOptions): SchemaNode {
     /*
       Two subscriptions for the whole board.
 
-      `board` brings the structure back in one query — columns in order, each with its cards — which
-      is what lets a column ask about its siblings (is this card placed somewhere else?) without a
-      query per column. `allTasks` is the membership side: everything in scope, which each bound
-      column filters by its own slug.
-
-      The tasks are hydrated twice, once as column children and once here. That is the cost of
-      having both facts available to one expression, and it is bounded by the board's own limit.
+      `board` brings the structure back in one query — the columns in order, each carrying the ids it
+      has arranged — which is what lets a column ask about its siblings (is this card placed
+      somewhere else?) without a query per column. `allTasks` is the membership side: everything in
+      scope, which each bound column filters by its own slug and which the arranged ids resolve
+      against.
     */
     $queries: {
       board: {
         entity: 'CollectionBlock',
         where: { id: opts.boardId as Record<string, unknown> },
-        include: { children: { include: { children: true } } },
+        // One level only — see `ARRANGED` for why a second hop through a polymorphic relation
+        // cannot be hydrated. The columns come back as records; their cards come back as ids.
+        include: { children: true },
         limit: 1,
       },
       allTasks: {
