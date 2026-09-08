@@ -2142,7 +2142,17 @@ export function SpaceStoreProvider(props: ParentProps) {
     if (!p || !cardId || !toColumnId || fromColumnId === toColumnId) return;
     try {
       const [from, to] = await Promise.all([
-        fromColumnId ? CollectionBlock.findOne(p, { where: { id: fromColumnId } }) : Promise.resolve(null),
+        /*
+          A `from` that resolves to nothing must not cost the move.
+
+          An id is an IRI on this backend, so a caller handing over something that is not one — a
+          zone's *name*, say — does not come back empty, it refuses the query outright and takes the
+          whole move with it. The target write is the part that matters; leaving a stale link behind
+          is a hint the board already ignores.
+        */
+        fromColumnId
+          ? CollectionBlock.findOne(p, { where: { id: fromColumnId } }).catch(() => null)
+          : Promise.resolve(null),
         CollectionBlock.findOne(p, { where: { id: toColumnId } }),
       ]);
       if (!to) return;

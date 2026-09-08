@@ -168,8 +168,21 @@ const HEADING_COLOR =
   `${STATE}.semantic == 'active' ? 'accent-text' : ` +
   `${STATE}.semantic == 'blocked' ? 'warning-text' : 'text-muted'`;
 
-/** The community's own icon for this column's state, where it chose one. */
-const HEADING_ICON = `${STATE}.icon`;
+/**
+ * The icon a column heading carries: the community's own, or the shape its semantic implies.
+ *
+ * Falling back rather than showing nothing where a state has no icon, so a board does not come out
+ * ragged — some columns marked and some not — the first time somebody sets one. The shapes are the
+ * same ones Settings → Vocabulary draws, so a state reads the same in both places, and they carry
+ * the distinction the five semantics exist for: stuck and dropped are visible at a glance rather
+ * than only in the column's name.
+ */
+const HEADING_ICON =
+  `${STATE}.icon ? ${STATE}.icon : ` +
+  `${STATE}.semantic == 'done' ? 'check-circle' : ` +
+  `${STATE}.semantic == 'cancelled' ? 'x-circle' : ` +
+  `${STATE}.semantic == 'active' ? 'circle-half' : ` +
+  `${STATE}.semantic == 'blocked' ? 'warning-circle' : 'circle'`;
 
 export interface TaskCardOptions {
   /** Controls shown at the end of the card's meta row — usually {@link moveTaskMenu}. */
@@ -528,10 +541,11 @@ function column(opts: TaskBoardOptions): SchemaNode {
               {
                 type: '$if',
                 props: {
-                  condition: { $: `col.slug && ${HEADING_ICON}` },
+                  // A lane stands for no state, so it has no shape to fall back to either.
+                  condition: { $: 'col.slug' },
                   then: {
                     type: 'we-icon',
-                    props: { name: { $: HEADING_ICON }, size: 'xs', color: { $: HEADING_COLOR } },
+                    props: { name: { $: `(${HEADING_ICON})` }, size: 'xs', color: { $: HEADING_COLOR } },
                   },
                 },
               },
@@ -698,12 +712,10 @@ function unplacedColumn(opts: TaskBoardOptions): SchemaNode {
               */
               onMoved: {
                 $action: 'spaceStore.moveCardToColumn',
-                args: [
-                  { $: 'arg.detail.from' },
-                  { $: 'arg.detail.to' },
-                  { $: 'arg.detail.id' },
-                  { $: 'arg.detail.ids' },
-                ],
+                // No `from`, given literally rather than forwarded: `arg.detail.from` is this zone's
+                // *name*, and a name is not a record id — passing `'unplaced'` had the backend try to
+                // parse it as an IRI and refuse the whole query. There is nothing to unlink anyway.
+                args: ['', { $: 'arg.detail.to' }, { $: 'arg.detail.id' }, { $: 'arg.detail.ids' }],
               },
             },
             children: [
