@@ -68,6 +68,33 @@ const COLUMNS = `${BOARD}.children`;
 export const PLACED_EXPR = `${COLUMNS}.exists(k, (!k.slug || k.slug == t.status) && t.id in k.children)`;
 
 /**
+ * Whether this board draws work in, or only shows what somebody put on it.
+ *
+ * Two of the three kinds gather. **Everything** (`type: 'space'`) is the space's catch-all: nothing
+ * in the space can hide from it, which is the property that lets every other board be curated.
+ * **A container's board** (`type: 'anchor'`, a call's) gathers that container's work, so a pass that
+ * extracts three tasks puts them on it without anyone placing anything.
+ *
+ * A board somebody *made* gathers nothing. That is the difference between a workstream and a view of
+ * everything: a hiring board and a content calendar hold different work, and a board that showed the
+ * whole space would make every board a duplicate of every other with different column headings.
+ *
+ * Nothing is lost by curating, because Everything is still showing it. That is the whole reason the
+ * catch-all has to exist and has to gather.
+ */
+const GATHERS = `${BOARD}.type == 'space' || ${BOARD}.type == 'anchor'`;
+
+/**
+ * The work this board could show: everything in scope, or only what it holds.
+ *
+ * A made board's **membership is the union of its columns' children** — no separate relation, and
+ * nothing to keep in step with the columns. Placing a card anywhere on the board makes it a member;
+ * which *column* shows it is still its `status`, so a member marked done elsewhere moves to this
+ * board's done column rather than disappearing from it.
+ */
+const POOL = `(${GATHERS}) ? local.allTasks : local.allTasks.filter(m, ${COLUMNS}.exists(k, m.id in k.children))`;
+
+/**
  * The cards somebody has arranged in this column: its own children, minus any stale hint.
  *
  * `col.children` comes back as **ids**, not records, and deliberately so. The board is read with
@@ -90,7 +117,7 @@ export const ARRANGED_EXPR = `col.children.map(i, find(local.allTasks, { id: i }
  *
  * Empty for a lane, which gathers nothing — that is the whole difference between the two kinds.
  */
-export const UNARRANGED_EXPR = `col.slug ? local.allTasks.filter(t, t.status == col.slug && !(${PLACED_EXPR})) : []`;
+export const UNARRANGED_EXPR = `col.slug ? (${POOL}).filter(t, t.status == col.slug && !(${PLACED_EXPR})) : []`;
 
 /**
  * Work this board has nowhere to put: a state no column here names.
@@ -100,7 +127,7 @@ export const UNARRANGED_EXPR = `col.slug ? local.allTasks.filter(t, t.status == 
  * cause, the work is real and somebody has to be able to reach it. Filtering it out would be tidier
  * and would hide work, which is the one failure this whole design exists to prevent.
  */
-export const UNPLACED_EXPR = `local.allTasks.filter(t, !(${PLACED_EXPR}) && !${COLUMNS}.exists(k, k.slug == t.status))`;
+export const UNPLACED_EXPR = `(${POOL}).filter(t, !(${PLACED_EXPR}) && !${COLUMNS}.exists(k, k.slug == t.status))`;
 
 /**
  * The colour a column heading takes when the community has not chosen one.
@@ -237,28 +264,76 @@ export interface TaskBoardOptions {
   byline?: boolean;
 }
 
-/** Adding a card straight into the column somebody pressed `+` on. */
+/**
+ * Adding a card to the column somebody pressed `+` on — a new one, or work that already exists.
+ *
+ * Both, in one modal, because a curated board that could only hold work *born on it* would be nearly
+ * as useless as one that showed everything: you could never build a sprint board out of a backlog.
+ * The picker offers anything in scope this board does not already hold.
+ *
+ * The Pocket would be the nicer route for moving several cards between boards, and is deliberately
+ * closed to a template: `modules.pocket.gather` is chrome-only, because the Pocket writes to the
+ * agent's own root dataset and a space template arriving from a stranger must not be able to file
+ * things there or enumerate what somebody keeps. The interaction it leaves open — a button that
+ * opens the panel, and the person drags the card in themselves — needs the drag arbitration
+ * `we-draggable` and `we-sortable` do not yet have, since both claim `pointerdown`. So: a picker.
+ */
 function addCardModal(opts: TaskBoardOptions): SchemaNode {
   return formModal({
     open: { $: 'local.addOpen' },
     close: { $setLocal: 'addOpen', value: false },
     // Names the column, so a modal opened from the wrong `+` is obvious before anything is typed.
-    title: { $: '`New card in ${col.title}`' },
+    title: { $: '`Add to ${col.title}`' },
     size: 'sm',
-    localState: { addTitle: { type: 'string', initial: '' } },
-    children: [field({ name: 'addTitle', label: 'What needs doing?', placeholder: 'Ship the docs' })],
-    disabled: { $: '!local.addTitle' },
-    submitLabel: 'Add card',
+    localState: {
+      addTitle: { type: 'string', initial: '' },
+      addExisting: { type: 'string', initial: '' },
+    },
+    children: [
+      field({ name: 'addTitle', label: 'What needs doing?', placeholder: 'Ship the docs' }),
+      {
+        type: 'we-form-field',
+        props: { label: 'Or bring in work that already exists' },
+        children: [
+          {
+            type: 'we-select',
+            props: {
+              placeholder: 'Nothing selected',
+              searchable: true,
+              value: { $: 'local.addExisting' },
+              // Anything in scope this board is not already holding — which for a made board is the
+              // whole space, and for a call's board is that call's work.
+              options: {
+                $: `local.allTasks.filter(t, !${COLUMNS}.exists(k, t.id in k.children)).map(t, { label: t.title, value: t.id })`,
+              },
+              onChange: { $setLocal: 'addExisting', value: { $: 'event.detail' } },
+            },
+          },
+        ],
+      },
+    ],
+    disabled: { $: '!local.addTitle && !local.addExisting' },
+    submitLabel: 'Add',
     /*
-      One action rather than `record.create`, because two links have to be right: the task is
-      parented to the board's *anchor* so every other call-scoped surface finds it, and linked into
-      the column so it opens where the person was looking. A bound column also gives it that
-      column's state.
+      One or the other. Bringing in an existing card is a *move into this column* — the same action a
+      drag makes, so it writes the state the column names, exactly as dropping it there would.
+      Creating one goes through `addTaskToColumn`, which parents it to the board's anchor as well so
+      every other scoped surface finds it.
     */
     submit: {
-      $action: 'spaceStore.addTaskToColumn',
-      args: [{ $: 'col.id' }, { $: 'local.addTitle' }, opts.anchorId ?? ''],
-      onSuccess: [{ $setLocal: 'addOpen', value: false }],
+      $if: {
+        condition: { $: 'local.addExisting' },
+        then: {
+          $action: 'spaceStore.moveCardToColumn',
+          args: ['', { $: 'col.id' }, { $: 'local.addExisting' }],
+          onSuccess: [{ $setLocal: 'addOpen', value: false }],
+        },
+        else: {
+          $action: 'spaceStore.addTaskToColumn',
+          args: [{ $: 'col.id' }, { $: 'local.addTitle' }, opts.anchorId ?? ''],
+          onSuccess: [{ $setLocal: 'addOpen', value: false }],
+        },
+      },
     },
   });
 }
@@ -613,7 +688,17 @@ export function taskBoard(opts: TaskBoardOptions): SchemaNode {
       {
         type: '$if',
         props: {
-          condition: { $: `count(${COLUMNS}) || count(local.allTasks)` },
+          /*
+            The columns decide whether there is a board to show, not the work.
+
+            It used to fall back to the tasks as well, so a board whose record had not arrived still
+            drew everything in the space. That was a safety net when every board gathered; it is
+            wrong now that a made board is meant to start empty, and it would make one indisplayable
+            from a board that had simply not loaded. The catch-all is a *board* — Everything — rather
+            than a fallback inside every board, so the honest answer here is the empty state, once
+            the query has actually answered.
+          */
+          condition: { $: `count(${COLUMNS})` },
           then: {
             type: 'we-sortable',
             props: {
@@ -636,8 +721,9 @@ export function taskBoard(opts: TaskBoardOptions): SchemaNode {
               unplacedColumn(opts),
             ],
           },
-          // Gated on the query having answered: an empty first frame is not an empty board.
-          else: { type: '$if', props: { condition: { $: 'local.allTasksLoaded' }, then: opts.empty } },
+          // Gated on the *board* having answered: an empty first frame is not an empty board, and
+          // the tasks arriving says nothing about whether the columns have.
+          else: { type: '$if', props: { condition: { $: 'local.boardLoaded' }, then: opts.empty } },
         },
       },
       {

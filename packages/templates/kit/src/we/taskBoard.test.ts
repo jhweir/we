@@ -20,8 +20,13 @@ import { ARRANGED_EXPR, PLACED_EXPR, UNARRANGED_EXPR, UNPLACED_EXPR } from './ta
 
 type Row = Record<string, unknown>;
 
-/** The board as the queries hand it over: columns hydrated, their children still ids. */
-const board = (columns: Row[]) => [{ id: 'b1', children: columns }];
+/**
+ * The board as the queries hand it over: columns hydrated, their children still ids.
+ *
+ * `type` decides whether it gathers. `'space'` is Everything and `'anchor'` is a container's own;
+ * anything else is a board somebody made, which shows only what it holds.
+ */
+const board = (columns: Row[], type = 'space') => [{ id: 'b1', type, children: columns }];
 
 const evaluate = (source: string, roots: Record<string, unknown>) =>
   evaluateExpression(parseExpression(source), {
@@ -108,12 +113,18 @@ describe('the unplaced column', () => {
   });
 
   /*
-    The failure mode this whole design exists to prevent, as a test: a board that cannot render its
-    structure must still show the work rather than swallowing it.
+    A board with no record shows nothing, and that is deliberate now.
+
+    It used to catch everything, as a safety net for a board that could not render its structure.
+    That net belonged to a world where every board gathered — with curated boards it would make an
+    empty board indistinguishable from a broken one, and would show the whole space on the first
+    frame of every board that had simply not loaded yet. The catch-all is a *board* (Everything,
+    `type: 'space'`, which gathers because its record says so) rather than a fallback hidden inside
+    every board. The view gates on `boardLoaded` so this reads as "loading", never as "empty".
   */
-  it('catches everything when the board has no columns at all', () => {
+  it('shows nothing when there is no board record, rather than everything', () => {
     const local = { board: [] as Row[], allTasks: [todo, doing] };
-    expect(evaluate(UNPLACED_EXPR, { local })).toEqual([todo, doing]);
+    expect(evaluate(UNPLACED_EXPR, { local })).toEqual([]);
   });
 
   it('leaves placed work alone', () => {
@@ -135,5 +146,66 @@ describe('the lists are lists', () => {
       expect(Array.isArray(evaluate(source, { col, local }))).toBe(true);
     }
     expect(Array.isArray(evaluate(UNPLACED_EXPR, { local }))).toBe(true);
+  });
+});
+
+describe('what a board draws from', () => {
+  const col = { id: 'c1', slug: 'todo', children: [] as string[] };
+  const held = { id: 'c1', slug: 'todo', children: ['t1'] };
+
+  it('Everything gathers the whole space', () => {
+    const local = { board: board([col], 'space'), allTasks: [todo] };
+    expect(evaluate(UNARRANGED_EXPR, { col, local })).toEqual([todo]);
+  });
+
+  it('a container’s board gathers that container’s work', () => {
+    // `allTasks` is already scoped to the container by the query; the type is what says it gathers.
+    const local = { board: board([col], 'anchor'), allTasks: [todo] };
+    expect(evaluate(UNARRANGED_EXPR, { col, local })).toEqual([todo]);
+  });
+
+  /*
+    The change this test exists for. A board somebody made starts empty and stays that way until
+    somebody puts something on it — otherwise every board is the same card set with different column
+    headings, which is what a hiring pipeline and a content calendar are not.
+  */
+  it('a board somebody made gathers nothing', () => {
+    const local = { board: board([col], ''), allTasks: [todo] };
+    expect(evaluate(UNARRANGED_EXPR, { col, local })).toEqual([]);
+    expect(evaluate(UNPLACED_EXPR, { local })).toEqual([]);
+  });
+
+  it('but does show what it holds', () => {
+    const local = { board: board([held], ''), allTasks: [todo] };
+    expect(evaluate(ARRANGED_EXPR, { col: held, local })).toEqual([todo]);
+  });
+
+  /*
+    Membership is the union of the columns' children, and the *column* is still decided by state. So
+    a member marked done elsewhere moves to this board's done column rather than falling off it.
+  */
+  it('follows a member whose state changed to another of its columns', () => {
+    const doneCol = { id: 'c2', slug: 'done', children: [] as string[] };
+    const moved = { id: 't1', title: 'One', status: 'done' };
+    const local = { board: board([held, doneCol], ''), allTasks: [moved] };
+    expect(evaluate(ARRANGED_EXPR, { col: held, local })).toEqual([]);
+    expect(evaluate(UNARRANGED_EXPR, { col: doneCol, local })).toEqual([moved]);
+  });
+
+  it('keeps a member whose state no column here names, in Unplaced', () => {
+    const moved = { id: 't1', title: 'One', status: 'archived' };
+    const local = { board: board([held], ''), allTasks: [moved] };
+    expect(evaluate(UNPLACED_EXPR, { local })).toEqual([moved]);
+  });
+
+  it('never lets a made board hide work — a non-member is simply not its business', () => {
+    // The card is still on Everything, which is what makes curating safe.
+    const local = { board: board([held], ''), allTasks: [todo, doing] };
+    const shown = [
+      ...(evaluate(ARRANGED_EXPR, { col: held, local }) as Row[]),
+      ...(evaluate(UNARRANGED_EXPR, { col: held, local }) as Row[]),
+      ...(evaluate(UNPLACED_EXPR, { local }) as Row[]),
+    ].map((row) => row.id);
+    expect(shown).toEqual(['t1']);
   });
 });

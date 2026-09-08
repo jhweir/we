@@ -1243,6 +1243,22 @@ export interface ModuleInterpretationAccess {
    */
   reconcileCollection: (collectionId: string) => Promise<number>;
   /**
+   * Make sure this collection has a board, now that a pass has left work on it. Returns its id.
+   *
+   * Called after a pass rather than when somebody opens a board, because creating one writes records
+   * into a space everybody shares and doing that as a side effect of *navigating* means every member
+   * who opened the tab races to create the same board. A pass runs on exactly one node.
+   *
+   * The host decides whether a board is warranted — it is, once the collection holds a task, and not
+   * for a call that produced only an event — so a module may call this after any pass and need not
+   * know the rule. It is a no-op with an empty answer when there is nothing to arrange.
+   *
+   * A collection and nothing else, like every member here: the dataset is the host's to resolve, and
+   * it resolves the same one the pass just wrote into, so a board cannot land somewhere its cards
+   * did not.
+   */
+  ensureBoard: (collectionId: string) => Promise<string>;
+  /**
    * What extraction is doing in this space right now — this agent's passes and its peers'.
    *
    * Read-only and reactive, like {@link ModuleIdentityAccess.get}: a module reading it inside a

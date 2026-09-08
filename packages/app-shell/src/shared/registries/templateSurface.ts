@@ -415,6 +415,13 @@ export const TEMPLATE_SURFACE: Record<string, Record<string, Classification>> = 
     // administration: any member may make one and drag cards on it.
     createBoard: action('content'),
     openBoardFor: action('content'),
+    /*
+      Extraction's hook, and host wiring rather than a template's business: a template that wanted a
+      board would call `openBoardFor`, which asks. This one *decides* — it consults whether the
+      collection holds a task and creates the board and its columns without being asked — which is
+      right for a pass that just wrote work and wrong for a schema rendering a page.
+    */
+    ensureBoardFor: WIRING,
     addBoardColumn: action('content'),
     removeBoardColumn: action('content'),
     renameBoardColumn: action('content'),

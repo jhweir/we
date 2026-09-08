@@ -1067,7 +1067,7 @@ export function generateStoresText(entries: StoreEntry[]): string {
         createBoard:
           '(title: string, parentId?: string, options?: { space?: boolean }): makes a board \u2014 a CollectionBlock whose ordered children are its columns, one per state the community uses. Returns its id. Pass parentId to put the board inside another collection (a call\u2019s record), which is where an anchored Boards view lists it',
         openBoardFor:
-          '(anchorId?: string, title?: string): the board for a container \u2014 one call\u2019s, or the space\u2019s own \u2014 making it if nobody has yet. Returns its id either way. Call it from a click rather than on mount: creating a board writes records into a space everybody shares',
+          '(anchorId?: string, title?: string, dataset?: string): the board for a container \u2014 one call\u2019s, or the space\u2019s own \u2014 making it if nobody has yet. Returns its id either way. Call it from a click rather than on mount: creating a board writes records into a space everybody shares',
         addBoardColumn:
           '(boardId: string, name: string, slug?: string): adds a column. **With a slug** it IS that state on this board \u2014 matching work arrives on its own and dropping a card there changes the card\u2019s state everywhere. **Without one** it is a local lane: nothing arrives by itself and a card put there is positioned rather than reclassified',
         removeBoardColumn:

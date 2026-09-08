@@ -795,6 +795,17 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
       // calls list extracts a finished one, and reviewing what that found is the whole point of
       // being able to.
       if (result.proposed.length) await loadProposals(collection);
+      /*
+        A pass that produced something means this call may now have work to arrange, so make sure it
+        has a board. The host decides whether one is warranted — it is once the collection holds a
+        task, not for a call that produced only an event — so this asks after every non-empty pass
+        and lets the rule live in one place.
+
+        Not awaited into the status: the pass is done and reported, and a board that could not be
+        made is not a failed extraction. Deliberately here rather than when somebody opens the board:
+        a pass runs on one node, where opening a route runs on everybody's.
+      */
+      if (result.ids.length) void interpretation.ensureBoard?.(collection);
     } catch (error) {
       setExtractError(error instanceof Error ? error.message : String(error));
       setExtractedId(collection);

@@ -87,6 +87,19 @@ export interface ModuleHostServices {
   unwatchCollection?: (collectionId: string) => Promise<void>;
   reconcileCollection?: (collectionId: string) => Promise<number>;
   /**
+   * Make sure a collection has a board, once it holds a task.
+   *
+   * Extraction's hook. A pass that leaves a call holding work needs somewhere for that work to be
+   * arranged, and the alternative — creating the board when somebody opens the route — is a write
+   * as a side effect of navigating, which on a neighbourhood means every member who opened the tab
+   * racing to create the same board. A pass runs on exactly one node, so it is the right writer.
+   *
+   * Takes an optional dataset for a host that knows one, and otherwise resolves the same dataset
+   * `interpretCollection` does — which is the one the pass just wrote its records into, so the board
+   * cannot land somewhere its own cards did not.
+   */
+  ensureBoardFor?: (collectionId: string, dataset?: string) => Promise<string>;
+  /**
    * Live extraction activity for the current space, published by the store that holds the feed.
    *
    * Separate from `interpretation` for the same reason `interpretCollection` is: the port reports
@@ -316,6 +329,9 @@ export function createModuleStoreDeps(framework: {
         await services.unwatchCollection?.(collectionId);
       },
       reconcileCollection: async (collectionId) => (await services.reconcileCollection?.(collectionId)) ?? 0,
+      // Empty on a host that does not do boards, which a module reads as "nothing to arrange" — the
+      // same shape `reconcileCollection` uses for a backend that parents its own results.
+      ensureBoard: async (collectionId) => (await services.ensureBoardFor?.(collectionId)) ?? '',
       /*
         Reads through on every call rather than capturing, like every accessor here — a module store
         outlives a space switch, and a captured array would keep showing the passes of the space the
