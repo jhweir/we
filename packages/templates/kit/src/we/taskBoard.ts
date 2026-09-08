@@ -726,6 +726,22 @@ function addColumnModal(opts: TaskBoardOptions): SchemaNode {
   });
 }
 
+/**
+ * What a board shows while it is being asked for — a spinner, at a column's height so the board does
+ * not jump when it arrives.
+ *
+ * Exported so a surface that gates on *whether there is a board* can show the same thing while that
+ * question is still open. The Workshop's tasks route showed "this call has no board yet" for the
+ * frames before the call record had answered, then this spinner, then the board: two loading states
+ * that looked like three, one of them asserting something false. Sharing the node makes the handoff
+ * invisible — same spinner, same place, until the board is there.
+ */
+export const taskBoardLoading: SchemaNode = {
+  type: 'Column',
+  props: { width: '100%', minHeight: '240px', ax: 'center', ay: 'center' },
+  children: [{ type: 'we-spinner', props: { size: 'lg' } }],
+};
+
 export function taskBoard(opts: TaskBoardOptions): SchemaNode {
   return {
     type: 'Column',
@@ -832,12 +848,7 @@ export function taskBoard(opts: TaskBoardOptions): SchemaNode {
               else: opts.empty,
             },
           },
-          // The same height as a column, so the board does not jump when it arrives.
-          else: {
-            type: 'Column',
-            props: { width: '100%', minHeight: '240px', ax: 'center', ay: 'center' },
-            children: [{ type: 'we-spinner', props: { size: 'lg' } }],
-          },
+          else: taskBoardLoading,
         },
       },
       {

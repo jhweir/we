@@ -54,7 +54,7 @@
  *   *joins a call* when there is not one. Placed, never opened.
  */
 import type { RouteSchema, SchemaNode, SchemaProp, TemplateSchema } from '@we/schema-shared';
-import { anchorScope, emptyState, panelHeader, recordFormModal, taskBoard } from '@we/template-kit';
+import { anchorScope, emptyState, panelHeader, recordFormModal, taskBoard, taskBoardLoading } from '@we/template-kit';
 
 /**
  * The call on screen — **named in the address**, or the one being recorded when it names none.
@@ -1183,14 +1183,26 @@ const tasksRoute: RouteSchema = {
                           'Nothing from this call yet. Cards appear here as the conversation commits to things — or add one to a column.',
                       }),
                     }),
-                    else: tasksGate(
-                      'This call has no board yet. Making one arranges the work it produced — it never moves anything.',
-                      {
-                        type: 'we-button',
-                        props: { onClick: { $action: 'spaceStore.openBoardFor', args: [CALL, 'This call'] } },
-                        children: ['Make a board for this call'],
+                    /*
+                      "No board yet" is an answer, and it is only given once the call record has
+                      answered. Before that the same spinner the board itself shows holds the place,
+                      so the route reads as one wait rather than a claim that turns out to be false.
+                    */
+                    else: {
+                      type: '$if',
+                      props: {
+                        condition: { $: 'local.callRowLoaded' },
+                        then: tasksGate(
+                          'This call has no board yet. Making one arranges the work it produced — it never moves anything.',
+                          {
+                            type: 'we-button',
+                            props: { onClick: { $action: 'spaceStore.openBoardFor', args: [CALL, 'This call'] } },
+                            children: ['Make a board for this call'],
+                          },
+                        ),
+                        else: taskBoardLoading,
                       },
-                    ),
+                    },
                   },
                 },
               ],

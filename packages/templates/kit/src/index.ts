@@ -48,7 +48,7 @@ export type { MediaGridOptions } from './lists/mediaGrid.ts';
 // WE-domain — these name WE's stores or its agent machinery.
 export { ANCHOR_ID, ANCHOR_PARAM, anchorBanner, anchorParent, anchorScope } from './we/anchor.ts';
 export type { AnchorBannerOptions } from './we/anchor.ts';
-export { moveTaskMenu, taskBoard, taskCard } from './we/taskBoard.ts';
+export { moveTaskMenu, taskBoard, taskBoardLoading, taskCard } from './we/taskBoard.ts';
 export type { TaskBoardOptions, TaskCardOptions } from './we/taskBoard.ts';
 export { adminSection } from './we/adminSection.ts';
 export type { AdminSectionOptions } from './we/adminSection.ts';
