@@ -1153,7 +1153,24 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     // `reconcileCollection`. Adopting a collection is the moment somebody is about to look at it.
     if (next && typeof interpretation?.reconcileCollection === 'function') {
       // The host resolves what to repair, as it does for every other pass over this collection.
-      void interpretation.reconcileCollection(next).catch(() => 0);
+      void interpretation
+        .reconcileCollection(next)
+        .catch(() => 0)
+        /*
+          And make sure the call has somewhere to arrange what a pass produced.
+
+          The hook in `runExtraction` covers a pass somebody pressed for; a **standing** pass runs on
+          the backend with no client in the loop, so nothing here ever sees it complete. Adopting the
+          collection is the first moment WE knows about it, and it is already where what a pass left
+          behind gets repaired — after the reconcile rather than beside it, because the host decides
+          whether a board is warranted by looking for tasks, and the reconcile is what attaches them.
+
+          Every participant adopting the call asks, which is fine: the answer is a single-valued
+          `board` link on the collection, so concurrent askers converge on one canonical board rather
+          than each getting their own.
+        */
+        .then(() => interpretation?.ensureBoard?.(next))
+        .catch(() => '');
       // And whatever a standing pass staged while nobody was here to see it. The settled-pass effect
       // covers a call being watched right now; the activity feed expires, so opening an older call
       // needs its own read.
