@@ -30,7 +30,26 @@ import { humanise } from './recordDraft';
  * re-deriving it from type, control, format and options.
  */
 export type DisplayKind =
-  'text' | 'longText' | 'number' | 'boolean' | 'date' | 'datetime' | 'color' | 'url' | 'image' | 'file' | 'json';
+  | 'text'
+  | 'longText'
+  | 'number'
+  | 'boolean'
+  | 'date'
+  | 'datetime'
+  | 'color'
+  | 'url'
+  | 'image'
+  | 'file'
+  | 'json'
+  /**
+   * A link to another record, rather than a value of its own.
+   *
+   * Its own kind because nothing else about a field says "read this through the related instance" —
+   * a card shows the target's name, not a URI, and an editor needs a picker over instances rather
+   * than a text box. {@link DisplayField.target} names the model it points at, which is also where
+   * its icon comes from.
+   */
+  | 'relation';
 
 /** What a field is *for* in the card, beyond how it is drawn. */
 export type DisplayRole = 'title' | 'summary' | 'media' | 'detail';
@@ -55,6 +74,18 @@ export interface DisplayField {
    * surface rendering a model it was not written for has no other way to ask.
    */
   options: string[];
+  /**
+   * For a `relation` field, the model it points at — `'LocationBlock'`. Empty for everything else,
+   * and for a relation declared against no particular type.
+   *
+   * What lets a card draw the *target's* icon beside the field, which is the general answer to
+   * iconography that a name heuristic only ever approximates: a location relation shows a pin
+   * because `LocationBlock` says its icon is a pin, and a community's own model shows whatever icon
+   * that community chose, with nothing written for either.
+   */
+  target: string;
+  /** True for a to-many relation, where the value is a list rather than one record. */
+  many: boolean;
 }
 
 export interface RecordDisplay {
@@ -71,6 +102,25 @@ export interface RecordDisplay {
   media: string;
   /** Every field worth showing, in order — title, summary and media included, with their role. */
   fields: DisplayField[];
+}
+
+/**
+ * What a built-in model is called on screen — `EventBlock` is an "Event".
+ *
+ * `Block` is an implementation word. It says which layer of WE a class belongs to, which matters in
+ * the codebase and to nobody reading a card, and it made a review card announce `EVENTBLOCK` over a
+ * trip to Bristol. A community's own model already carries a name it chose, so only the built-ins
+ * need this.
+ *
+ * The app was also disagreeing with itself: the extraction chips have humanised these all along
+ * (`humanise` in the transcribe store), so the same model read "Event" above the panel and
+ * "EventBlock" on the card below it.
+ *
+ * Exported because a label is not the display's alone — anything naming a model wants the same word.
+ */
+export function modelLabel(entity: string): string {
+  const bare = entity.endsWith('Block') && entity !== 'Block' ? entity.slice(0, -'Block'.length) : entity;
+  return humanise(bare);
 }
 
 /** Property names that read as a picture when the declaration only says "a file". */
@@ -151,7 +201,44 @@ export function displayFor(source: DisplaySource): RecordDisplay {
     // Stringified: a declaration may close a numeric set, and every consumer of this is a control
     // or a label, both of which deal in strings.
     options: (properties[name].options ?? []).map(String),
+    target: '',
+    many: false,
   }));
+
+  /*
+    Relations, which this used to leave out entirely.
+
+    `fields` was built from `properties` alone, so an edge to another record — a `Space`'s location,
+    an `EventBlock`'s — was invisible to every surface deriving its display from the declaration. It
+    did not render wrongly; it rendered *nothing*, and no diagnostic said a declared part of the
+    model was missing from the thing whose whole job is to describe it.
+
+    Appended after the properties rather than interleaved: `display.fields` and `authoring.fields`
+    order the scalars, and a relation named in neither has no declared position, so the stable answer
+    is "after what was ordered". A relation the author *does* place is picked up in order by the
+    filter below, and only the unplaced ones fall to the end.
+  */
+  const relations = schema.relations ?? {};
+  const declaredOrder = schema.display?.fields ?? schema.authoring?.fields ?? [];
+  const relationNames = Object.keys(relations).sort((a, b) => {
+    const ai = declaredOrder.indexOf(a);
+    const bi = declaredOrder.indexOf(b);
+    if (ai === -1 && bi === -1) return 0;
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+  for (const name of relationNames) {
+    fields.push({
+      name,
+      label: humanise(name),
+      kind: 'relation',
+      role: 'detail',
+      options: [],
+      target: relations[name].target ?? '',
+      many: relations[name].cardinality === 'many',
+    });
+  }
 
   return {
     entity: source.entity,

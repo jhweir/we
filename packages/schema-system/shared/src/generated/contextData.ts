@@ -73,7 +73,7 @@ export const contextData: ContextData = {
       ownProps: [
         {
           name: 'variant',
-          type: "'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'bare'",
+          type: "'primary' | 'secondary' | 'ghost' | 'success' | 'danger' | 'outline' | 'bare'",
           optional: false,
           default: "'primary'",
         },
@@ -1623,11 +1623,10 @@ export const contextData: ContextData = {
         { name: 'description', type: 'string', predicate: 'we://description', required: false },
         { name: 'startDate', type: 'string', predicate: 'we://start_date', required: true },
         { name: 'endDate', type: 'string', predicate: 'we://end_date', required: false },
-        { name: 'location', type: 'string', predicate: 'we://location', required: false },
         { name: 'allDay', type: 'boolean', predicate: 'we://all_day', required: false, default: 'false' },
         { name: 'version', type: 'number', predicate: 'we://version', required: false },
       ],
-      relations: [],
+      relations: [{ name: 'location', kind: 'HasOne', predicate: 'we://location', target: 'LocationBlock' }],
     },
     {
       name: 'FileBlock',
@@ -1675,8 +1674,8 @@ export const contextData: ContextData = {
       extends: 'WeNode',
       fields: [
         { name: 'name', type: 'string', predicate: 'we://name', required: false },
-        { name: 'latitude', type: 'number', predicate: 'we://latitude', required: true },
-        { name: 'longitude', type: 'number', predicate: 'we://longitude', required: true },
+        { name: 'latitude', type: 'number', predicate: 'we://latitude', required: false },
+        { name: 'longitude', type: 'number', predicate: 'we://longitude', required: false },
         { name: 'address', type: 'string', predicate: 'we://address', required: false },
         { name: 'city', type: 'string', predicate: 'we://city', required: false },
         { name: 'countryCode', type: 'string', predicate: 'we://country_code', required: false },

@@ -305,6 +305,28 @@ const roleValue = (role: 'title' | 'summary') => ({
   $: `find(proposal.fields, { name: ${DISPLAY}.${role} }).value`,
 });
 
+/** What was proposed for the field this row is about, as text. */
+const FIELD_VALUE = 'find(proposal.fields, { name: field.name }).value';
+
+/**
+ * The glyph that stands in for a field's caption, or empty when nothing sensible does.
+ *
+ * Derived from what the model declares rather than from a table of field names this panel happens to
+ * know. A relation takes the **target model's own icon**, which is the general form of the answer: a
+ * place shows a pin because `LocationBlock` says its icon is a pin, and a community's own model shows
+ * whatever icon that community chose, with nothing written here for either.
+ *
+ * Empty is a real answer — a plain string field has no honest glyph, and the row keeps its caption.
+ * Guessing one from the property name would be right for the handful we thought of and quietly wrong
+ * for everything a community defines.
+ */
+const FIELD_ICON =
+  `field.kind == 'relation' ? recordStore.displays[field.target].icon ` +
+  `: field.kind == 'datetime' ? 'clock' ` +
+  `: field.kind == 'date' ? 'calendar' ` +
+  `: field.kind == 'url' ? 'link' ` +
+  `: field.kind == 'number' ? 'hash' : ''`;
+
 /**
  * A state's colour, from its *position* in the model's own list rather than from its spelling.
  *
@@ -313,52 +335,138 @@ const roleValue = (role: 'title' | 'summary') => ({
  * position means a community shape with states nobody here has heard of still gets a sensible ramp,
  * where a lookup table of English words would give every one of them the same neutral grey.
  */
-const STATE_VARIANT =
-  "field.value == last(find(recordStore.displays[proposal.entity].fields, { name: field.name }).options) ? 'success' " +
-  ": field.value == first(find(recordStore.displays[proposal.entity].fields, { name: field.name }).options) ? 'neutral' : 'primary'";
+const STATE_VARIANT = `${FIELD_VALUE} == last(field.options) ? 'success' : ${FIELD_VALUE} == first(field.options) ? 'neutral' : 'primary'`;
 
 /**
- * One proposed value as a row, and — when it is being edited — as a control.
+ * A moment, with the time shown only when there is one.
  *
- * Skips the two the card has already drawn large. A field is not repeated under its own title.
+ * An all-day event is stored as `T00:00`, so a midnight time is the signal that no time was said —
+ * and printing "00:00" under a trip to Bristol is both noise and a small lie. Read off the value
+ * rather than off a sibling `allDay` field, because a generic renderer cannot know that one property
+ * governs another; the declaration says nothing about the pair, and the midnight test needs nothing
+ * from it. An event genuinely at midnight loses its time, which is rare and costs a reader nothing.
+ */
+const timestamp = (withTime: boolean): SchemaNode => ({
+  type: 'we-timestamp',
+  props: {
+    value: { $: FIELD_VALUE },
+    dateStyle: 'medium',
+    ...(withTime ? { timeStyle: 'short' } : {}),
+    fontSize: '100',
+  },
+});
+
+/**
+ * One field of the model, as the card shows it.
+ *
+ * Driven by the **declaration** rather than by what the pass happened to propose. That is the whole
+ * difference between this and what it replaced: reading the proposal's own keys put `occurrence` — a
+ * dedup key whose docblock says it is "not a display value" — on every event card, in the order the
+ * value map happened to be built.
+ *
+ * `detail` role only. The title and the summary are drawn large above, and a field repeated under
+ * its own heading reads as a mistake.
  */
 const proposalDetail: SchemaNode = {
   type: '$each',
   props: {
-    items: { $: `proposal.fields.filter(f, f.name != ${DISPLAY}.title && f.name != ${DISPLAY}.summary)` },
+    items: { $: `${DISPLAY}.fields.filter(f, f.role == 'detail' && find(proposal.fields, { name: f.name }).value)` },
     as: 'field',
   },
   children: [
     {
       type: 'Row',
-      props: { gap: '200', ay: 'center', wrap: true },
+      props: { gap: '150', ay: 'center', wrap: true },
       children: [
         {
-          type: 'we-text',
-          props: { variant: 'footnote', color: 'text-muted' },
-          children: [
-            { $: 'find(recordStore.displays[proposal.entity].fields, { name: field.name }).label ?? field.name' },
-          ],
-        },
-        {
           /*
-            A closed vocabulary is a badge; everything else is its value.
+            The glyph, or the caption — never both, and never neither.
 
-            The set comes from the model's own declaration (`DisplayField.options`), so this is not a
-            list of statuses this panel knows about — a community shape with its own states gets a
-            badge for them without a line written here, and a free-text field never gets one.
+            A tooltip carries the caption wherever the glyph replaces it, so the field stays
+            identifiable to somebody who cannot guess a pin and to a screen reader, which would
+            otherwise read a value with nothing saying what it is.
           */
           type: '$if',
           props: {
-            condition: {
-              $: 'count(find(recordStore.displays[proposal.entity].fields, { name: field.name }).options)',
+            condition: { $: FIELD_ICON },
+            then: {
+              type: 'we-tooltip',
+              props: { title: { $: 'field.label' } },
+              children: [{ type: 'we-icon', props: { size: 'xs', name: { $: FIELD_ICON }, color: 'text-faint' } }],
             },
+            else: {
+              type: 'we-text',
+              props: { variant: 'footnote', color: 'text-muted' },
+              children: [{ $: 'field.label' }],
+            },
+          },
+        },
+        {
+          /*
+            How the value is drawn, by kind — a badge for a closed vocabulary, a formatted moment for
+            a date, the related record's own name for a relation, and the text for everything else.
+
+            None of this names a model. A community shape with its own states gets the badge, its own
+            dates get the formatting, and its own relations resolve through the same lookup.
+          */
+          type: '$if',
+          props: {
+            condition: { $: 'count(field.options)' },
             then: {
               type: 'we-badge',
               props: { size: 'xs', variant: { $: STATE_VARIANT } },
-              children: [{ $: 'field.value' }],
+              children: [{ $: FIELD_VALUE }],
             },
-            else: { type: 'we-text', props: { variant: 'footnote' }, children: [{ $: 'field.value' }] },
+            else: {
+              type: '$if',
+              props: {
+                condition: { $: "field.kind == 'date' || field.kind == 'datetime'" },
+                then: {
+                  type: '$if',
+                  props: {
+                    condition: { $: `endsWith(${FIELD_VALUE}, 'T00:00')` },
+                    then: timestamp(false),
+                    else: timestamp(true),
+                  },
+                },
+                else: {
+                  type: '$if',
+                  props: {
+                    condition: { $: "field.kind == 'relation'" },
+                    /*
+                      A relation's value is the target's id, which is not worth showing anybody. The
+                      record it names is fetched and drawn by whichever property that model calls its
+                      title — the same `displays` lookup the card itself is built from, one level in.
+                    */
+                    then: {
+                      type: '$single',
+                      props: {
+                        item: {
+                          $query: {
+                            entity: { $: 'field.target' },
+                            where: { id: { $: FIELD_VALUE } },
+                            limit: 1,
+                          },
+                        },
+                        as: 'related',
+                      },
+                      children: [
+                        {
+                          type: 'we-text',
+                          props: { variant: 'footnote', truncate: true },
+                          children: [{ $: 'related[recordStore.displays[field.target].title]' }],
+                        },
+                      ],
+                    },
+                    else: {
+                      type: 'we-text',
+                      props: { variant: 'footnote', truncate: true },
+                      children: [{ $: FIELD_VALUE }],
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       ],
@@ -366,17 +474,24 @@ const proposalDetail: SchemaNode = {
   ],
 };
 
-/** Every proposed field, as a control over the store's draft. */
+/**
+ * The model's own fields, as controls over the store's draft.
+ *
+ * Declaration-driven for the same reason the read view is, and with one deliberate narrowing: a
+ * relation is left out. Editing one means picking a different record, which is a picker over
+ * instances rather than a value in a text box — and the store's draft holds strings. Better absent
+ * than present and unable to write what somebody chose.
+ */
 const proposalEditor: SchemaNode = {
   type: '$each',
-  props: { items: { $: 'proposal.fields' }, as: 'field' },
+  props: {
+    items: { $: `${DISPLAY}.fields.filter(f, f.kind != 'relation' && find(proposal.fields, { name: f.name }).value)` },
+    as: 'field',
+  },
   children: [
     {
       type: 'we-form-field',
-      props: {
-        size: 'xs',
-        label: { $: 'find(recordStore.displays[proposal.entity].fields, { name: field.name }).label ?? field.name' },
-      },
+      props: { size: 'xs', label: { $: 'field.label' } },
       children: [
         {
           /*
@@ -388,17 +503,13 @@ const proposalEditor: SchemaNode = {
           */
           type: '$if',
           props: {
-            condition: {
-              $: 'count(find(recordStore.displays[proposal.entity].fields, { name: field.name }).options)',
-            },
+            condition: { $: 'count(field.options)' },
             then: {
               type: 'we-select',
               props: {
                 size: 'xs',
                 value: { $: 'modules.transcribe.proposalDraft[field.name]' },
-                options: {
-                  $: 'find(recordStore.displays[proposal.entity].fields, { name: field.name }).options.map(o, { label: o, value: o })',
-                },
+                options: { $: 'field.options.map(o, { label: o, value: o })' },
                 onChange: {
                   $action: 'modules.transcribe.setProposalField',
                   args: [{ $: 'field.name' }, { $: 'event.detail' }],
@@ -626,29 +737,43 @@ const proposals: SchemaNode = {
                                   type: 'Row',
                                   props: { gap: '200', ay: 'center', wrap: true },
                                   children: [
+                                    /*
+                                      A yes and a no, coloured and marked as such — and the same
+                                      gestures the board offers on the card itself, so the two
+                                      surfaces answering one decision do not look like two decisions.
+
+                                      `success` and `danger` rather than `secondary` and `ghost`: the
+                                      question is binary, and a pair where only one half is coloured
+                                      reads as one action and one way out of it. The icons are the
+                                      board's own `check` and `x`, and they are not decoration — a
+                                      green/red pair is the classic thing to fail on, so the glyph is
+                                      what carries the meaning for anyone who cannot separate them.
+                                    */
                                     {
                                       type: 'we-button',
                                       props: {
                                         size: 'xs',
-                                        variant: 'secondary',
+                                        variant: 'success',
+                                        gap: '100',
                                         onClick: {
                                           $action: 'modules.transcribe.acceptProposal',
                                           args: [{ $: 'proposal.id' }],
                                         },
                                       },
-                                      children: ['Keep'],
+                                      children: [{ type: 'we-icon', props: { name: 'check' } }, 'Keep'],
                                     },
                                     {
                                       type: 'we-button',
                                       props: {
                                         size: 'xs',
-                                        variant: 'ghost',
+                                        variant: 'danger',
+                                        gap: '100',
                                         onClick: {
                                           $action: 'modules.transcribe.rejectProposal',
                                           args: [{ $: 'proposal.id' }],
                                         },
                                       },
-                                      children: ['Discard'],
+                                      children: [{ type: 'we-icon', props: { name: 'x' } }, 'Discard'],
                                     },
                                     {
                                       /*
@@ -671,21 +796,26 @@ const proposals: SchemaNode = {
                                               props: {
                                                 size: 'xs',
                                                 variant: 'ghost',
+                                                gap: '100',
                                                 onClick: { $action: 'modules.transcribe.cancelProposalEdit' },
                                               },
-                                              children: ['Cancel'],
+                                              children: [{ type: 'we-icon', props: { name: 'x' } }, 'Cancel'],
                                             },
                                             else: {
                                               type: 'we-button',
                                               props: {
                                                 size: 'xs',
                                                 variant: 'ghost',
+                                                gap: '100',
                                                 onClick: {
                                                   $action: 'modules.transcribe.editProposal',
                                                   args: [{ $: 'proposal.id' }],
                                                 },
                                               },
-                                              children: ['Edit'],
+                                              // Neutral on purpose: editing is neither answer to the
+                                              // question, and a third coloured button would make the
+                                              // yes/no pair a three-way choice.
+                                              children: [{ type: 'we-icon', props: { name: 'pencil-simple' } }, 'Edit'],
                                             },
                                           },
                                         },

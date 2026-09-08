@@ -1023,7 +1023,7 @@ Most @we/primitives also accept Design System Props (see next section for detail
   Props: variant: 'neutral' | 'primary' | 'success' | 'warning' | 'danger' = 'neutral', appearance: 'soft' | 'solid' = 'soft', size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md'
 - we-blockquote (DesignSystemElement)
 - we-button (DesignSystemElement)
-  Props: variant: 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'bare' = 'primary', size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md', text?: string | undefined, label: string = '', href?: string | undefined, disabled: boolean = false, loading: boolean = false, gradient: boolean = false, square: boolean = false
+  Props: variant: 'primary' | 'secondary' | 'ghost' | 'success' | 'danger' | 'outline' | 'bare' = 'primary', size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md', text?: string | undefined, label: string = '', href?: string | undefined, disabled: boolean = false, loading: boolean = false, gradient: boolean = false, square: boolean = false
 - we-checkbox (DesignSystemElement)
   Props: checked: boolean = false, disabled: boolean = false, name: string = '', label: string = '', value: string = '', size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md'
 - we-code (DesignSystemElement)
@@ -2066,9 +2066,10 @@ EventBlock extends WeNode:
   - description: string [we://description]
   - startDate: string (required) [we://start_date]
   - endDate: string [we://end_date]
-  - location: string [we://location]
   - allDay: boolean = false [we://all_day]
   - version: number [we://version]
+  Relations:
+  - location: HasOne → LocationBlock [we://location]
 
 FileBlock extends WeNode:
   Fields:
@@ -2098,8 +2099,8 @@ LinkBlock extends WeNode:
 LocationBlock extends WeNode:
   Fields:
   - name: string [we://name]
-  - latitude: number (required) [we://latitude]
-  - longitude: number (required) [we://longitude]
+  - latitude: number [we://latitude]
+  - longitude: number [we://longitude]
   - address: string [we://address]
   - city: string [we://city]
   - countryCode: string [we://country_code]

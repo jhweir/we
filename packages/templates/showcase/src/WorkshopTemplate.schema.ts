@@ -1274,10 +1274,25 @@ const eventList: SchemaNode = {
                         {
                           type: '$if',
                           props: {
-                            condition: { $: 'event.location' },
+                            // The place's name, not the place. Hydrated by the `include` on the
+                            // query above; tested on the name rather than the record, since a
+                            // location that has arrived without one has nothing to print.
+                            condition: { $: 'event.location.name' },
                             then: {
-                              type: 'we-text',
-                              props: { variant: 'footnote', color: 'text-muted', text: { $: 'event.location' } },
+                              type: 'Row',
+                              props: { gap: '100', ay: 'center' },
+                              children: [
+                                { type: 'we-icon', props: { size: 'xs', name: 'map-pin', color: 'text-faint' } },
+                                {
+                                  type: 'we-text',
+                                  props: {
+                                    variant: 'footnote',
+                                    color: 'text-muted',
+                                    truncate: true,
+                                    text: { $: 'event.location.name' },
+                                  },
+                                },
+                              ],
                             },
                           },
                         },
@@ -1351,7 +1366,15 @@ const eventsRoute: RouteSchema = {
         day: { type: 'string', initial: '' },
       },
       $queries: {
-        events: { entity: 'EventBlock', order: { startDate: 'asc' }, limit: 200 },
+        /*
+          `include` on the place, because it is a record now rather than a word.
+
+          `location` was a string and is a `HasOne → LocationBlock`, so the row below reads
+          `event.location.name`. Without hydrating it the relation arrives as a URI and the row
+          would print nothing at all — the silent half of this change, and the reason the query
+          moved rather than only the row.
+        */
+        events: { entity: 'EventBlock', order: { startDate: 'asc' }, limit: 200, include: { location: true } },
       },
       children: [
         // ── The month, with the way through them either side ──────────────────

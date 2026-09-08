@@ -135,9 +135,10 @@ export interface EventBlockRecord extends WeNodeRecord {
   description: string;
   startDate: string;
   endDate: string;
-  location: string;
   allDay: boolean;
   version: number;
+  location?: LocationBlockRecord;
+  setLocation(value: LocationBlockRecord): Promise<unknown>;
 }
 
 export interface FileBlockRecord extends WeNodeRecord {
@@ -167,8 +168,8 @@ export interface LinkBlockRecord extends WeNodeRecord {
 
 export interface LocationBlockRecord extends WeNodeRecord {
   name: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
   address: string;
   city?: string;
   countryCode?: string;

@@ -153,7 +153,7 @@
       "ownProps": [
         {
           "name": "variant",
-          "type": "'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'bare'",
+          "type": "'primary' | 'secondary' | 'ghost' | 'success' | 'danger' | 'outline' | 'bare'",
           "optional": false,
           "default": "'primary'"
         },
@@ -4400,12 +4400,6 @@
           "required": false
         },
         {
-          "name": "location",
-          "type": "string",
-          "predicate": "we://location",
-          "required": false
-        },
-        {
           "name": "allDay",
           "type": "boolean",
           "predicate": "we://all_day",
@@ -4419,7 +4413,14 @@
           "required": false
         }
       ],
-      "relations": []
+      "relations": [
+        {
+          "name": "location",
+          "kind": "HasOne",
+          "predicate": "we://location",
+          "target": "LocationBlock"
+        }
+      ]
     },
     {
       "name": "FileBlock",
@@ -4556,13 +4557,13 @@
           "name": "latitude",
           "type": "number",
           "predicate": "we://latitude",
-          "required": true
+          "required": false
         },
         {
           "name": "longitude",
           "type": "number",
           "predicate": "we://longitude",
-          "required": true
+          "required": false
         },
         {
           "name": "address",

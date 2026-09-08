@@ -32,7 +32,7 @@ import { Accessor, batch, createContext, createMemo, createSignal, ParentProps, 
 
 import { routeWrite } from '../../../shared/edgeRoute';
 import { dropAllPending, dropPending, holdPending, type PendingWrites } from '../../../shared/shapes/pendingWrites';
-import { displayFor, type RecordDisplay } from '../../../shared/shapes/recordDisplay';
+import { displayFor, modelLabel, type RecordDisplay } from '../../../shared/shapes/recordDisplay';
 import {
   asEntityName,
   emptyRecordDraft,
@@ -334,7 +334,7 @@ export function RecordStoreProvider(props: ParentProps) {
   const coreEntities = createMemo<CreatableEntity[]>(() =>
     Object.entries(CORE_MANIFEST.entities)
       .filter(([name, entity]) => entity.authoring?.fields.length && name !== RELATIONSHIP)
-      .map(([name]) => ({ label: name, value: name, icon: BLOCK_ICONS[name] ?? 'cube', group: 'Built in' }))
+      .map(([name]) => ({ label: modelLabel(name), value: name, icon: BLOCK_ICONS[name] ?? 'cube', group: 'Built in' }))
       .sort((a, b) => a.label.localeCompare(b.label)),
   );
 
