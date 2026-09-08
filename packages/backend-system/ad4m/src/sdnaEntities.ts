@@ -98,8 +98,8 @@ export async function bulkHasSubjectClassLink(
 ): Promise<boolean[]> {
   // Short-circuit when there are no classes to check.
   if (targetClasses.length === 0) return [];
-  // Single class — the original per-model path is just as cheap and keeps the
-  // caching behaviour of p.get (one-source queries hit a narrower cache key).
+  // Single class — the same one round trip, but source-filtered, so the executor returns one link
+  // rather than every registered class in the space.
   if (targetClasses.length === 1) return [await hasSubjectClassLink(p, targetClasses[0])];
 
   const allLinks = await p.get(new LinkQuery({ predicate: 'rdf://type', target: 'ad4m://SubjectClass' }));
@@ -213,15 +213,22 @@ async function storedShapes(p: PerspectiveProxy): Promise<Map<string, StoredShap
 }
 
 /**
- * Short-lived cache for `storedShapes` results.
+ * Short-lived cache for `storedShapes` results, keyed on the perspective UUID.
  *
- * During a single `switchDataset` call, `installModules` and `refreshSpace` both
- * call `storedShapes` on the same perspective.  The data does not change between
- * the two calls (nothing writes shapes during the switch), so the second call
- * returns the cached result instead of issuing five more SPARQL queries.
+ * During a single `switchDataset` call, `installModules` and `refreshSpace` both read the stored
+ * shapes of the same perspective, one after the other. In the common case nothing is written
+ * between the two reads, so the second returns the cached map instead of issuing five more SPARQL
+ * queries. A 10 s TTL bounds how long a stale map can survive the cases below.
  *
- * TTL is generous (10 s) — a `switchDataset` completes well within that, and the
- * cache naturally expires afterwards.  Keyed on the perspective UUID.
+ * **The cache is dropped whenever this package writes a shape triple** — `registerEntities`, and
+ * the hint writers in `interpretationHints.ts`. Without that, the first `installModules` of a
+ * switch could write a module's shapes and `refreshSpace` would then read a map that predates
+ * them; and, worse, adopting a shape and re-adopting a modified one within the TTL would read a map
+ * with no entry for the class, which `shapeIsStale` deliberately treats as fresh, and the second
+ * write would silently not happen. A switch that wrote something therefore re-reads once, which is
+ * the correct price; a switch that wrote nothing still gets the saving.
+ *
+ * A failed read is never cached: the callers fall back to an empty map for that call only.
  */
 const storedShapesCache = new Map<string, { shapes: Map<string, StoredShape>; at: number }>();
 const STORED_SHAPES_CACHE_TTL = 10_000;
@@ -239,6 +246,14 @@ async function cachedStoredShapes(p: PerspectiveProxy): Promise<Map<string, Stor
     }
   }
   return shapes;
+}
+
+/**
+ * Drop the cached shapes of one perspective. Call after writing anything the stored shape is read
+ * from — a SubjectClass registration, an interpretation hint, the customized marker.
+ */
+export function forgetStoredShapes(p: Pick<PerspectiveProxy, 'uuid'>): void {
+  storedShapesCache.delete(p.uuid);
 }
 
 /** Exported for testing — clears the storedShapes TTL cache. */
@@ -439,7 +454,13 @@ async function registerEntities(
     for (const m of toRefresh) refreshedThisSession.add(refreshKey(m));
   }
 
-  await Ad4mModel.registerAll(p, toWrite);
+  try {
+    await Ad4mModel.registerAll(p, toWrite);
+  } finally {
+    // Whether or not the write completed, what is stored may no longer be what was read. See
+    // `storedShapesCache`.
+    forgetStoredShapes(p);
+  }
   // registerAll resolves before the written SDNA is actually queryable — settle before callers
   // run reactive queries against the fresh shapes. This wait is a property of THIS backend's
   // write path (the shell used to carry five copies of it as a "HACK" sleep); living here, it
