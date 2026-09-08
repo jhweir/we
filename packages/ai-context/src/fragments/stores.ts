@@ -1018,7 +1018,7 @@ export function generateStoresText(entries: StoreEntry[]): string {
       },
       actions: {
         moveChild:
-          '(childId: string, fromId: string, toId: string): moves a child between two collections — a card between kanban columns. Relinks the two children edges; the child itself is untouched',
+          '(childId: string, fromId: string, toId: string): moves an owned child between two collections. Relinks the two children edges; the child itself is untouched. Not for a board — a column arranges its cards through moveCardToColumn, which is a different relation',
         setAttending:
           "(nodeId: string, attending: boolean): joins or leaves a node's participant roster — an RSVP. Writes only this agent's own entry, so the roster stays conflict-free. Boolean, so a switch can pass `event.detail` bare",
         setAgentMuted:
@@ -1065,21 +1065,21 @@ export function generateStoresText(entries: StoreEntry[]): string {
         deleteCollection:
           '(collectionId: string): permanently deletes a CollectionBlock and everything inside it, recursively. Kind-agnostic — a post, a call record and a notes collection are the same shape, so this is the one delete for all of them',
         createBoard:
-          '(title: string, parentId?: string, options?: { space?: boolean }): makes a board \u2014 a CollectionBlock whose ordered children are its columns, one per state the community uses. Returns its id. Pass parentId to put the board inside another collection (a call\u2019s record), which is where an anchored Boards view lists it',
+          '(title: string, parentId?: string, options?: { gathers?: string }): makes a board \u2014 a CollectionBlock whose ordered children are its columns, one per state the community uses. Returns its id. Pass parentId to put the board inside another collection (a call\u2019s record), which is where an anchored Boards view lists it. A board made this way shows only what is put on it; openBoardFor makes the ones that gather',
         openBoardFor:
-          '(anchorId?: string, title?: string, dataset?: string): the board for a container \u2014 one call\u2019s, or the space\u2019s own \u2014 making it if nobody has yet. Returns its id either way. Call it from a click rather than on mount: creating a board writes records into a space everybody shares',
+          '(anchorId?: string, title?: string, dataset?: string): the board for a container \u2014 one call\u2019s, or the space\u2019s own \u2014 making it if nobody has yet. Returns its id either way. The board it makes gathers from that container, a fact the board carries in its `gathers` relation, so anything rendering it needs only the id. Call it from a click rather than on mount: creating a board writes records into a space everybody shares',
         addBoardColumn:
-          '(boardId: string, name: string, slug?: string): adds a column. **With a slug** it IS that state on this board \u2014 matching work arrives on its own and dropping a card there changes the card\u2019s state everywhere. **Without one** it is a local lane: nothing arrives by itself and a card put there is positioned rather than reclassified',
+          '(boardId: string, name: string, slug?: string): adds a column. **With a slug** it IS that state on this board \u2014 matching work arrives on its own and dropping a card there changes the card\u2019s state everywhere. **Without one** it is a local lane: nothing arrives by itself and a card put there is positioned rather than reclassified. A bound column given its state\u2019s own name stores no title, so its heading follows the vocabulary when the state is renamed',
         removeBoardColumn:
-          '(boardId: string, columnId: string): takes a column off a board \u2014 the column record only, never the work in it. The cards keep their state, so they reappear in another column bound to it or in the unplaced column',
+          '(boardId: string, columnId: string): takes a column off a board \u2014 the column record only, never the work in it. A column arranges its cards rather than owning them, so nothing that walks children can reach them; on a made board they are handed to the board itself so they stay on it. They keep their state, so they reappear in another column bound to it or in the unplaced column',
         renameBoardColumn:
           '(columnId: string, name: string): renames one column on this board. Its slug \u2014 its meaning \u2014 is untouched; renaming a state everywhere is Settings \u2192 Vocabulary',
         reorderBoardColumns:
           '(boardId: string, orderedIds: string[]): the order this board reads its columns in. Pair with we-sortable\u2019s onReorder and pass { $: "arg.detail" }',
         arrangeColumn:
-          '(columnId: string, orderedIds: string[]): records the order somebody dragged one column\u2019s cards into. An ordered relation, so two people rearranging at once converge instead of one write discarding the other. Pair with we-sortable\u2019s onReorder',
+          '(columnId: string, orderedIds: string[]): records the order somebody dragged one column\u2019s cards into \u2014 the column\u2019s `arranges`, an ordered relation, so two people rearranging at once converge instead of one write discarding the other. Pair with we-sortable\u2019s onReorder',
         moveCardToColumn:
-          '(fromColumnId: string, toColumnId: string, cardId: string, orderedIds?: string[]): moves a card between columns \u2014 and writes its state when the column it joins names one, which is what makes \u201cdone is done\u201d true on every board. A lane writes no state. Pass orderedIds \u2014 we-sortable\u2019s `arg.detail.ids`, the target column\u2019s whole new order \u2014 to seat the card where it was dropped; without it the card appends',
+          '(fromColumnId: string, toColumnId: string, cardId: string, orderedIds?: string[]): moves a card between columns \u2014 and writes its state when the column it joins names one, which is what makes \u201cdone is done\u201d true on every board. A lane writes no state. One transaction, so no reader sees the card in two columns. Pass orderedIds \u2014 we-sortable\u2019s `arg.detail.ids`, the target column\u2019s whole new order \u2014 to seat the card where it was dropped; without it the card appends. An empty fromColumnId means the card came from nowhere on this board \u2014 Unplaced, or a picker',
         addTaskToColumn:
           '(columnId: string, title: string, anchorId?: string): makes a task straight into a column, parented to the board\u2019s anchor when there is one so every other scoped surface finds it. A bound column also gives it that column\u2019s state',
         updateSpaceImage:

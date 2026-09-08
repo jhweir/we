@@ -1,4 +1,4 @@
-import { createBoardActions } from '@shared/boards';
+import { createBoardActions, type CreateBoardOptions } from '@shared/boards';
 import {
   LEGACY_EXTRACTION_TARGETS,
   parseEntityList,
@@ -583,13 +583,15 @@ export interface SpaceStore {
    */
   moveChild: (childId: string, fromId: string, toId: string) => Promise<void>;
   /** Make a board — a collection whose ordered children are its columns, seeded from the vocabulary. */
-  createBoard: (title: string, parentId?: string, options?: { dataset?: string }) => Promise<string>;
+  createBoard: (title: string, parentId?: string, options?: CreateBoardOptions) => Promise<string>;
   /** The board for a container, or the space's own, making it if nobody has yet. Returns its id. */
   openBoardFor: (anchorId?: string, title?: string, dataset?: string) => Promise<string>;
   /** Make sure a container has a board, but only once it holds a task. What extraction calls. */
   ensureBoardFor: (collectionId: string, dataset?: string) => Promise<string>;
   /** Add a column — bound to a state when given a slug, a local lane when not. */
   addBoardColumn: (boardId: string, name: string, slug?: string) => Promise<void>;
+  /** Give the space's own board a column for a newly named state. Host wiring, called by createTaskState. */
+  addStateToSpaceBoard: (slug: string, name: string) => Promise<void>;
   /** Take a column off a board. The column record only — never the work positioned in it. */
   removeBoardColumn: (boardId: string, columnId: string) => Promise<void>;
   /** Rename one column on this board. Its slug — its meaning — is untouched. */

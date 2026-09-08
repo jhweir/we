@@ -32,8 +32,9 @@ import { ANCHOR_ID, anchorBanner, anchorScope, emptyState, field, formModal, tas
  *
  * ## Anchoring
  *
- * `?anchor=<collection id>` narrows the list to the boards inside one container, and each board's
- * cards to that container's work. A board made while narrowed belongs to it. Absent means the space.
+ * `?anchor=<collection id>` narrows the list to the boards inside one container. A board made while
+ * narrowed belongs to it. Absent means the space. What each board's cards are drawn from is not the
+ * view's to say: a board carries `gathers`, and the fragment reads it.
  */
 
 /**
@@ -214,13 +215,10 @@ const boardDetail: SchemaNode = {
         },
       ],
     },
+    // What the board gathers, and from where, is the board's own to say — its `gathers` relation —
+    // so the fragment needs nothing from this view but the id.
     taskBoard({
       boardId: { $: 'local.boardId' },
-      scope: anchorScope(),
-      anchorId: ANCHOR_ID,
-      // Gathering is a fact about the container, so the view answers it — the fragment cannot see a
-      // link pointing at the board it was handed.
-      gathers: `local.boardId == ${CANONICAL}`,
       empty: emptyState({
         icon: 'check-square',
         label: 'work',

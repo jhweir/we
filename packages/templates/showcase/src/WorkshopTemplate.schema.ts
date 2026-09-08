@@ -1169,11 +1169,9 @@ const tasksRoute: RouteSchema = {
                   props: {
                     condition: { $: 'first(local.callRow).board.id' },
                     then: taskBoard({
+                      // The call's own board, which gathers from the call — a fact the board carries,
+                      // so nothing here has to say so.
                       boardId: { $: 'first(local.callRow).board.id' },
-                      scope: anchorScope(CALL),
-                      anchorId: CALL,
-                      // The call's own board, so it gathers what the conversation produced.
-                      gathers: 'true',
                       // Who ran the pass that wrote it — the provenance question this template is
                       // built around, and the reason its cards carry a byline where a space's board
                       // does not.

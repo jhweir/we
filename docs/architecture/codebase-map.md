@@ -117,7 +117,7 @@ Reusable template fragments — authoring-time helpers that expand to plain sche
 **two** packages, split by whether the fragment names a store.
 
 - **`@we/schema-kit`** is the portable tier: `cardShell`, `emptyState`, `confirmModal`, `formModal`,
-  `railShell`, `kanbanBoard`. It names no store, which `kit.test.ts` enforces by reading the source,
+  `railShell`. It names no store, which `kit.test.ts` enforces by reading the source,
   so a fragment here works on any deployment whose renderer registers the same components.
 - **`@we/template-kit`** is the same idea for fragments that read WE's own stores —
   `marketplaceList`, `installedList`, `agentByline`. It re-exports the portable kit, so a caller

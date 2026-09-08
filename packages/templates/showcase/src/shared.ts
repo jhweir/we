@@ -71,11 +71,17 @@ export function composerModal(opts: {
   /** `we://children` (inside a container) or `we://comment` (a reply). */
   predicate?: string;
   saveLabel?: string;
+  /**
+   * Handlers run after a successful save, beside the kit's own close — `result` is what `createPost`
+   * answered with, the new record's id. How a board arranges the card it just composed.
+   */
+  onClose?: SchemaProp[];
 }): SchemaNode {
   return kitComposerModal({
     openLocal: opts.openLocal,
     title: opts.title,
     saveLabel: opts.saveLabel ?? 'Post',
+    ...(opts.onClose && { onClose: opts.onClose }),
     saveAction: {
       $action: 'spaceStore.createPost',
       // `'$arg'` first: `createPost(json, options)`.

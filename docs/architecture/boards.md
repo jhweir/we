@@ -2,10 +2,10 @@
 
 How work is arranged in WE, and why the arrangement is a different fact from the work.
 
-This is the reasoning behind `taskBoard` in `@we/template-kit`, the board actions on `spaceStore`,
-and the `Boards` view. Read it before changing any of them — most of what follows is decisions that
-look arbitrary from the code alone, and two of them are the difference between a board that loses
-work and one that cannot.
+This is the reasoning behind `taskBoard` in `@we/template-kit`, `arrangedBoard` in the app shell's
+host sources, the board actions on `spaceStore`, and the `Boards` view. Read it before changing any of
+them — most of what follows is decisions that look arbitrary from the code alone, and three of them
+are the difference between a board that loses work and one that cannot.
 
 ## The founding decision
 
@@ -24,41 +24,56 @@ Everything below follows from that one sentence.
 ## The structure
 
 ```
-Board      CollectionBlock { kind: 'board' }        ordered children ⇒ column order
- └─ Column CollectionBlock { kind: 'column', slug } ordered children ⇒ card order
-      └─ TaskBlock…
+Board      CollectionBlock { kind: 'board', gathers? }   children ⇒ its columns, in order (owned)
+ │                                                        arranges ⇒ cards it holds in no column
+ └─ Column CollectionBlock { kind: 'column', slug? }      arranges ⇒ its cards, in order (positioned)
+      ⇢ TaskBlock…                                        (owned by the space, or by a call)
 ```
 
-## Three kinds of board, and which of them gather
+Two relations, and the difference between them is the whole design.
+
+**`children` is ownership.** Every walker in the codebase reads it that way: `deleteBlocks` recurses
+through it, `reconcileBlocks` diffs against it, the graph's collection expander opens it, an `include`
+on a call returns it. A board's columns are its children because that is true of them — delete the
+board and the columns should go.
+
+**`arranges` is position.** A column arranges cards it does not own. The cards live wherever they
+live — loose in the space, or as a call's children — and the column holds an ordered list of them.
+Deleting the column therefore cannot reach a card, by construction rather than by any code being
+careful. Before `arranges` existed a column's cards sat in its `children`, and the only thing saying
+"these are not owned" was `kind: 'column'`, a free label registered nowhere. `deleteCollection` on a
+call whose board held a card from elsewhere would have deleted that card. A fact that changes what
+code may do to a record travels with the record, or the link — the same argument the `mode` field
+makes — and this is that fact, on the link.
+
+## What a board gathers
 
 A board's **candidate cards** and a column's **membership** are different questions, and conflating
 them was a real bug: every board showed the whole space, so a hiring pipeline and a content calendar
 were one card set with different column headings.
 
-| Board                              | How it is known                                 | Its cards                                        |
-| ---------------------------------- | ----------------------------------------------- | ------------------------------------------------ |
-| **Everything**                     | `Space.board`                                   | all work in the space — the catch-all            |
-| **A container's board** (a call's) | `CollectionBlock.board`                         | that container's work, so extraction lands on it |
-| **One somebody made**              | a `kind: 'board'` child of wherever it was made | only what somebody put on it                     |
+| Board                              | `gathers`        | Its cards                                        |
+| ---------------------------------- | ---------------- | ------------------------------------------------ |
+| **Everything**                     | the Space record | all work in the space — the catch-all            |
+| **A container's board** (a call's) | that container   | that container's work, so extraction lands on it |
+| **One somebody made**              | nothing          | only what somebody put on it                     |
 
-A made board's **membership is the union of its columns' children and what the board holds itself** —
-no separate relation to keep in step. Placing a card anywhere on the board makes it a member; which
-_column_ shows it is still its `status`, so a member marked done elsewhere moves to that board's done
-column rather than falling off it, and one whose state no column here names drops to Unplaced.
+`gathers` is **on the board**, and it used to be inferred. Which board was canonical for a container
+was a fact the container held (`Space.board`, `CollectionBlock.board`), and every surface that
+rendered a board compared the open board against that link to decide whether it gathered: the Boards
+view computed it, the Workshop passed a literal, and a third surface — an agent, a record page, a
+mobile view — would have had to learn the rule or silently show everything or nothing. The two facts
+are separable. **Canonical-ness stays on the container**, as a single-valued link, because two boards
+claiming to be _the_ one is a race that has to converge. **What a board draws from is the board's own
+fact**, because two boards both gathering from a call is merely two boards showing the same work. A
+board that knows what it gathers can be rendered by anything that has its id.
 
-The board holding cards **directly** is how a made board keeps work that is on it but in no column —
-what a deleted column leaves behind. A card among the board's children never renders as a column:
-each child is resolved against the columns query and anything it cannot find is dropped.
-
-**Which board is canonical is a fact about its container**, not a marker on the board — `Space.board`
-and `CollectionBlock.board`, both HasOne. A marker could not stop two boards claiming to be the one:
-two members pressing the button at the same moment on two nodes would produce two, and the code would
-have to pick a winner on read. A single-valued link converges by construction, and the board that
-loses is simply an ordinary board in the list. It also reads correctly — "the board for this call" is
-something the _call_ knows.
-
-A container may hold **any number of boards**. All of them are its children and all are listed
-together; the relation says which one extraction lands on and which one gathers.
+A made board's **membership is the union of its columns' `arranges` and its own** — no separate
+relation to keep in step. Placing a card anywhere on the board makes it a member; which _column_ shows
+it is still its `status`, so a member marked done elsewhere moves to that board's done column rather
+than falling off it, and one whose state no column here names drops to Unplaced. The board arranging
+cards **directly** is how a made board keeps work that is on it but in no column — what a deleted
+column leaves behind.
 
 **Curating is safe only because Everything exists.** It gathers, it is unanchored, and nothing in the
 space can hide from it — so a card nobody has triaged is always somewhere, and every other board is
@@ -88,12 +103,22 @@ matter is **promoted** by naming it in Settings → Vocabulary, which makes it a
 A card placed in a lane is excluded from the status columns **on that board only**, or it would
 appear twice.
 
+**A board of lanes is the containment kanban.** The showcase's Boards template — columns of composed
+posts, where a card's column is simply where it sits — is the same `taskBoard` fragment over another
+entity with `lanesOnly` set. There used to be a second fragment for it in the portable kit; it was the
+special case of this one where nothing binds, and two things called kanban with different membership
+rules was a trap for anybody authoring a template.
+
+**A bound column stores no title of its own** unless somebody renames it on that board. Its heading
+reads the state's _current_ name, so a state renamed in the vocabulary renames its column on every
+board. Storing the name at creation froze the vocabulary as of the day each board was made.
+
 ## Why a _gathering_ board's membership is a query and not containment
 
-The obvious design is pure containment: a card is in To-do because To-do's `children` holds a link
-to it. It is rejected, and not because the link is hard to write — an extraction pass knows which
-call it ran on and could write it in a few lines. It is rejected for four reasons that all follow
-from membership _being_ the link:
+The obvious design is pure containment: a card is in To-do because To-do's list holds a link to it.
+It is rejected, and not because the link is hard to write — an extraction pass knows which call it
+ran on and could write it in a few lines. It is rejected for four reasons that all follow from
+membership _being_ the link:
 
 1. **Membership would have to be maintained per board, forever.** A board created tomorrow is empty
    of yesterday's work unless creating a board backfills links from every existing task. Every new
@@ -112,6 +137,12 @@ So: **a column is a saved query with an arrangement.** Keep that sentence in min
 design looks like an awkward hybrid — a smart playlist you can also hand-order is the same shape,
 and it is well understood.
 
+The same rule decides how a **new state** reaches boards. Fanning a column out to every board when a
+state is named is the write pattern above. Instead the space's own board gains the column when the
+state is named — one write, by the one person who acted, on the one board whose job is to show all
+the work — and every other board offers "add a column for this state" from its Unplaced column the
+first time work in that state turns up there. A board somebody made is theirs to shape.
+
 ## Why this survives a partition
 
 The property worth stating on its own, because it is what the design buys:
@@ -128,10 +159,10 @@ Containment has no such fallback: inconsistent links there mean a card that is g
 
 ## Ordering
 
-Card order within a column is `children` on an ordered relation:
+Card order within a column is `arranges` on an ordered relation:
 
 ```ts
-@HasMany({ through: 'we://children', ordering: { strategy: 'linkedList' } })
+arranges: { target: '', cardinality: 'many', predicate: 'we://arranges', ordered: true }
 ```
 
 That is an RGA in the executor (`rust-executor/src/perspectives/ordering/linked_list.rs`): each
@@ -157,17 +188,46 @@ name one is two files — the manifest type and the generator — and nothing el
 contract with the ordering is only _assign an array, read an array_.
 
 When writing an order, write **the column's whole visible order** — which is what `we-sortable`
-hands over — and let the executor's diff decide what actually moved. Ids still in `children` that the
+hands over — and let the executor's diff decide what actually moved. Ids still in `arranges` that the
 column no longer shows (stale hints for cards whose state changed elsewhere) follow after it; where
 they sit cannot matter, since nothing displays them. What to avoid is writing an order that moves
 cards nobody touched, which claims positions and can overwrite somebody else's concurrent drag.
 
+**A move is one transaction.** Leaving one column, joining another and — for a bound column — the
+status write land as a batch, so no reader catches the card in two columns or in none. Removing a
+column hands its cards to the board and deletes the column in the same batch, for the same reason.
+
+## Where the working out happens
+
+Which cards a column shows, in what order, what is left over and what a heading says are one call:
+`arrangedBoard({ board, columns, records, states })`, a function the host registers and the fragment
+reads everywhere it needs a list. It answers with the caller's own column and card objects — never
+copies — because the renderer keys `$each` rows by reference, and a fresh object per push would
+remount every column and the sortable inside it on every change anywhere.
+
+It was expressions first — a nested comprehension per column, the same string inlined in a heading's
+count and an `$each`'s items — and twice it computed the wrong thing where nothing could see. The
+routing table sends computation the library lacks to a host function; the tests moved with the
+rules and gained types (`app-shell/tests/arrangedBoard.test.ts`).
+
+The fragment feeds it **three subscriptions**: the board (its `children` hydrated, for the column
+order), the columns as records of their own (for their contents), and everything in scope (the pool).
+Two for the structure rather than one because a card moving between columns changes a _column's_
+links and not the board's, so a subscription on the board alone is not obliged to re-run and a card
+hydrated through it could stay as it was. That is the client library's invalidation behaviour; the
+function's docblock records it so the fragment need not.
+
+**The pool is unbounded.** A limit on it was the one place this design broke its own rule: the card
+past it did not land in Unplaced, it vanished. A board that outgrows one subscription wants paging,
+which is a different feature.
+
 ## Boards a person does not create
 
-- **Everything** — the space's own board, `type: 'space'`. Made the first time somebody opens it.
-- **A call's board** — `type: 'anchor'`, parented to the call's collection, so an anchored Boards view
-  lists it and the Workshop's tasks route finds it. Made by **the first extraction pass that leaves
-  the call holding a task** — not when somebody opens the route.
+- **Everything** — the space's own board, gathering from the Space record and pointed at by
+  `Space.board`. Made the first time somebody opens it.
+- **A call's board** — gathering from the call, parented to it so an anchored Boards view lists it,
+  and pointed at by the call's `board`. Made by **the first extraction pass that leaves the call
+  holding a task** — not when somebody opens the route.
 
 Neither is created on a route mounting. Writing records into a space everybody shares as a side
 effect of navigating would have every member who opened the tab racing to create the same board; a
@@ -176,8 +236,8 @@ pass runs on exactly one node, and Everything is made by a deliberate click.
 The rule for a call's board is "once it holds a task" rather than "once a pass produced anything", so
 an events-only call does not get an empty kanban nobody can explain. `InterpretationResult` carries
 ids and no types, so one query decides it — after an LLM round trip, where its cost is nothing. See
-`ensureBoardFor`, and `ModuleInterpretationAccess.ensureBoard` for the module-facing half, which
-names a collection and nothing else like every other member of that surface.
+`ensureBoardFor`, reached through the host's pass-settled hook, which names a collection and nothing
+else like every other member of that surface.
 
 Two people clicking at the same moment on two nodes still create two records — there is no
 coordination point — but only one is ever _the_ board, because `Space.board` and
@@ -186,29 +246,27 @@ somebody made, which is a harmless outcome rather than one needing a rule nobody
 
 ## Rules that are easy to break
 
-**Deleting a column must never delete its cards.** `deleteCollection` → `deleteBlocks` walks
-`children` recursively, which is right for a post and catastrophic here: a column's children are the
-tasks it _positions_, not tasks it owns. `removeBoardColumn` deletes the one record; the cards keep
-their state and reappear in a column bound to it, or in Unplaced.
+**Deleting a column must never delete its cards.** `arranges` makes this true by construction — no
+walker follows it — but only so long as a column's cards stay _there_. Never put a card in a column's
+`children`.
 
-**And on a made board it must hand the cards up to the board first.** This is where the two rules
-above collided, and the collision shipped. On a gathering board deleting a column loses nothing on
-its own, because the board draws from everything in scope. On a made board membership _is_
-containment, so the column being deleted held the only record that its cards were on the board at
-all — deleting it took them off the board, silently, which is the failure the whole design exists to
-prevent. `removeBoardColumn` moves them to the board in the same write that removes the column.
-Nothing decides which column they belong in, because nothing has to: a column bound to their state
-gathers them back as unarranged, and Unplaced catches the rest.
+**And on a made board the cards must be handed up to the board first.** On a gathering board deleting
+a column loses nothing on its own, because the board draws from everything in scope. On a made board
+membership _is_ arrangement, so the column being deleted held the only record that its cards were on
+the board at all. `removeBoardColumn` moves them to the board's own `arranges` in the same batch that
+removes the column. Nothing decides which column they belong in, because nothing has to: a column
+bound to their state gathers them back as unarranged, and Unplaced catches the rest.
 
 **Reads must tolerate a dangling child.** A board's `children` can name a column another agent
-deleted. Render nothing for it rather than a hole.
+deleted. `arrangedBoard` renders nothing for it rather than a hole.
 
 **Where new state goes**, so the entity does not accrete a scalar per feature:
 
 | The state            | Where it lives                                     |
 | -------------------- | -------------------------------------------------- |
 | Queryable identity   | a scalar field (`kind`, `type`, `slug`)            |
-| Concurrently edited  | an ordered relation (`children`)                   |
+| Concurrently edited  | an ordered relation (`children`, `arranges`)       |
+| What a board reads   | a relation (`gathers`)                             |
 | Single-setter config | one JSON bag, added when the first consumer exists |
 
 `slug` earns a scalar because it is queried and compared. A WIP limit, a per-board colour override, a
@@ -224,10 +282,11 @@ module writing `tag: 'transcript'` into `TextBlock.style`. Which board is canoni
 
 - **Swimlanes.** A board would gain a second axis. A column is the one-axis case of a **group**; a
   group with two bindings is a cell. Order stays where it already is, on the group. Rows derived from
-  a field (assignee, priority) are a client-side partition of the column order and need no data at
-  all. Arbitrary named rows need row records and a second binding on the group — additive, not a
-  restructure.
-- **WIP limits, per-board filters, saved views.** Single-setter config; see the table above.
+  a field (assignee, priority) are a client-side partition of the column order — a second argument to
+  `arrangedBoard` — and need no data at all. Arbitrary named rows need row records and a second
+  binding on the group — additive, not a restructure.
+- **WIP limits, per-board filters, saved views.** Single-setter config; see the table above. A saved
+  view is where `gathers` is heading: a board whose pool is a query rather than a container.
 - **Moving cards between boards in bulk.** The add-card modal pulls one card in at a time. The Pocket
   is the right surface for several, and is closed to a template on purpose: `modules.pocket.gather`
   is chrome-only because the Pocket writes to the agent's own root dataset, and a space template
@@ -236,22 +295,21 @@ module writing `tag: 'transcript'` into `TextBlock.style`. Which board is canoni
   needs drag arbitration `we-draggable` and `we-sortable` do not have, since both claim
   `pointerdown`.
 - **"On no board yet".** Everything shows all the work but cannot distinguish a card nobody has
-  triaged from one already on three boards. That filter is a cross-board question an expression
-  cannot cheaply ask; it wants a store accessor, and is worth building when somebody feels the lack.
+  triaged from one already on three boards. That filter is a cross-board question; it wants a store
+  accessor, and is worth building when somebody feels the lack.
+- **Paging.** The pool is unbounded and one subscription. Past a few thousand cards a board wants
+  to page, and `arrangedBoard.total` is where a surface would learn it should.
 - **Sub-tasks.** `TaskBlock` has no `children`; it would need one, or a parent link. Nothing about
   the board changes.
 
 ## Where the pieces are
 
-| Piece              | File                                                                                                                                                                                    |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The board fragment | `packages/templates/kit/src/we/taskBoard.ts`                                                                                                                                            |
-| The view           | `packages/templates/views/src/views/BoardsView/index.ts`                                                                                                                                |
-| The writes         | `spaceStore` — `createBoard`, `openBoardFor`, `addBoardColumn`, `removeBoardColumn`, `renameBoardColumn`, `reorderBoardColumns`, `arrangeColumn`, `moveCardToColumn`, `addTaskToColumn` |
-| The vocabulary     | `packages/entities/src/manifest/TaskState.ts`, and Settings → Vocabulary                                                                                                                |
-| The anchor         | `packages/templates/kit/src/we/anchor.ts`                                                                                                                                               |
-
-`kanbanBoard` in `@we/schema-kit` is a **different thing** and stays: it is the portable tier, it
-knows nothing about states, and there a card's column _is_ its container. Both are right for what
-they are. **Do not mix them in one view** — a status control beside containment columns is two
-sources of truth for one fact.
+| Piece              | File                                                                                                                                                                                                                                           |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The board fragment | `packages/templates/kit/src/we/taskBoard.ts`                                                                                                                                                                                                   |
+| The working out    | `packages/app-shell/src/shared/sources/arrangedBoard.ts`                                                                                                                                                                                       |
+| The view           | `packages/templates/views/src/views/BoardsView/index.ts`                                                                                                                                                                                       |
+| The writes         | `packages/app-shell/src/shared/boards.ts`, surfaced on `spaceStore` — `createBoard`, `openBoardFor`, `addBoardColumn`, `removeBoardColumn`, `renameBoardColumn`, `reorderBoardColumns`, `arrangeColumn`, `moveCardToColumn`, `addTaskToColumn` |
+| The vocabulary     | `packages/entities/src/manifest/TaskState.ts`, and Settings → Vocabulary                                                                                                                                                                       |
+| The anchor         | `packages/templates/kit/src/we/anchor.ts`                                                                                                                                                                                                      |
+| The showcase       | `packages/templates/showcase/src/KanbanTemplate.schema.ts` — the same fragment, over posts, as lanes                                                                                                                                           |

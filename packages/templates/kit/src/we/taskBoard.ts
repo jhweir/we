@@ -10,7 +10,7 @@
  * - **What is in it** comes from the task's `status` matching the column's `slug`. A query, so work
  *   arrives on its own — an extraction pass writes three tasks and no board writes at all, and they
  *   appear on every board that has a column for that state, including one made tomorrow.
- * - **Where each card sits** is the column's ordered `children`. Position hints over a membership
+ * - **Where each card sits** is the column's ordered `arranges`. Position hints over a membership
  *   defined elsewhere, which is the same relationship AD4M's ordering entries have to the links they
  *   order, one level up.
  *
@@ -20,15 +20,18 @@
  * maintained per board forever, a board made tomorrow is empty until somebody backfills it, and its
  * failure mode is a task that is *invisible* rather than one that is visibly misfiled.
  *
- * That asymmetry is also what makes this safe under a partition. The links can end up inconsistent —
- * a card in two columns' children, or in none — and the board still renders exactly one answer,
- * because status decides and hints are advisory.
+ * ## Where the working out happens
+ *
+ * Not here. Which cards a column shows, in what order, what is left over and what the heading says
+ * are one call to `arrangedBoard`, a function the host registers — see its docblock for the rules
+ * and for why they moved out of the expression layer. This fragment is arrangement: three
+ * subscriptions in, an `$each` over the columns it answers with, a card per row.
  *
  * ## Two kinds of column
  *
  * | | Bound (`slug` set) | Local lane (`slug` empty) |
  * |---|---|---|
- * | Membership | the query above, plus its arrangement | containment only |
+ * | Membership | the query above, plus its arrangement | arrangement only |
  * | Dropping a card | writes `status` — every board follows | writes one link — this board only |
  * | New matching work | arrives on its own | never arrives on its own |
  *
@@ -36,167 +39,48 @@
  * itself is the price of claiming no shared meaning, and it is the right price. A lane that turns
  * out to matter is promoted by naming it in Settings → Vocabulary, which makes it a slug.
  *
- * A card placed in a lane is excluded from the status columns **on this board** — otherwise it would
- * appear twice — and is unaffected everywhere else.
+ * ## Any record, not only tasks
  *
- * ## What is not built, and how it would fit
- *
- * Swimlanes are the feature most likely to arrive next, and they need no restructure. A board would
- * gain a second axis; a column is the one-axis case of a **group**, and a group with two bindings is
- * a cell. Order stays where it is, on the group. Written down so the next person does not conclude
- * the shape has to change: see `docs/architecture/boards.md`.
+ * `entity` and `card` let a board arrange something other than `TaskBlock`. A board of records with
+ * no state field is a board of lanes, which is the containment kanban — the showcase's Boards
+ * template is one, over composed posts. The same fragment, because a lane-only board *is* the
+ * special case where nothing binds; see `lanesOnly`.
  */
 import { field, formModal } from '@we/schema-kit';
-import type { QueryStateField, SchemaNode, SchemaProp } from '@we/schema-shared';
+import type { SchemaNode, SchemaProp } from '@we/schema-shared';
 
 import { agentByline } from './agentByline.ts';
 
-/** The board record, read for one thing: the order it puts its columns in. */
+/** The board record, hydrated one level: its columns, its own arrangement, what it gathers. */
 const BOARD = 'first(local.board)';
 
 /**
- * The columns, as records, in the order the board puts them.
+ * The board, worked out — the one call the whole fragment reads from.
  *
- * Two subscriptions rather than one, and the split is what makes the board update at all.
- *
- * A card moving between columns changes a **column's** links. The board's own links are untouched —
- * its children are the columns, and they are the same columns in the same order — so a subscription
- * on the board is not obliged to re-run, and a card hydrated through the board's `include` could
- * stay as it was until something else happened to invalidate the query. That showed up as a move
- * that did not appear until the route was left and come back to, and as a card drawn in two columns
- * at once because two parts of one render disagreed about which column held it.
- *
- * So each subscription now covers exactly what changes under it: the board for the column *order*,
- * which changes only when columns are added, removed or rearranged; and the columns themselves for
- * their contents, where a record whose own links changed is a record the query is watching.
- *
- * The board is still the source of order, because a `scope` lowers to a filter by parent link and
- * loses it — only reading the ordered relation gives the sequence back.
+ * `local.board` supplies the column order, `local.columns` their contents, `local.pool` everything
+ * in scope, and the community's states supply names and shapes for headings. One string, reused, so
+ * every reader agrees on the answer; each use is its own memo, and the function is cheap.
  */
-const COLUMNS = `${BOARD}.children.map(c, find(local.columns, { id: c.id })).filter(k, k.id)`;
+const VIEW =
+  'arrangedBoard({ board: first(local.board), columns: local.columns, records: local.pool, states: spaceStore.taskStates })';
+
+/** What the column in scope shows and how its heading reads — see `ColumnContents`. */
+const CELL = `${VIEW}.contents[col.id]`;
 
 /**
- * Whether a card is positioned somewhere on this board that currently shows it.
+ * The container a gathering board draws from, as a record id — or nothing.
  *
- * The `!k.slug ||` half is what keeps a stale hint from hiding work. A card whose state was changed
- * on another surface still has a hint in the column it used to be in; that column no longer shows it
- * (its arranged list filters on the slug), so if this counted the card as placed it would vanish
- * from the board entirely. Reading "placed" as *placed somewhere that shows it* means the card falls
- * back to being unarranged in whichever column its state now names.
+ * `gathers` names either the Space record or a container's. The space's own board narrows to
+ * nothing, since its scope *is* the space; a container's board narrows to that container; a board
+ * that gathers nothing has no anchor, and its pool is the whole space so the add-card picker can
+ * bring anything in. An empty anchor is what the renderer reads as "do not narrow".
  */
-export const PLACED_EXPR = `${COLUMNS}.exists(k, (!k.slug || k.slug == t.status) && t.id in k.children)`;
-
-/**
- * Whether this board draws work in, or only shows what somebody put on it.
- *
- * Two kinds gather. **Everything** is the space's catch-all: nothing in the space can hide from it,
- * which is the property that lets every other board be curated. **A container's board** — a call's —
- * gathers that container's work, so a pass that extracts three tasks puts them on it without anyone
- * placing anything.
- *
- * A board somebody *made* gathers nothing. That is the difference between a workstream and a view of
- * everything: a hiring board and a content calendar hold different work, and a board that showed the
- * whole space would make every board a duplicate of every other with different column headings.
- *
- * Supplied by the caller rather than read off the board, because which board is canonical is a fact
- * about its **container** — `Space.board`, `CollectionBlock.board` — and the board record cannot see
- * a link pointing at it. A marker on the board would be visible from here and is the design this
- * replaced: it could not stop two boards claiming to be the one, where a single-valued link
- * converges.
- */
-const gathersOf = (opts: TaskBoardOptions) => (opts.gathers ? `(${opts.gathers})` : 'false');
-
-/**
- * The work this board could show: everything in scope, or only what it holds.
- *
- * A made board's **membership is the union of its columns' children and what the board holds
- * itself** — no separate relation, and nothing to keep in step with the columns. Placing a card
- * anywhere on the board makes it a member; which *column* shows it is still its `status`, so a member
- * marked done elsewhere moves to this board's done column rather than disappearing from it.
- *
- * The second half is what a board holds **in no column**, and it exists because the first half alone
- * had a hole in it: deleting a column deleted the only record of its cards' membership, so on a made
- * board they left the board altogether — silently, and against the promise that deleting a column
- * never loses cards. `removeBoardColumn` hands them to the board, where a column bound to their state
- * picks them up as unarranged, and Unplaced catches the rest.
- *
- * A card id among the board's children never renders as a column: `COLUMNS` resolves each child
- * against the columns query and drops what it cannot find.
- */
-const poolOf = (opts: TaskBoardOptions) =>
-  `${gathersOf(opts)} ? local.allTasks : local.allTasks.filter(m, ${COLUMNS}.exists(k, m.id in k.children) || ${BOARD}.children.exists(c, c.id == m.id))`;
-
-/**
- * The cards somebody has arranged in this column: its own children, minus any stale hint.
- *
- * `col.children` comes back as **ids**, not records, and deliberately so. The board is read with
- * `include: { children: true }`, which hydrates the columns — but a second hop to hydrate *their*
- * children cannot work: `children` is polymorphic, so the ORM does not know what class the columns
- * are until it has read them, and therefore cannot look up the relation metadata for the level
- * below. A nested include here fails at the backend with "the relation declares no target class".
- *
- * So the ids are resolved against `local.allTasks`, which this board is already subscribed to. That
- * is cheaper as well as possible: the tasks are hydrated once rather than twice.
- *
- * An id that resolves to nothing drops out — a card outside this board's scope, or one deleted since
- * the hint was written. `c.id &&` is what does it, since reading a field off nothing is `undefined`
- * rather than an error.
- */
-export const ARRANGED_EXPR = `col.children.map(i, find(local.allTasks, { id: i })).filter(c, c.id && (!col.slug || c.status == col.slug))`;
-
-/**
- * The cards this column's state gathers that nobody has positioned.
- *
- * Empty for a lane, which gathers nothing — that is the whole difference between the two kinds.
- */
-export const unarrangedExpr = (opts: TaskBoardOptions) =>
-  `col.slug ? (${poolOf(opts)}).filter(t, t.status == col.slug && !(${PLACED_EXPR})) : []`;
-
-/**
- * Work this board has nowhere to put: a state no column here names.
- *
- * Retired, deleted, invented by an agent writing through MCP, or simply named after this board was
- * made — a board's columns are its own, so a state added later does not appear on it. Whatever the
- * cause, the work is real and somebody has to be able to reach it. Filtering it out would be tidier
- * and would hide work, which is the one failure this whole design exists to prevent.
- */
-export const unplacedExpr = (opts: TaskBoardOptions) =>
-  `(${poolOf(opts)}).filter(t, !(${PLACED_EXPR}) && !${COLUMNS}.exists(k, k.slug == t.status))`;
-
-/**
- * The colour a column heading takes when the community has not chosen one.
- *
- * Looked up by slug rather than stored on the column, so a state recoloured in the vocabulary
- * recolours every board at once — the colour is a fact about the state, not about this board.
- */
-const STATE = 'find(spaceStore.taskStates, { slug: col.slug })';
-const HEADING_COLOR =
-  `${STATE}.color ? ${STATE}.color : ` +
-  `${STATE}.semantic == 'done' ? 'success-text' : ` +
-  `${STATE}.semantic == 'cancelled' ? 'text-faint' : ` +
-  `${STATE}.semantic == 'active' ? 'accent-text' : ` +
-  `${STATE}.semantic == 'blocked' ? 'warning-text' : 'text-muted'`;
-
-/**
- * The icon a column heading carries: the community's own, or the shape its semantic implies.
- *
- * Falling back rather than showing nothing where a state has no icon, so a board does not come out
- * ragged — some columns marked and some not — the first time somebody sets one. The shapes are the
- * same ones Settings → Vocabulary draws, so a state reads the same in both places, and they carry
- * the distinction the five semantics exist for: stuck and dropped are visible at a glance rather
- * than only in the column's name.
- */
-const HEADING_ICON =
-  `${STATE}.icon ? ${STATE}.icon : ` +
-  `${STATE}.semantic == 'done' ? 'check-circle' : ` +
-  `${STATE}.semantic == 'cancelled' ? 'x-circle' : ` +
-  `${STATE}.semantic == 'active' ? 'circle-half' : ` +
-  `${STATE}.semantic == 'blocked' ? 'warning-circle' : 'circle'`;
+const ANCHOR = `(${BOARD}.gathers && ${BOARD}.gathers != spaceStore.currentSpace.id) ? ${BOARD}.gathers : ''`;
 
 export interface TaskCardOptions {
   /** Controls shown at the end of the card's meta row — usually {@link moveTaskMenu}. */
   actions?: SchemaNode;
-  /** Context key the card reads. Defaults to `'task'`, which is what {@link taskBoard} binds. */
+  /** Context key the card reads. Defaults to `'card'`, which is what {@link taskBoard} binds. */
   as?: string;
   /**
    * When to show the card's state on it — an expression, evaluated per row. Omit for never.
@@ -225,7 +109,7 @@ export interface TaskCardOptions {
  * only when it is not the default, or a board is a wall of "medium".
  */
 export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
-  const as = opts.as ?? 'task';
+  const as = opts.as ?? 'card';
   return {
     type: 'Column',
     props: { width: '100%', gap: '200', bg: 'surface', r: '300', p: '300', border: '1px solid border' },
@@ -317,18 +201,21 @@ export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
  * One `onSelect` rather than a handler per item: the rows come from data, an expression yields
  * values, and a handler nested in a mapped object would be stored as the object rather than
  * resolved. The chosen row arrives as `arg`, carrying the target column's id.
+ *
+ * `from` is the column the card leaves, as an expression — `'col.id'` inside a column, `"''"` from
+ * Unplaced, which has no placement to undo. `as` is the card's context key.
  */
-export function moveTaskMenu(from: string): SchemaNode {
+export function moveTaskMenu(from: string, as = 'card'): SchemaNode {
   return {
     type: 'DropdownMenu',
     props: {
       triggerIcon: 'arrows-left-right',
       triggerTitle: 'Move this card',
       size: 'xs',
-      items: { $: `${COLUMNS}.map(k, { id: k.id, label: \`Move to \${k.title}\` })` },
+      items: { $: `${VIEW}.choices.map(k, { id: k.id, label: \`Move to \${k.label}\` })` },
       onSelect: {
         $action: 'spaceStore.moveCardToColumn',
-        args: [{ $: from }, { $: 'arg.id' }, { $: 'task.id' }],
+        args: [{ $: from }, { $: 'arg.id' }, { $: `${as}.id` }],
       },
     },
   };
@@ -337,21 +224,35 @@ export function moveTaskMenu(from: string): SchemaNode {
 export interface TaskBoardOptions {
   /** The board's record id, as an expression. */
   boardId: SchemaProp;
-  /** `scope` for the task query — `anchorScope()` narrows the board to one container's work. */
-  scope?: QueryStateField['scope'];
-  /** The anchor a new card is parented to, as an expression. Usually `ANCHOR_ID` or a call. */
-  anchorId?: SchemaProp;
   /** Shown when there is no work here at all. */
   empty: SchemaNode;
   /** Show the author on each card — see {@link TaskCardOptions.byline}. */
   byline?: boolean;
   /**
-   * Whether this board draws work in — an expression. Omit for a board somebody made.
-   *
-   * True for the space's own board and for a container's, which are the two the container points at
-   * through `Space.board` / `CollectionBlock.board`. See {@link gathersOf}.
+   * What the board arranges. Defaults to `TaskBlock`, the one record with a `status` a column can
+   * bind to. Anything else makes every column a lane — say so with `lanesOnly`.
    */
-  gathers?: string;
+  entity?: string;
+  /** Extra conditions on the pool — `{ kind: 'post' }` for a board of composed cards. */
+  where?: Record<string, unknown>;
+  /**
+   * How one card is drawn. Receives the context key the row is bound to. Defaults to
+   * {@link taskCard} with a move menu, which is right for a `TaskBlock` and for nothing else.
+   */
+  card?: (as: string) => SchemaNode;
+  /**
+   * What the `+` on a column opens. Mounted inside each column with `col` in scope and a boolean
+   * `local.addOpen` the button sets; close by setting it false. Defaults to a modal that names a new
+   * task or brings in one that exists. A board of another record supplies its own — the showcase
+   * opens the composer and arranges what it wrote through `spaceStore.moveCardToColumn`.
+   */
+  addCardModal?: SchemaNode;
+  /**
+   * Every column is a lane: no state to bind to, so no state picker when adding one, no state
+   * shapes on headings, no Unplaced column, and no "lane" badge on every heading of a board where
+   * that is the only kind. The containment kanban, as a special case of this one.
+   */
+  lanesOnly?: boolean;
 }
 
 /**
@@ -368,65 +269,61 @@ export interface TaskBoardOptions {
  * opens the panel, and the person drags the card in themselves — needs the drag arbitration
  * `we-draggable` and `we-sortable` do not yet have, since both claim `pointerdown`. So: a picker.
  */
-function addCardModal(opts: TaskBoardOptions): SchemaNode {
-  return formModal({
-    open: { $: 'local.addOpen' },
-    close: { $setLocal: 'addOpen', value: false },
-    // Names the column, so a modal opened from the wrong `+` is obvious before anything is typed.
-    title: { $: '`Add to ${col.title}`' },
-    size: 'sm',
-    localState: {
-      addTitle: { type: 'string', initial: '' },
-      addExisting: { type: 'string', initial: '' },
-    },
-    children: [
-      field({ name: 'addTitle', label: 'What needs doing?', placeholder: 'Ship the docs' }),
-      {
-        type: 'we-form-field',
-        props: { label: 'Or bring in work that already exists' },
-        children: [
-          {
-            type: 'we-select',
-            props: {
-              placeholder: 'Nothing selected',
-              searchable: true,
-              value: { $: 'local.addExisting' },
-              // Anything in scope this board is not already holding — which for a made board is the
-              // whole space, and for a call's board is that call's work.
-              options: {
-                $: `local.allTasks.filter(t, !${COLUMNS}.exists(k, t.id in k.children)).map(t, { label: t.title, value: t.id })`,
-              },
-              onChange: { $setLocal: 'addExisting', value: { $: 'event.detail' } },
-            },
+const addTaskModal: SchemaNode = formModal({
+  open: { $: 'local.addOpen' },
+  close: { $setLocal: 'addOpen', value: false },
+  // Names the column, so a modal opened from the wrong `+` is obvious before anything is typed.
+  title: { $: `\`Add to \${${CELL}.label}\`` },
+  size: 'sm',
+  localState: {
+    addTitle: { type: 'string', initial: '' },
+    addExisting: { type: 'string', initial: '' },
+  },
+  children: [
+    field({ name: 'addTitle', label: 'What needs doing?', placeholder: 'Ship the docs' }),
+    {
+      type: 'we-form-field',
+      props: { label: 'Or bring in work that already exists' },
+      children: [
+        {
+          type: 'we-select',
+          props: {
+            placeholder: 'Nothing selected',
+            searchable: true,
+            value: { $: 'local.addExisting' },
+            // Anything in scope this board is not already holding — the whole space for a made
+            // board, and a call's work for a call's board.
+            options: { $: `${VIEW}.available.map(t, { label: t.title, value: t.id })` },
+            onChange: { $setLocal: 'addExisting', value: { $: 'event.detail' } },
           },
-        ],
+        },
+      ],
+    },
+  ],
+  disabled: { $: '!local.addTitle && !local.addExisting' },
+  submitLabel: 'Add',
+  /*
+    One or the other. Bringing in an existing card is a *move into this column* — the same action a
+    drag makes, so it writes the state the column names, exactly as dropping it there would.
+    Creating one goes through `addTaskToColumn`, which parents it to the board's anchor as well so
+    every other scoped surface finds it.
+  */
+  submit: {
+    $if: {
+      condition: { $: 'local.addExisting' },
+      then: {
+        $action: 'spaceStore.moveCardToColumn',
+        args: ['', { $: 'col.id' }, { $: 'local.addExisting' }],
+        onSuccess: [{ $setLocal: 'addOpen', value: false }],
       },
-    ],
-    disabled: { $: '!local.addTitle && !local.addExisting' },
-    submitLabel: 'Add',
-    /*
-      One or the other. Bringing in an existing card is a *move into this column* — the same action a
-      drag makes, so it writes the state the column names, exactly as dropping it there would.
-      Creating one goes through `addTaskToColumn`, which parents it to the board's anchor as well so
-      every other scoped surface finds it.
-    */
-    submit: {
-      $if: {
-        condition: { $: 'local.addExisting' },
-        then: {
-          $action: 'spaceStore.moveCardToColumn',
-          args: ['', { $: 'col.id' }, { $: 'local.addExisting' }],
-          onSuccess: [{ $setLocal: 'addOpen', value: false }],
-        },
-        else: {
-          $action: 'spaceStore.addTaskToColumn',
-          args: [{ $: 'col.id' }, { $: 'local.addTitle' }, opts.anchorId ?? ''],
-          onSuccess: [{ $setLocal: 'addOpen', value: false }],
-        },
+      else: {
+        $action: 'spaceStore.addTaskToColumn',
+        args: [{ $: 'col.id' }, { $: 'local.addTitle' }, { $: ANCHOR }],
+        onSuccess: [{ $setLocal: 'addOpen', value: false }],
       },
     },
-  });
-}
+  },
+});
 
 /** Renaming a column — the label on this board. Its slug, which is its meaning, is untouched. */
 const renameModal: SchemaNode = formModal({
@@ -434,7 +331,7 @@ const renameModal: SchemaNode = formModal({
   close: { $setLocal: 'renameOpen', value: false },
   title: 'Rename column',
   size: 'sm',
-  localState: { renameTitle: { type: 'string', initial: { $: 'col.title' } } },
+  localState: { renameTitle: { type: 'string', initial: { $: `${CELL}.label` } } },
   children: [field({ name: 'renameTitle', label: 'Column name', placeholder: 'In review' })],
   disabled: { $: '!local.renameTitle' },
   submitLabel: 'Rename',
@@ -445,21 +342,25 @@ const renameModal: SchemaNode = formModal({
   },
 });
 
-/** The cards of one column, in a drop zone. Shared by every column, bound or lane. */
-function columnCards(opts: TaskBoardOptions): SchemaNode {
-  const card = taskCard({ actions: moveTaskMenu('col.id'), byline: opts.byline, showState: '!col.slug' });
+/** The draggable box around a card: a native div, because that is what `we-sortable` reads. */
+function draggable(card: SchemaNode, as: string): SchemaNode {
   /*
-    The draggable box, on a native div rather than on the card.
-
     A component's non-event props are assigned as DOM *properties*, so the `data-we-id` attribute
     `we-sortable` looks for would never exist on one. This div is also the box the drag geometry
     measures, hence the explicit width.
   */
-  const draggable: SchemaNode = {
+  return {
     type: 'div',
-    props: { 'data-we-id': { $: 'task.id' }, style: { width: '100%', cursor: 'grab' } },
+    props: { 'data-we-id': { $: `${as}.id` }, style: { width: '100%', cursor: 'grab' } },
     children: [card],
   };
+}
+
+/** The cards of one column, in a drop zone. Shared by every column, bound or lane. */
+function columnCards(opts: TaskBoardOptions): SchemaNode {
+  const card = opts.card
+    ? opts.card('card')
+    : taskCard({ actions: moveTaskMenu('col.id'), byline: opts.byline, showState: `${CELL}.lane` });
   return {
     type: 'we-sortable',
     props: {
@@ -487,16 +388,11 @@ function columnCards(opts: TaskBoardOptions): SchemaNode {
         args: [{ $: 'arg.detail.from' }, { $: 'arg.detail.to' }, { $: 'arg.detail.id' }, { $: 'arg.detail.ids' }],
       },
     },
-    /*
-      Two loops rather than one concatenated list, and this is load-bearing rather than stylistic:
-      `+` in the expression language is arithmetic and string joining, so `arranged + unarranged`
-      coerces both lists to numbers and answers `0` — an `$each` over which renders nothing at all.
-      Two `$each` blocks inside one sortable produce one continuous run of items, which is what the
-      primitive reads, and needs no addition to the grammar.
-    */
+    // Two loops, one continuous run of items: the arranged cards in their order, then whatever the
+    // column's state gathers that nobody has placed.
     children: [
-      { type: '$each', props: { items: { $: ARRANGED_EXPR }, as: 'task' }, children: [draggable] },
-      { type: '$each', props: { items: { $: unarrangedExpr(opts) }, as: 'task' }, children: [draggable] },
+      { type: '$each', props: { items: { $: `${CELL}.arranged` }, as: 'card' }, children: [draggable(card, 'card')] },
+      { type: '$each', props: { items: { $: `${CELL}.unarranged` }, as: 'card' }, children: [draggable(card, 'card')] },
     ],
   };
 }
@@ -546,18 +442,22 @@ function column(opts: TaskBoardOptions): SchemaNode {
             type: 'Row',
             props: { gap: '200', ay: 'center', width: '100%' },
             children: [
-              // The state's own icon, where the community picked one. A lane has no state and so none.
-              {
-                type: '$if',
-                props: {
-                  // A lane stands for no state, so it has no shape to fall back to either.
-                  condition: { $: 'col.slug' },
-                  then: {
-                    type: 'we-icon',
-                    props: { name: { $: `(${HEADING_ICON})` }, size: 'xs', color: { $: HEADING_COLOR } },
-                  },
-                },
-              },
+              // The state's shape — the community's icon, or the one its semantic implies. A lane
+              // stands for no state and so has none.
+              ...(opts.lanesOnly
+                ? []
+                : [
+                    {
+                      type: '$if',
+                      props: {
+                        condition: { $: `!${CELL}.lane` },
+                        then: {
+                          type: 'we-icon',
+                          props: { name: { $: `${CELL}.icon` }, size: 'xs', color: { $: `${CELL}.color` } },
+                        },
+                      },
+                    },
+                  ]),
               {
                 type: 'we-text',
                 props: {
@@ -565,34 +465,34 @@ function column(opts: TaskBoardOptions): SchemaNode {
                   uppercase: true,
                   truncate: true,
                   // A lane claims no shared meaning, so it takes no state colour.
-                  color: { $: `col.slug ? (${HEADING_COLOR}) : 'text-muted'` },
+                  color: { $: `${CELL}.color` },
                 },
-                children: [{ $: 'col.title' }],
+                children: [{ $: `${CELL}.label` }],
               },
-              // Says which columns propagate and which do not, at the only moment it matters.
-              {
-                type: '$if',
-                props: {
-                  condition: { $: '!col.slug' },
-                  then: {
-                    type: 'we-badge',
-                    props: {
-                      size: 'xs',
-                      variant: 'neutral',
-                      title: 'A lane on this board only — dropping a card here changes no state',
+              // Says which columns propagate and which do not, at the only moment it matters — and
+              // not on a board where every column is a lane, where it would say nothing.
+              ...(opts.lanesOnly
+                ? []
+                : [
+                    {
+                      type: '$if',
+                      props: {
+                        condition: { $: `${CELL}.lane` },
+                        then: {
+                          type: 'we-badge',
+                          props: {
+                            size: 'xs',
+                            variant: 'neutral',
+                            title: 'A lane on this board only — dropping a card here changes no state',
+                          },
+                          children: ['lane'],
+                        },
+                      },
                     },
-                    children: ['lane'],
-                  },
-                },
-              },
+                  ]),
               {
                 type: 'we-text',
-                props: {
-                  variant: 'footnote',
-                  color: 'text-muted',
-                  ml: 'auto',
-                  text: { $: `count(${ARRANGED_EXPR}) + count(${unarrangedExpr(opts)})` },
-                },
+                props: { variant: 'footnote', color: 'text-muted', ml: 'auto', text: { $: `${CELL}.count` } },
               },
               {
                 type: 'we-button',
@@ -600,7 +500,7 @@ function column(opts: TaskBoardOptions): SchemaNode {
                   variant: 'ghost',
                   size: 'xs',
                   square: true,
-                  title: { $: '`Add a card to ${col.title}`' },
+                  title: { $: `\`Add a card to \${${CELL}.label}\`` },
                   onClick: { $setLocal: 'addOpen', value: true },
                 },
                 children: [{ type: 'we-icon', props: { name: 'plus' } }],
@@ -633,7 +533,7 @@ function column(opts: TaskBoardOptions): SchemaNode {
               },
             ],
           },
-          addCardModal(opts),
+          opts.addCardModal ?? addTaskModal,
           renameModal,
           columnCards(opts),
         ],
@@ -642,12 +542,15 @@ function column(opts: TaskBoardOptions): SchemaNode {
   };
 }
 
-/** Work no column here claims — shown only when there is some, and cleared through a card's menu. */
+/** Work no column here claims — shown only when there is some, and cleared by dragging out of it. */
 function unplacedColumn(opts: TaskBoardOptions): SchemaNode {
+  const card = opts.card
+    ? opts.card('card')
+    : taskCard({ actions: moveTaskMenu("''"), byline: opts.byline, showState: 'true' });
   return {
     type: '$if',
     props: {
-      condition: { $: `count(${unplacedExpr(opts)})` },
+      condition: { $: `count(${VIEW}.unplaced)` },
       then: {
         type: 'Column',
         props: {
@@ -673,31 +576,53 @@ function unplacedColumn(opts: TaskBoardOptions): SchemaNode {
               },
               {
                 type: 'we-text',
-                props: {
-                  variant: 'footnote',
-                  color: 'text-muted',
-                  ml: 'auto',
-                  text: { $: `count(${unplacedExpr(opts)})` },
-                },
+                props: { variant: 'footnote', color: 'text-muted', ml: 'auto', text: { $: `count(${VIEW}.unplaced)` } },
               },
             ],
           },
           {
             type: 'we-text',
             props: { fontSize: '200', color: 'text-muted' },
-            children: ['This board has no column for the state these are in. Move them somewhere it does.'],
+            children: [
+              'This board has no column for the state these are in. Move them somewhere it does, or give them one.',
+            ],
+          },
+          /*
+            A column for the state, in one click. The state was named after this board was made, or
+            somebody wrote it through another surface; either way the work is real and the board can
+            simply grow to fit it. Offered here rather than fanned out to every board when a state is
+            named, because a board somebody made is theirs to shape.
+          */
+          {
+            type: '$each',
+            props: { items: { $: `${VIEW}.unplacedStates` }, as: 'state' },
+            children: [
+              {
+                type: 'we-button',
+                props: {
+                  variant: 'secondary',
+                  size: 'xs',
+                  width: '100%',
+                  onClick: {
+                    $action: 'spaceStore.addBoardColumn',
+                    args: [opts.boardId, { $: 'state.name' }, { $: 'state.slug' }],
+                  },
+                },
+                children: [
+                  { type: 'we-icon', props: { name: 'plus' } },
+                  { type: 'we-text', children: [{ $: '`Add a column for ${state.name}`' }] },
+                ],
+              },
+            ],
           },
           /*
             A zone you can drag *out* of and never into.
 
             `locked` refuses incoming drops while leaving the press that starts a drag alone, which is
             exactly the asymmetry this column wants: there is no state to drop *into* here, so taking
-            a card would mean taking it and doing nothing. It used to have no zone at all, on that
-            reasoning — but the reasoning was one-directional. Dragging a card *out* is the whole
-            rescue, and without it the only way out was the menu, which puts a card at the end of its
-            new column and needs a second drag to place it.
-
-            The card's menu stays for the keyboard.
+            a card would mean taking it and doing nothing. Dragging a card *out* is the rescue, and
+            without it the only way out was the menu, which puts a card at the end of its new column
+            and needs a second drag to place it. The card's menu stays for the keyboard.
           */
           {
             type: 'we-sortable',
@@ -710,34 +635,25 @@ function unplacedColumn(opts: TaskBoardOptions): SchemaNode {
               flex: '1',
               /*
                 The drop is reported on the zone the card *left*, so this column needs its own
-                handler — its events no longer bubble to a shared one above, which is what stops a
-                card drag rewriting the board's columns.
+                handler — its events do not bubble to a shared one above, which is what stops a card
+                drag rewriting the board's columns.
 
-                `from` is `'unplaced'`, which resolves to no record, so nothing is unlinked: there was
-                no placement to undo. What matters is the target, which adds the card and — being a
-                bound column — writes its state, so a card here because it was `blocked` on a board
-                with no blocked column becomes `todo` by being dropped in To do. That is the rescue
-                this column exists for.
+                No `from`, given literally rather than forwarded: `arg.detail.from` is this zone's
+                *name*, and a name is not a record id — the backend would try to parse it as an IRI
+                and refuse the whole query. There is nothing to unlink anyway: a card here has no
+                placement to undo. What matters is the target, which arranges the card and — being a
+                bound column — writes its state.
               */
               onMoved: {
                 $action: 'spaceStore.moveCardToColumn',
-                // No `from`, given literally rather than forwarded: `arg.detail.from` is this zone's
-                // *name*, and a name is not a record id — passing `'unplaced'` had the backend try to
-                // parse it as an IRI and refuse the whole query. There is nothing to unlink anyway.
                 args: ['', { $: 'arg.detail.to' }, { $: 'arg.detail.id' }, { $: 'arg.detail.ids' }],
               },
             },
             children: [
               {
                 type: '$each',
-                props: { items: { $: unplacedExpr(opts) }, as: 'task' },
-                children: [
-                  {
-                    type: 'div',
-                    props: { 'data-we-id': { $: 'task.id' }, style: { width: '100%', cursor: 'grab' } },
-                    children: [taskCard({ actions: moveTaskMenu("''"), byline: opts.byline, showState: 'true' })],
-                  },
-                ],
+                props: { items: { $: `${VIEW}.unplaced` }, as: 'card' },
+                children: [draggable(card, 'card')],
               },
             ],
           },
@@ -757,38 +673,48 @@ function addColumnModal(opts: TaskBoardOptions): SchemaNode {
     localState: {
       columnName: { type: 'string', initial: '' },
       /*
-        Empty means a lane. The picker offers the space's states, so the ordinary case — "this board
-        should also show Blocked" — is one choice rather than a name somebody has to spell the same
-        way twice.
+        Empty means a lane. The picker offers the space's states this board does not yet have, so
+        the ordinary case — "this board should also show Blocked" — is one choice rather than a name
+        somebody has to spell the same way twice.
       */
       columnSlug: { type: 'string', initial: '' },
     },
     children: [
-      {
-        type: 'we-form-field',
-        props: {
-          label: 'A state everyone shares',
-          description: 'Cards dropped here change state on every board. Leave empty for a lane on this board only.',
-        },
-        children: [
-          {
-            type: 'we-select',
-            props: {
-              placeholder: 'A lane on this board only',
-              value: { $: 'local.columnSlug' },
-              options: {
-                $: `spaceStore.offeredTaskStates.filter(s, !${COLUMNS}.exists(k, k.slug == s.slug)).map(s, { label: s.name, value: s.slug })`,
+      ...(opts.lanesOnly
+        ? []
+        : [
+            {
+              type: 'we-form-field',
+              props: {
+                label: 'A state everyone shares',
+                description:
+                  'Cards dropped here change state on every board. Leave empty for a lane on this board only.',
               },
-              // Naming the state names the column, so the common case needs one choice, not two.
-              onChange: [
-                { $setLocal: 'columnSlug', value: { $: 'event.detail' } },
-                { $setLocal: 'columnName', value: { $: 'find(spaceStore.taskStates, { slug: event.detail }).name' } },
+              children: [
+                {
+                  type: 'we-select',
+                  props: {
+                    placeholder: 'A lane on this board only',
+                    value: { $: 'local.columnSlug' },
+                    options: { $: `${VIEW}.unboundStates.map(s, { label: s.name, value: s.slug })` },
+                    // Naming the state names the column, so the common case needs one choice, not two.
+                    onChange: [
+                      { $setLocal: 'columnSlug', value: { $: 'event.detail' } },
+                      {
+                        $setLocal: 'columnName',
+                        value: { $: 'find(spaceStore.taskStates, { slug: event.detail }).name' },
+                      },
+                    ],
+                  },
+                },
               ],
             },
-          },
-        ],
-      },
-      field({ name: 'columnName', label: 'Column name', placeholder: 'Waiting on Ana' }),
+          ]),
+      field({
+        name: 'columnName',
+        label: 'Column name',
+        placeholder: opts.lanesOnly ? 'In progress' : 'Waiting on Ana',
+      }),
     ],
     disabled: { $: '!local.columnName' },
     submitLabel: 'Add column',
@@ -806,19 +732,17 @@ export function taskBoard(opts: TaskBoardOptions): SchemaNode {
     props: { width: '100%', gap: '300' },
     $localState: { addColumnOpen: { type: 'boolean', initial: false } },
     /*
-      Two subscriptions for the whole board.
+      Three subscriptions for the whole board, read together through `arrangedBoard`.
 
-      `board` and `columns` together bring the structure back — the order from one, the contents from
-      the other, for the reason `COLUMNS` gives. Between them a column can ask about its siblings (is
-      this card placed somewhere else?) without a query per column. `allTasks` is the membership
-      side: everything in scope, which each bound column filters by its own slug and which the
-      arranged ids resolve against.
+      `board` and `columns` bring the structure back — the order from one, the contents from the
+      other; `arrangedBoard`'s docblock says why two. `pool` is the membership side: everything in
+      scope, narrowed to what the board gathers from where that is a container.
     */
     $queries: {
       /*
-        The board, for the order of its columns and nothing else — see `COLUMNS`. One level of
-        `include`, because a second hop through a polymorphic relation cannot be hydrated: the ORM
-        does not know what class the columns are until it has read them.
+        The board, hydrated one level. A second hop through a polymorphic relation cannot be
+        hydrated — the ORM does not know what class the columns are until it has read them — which is
+        why a column's cards are ids here and resolved against the pool.
       */
       board: {
         entity: 'CollectionBlock',
@@ -831,13 +755,17 @@ export function taskBoard(opts: TaskBoardOptions): SchemaNode {
         entity: 'CollectionBlock',
         where: { kind: 'column' },
         scope: { anchor: 'CollectionBlock', via: 'children', anchorId: opts.boardId as Record<string, unknown> },
-        limit: 50,
       },
-      allTasks: {
-        entity: 'TaskBlock',
-        ...(opts.scope && { scope: opts.scope }),
+      /*
+        Everything in scope, unbounded. A limit here was the one place this design broke its own
+        rule: the card past it did not land in Unplaced, it vanished. A board that has outgrown one
+        subscription wants paging, which is a different feature; until then, all of it.
+      */
+      pool: {
+        entity: opts.entity ?? 'TaskBlock',
+        ...(opts.where && { where: opts.where }),
+        scope: { anchor: 'CollectionBlock', via: 'children', anchorId: { $: ANCHOR } },
         order: { createdAt: 'asc' },
-        limit: 200,
       },
     },
     children: [
@@ -846,16 +774,11 @@ export function taskBoard(opts: TaskBoardOptions): SchemaNode {
         type: '$if',
         props: {
           /*
-            The columns decide whether there is a board to show, not the work.
-
-            It used to fall back to the tasks as well, so a board whose record had not arrived still
-            drew everything in the space. That was a safety net when every board gathered; it is
-            wrong now that a made board is meant to start empty, and it would make one indisplayable
-            from a board that had simply not loaded. The catch-all is a *board* — Everything — rather
-            than a fallback inside every board, so the honest answer here is the empty state, once
-            the query has actually answered.
+            The columns decide whether there is a board to show, not the work. A made board is meant
+            to start empty, so the honest answer for a board with no columns is the empty state — once
+            the query has actually answered, which `boardLoaded` says.
           */
-          condition: { $: `count(${COLUMNS})` },
+          condition: { $: `count(${VIEW}.columns)` },
           then: {
             type: 'Row',
             props: { width: '100%', gap: '400', ay: 'start', overflowX: 'auto' },
@@ -875,20 +798,17 @@ export function taskBoard(opts: TaskBoardOptions): SchemaNode {
                     args: [opts.boardId, { $: 'arg.detail' }],
                   },
                 },
-                children: [{ type: '$each', props: { items: { $: COLUMNS }, as: 'col' }, children: [column(opts)] }],
+                children: [
+                  { type: '$each', props: { items: { $: `${VIEW}.columns` }, as: 'col' }, children: [column(opts)] },
+                ],
               },
-              /*
-                Outside the sortable, because it is not one of the board's columns.
-
-                `we-sortable` treats every child as an item, so sitting inside it made this look
-                draggable — it picked up, showed a drop line, and then did nothing, because it has no
-                record and no id to reorder. A column with no id is not a column.
-              */
-              unplacedColumn(opts),
+              // Outside the sortable, because it is not one of the board's columns: it has no record
+              // and no id to reorder, and inside it looked draggable and did nothing.
+              ...(opts.lanesOnly ? [] : [unplacedColumn(opts)]),
             ],
           },
           // Gated on the *board* having answered: an empty first frame is not an empty board, and
-          // the tasks arriving says nothing about whether the columns have.
+          // the pool arriving says nothing about whether the columns have.
           else: { type: '$if', props: { condition: { $: 'local.boardLoaded' }, then: opts.empty } },
         },
       },
@@ -904,11 +824,17 @@ export function taskBoard(opts: TaskBoardOptions): SchemaNode {
               { type: 'we-text', children: ['Add column'] },
             ],
           },
-          {
-            type: 'we-text',
-            props: { variant: 'footnote', color: 'text-faint' },
-            children: ['Columns are this board’s own. States everyone shares are named in Settings → Vocabulary.'],
-          },
+          ...(opts.lanesOnly
+            ? []
+            : [
+                {
+                  type: 'we-text',
+                  props: { variant: 'footnote', color: 'text-faint' },
+                  children: [
+                    'Columns are this board’s own. States everyone shares are named in Settings → Vocabulary.',
+                  ],
+                },
+              ]),
         ],
       },
     ],

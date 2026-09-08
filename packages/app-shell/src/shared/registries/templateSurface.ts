@@ -422,6 +422,9 @@ export const TEMPLATE_SURFACE: Record<string, Record<string, Classification>> = 
       right for a pass that just wrote work and wrong for a schema rendering a page.
     */
     ensureBoardFor: WIRING,
+    // The other half of naming a state: the space's own board grows a column for it. Reached from
+    // `createTaskState`, never from a schema, which has `addBoardColumn` for a board it can see.
+    addStateToSpaceBoard: WIRING,
     addBoardColumn: action('content'),
     removeBoardColumn: action('content'),
     renameBoardColumn: action('content'),

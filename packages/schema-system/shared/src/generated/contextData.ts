@@ -1570,6 +1570,8 @@ export const contextData: ContextData = {
       ],
       relations: [
         { name: 'children', kind: 'HasMany', predicate: 'we://children' },
+        { name: 'arranges', kind: 'HasMany', predicate: 'we://arranges' },
+        { name: 'gathers', kind: 'HasOne', predicate: 'we://gathers' },
         { name: 'board', kind: 'HasOne', predicate: 'we://board', target: 'CollectionBlock' },
         {
           name: 'extractionPasses',
@@ -3003,6 +3005,13 @@ export const contextData: ContextData = {
       params: ['options?'],
       doc: 'The year a calendar is showing, on its own. Same options as calendarMonth.',
       example: 'yearLabel({ offset: local.monthOffset })',
+    },
+    {
+      name: 'arrangedBoard',
+      params: ['options'],
+      doc: 'A board worked out from its three subscriptions — { ready, gathers, columns, contents, unplaced, unplacedStates, available, total }. columns are the caller’s own column records in the board’s order; contents[columnId] is { label, icon, color, lane, arranged, unarranged, count }; unplaced is work no column here shows. Options: board (the record with children hydrated), columns (its kind: "column" children), records (everything in scope), states (spaceStore.taskStates).',
+      example:
+        'arrangedBoard({ board: first(local.board), columns: local.columns, records: local.pool, states: spaceStore.taskStates }).columns',
     },
   ],
 };

@@ -103,11 +103,16 @@ export interface CollectionBlockRecord extends WeNodeRecord {
   version: number;
   textContent: string;
   children: string[];
+  arranges: string[];
+  gathers?: string;
   board?: CollectionBlockRecord;
   extractionPasses: string[];
   addChildren(value: string | { id: string }, batch?: string): Promise<unknown>;
   removeChildren(value: string | { id: string }, batch?: string): Promise<unknown>;
   setChildren(values: (string | { id: string })[], batch?: string): Promise<unknown>;
+  addArranges(value: string | { id: string }, batch?: string): Promise<unknown>;
+  removeArranges(value: string | { id: string }, batch?: string): Promise<unknown>;
+  setArranges(values: (string | { id: string })[], batch?: string): Promise<unknown>;
   setBoard(value: CollectionBlockRecord): Promise<unknown>;
 }
 
