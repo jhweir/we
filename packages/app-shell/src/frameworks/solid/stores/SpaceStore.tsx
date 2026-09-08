@@ -593,7 +593,7 @@ export interface SpaceStore {
   /** Record the order somebody dragged one column's cards into. */
   arrangeColumn: (columnId: string, orderedIds: string[]) => Promise<void>;
   /** Move a card between columns — and write its state, when the column it joins names one. */
-  moveCardToColumn: (fromColumnId: string, toColumnId: string, cardId: string) => Promise<void>;
+  moveCardToColumn: (fromColumnId: string, toColumnId: string, cardId: string, orderedIds?: string[]) => Promise<void>;
   /** Make a task straight into a column, parented to the board's anchor when there is one. */
   addTaskToColumn: (columnId: string, title: string, anchorId?: string) => Promise<void>;
   /**
@@ -2037,10 +2037,22 @@ export function SpaceStoreProvider(props: ParentProps) {
    * A lane writes no status, deliberately. Dropping a card under "Thursday" positions it here and
    * says nothing about whether the work is finished, so nobody else's board moves.
    *
+   * `orderedIds` is where it lands, and without it a drop would only ever append. `we-sortable`
+   * reports the target zone's whole new order alongside the move, so the card can be seated exactly
+   * where it was dropped — the same list `arrangeColumn` writes, which is why passing it also
+   * materialises whichever of that column's cards had merely matched the state until now. The menu
+   * path has no position to report and appends, which is what "move it there" means without a
+   * pointer.
+   *
    * Added before removed, as `moveChild` is: both are round trips, so a failure between them leaves
    * the card in two columns rather than in none — visible, and fixed by moving it again.
    */
-  async function moveCardToColumn(fromColumnId: string, toColumnId: string, cardId: string): Promise<void> {
+  async function moveCardToColumn(
+    fromColumnId: string,
+    toColumnId: string,
+    cardId: string,
+    orderedIds?: string[],
+  ): Promise<void> {
     const p = datasetStore.currentDataset()?.handle;
     if (!p || !cardId || !toColumnId || fromColumnId === toColumnId) return;
     try {
@@ -2050,7 +2062,13 @@ export function SpaceStoreProvider(props: ParentProps) {
       ]);
       if (!to) return;
       const current = Array.isArray(to.children) ? (to.children as string[]) : [];
-      if (!current.includes(cardId)) await to.addChildren(cardId);
+      const dropped = Array.isArray(orderedIds) && orderedIds.includes(cardId) ? orderedIds : null;
+      if (dropped) {
+        const moved = new Set(dropped);
+        await to.setChildren([...dropped, ...current.filter((id) => !moved.has(id))]);
+      } else if (!current.includes(cardId)) {
+        await to.addChildren(cardId);
+      }
       if (from) await from.removeChildren(cardId);
       if (to.slug) {
         const task = await getEntitiesForPerspective('TaskBlock', p)?.findOne(p, { where: { id: cardId } });

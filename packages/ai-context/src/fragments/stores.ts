@@ -1079,7 +1079,7 @@ export function generateStoresText(entries: StoreEntry[]): string {
         arrangeColumn:
           '(columnId: string, orderedIds: string[]): records the order somebody dragged one column\u2019s cards into. An ordered relation, so two people rearranging at once converge instead of one write discarding the other. Pair with we-sortable\u2019s onReorder',
         moveCardToColumn:
-          '(fromColumnId: string, toColumnId: string, cardId: string): moves a card between columns \u2014 and writes its state when the column it joins names one, which is what makes \u201cdone is done\u201d true on every board. A lane writes no state. Pair with we-sortable\u2019s onMoved',
+          '(fromColumnId: string, toColumnId: string, cardId: string, orderedIds?: string[]): moves a card between columns \u2014 and writes its state when the column it joins names one, which is what makes \u201cdone is done\u201d true on every board. A lane writes no state. Pass orderedIds \u2014 we-sortable\u2019s `arg.detail.ids`, the target column\u2019s whole new order \u2014 to seat the card where it was dropped; without it the card appends',
         addTaskToColumn:
           '(columnId: string, title: string, anchorId?: string): makes a task straight into a column, parented to the board\u2019s anchor when there is one so every other scoped surface finds it. A bound column also gives it that column\u2019s state',
         updateSpaceImage:

@@ -311,9 +311,15 @@ function columnCards(opts: TaskBoardOptions): SchemaNode {
       flex: '1',
       width: '100%',
       onReorder: { $action: 'spaceStore.arrangeColumn', args: [{ $: 'col.id' }, { $: 'arg.detail' }] },
+      /*
+        `ids` is the target column's whole new order, with the card already at the index it was
+        dropped at — so a cross-column drop seats it where the pointer put it. Without it the store
+        can only append, which is what "move to that column" means from the menu and not what a drag
+        means.
+      */
       onMoved: {
         $action: 'spaceStore.moveCardToColumn',
-        args: [{ $: 'arg.detail.from' }, { $: 'arg.detail.to' }, { $: 'arg.detail.id' }],
+        args: [{ $: 'arg.detail.from' }, { $: 'arg.detail.to' }, { $: 'arg.detail.id' }, { $: 'arg.detail.ids' }],
       },
     },
     /*
