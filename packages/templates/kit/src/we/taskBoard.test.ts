@@ -47,7 +47,12 @@ type Row = Record<string, unknown>;
  * A column's own `children` are ids, not records: the board is read one level deep, because a second
  * hop through a polymorphic relation cannot be hydrated.
  */
-const boardWith = (columns: Row[]) => ({ board: [{ id: 'b1', children: columns }], columns });
+const boardWith = (columns: Row[], held: string[] = []) => ({
+  // A board's children are its columns, and — on a made board — whatever it holds in no column.
+  // Hydrated, so a card among them is an object with an id, exactly as the columns are.
+  board: [{ id: 'b1', children: [...columns, ...held.map((id) => ({ id }))] }],
+  columns,
+});
 
 const evaluate = (source: string, roots: Record<string, unknown>) =>
   evaluateExpression(parseExpression(source), {
@@ -224,6 +229,39 @@ describe('what a board draws from', () => {
     const moved = { id: 't1', title: 'One', status: 'archived' };
     const local = { ...boardWith([held]), allTasks: [moved] };
     expect(evaluate(UNPLACED_CURATED, { local })).toEqual([moved]);
+  });
+
+  /*
+    What a made board holds in no column, and why it has to be able to.
+
+    Membership on a made board is containment, so before this the column being deleted held the only
+    record that its cards were on the board at all — deleting a lane took the card off the board
+    silently, which is the one failure this design exists to prevent. `removeBoardColumn` hands them
+    to the board; these say what happens to them once it has.
+  */
+  it('shows work the board holds in no column, in the column its state names', () => {
+    const todoCol = { id: 'c1', slug: 'todo', children: [] as string[] };
+    const local = { ...boardWith([todoCol], ['t1']), allTasks: [todo] };
+    expect(evaluate(UNARRANGED_CURATED, { col: todoCol, local })).toEqual([todo]);
+  });
+
+  it('drops it to Unplaced when no column here names its state', () => {
+    const todoCol = { id: 'c1', slug: 'todo', children: [] as string[] };
+    const local = { ...boardWith([todoCol], ['t4']), allTasks: [orphan] };
+    expect(evaluate(UNPLACED_CURATED, { local })).toEqual([orphan]);
+  });
+
+  /* The lane case end to end: a card sat in a lane, the lane went, the board kept the card. */
+  it('keeps a card whose lane was deleted, in the column its state names', () => {
+    const lane = { id: 'c9', slug: '', children: ['t1'] };
+    const todoCol = { id: 'c1', slug: 'todo', children: [] as string[] };
+    const before = { ...boardWith([lane, todoCol]), allTasks: [todo] };
+    expect(evaluate(ARRANGED_EXPR, { col: lane, local: before })).toEqual([todo]);
+
+    // What `removeBoardColumn` writes: the lane gone from the board, its card held by the board.
+    const after = { ...boardWith([todoCol], ['t1']), allTasks: [todo] };
+    expect(evaluate(UNARRANGED_CURATED, { col: todoCol, local: after })).toEqual([todo]);
+    expect(evaluate(UNPLACED_CURATED, { local: after })).toEqual([]);
   });
 
   it('never lets a made board hide work — a non-member is simply not its business', () => {

@@ -109,13 +109,22 @@ const gathersOf = (opts: TaskBoardOptions) => (opts.gathers ? `(${opts.gathers})
 /**
  * The work this board could show: everything in scope, or only what it holds.
  *
- * A made board's **membership is the union of its columns' children** — no separate relation, and
- * nothing to keep in step with the columns. Placing a card anywhere on the board makes it a member;
- * which *column* shows it is still its `status`, so a member marked done elsewhere moves to this
- * board's done column rather than disappearing from it.
+ * A made board's **membership is the union of its columns' children and what the board holds
+ * itself** — no separate relation, and nothing to keep in step with the columns. Placing a card
+ * anywhere on the board makes it a member; which *column* shows it is still its `status`, so a member
+ * marked done elsewhere moves to this board's done column rather than disappearing from it.
+ *
+ * The second half is what a board holds **in no column**, and it exists because the first half alone
+ * had a hole in it: deleting a column deleted the only record of its cards' membership, so on a made
+ * board they left the board altogether — silently, and against the promise that deleting a column
+ * never loses cards. `removeBoardColumn` hands them to the board, where a column bound to their state
+ * picks them up as unarranged, and Unplaced catches the rest.
+ *
+ * A card id among the board's children never renders as a column: `COLUMNS` resolves each child
+ * against the columns query and drops what it cannot find.
  */
 const poolOf = (opts: TaskBoardOptions) =>
-  `${gathersOf(opts)} ? local.allTasks : local.allTasks.filter(m, ${COLUMNS}.exists(k, m.id in k.children))`;
+  `${gathersOf(opts)} ? local.allTasks : local.allTasks.filter(m, ${COLUMNS}.exists(k, m.id in k.children) || ${BOARD}.children.exists(c, c.id == m.id))`;
 
 /**
  * The cards somebody has arranged in this column: its own children, minus any stale hint.

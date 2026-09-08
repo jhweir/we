@@ -256,9 +256,19 @@ export function createBoardActions(deps: BoardDeps): BoardActions {
    * catastrophic here: a column's children are the tasks it *positions*, not tasks it owns. So this
    * deletes the one record and leaves every card alone.
    *
-   * Nothing is stranded, because membership never lived here. A card keeps its state, so it
-   * reappears — in another column bound to the same state, or in the unplaced column if this board
-   * no longer has one. That is the whole reason position and state are separate facts.
+   * ## The cards are handed to the board first
+   *
+   * On a board that gathers, deleting a column loses nothing on its own: the board draws from
+   * everything in scope, so a card reappears in a column bound to its state, or in Unplaced. On a
+   * board somebody **made**, membership *is* containment — so the column being deleted held the only
+   * record that these cards were on this board at all, and deleting it took them off the board
+   * silently. That contradicted the rule the whole design exists for, and it is what somebody sees:
+   * delete a lane, and the card that was in it is simply gone.
+   *
+   * So the cards move up to the board, which is where a made board keeps what it holds in no column.
+   * Nothing decides *which* column they belong in, because nothing has to — a column bound to their
+   * state gathers them back as unarranged, and Unplaced catches the ones whose state no column here
+   * names. The same write on a gathering board is harmless: it already showed them.
    */
   async function removeBoardColumn(boardId: string, columnId: string): Promise<void> {
     const p = dataset();
@@ -268,7 +278,17 @@ export function createBoardActions(deps: BoardDeps): BoardActions {
         CollectionBlock.findOne(p, { where: { id: boardId } }),
         CollectionBlock.findOne(p, { where: { id: columnId } }),
       ]);
-      if (board) await board.removeChildren(columnId);
+      if (board) {
+        /*
+          Written as one `setChildren`, so the board's own order is stated rather than appended to,
+          and the removed column goes in the same write that keeps its cards.
+        */
+        const held = (Array.isArray(board.children) ? board.children : []) as string[];
+        const orphans = (Array.isArray(column?.children) ? column.children : []) as string[];
+        const keeping = held.filter((id) => id !== columnId);
+        const added = orphans.filter((id) => !keeping.includes(id));
+        await board.setChildren([...keeping, ...added]);
+      }
       /*
         Only an actual column is deleted. `findOne` resolves an id to a `CollectionBlock` whatever
         the record turns out to be, so a board whose children got polluted — see

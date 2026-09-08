@@ -41,10 +41,14 @@ were one card set with different column headings.
 | **A container's board** (a call's) | `CollectionBlock.board`                         | that container's work, so extraction lands on it |
 | **One somebody made**              | a `kind: 'board'` child of wherever it was made | only what somebody put on it                     |
 
-A made board's **membership is the union of its columns' children** — no separate relation to keep in
-step. Placing a card anywhere on the board makes it a member; which _column_ shows it is still its
-`status`, so a member marked done elsewhere moves to that board's done column rather than falling off
-it, and one whose state no column here names drops to Unplaced.
+A made board's **membership is the union of its columns' children and what the board holds itself** —
+no separate relation to keep in step. Placing a card anywhere on the board makes it a member; which
+_column_ shows it is still its `status`, so a member marked done elsewhere moves to that board's done
+column rather than falling off it, and one whose state no column here names drops to Unplaced.
+
+The board holding cards **directly** is how a made board keeps work that is on it but in no column —
+what a deleted column leaves behind. A card among the board's children never renders as a column:
+each child is resolved against the columns query and anything it cannot find is dropped.
 
 **Which board is canonical is a fact about its container**, not a marker on the board — `Space.board`
 and `CollectionBlock.board`, both HasOne. A marker could not stop two boards claiming to be the one:
@@ -184,9 +188,17 @@ somebody made, which is a harmless outcome rather than one needing a rule nobody
 
 **Deleting a column must never delete its cards.** `deleteCollection` → `deleteBlocks` walks
 `children` recursively, which is right for a post and catastrophic here: a column's children are the
-tasks it _positions_, not tasks it owns. `removeBoardColumn` deletes the one record. Nothing is
-stranded, because membership never lived there — the cards keep their state and reappear in another
-column bound to it, or in Unplaced.
+tasks it _positions_, not tasks it owns. `removeBoardColumn` deletes the one record; the cards keep
+their state and reappear in a column bound to it, or in Unplaced.
+
+**And on a made board it must hand the cards up to the board first.** This is where the two rules
+above collided, and the collision shipped. On a gathering board deleting a column loses nothing on
+its own, because the board draws from everything in scope. On a made board membership _is_
+containment, so the column being deleted held the only record that its cards were on the board at
+all — deleting it took them off the board, silently, which is the failure the whole design exists to
+prevent. `removeBoardColumn` moves them to the board in the same write that removes the column.
+Nothing decides which column they belong in, because nothing has to: a column bound to their state
+gathers them back as unarranged, and Unplaced catches the rest.
 
 **Reads must tolerate a dangling child.** A board's `children` can name a column another agent
 deleted. Render nothing for it rather than a hole.
