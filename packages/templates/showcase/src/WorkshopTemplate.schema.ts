@@ -54,16 +54,7 @@
  *   *joins a call* when there is not one. Placed, never opened.
  */
 import type { RouteSchema, SchemaNode, SchemaProp, TemplateSchema } from '@we/schema-shared';
-import {
-  anchorParent,
-  anchorScope,
-  emptyState,
-  moveTaskMenu,
-  panelHeader,
-  recordFormModal,
-  stateBoard,
-  taskCard,
-} from '@we/template-kit';
+import { anchorScope, emptyState, panelHeader, recordFormModal, taskBoard } from '@we/template-kit';
 
 /**
  * The call on screen — **named in the address**, or the one being recorded when it names none.
@@ -1083,70 +1074,97 @@ const canvasBody: Omit<RouteSchema, 'path'> = {
 const canvasRoute: RouteSchema = { path: '/canvas', ...canvasBody };
 
 /**
- * The tasks, by state — scoped to the call this workshop is about.
+ * The work this call produced, on a board of its own.
  *
- * ## The board is `stateBoard`, not a fourth copy of one
+ * ## The board belongs to the call
  *
- * Columns, cards, the trough, the drop zones, the move menu and the column for work whose state
- * nothing recognises all come from `@we/template-kit`, which is the same board WE's own Tasks and
- * Boards views render. This route used to hold its own — three hardcoded columns, no drag, and no
- * sight of a state a community had invented — which is exactly what a shared fragment is for.
+ * Every other surface of this template is about the call the address names — the canvas draws that
+ * call's records, the transcript is that call's, the nav carries `?call=` from page to page — so this
+ * is too. `taskBoard` is the same fragment the Boards view renders, given this call's board rather
+ * than one picked from a list, and scoped so the cards are the ones the conversation produced.
  *
- * Columns are the community's `TaskState` vocabulary, so a space that names "Blocked" gets a column
- * here too. Read off `status` rather than off containment, which is the distinction `TasksView`
- * draws and is worth keeping: a kanban canvas's columns are collections and moving a card is a
- * relink, while a task's state is a property of the task. Extraction fills `status`, so these
- * columns are populated by the conversation rather than by anyone dragging.
+ * The space-wide reading is not lost; it is the **Everything** board in the Boards view, which is a
+ * click away and unscoped.
  *
- * ## Scoped to the call, which is a reversal
+ * ## Made on a press, once
  *
- * This used to show every task in the space, on the argument that a task does not stop being
- * outstanding because the meeting it came from ended. True, and beside the point *here*: every
- * other surface of this template is about the call the address names — the canvas draws that call's
- * records, the transcript is that call's, the nav carries `?call=` from page to page — so a list
- * that quietly widened to the whole space was the one page that did not answer the question the
- * rest of the template was asking.
- *
- * The space-wide reading is not lost; it is the Tasks *view*, one click away and unscoped by
- * default. With no call selected this is unscoped too, because `scope` is dropped when its anchor
- * does not resolve — so "everything outstanding" is what an unaddressed workshop still shows.
+ * A call gets no board until somebody wants one, and then it gets a real one — columns and all — so
+ * cards can be ordered inside a column from the first drag. Making it is a click rather than a side
+ * effect of opening the route: this is a shared space, and every member who opened the tab would
+ * otherwise race to create the same board.
  */
 const tasksRoute: RouteSchema = {
   path: '/tasks',
   type: 'Column',
   props: { width: '100%', minHeight: '100%', ax: 'center', px: '400', pt: '900', pb: '600' },
+  // Which board this call has, if any. Its own query rather than the fragment's, because the choice
+  // between "open it" and "make one" is made out here, before there is an id to render.
+  $queries: {
+    callBoards: {
+      entity: 'CollectionBlock',
+      where: { kind: 'board' },
+      scope: anchorScope(CALL),
+      order: { createdAt: 'asc' },
+      limit: 1,
+    },
+  },
   children: [
     {
       type: 'Column',
-      props: { width: '100%', maxWidth: 'var(--we-layout-lg)' },
+      props: { width: '100%', maxWidth: 'var(--we-layout-lg)', gap: '400' },
       children: [
-        stateBoard({
-          // The call, not the URL's `anchor`: this template has its own address for what it is
-          // about, and `anchorScope` takes whichever expression names the container.
-          scope: anchorScope(CALL),
-          createOptions: anchorParent(CALL_EXPR),
-          card: taskCard({
-            // Who ran the pass that wrote it — the provenance question this template exists around.
-            byline: true,
-            actions: moveTaskMenu({
-              $action: 'record.update',
-              args: ['TaskBlock', { $: 'task.id' }, { status: { $: 'arg.id' } }],
+        {
+          type: '$if',
+          props: {
+            condition: { $: 'count(local.callBoards)' },
+            then: taskBoard({
+              boardId: { $: 'first(local.callBoards).id' },
+              scope: anchorScope(CALL),
+              anchorId: CALL,
+              // Who ran the pass that wrote it — the provenance question this template is built
+              // around, and the reason its cards carry a byline where a space's board does not.
+              byline: true,
+              empty: emptyState({
+                icon: 'check-square',
+                label: 'work',
+                message:
+                  'Nothing from this call yet. Cards appear here as the conversation commits to things — or add one to a column.',
+              }),
             }),
-          }),
-          // No board to arrange onto, so no `onReorder` — a cross-column drop writes the task's
-          // own state, which every other surface reads.
-          onMoved: {
-            $action: 'record.update',
-            args: ['TaskBlock', { $: 'arg.detail.id' }, { status: { $: 'arg.detail.to' } }],
-          },
-          empty: emptyState({
-            icon: 'check-square',
-            label: 'tasks',
-            message: {
-              $: `${CALL_EXPR} ? 'Nothing to do from this call yet. Tasks appear here as the conversation commits to them.' : 'No tasks yet. Start a call — extraction writes down the work people commit to.'`,
+            else: {
+              type: 'Column',
+              props: { width: '100%', ax: 'center', ay: 'center', gap: '400', p: '600' },
+              children: [
+                {
+                  type: 'we-icon',
+                  props: { name: 'kanban', size: 'xl', gradient: { $: `${CALL_EXPR} ? 'primary' : ''` } },
+                },
+                {
+                  type: 'we-text',
+                  props: { variant: 'body', textAlign: 'center', maxWidth: 'var(--we-layout-xs)', color: 'text-muted' },
+                  children: [
+                    {
+                      $: `${CALL_EXPR} ? 'This call has no board yet. Making one arranges the work it produced — it never moves anything.' : 'Choose a call to see the work it produced.'`,
+                    },
+                  ],
+                },
+                {
+                  type: '$if',
+                  props: {
+                    condition: CALL,
+                    then: {
+                      type: 'we-button',
+                      props: {
+                        onClick: { $action: 'spaceStore.openBoardFor', args: [CALL, 'This call'] },
+                      },
+                      children: ['Make a board for this call'],
+                    },
+                  },
+                },
+              ],
             },
-          }),
-        }),
+          },
+        },
       ],
     },
   ],

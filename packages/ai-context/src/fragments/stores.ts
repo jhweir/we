@@ -368,8 +368,14 @@ export const storeEntries: StoreEntry[] = [
       'updatePost',
       'deleteCollection',
       'createBoard',
-      'arrangeBoardColumn',
-      'moveTaskOnBoard',
+      'openBoardFor',
+      'addBoardColumn',
+      'removeBoardColumn',
+      'renameBoardColumn',
+      'reorderBoardColumns',
+      'arrangeColumn',
+      'moveCardToColumn',
+      'addTaskToColumn',
       'updateSpaceImage',
       'updateSpaceMeta',
       'setSpaceDefaultTemplate',
@@ -1059,11 +1065,23 @@ export function generateStoresText(entries: StoreEntry[]): string {
         deleteCollection:
           '(collectionId: string): permanently deletes a CollectionBlock and everything inside it, recursively. Kind-agnostic — a post, a call record and a notes collection are the same shape, so this is the one delete for all of them',
         createBoard:
-          '(title: string, parentId?: string): makes a board — a CollectionBlock whose ordered children are the cards somebody has arranged. Returns its id. Its columns come from the space\u2019s task states, so nothing about the board decides what the columns are. Pass parentId to put the board inside another collection (a call\u2019s record), which is where an anchored Boards view lists it',
-        arrangeBoardColumn:
-          '(boardId: string, orderedIds: string[]): records the order somebody dragged ONE column into — the ids of that column in their new order. A board\u2019s children are position hints over a membership the state defines, so a task not in the list simply appends. Pair with we-sortable\u2019s onReorder and pass { $: "arg.detail" }',
-        moveTaskOnBoard:
-          '(boardId: string, taskId: string, statusSlug: string): puts a task in a state and gives it a position on this board. Two writes because they are two facts — the state is a property of the work that every surface reads, the position is this board\u2019s alone. Pair with we-sortable\u2019s onMoved',
+          '(title: string, parentId?: string, options?: { space?: boolean }): makes a board \u2014 a CollectionBlock whose ordered children are its columns, one per state the community uses. Returns its id. Pass parentId to put the board inside another collection (a call\u2019s record), which is where an anchored Boards view lists it',
+        openBoardFor:
+          '(anchorId?: string, title?: string): the board for a container \u2014 one call\u2019s, or the space\u2019s own \u2014 making it if nobody has yet. Returns its id either way. Call it from a click rather than on mount: creating a board writes records into a space everybody shares',
+        addBoardColumn:
+          '(boardId: string, name: string, slug?: string): adds a column. **With a slug** it IS that state on this board \u2014 matching work arrives on its own and dropping a card there changes the card\u2019s state everywhere. **Without one** it is a local lane: nothing arrives by itself and a card put there is positioned rather than reclassified',
+        removeBoardColumn:
+          '(boardId: string, columnId: string): takes a column off a board \u2014 the column record only, never the work in it. The cards keep their state, so they reappear in another column bound to it or in the unplaced column',
+        renameBoardColumn:
+          '(columnId: string, name: string): renames one column on this board. Its slug \u2014 its meaning \u2014 is untouched; renaming a state everywhere is Settings \u2192 Vocabulary',
+        reorderBoardColumns:
+          '(boardId: string, orderedIds: string[]): the order this board reads its columns in. Pair with we-sortable\u2019s onReorder and pass { $: "arg.detail" }',
+        arrangeColumn:
+          '(columnId: string, orderedIds: string[]): records the order somebody dragged one column\u2019s cards into. An ordered relation, so two people rearranging at once converge instead of one write discarding the other. Pair with we-sortable\u2019s onReorder',
+        moveCardToColumn:
+          '(fromColumnId: string, toColumnId: string, cardId: string): moves a card between columns \u2014 and writes its state when the column it joins names one, which is what makes \u201cdone is done\u201d true on every board. A lane writes no state. Pair with we-sortable\u2019s onMoved',
+        addTaskToColumn:
+          '(columnId: string, title: string, anchorId?: string): makes a task straight into a column, parented to the board\u2019s anchor when there is one so every other scoped surface finds it. A bound column also gives it that column\u2019s state',
         updateSpaceImage:
           '(field: "avatar" | "coverImage", imageFile: File, spaceUuid?): uploads and sets the space avatar or cover image',
         createSignalType:

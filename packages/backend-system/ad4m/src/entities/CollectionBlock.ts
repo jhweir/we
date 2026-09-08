@@ -96,6 +96,27 @@ export class CollectionBlock extends WeNode {
   @Property({ through: 'we://title' })
   title: string = '';
 
+  /**
+   * The vocabulary term this collection stands *for*, where it stands for one.
+   *
+   * A board's column is the case it exists for: a column bound to `todo` shows the work whose
+   * `status` is `todo`, so the column is a saved query as much as a container — its `children`
+   * are the order somebody put those cards in, and this is what decides which cards they are.
+   * Empty means the collection stands for nothing, which for a column is a **local lane**:
+   * "Thursday", "Waiting on Ana". Nothing arrives in one on its own, and dropping a card there
+   * says nothing about the work — which is exactly what a lane claiming no shared meaning
+   * should do.
+   *
+   * A slug rather than a link to the `TaskState` record, for the reason `TaskBlock.status` holds
+   * one: the vocabulary is a naming of values that already exist, so a column keeps working when
+   * a state is retired, and a task whose state nothing recognises can still be found and moved.
+   *
+   * Its own field rather than more meaning on `type`, which is already the post discriminator
+   * and was explicitly not to accumulate a third reading.
+   */
+  @Property({ through: 'we://slug' })
+  slug: string = '';
+
   @Property({ through: 'we://description' })
   description: string = '';
 

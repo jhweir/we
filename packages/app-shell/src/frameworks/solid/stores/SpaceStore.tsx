@@ -578,15 +578,24 @@ export interface SpaceStore {
    * `we://children` edges; the child itself is untouched.
    */
   moveChild: (childId: string, fromId: string, toId: string) => Promise<void>;
-  /** Make a board — a collection whose ordered children are the cards somebody has arranged. */
-  createBoard: (title: string, parentId?: string) => Promise<string>;
-  /**
-   * Record the order somebody dragged one column into. The ids of that column, in their new order;
-   * every other column keeps its own.
-   */
-  arrangeBoardColumn: (boardId: string, orderedIds: string[]) => Promise<void>;
-  /** Put a task in a state and give it a position on this board. Two facts, two writes. */
-  moveTaskOnBoard: (boardId: string, taskId: string, statusSlug: string) => Promise<void>;
+  /** Make a board — a collection whose ordered children are its columns, seeded from the vocabulary. */
+  createBoard: (title: string, parentId?: string, options?: { space?: boolean }) => Promise<string>;
+  /** The board for a container, or the space's own, making it if nobody has yet. Returns its id. */
+  openBoardFor: (anchorId?: string, title?: string) => Promise<string>;
+  /** Add a column — bound to a state when given a slug, a local lane when not. */
+  addBoardColumn: (boardId: string, name: string, slug?: string) => Promise<void>;
+  /** Take a column off a board. The column record only — never the work positioned in it. */
+  removeBoardColumn: (boardId: string, columnId: string) => Promise<void>;
+  /** Rename one column on this board. Its slug — its meaning — is untouched. */
+  renameBoardColumn: (columnId: string, name: string) => Promise<void>;
+  /** The order this board reads its columns in. */
+  reorderBoardColumns: (boardId: string, orderedIds: string[]) => Promise<void>;
+  /** Record the order somebody dragged one column's cards into. */
+  arrangeColumn: (columnId: string, orderedIds: string[]) => Promise<void>;
+  /** Move a card between columns — and write its state, when the column it joins names one. */
+  moveCardToColumn: (fromColumnId: string, toColumnId: string, cardId: string) => Promise<void>;
+  /** Make a task straight into a column, parented to the board's anchor when there is one. */
+  addTaskToColumn: (columnId: string, title: string, anchorId?: string) => Promise<void>;
   /**
    * Join or leave a node's participant roster — an RSVP. Writes only this agent's own entry, which
    * is what keeps the roster conflict-free without coordination.
@@ -1766,25 +1775,59 @@ export function SpaceStoreProvider(props: ParentProps) {
   }
 
   /**
-   * Make a board.
+   * Make a board, with a column for each state the community uses.
    *
    * A `CollectionBlock` like a call or a notes collection, so it inherits comments, signals, the
-   * feed and `deleteCollection` — and `mode: 'feed'` rather than `'document'`, which is the one
-   * field that must be right. `reconcileBlocks` refuses anything not `'document'` precisely because
-   * running it over a feed deletes every child the editing agent's tree omits, and on a shared board
-   * that is everyone else's cards.
+   * feed and the rest — and `mode: 'feed'` rather than `'document'`, which is the one field that
+   * must be right. `reconcileBlocks` refuses anything not `'document'` precisely because running it
+   * over a feed deletes every child the editing agent's tree omits, and on a shared board that is
+   * everyone else's cards.
+   *
+   * ## The columns are records, and they are written now rather than lazily
+   *
+   * A board's ordered `children` are its columns; each column's ordered `children` are the cards
+   * somebody arranged in it. Written at creation rather than materialised on the first drag, which
+   * was the alternative: lazy creation means two members dragging at the same moment both find no
+   * structure and both make one, and it means the first drag anybody makes rebuilds the column list
+   * under them — `taskStates` is a memo returning fresh objects and `<For>` is reference-keyed, so
+   * every column would remount and re-issue its subscription. Creating a board is already a
+   * deliberate act by one person; doing the work there costs one round trip and avoids both.
+   *
+   * The consequence, stated so it is a decision rather than an oversight: a state named *later* does
+   * not appear on a board made earlier. The work in it is not lost — it lands in the unplaced
+   * column, which is what that column is for — and the board's own "add column" offers the state.
    *
    * `parentId` puts the board inside another collection — a call's record, so the board belongs to
-   * the gathering it came out of. The board still arranges tasks from wherever they are; what the
-   * parent decides is where the *board* is listed, which is what an anchored Boards view reads. A
-   * board created while a view is narrowed and left loose in the space would vanish from the list it
-   * was created in.
+   * the gathering it came out of. `type: 'space'` marks the one board standing for the whole space,
+   * which is how the Boards view labels it and how `openBoardFor` finds it again.
    */
-  async function createBoard(title: string, parentId?: string): Promise<string> {
+  async function createBoard(title: string, parentId?: string, options?: { space?: boolean }): Promise<string> {
     const p = datasetStore.currentDataset()?.handle;
     if (!p || !title.trim()) return '';
     try {
-      const board = await CollectionBlock.create(p, { kind: 'board', mode: 'feed', title: title.trim(), type: '' });
+      const board = await CollectionBlock.create(p, {
+        kind: 'board',
+        mode: 'feed',
+        title: title.trim(),
+        type: options?.space ? 'space' : '',
+      });
+      /*
+        Seeded from what the community actually uses, so a new board opens looking like every other
+        surface that reads the vocabulary. Sequential rather than parallel: the columns have to exist
+        before `setChildren` can name them in order, and their order is the board's own.
+      */
+      const columns: string[] = [];
+      for (const state of offeredTaskStates()) {
+        const column = await CollectionBlock.create(p, {
+          kind: 'column',
+          mode: 'feed',
+          title: state.name,
+          slug: state.slug,
+          type: '',
+        });
+        columns.push(column.id);
+      }
+      if (columns.length) await board.setChildren(columns);
       if (parentId) {
         const parent = await CollectionBlock.findOne(p, { where: { id: parentId } });
         // A parent that has gone leaves the board loose rather than failing the create: the board is
@@ -1800,23 +1843,124 @@ export function SpaceStoreProvider(props: ParentProps) {
   }
 
   /**
-   * Record the order somebody dragged one column into.
+   * The board for a container — one call's, or the space's own — making it if nobody has yet.
    *
-   * A board's `children` are **position hints over a membership the state defines**, not the
-   * membership itself — the same relationship AD4M's ordering entries have to the data links they
-   * order, one level up. A task appears in a column because its status matches; where it sits in
-   * that column is this list. A task nobody has arranged is not in it and appends, which is the
-   * behaviour the ordered relation already gives for a member with no entry.
+   * Find-or-create rather than create, because every surface that opens a board calls this and only
+   * the first caller should write. Returns the id either way, so the caller opens what it asked for
+   * without knowing which happened.
    *
-   * That split is why a board can never hide work. Take the board away and every task is still in
-   * its state; take a task out of `children` and it still shows, merely unpositioned.
-   *
-   * **Only the moved column's order is written.** Columns are independent — the global list matters
-   * only through each column's filter of it — so any arrangement preserving every column's relative
-   * order is equivalent, and moving the column's ids to the front is the cheapest one that does.
-   * Rewriting the whole board on every drag would touch cards nobody moved.
+   * Reached from a click rather than from a view mounting, deliberately. Creating a board writes
+   * records into a space everybody shares, and a side effect of *navigating* is a poor way to do
+   * that: on a neighbourhood it would mean everyone who opened the tab raced to make the same board.
    */
-  async function arrangeBoardColumn(boardId: string, orderedIds: string[]): Promise<void> {
+  async function openBoardFor(anchorId?: string, title?: string): Promise<string> {
+    const p = datasetStore.currentDataset()?.handle;
+    if (!p) return '';
+    try {
+      if (anchorId) {
+        const anchor = await CollectionBlock.findOne(p, { where: { id: anchorId }, include: { children: true } });
+        const children = (anchor?.children ?? []) as unknown as CollectionBlock[];
+        const found = children.find((child) => child?.kind === 'board');
+        if (found) return found.id;
+      } else {
+        // A positive match on `type`, never `{ not: '' }`: an unwritten property is absent rather
+        // than empty on AD4M, so a negated compare excludes every ordinary board as well.
+        const space = await CollectionBlock.findOne(p, { where: { kind: 'board', type: 'space' } });
+        if (space) return space.id;
+      }
+      return await createBoard(title?.trim() || 'Everything', anchorId, { space: !anchorId });
+    } catch (error) {
+      console.error('SpaceStore: could not open that board', error);
+      toastService.error('Could not open that board');
+      return '';
+    }
+  }
+
+  /**
+   * Add a column to a board — one bound to a state, or a lane of this board's own.
+   *
+   * `slug` is the whole difference, and it is two different promises:
+   *
+   * - **With one**, the column *is* that state on this board. Work in that state arrives on its own,
+   *   including work an extraction pass wrote while nobody was looking, and dropping a card there
+   *   says the card is in that state — everywhere, on every board.
+   * - **Without one**, it is a local lane. Nothing arrives by itself, which is the price of claiming
+   *   no shared meaning, and a card put there is positioned rather than reclassified.
+   *
+   * So the caller says which, rather than this guessing from whether the name happens to match a
+   * state. A lane that turns out to matter is promoted by naming it in the space's vocabulary.
+   */
+  async function addBoardColumn(boardId: string, name: string, slug = ''): Promise<void> {
+    const p = datasetStore.currentDataset()?.handle;
+    if (!p || !boardId || !name.trim()) return;
+    try {
+      const board = await CollectionBlock.findOne(p, { where: { id: boardId } });
+      if (!board) return;
+      const column = await CollectionBlock.create(p, {
+        kind: 'column',
+        mode: 'feed',
+        title: name.trim(),
+        slug,
+        type: '',
+      });
+      await board.addChildren(column.id);
+    } catch (error) {
+      console.error('SpaceStore: could not add that column', error);
+      toastService.error('Could not add that column');
+    }
+  }
+
+  /**
+   * Take a column off a board — **the column only, never the work in it.**
+   *
+   * `deleteCollection` walks `children` and deletes descendants, which is right for a post and
+   * catastrophic here: a column's children are the tasks it *positions*, not tasks it owns. So this
+   * deletes the one record and leaves every card alone.
+   *
+   * Nothing is stranded, because membership never lived here. A card keeps its state, so it
+   * reappears — in another column bound to the same state, or in the unplaced column if this board
+   * no longer has one. That is the whole reason position and state are separate facts.
+   */
+  async function removeBoardColumn(boardId: string, columnId: string): Promise<void> {
+    const p = datasetStore.currentDataset()?.handle;
+    if (!p || !boardId || !columnId) return;
+    try {
+      const [board, column] = await Promise.all([
+        CollectionBlock.findOne(p, { where: { id: boardId } }),
+        CollectionBlock.findOne(p, { where: { id: columnId } }),
+      ]);
+      if (board) await board.removeChildren(columnId);
+      if (column) await column.delete();
+    } catch (error) {
+      console.error('SpaceStore: could not remove that column', error);
+      toastService.error('Could not remove that column');
+    }
+  }
+
+  /**
+   * Rename one column, on this board.
+   *
+   * The label only — the slug it binds to, which is its meaning, is untouched. So two boards may
+   * call one state different things, which is a presentation difference and not a disagreement:
+   * both still write the same `status`, and `semantic` still answers "is this outstanding" for
+   * either. Renaming what a state *is* called everywhere is Settings → Vocabulary.
+   */
+  async function renameBoardColumn(columnId: string, name: string): Promise<void> {
+    const p = datasetStore.currentDataset()?.handle;
+    if (!p || !columnId || !name.trim()) return;
+    try {
+      const column = await CollectionBlock.findOne(p, { where: { id: columnId } });
+      if (!column) return;
+      column.title = name.trim();
+      await column.save();
+    } catch (error) {
+      console.error('SpaceStore: could not rename that column', error);
+      toastService.error('Could not rename that column');
+    }
+  }
+
+  /** The order this board reads its columns in. Ordered `children`, so two draggers converge. */
+  async function reorderBoardColumns(boardId: string, orderedIds: string[]): Promise<void> {
     const p = datasetStore.currentDataset()?.handle;
     if (!p || !boardId || !Array.isArray(orderedIds) || !orderedIds.length) return;
     try {
@@ -1826,36 +1970,111 @@ export function SpaceStoreProvider(props: ParentProps) {
       const moved = new Set(orderedIds);
       await board.setChildren([...orderedIds, ...current.filter((id) => !moved.has(id))]);
     } catch (error) {
-      console.error('SpaceStore: could not save the board arrangement', error);
+      console.error('SpaceStore: could not reorder the columns', error);
+      toastService.error('Could not save that order');
+    }
+  }
+
+  /**
+   * Record the order somebody dragged one column into.
+   *
+   * The list is that column's cards as they now read — the ones already positioned and the ones that
+   * had simply matched the state — so writing it is what turns a card nobody had placed into one
+   * somebody has. Anything the list does not mention keeps its place, which matters only for a card
+   * that has since moved elsewhere.
+   *
+   * An ordered relation rather than a `position` scalar, and this is the thing that could not be
+   * done before: two people rearranging the same column at the same moment converge, where two
+   * writes of the same number lose one of the answers.
+   */
+  async function arrangeColumn(columnId: string, orderedIds: string[]): Promise<void> {
+    const p = datasetStore.currentDataset()?.handle;
+    if (!p || !columnId || !Array.isArray(orderedIds) || !orderedIds.length) return;
+    try {
+      const column = await CollectionBlock.findOne(p, { where: { id: columnId } });
+      if (!column) return;
+      const current = Array.isArray(column.children) ? (column.children as string[]) : [];
+      const moved = new Set(orderedIds);
+      /*
+        The whole visible order, then whatever `children` still names that this column no longer
+        shows — a stale hint for a card whose state changed on another surface. The executor diffs
+        before writing ordering entries, so sending the full order costs entries only for the cards
+        that actually moved, and a concurrent drag of a card nobody here touched is not overwritten.
+      */
+      await column.setChildren([...orderedIds, ...current.filter((id) => !moved.has(id))]);
+    } catch (error) {
+      console.error('SpaceStore: could not save the column arrangement', error);
       toastService.error('Could not save that arrangement');
     }
   }
 
   /**
-   * Put a task in a state, and give it a position on the board it was dropped on.
+   * Move a card from one column to another.
    *
-   * Two writes because they are two facts. The state is a property of the work and is what every
-   * other surface reads; the position is a property of this board and nobody else's. A task dragged
-   * between columns has changed both, and a task dragged on one board keeps whatever position it has
-   * on another.
+   * Up to three writes, because up to three things change. The card leaves one column's `children`
+   * and joins another's — position, which is this board's business alone. And **if the column it
+   * joins is bound to a state, the card's `status` is written too**, which every other surface
+   * reads: that is what makes "done is done" true rather than true-on-this-board.
+   *
+   * A lane writes no status, deliberately. Dropping a card under "Thursday" positions it here and
+   * says nothing about whether the work is finished, so nobody else's board moves.
+   *
+   * Added before removed, as `moveChild` is: both are round trips, so a failure between them leaves
+   * the card in two columns rather than in none — visible, and fixed by moving it again.
    */
-  async function moveTaskOnBoard(boardId: string, taskId: string, statusSlug: string): Promise<void> {
+  async function moveCardToColumn(fromColumnId: string, toColumnId: string, cardId: string): Promise<void> {
     const p = datasetStore.currentDataset()?.handle;
-    if (!p || !taskId || !statusSlug) return;
+    if (!p || !cardId || !toColumnId || fromColumnId === toColumnId) return;
     try {
-      const task = await getEntitiesForPerspective('TaskBlock', p)?.findOne(p, { where: { id: taskId } });
-      if (task) {
-        (task as Record<string, unknown>).status = statusSlug;
-        await (task as { save: () => Promise<unknown> }).save();
-      }
-      if (boardId) {
-        const board = await CollectionBlock.findOne(p, { where: { id: boardId } });
-        const current = Array.isArray(board?.children) ? (board!.children as string[]) : [];
-        if (board && !current.includes(taskId)) await board.addChildren(taskId);
+      const [from, to] = await Promise.all([
+        fromColumnId ? CollectionBlock.findOne(p, { where: { id: fromColumnId } }) : Promise.resolve(null),
+        CollectionBlock.findOne(p, { where: { id: toColumnId } }),
+      ]);
+      if (!to) return;
+      const current = Array.isArray(to.children) ? (to.children as string[]) : [];
+      if (!current.includes(cardId)) await to.addChildren(cardId);
+      if (from) await from.removeChildren(cardId);
+      if (to.slug) {
+        const task = await getEntitiesForPerspective('TaskBlock', p)?.findOne(p, { where: { id: cardId } });
+        if (task) {
+          (task as Record<string, unknown>).status = to.slug;
+          await (task as { save: () => Promise<unknown> }).save();
+        }
       }
     } catch (error) {
-      console.error('SpaceStore: could not move that task', error);
-      toastService.error('Could not move that task');
+      console.error('SpaceStore: could not move that card', error);
+      toastService.error('Could not move that card');
+    }
+  }
+  /**
+   * Make a task straight into a column.
+   *
+   * Two links rather than one, and both matter. The task is parented to the **anchor** when there is
+   * one — the call the board belongs to — so every other call-scoped surface finds it, which
+   * parenting it to the column instead would quietly prevent. Then it is linked into the column, so
+   * it opens where the person was looking.
+   *
+   * A bound column also gives it that column's state, so it would appear there anyway; the link is
+   * what puts it at a known position rather than at the end. A lane gives it none, so the link is
+   * the only reason it is there at all.
+   */
+  async function addTaskToColumn(columnId: string, title: string, anchorId?: string): Promise<void> {
+    const p = datasetStore.currentDataset()?.handle;
+    if (!p || !columnId || !title.trim()) return;
+    try {
+      const column = await CollectionBlock.findOne(p, { where: { id: columnId } });
+      if (!column) return;
+      const Task = getEntitiesForPerspective('TaskBlock', p);
+      if (!Task) return;
+      const task = await Task.create(
+        p,
+        { title: title.trim(), ...(column.slug ? { status: column.slug } : {}) },
+        anchorId ? { parent: { id: anchorId, predicate: 'we://children' } } : undefined,
+      );
+      await column.addChildren((task as { id: string }).id);
+    } catch (error) {
+      console.error('SpaceStore: could not add that task', error);
+      toastService.error('Could not add that task');
     }
   }
 
@@ -4040,8 +4259,14 @@ export function SpaceStoreProvider(props: ParentProps) {
     updatePost,
     moveChild,
     createBoard,
-    arrangeBoardColumn,
-    moveTaskOnBoard,
+    openBoardFor,
+    addBoardColumn,
+    removeBoardColumn,
+    renameBoardColumn,
+    reorderBoardColumns,
+    arrangeColumn,
+    moveCardToColumn,
+    addTaskToColumn,
     setAttending,
     mutedDids,
     mutedAgents,

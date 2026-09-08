@@ -189,6 +189,14 @@ relation gets the full query surface and can carry nothing about itself (no auth
 to comment on or rate); a reified one carries all of that and has no query pushdown at all. Declare
 what is a fact about the *type*; reify what is a claim about a *pair*.
 
+**Before changing anything about boards, read docs/architecture/boards.md.** A board's columns are
+records, and a column is *a saved query with an arrangement*: what is in it comes from each task's
+`status`, and the column's ordered `children` are only where the cards sit. That split is why work an
+extraction pass writes appears on every board without anyone placing it, why deleting a column must
+never delete its cards, and why the link state can be inconsistent after a partition and the board
+still renders one answer. The same doc records where new per-column state goes, so the entity does
+not accrete a scalar per feature.
+
 ---
 
 ## Contribution Surfaces (codebase work — not for JSON schema authoring)
@@ -2074,6 +2082,7 @@ CollectionBlock extends WeNode:
   - kind: string [we://kind]
   - mode: string [we://mode]
   - title: string [we://title]
+  - slug: string [we://slug]
   - description: string [we://description]
   - version: number [we://version]
   - textContent: string [we://text_content]
@@ -2846,9 +2855,15 @@ SpaceStore:
   - createPost(editorState: unknown): creates a new post
   - updatePost(postId: string, editorState: unknown): reconciles an edited post against its existing blocks — updates/reuses blocks whose id survived the edit, creates new ones, deletes ones no longer present
   - moveChild(childId: string, fromId: string, toId: string): moves a child between two collections — a card between kanban columns. Relinks the two children edges; the child itself is untouched
-  - createBoard(title: string, parentId?: string): makes a board — a CollectionBlock whose ordered children are the cards somebody has arranged. Returns its id. Its columns come from the space’s task states, so nothing about the board decides what the columns are. Pass parentId to put the board inside another collection (a call’s record), which is where an anchored Boards view lists it
-  - arrangeBoardColumn(boardId: string, orderedIds: string[]): records the order somebody dragged ONE column into — the ids of that column in their new order. A board’s children are position hints over a membership the state defines, so a task not in the list simply appends. Pair with we-sortable’s onReorder and pass { $: "arg.detail" }
-  - moveTaskOnBoard(boardId: string, taskId: string, statusSlug: string): puts a task in a state and gives it a position on this board. Two writes because they are two facts — the state is a property of the work that every surface reads, the position is this board’s alone. Pair with we-sortable’s onMoved
+  - createBoard(title: string, parentId?: string, options?: { space?: boolean }): makes a board — a CollectionBlock whose ordered children are its columns, one per state the community uses. Returns its id. Pass parentId to put the board inside another collection (a call’s record), which is where an anchored Boards view lists it
+  - openBoardFor(anchorId?: string, title?: string): the board for a container — one call’s, or the space’s own — making it if nobody has yet. Returns its id either way. Call it from a click rather than on mount: creating a board writes records into a space everybody shares
+  - addBoardColumn(boardId: string, name: string, slug?: string): adds a column. **With a slug** it IS that state on this board — matching work arrives on its own and dropping a card there changes the card’s state everywhere. **Without one** it is a local lane: nothing arrives by itself and a card put there is positioned rather than reclassified
+  - removeBoardColumn(boardId: string, columnId: string): takes a column off a board — the column record only, never the work in it. The cards keep their state, so they reappear in another column bound to it or in the unplaced column
+  - renameBoardColumn(columnId: string, name: string): renames one column on this board. Its slug — its meaning — is untouched; renaming a state everywhere is Settings → Vocabulary
+  - reorderBoardColumns(boardId: string, orderedIds: string[]): the order this board reads its columns in. Pair with we-sortable’s onReorder and pass { $: "arg.detail" }
+  - arrangeColumn(columnId: string, orderedIds: string[]): records the order somebody dragged one column’s cards into. An ordered relation, so two people rearranging at once converge instead of one write discarding the other. Pair with we-sortable’s onReorder
+  - moveCardToColumn(fromColumnId: string, toColumnId: string, cardId: string): moves a card between columns — and writes its state when the column it joins names one, which is what makes “done is done” true on every board. A lane writes no state. Pair with we-sortable’s onMoved
+  - addTaskToColumn(columnId: string, title: string, anchorId?: string): makes a task straight into a column, parented to the board’s anchor when there is one so every other scoped surface finds it. A bound column also gives it that column’s state
   - setAttending(nodeId: string, attending: boolean): joins or leaves a node's participant roster — an RSVP. Writes only this agent's own entry, so the roster stays conflict-free. Boolean, so a switch can pass `event.detail` bare
   - setAgentMuted(did: string, muted: boolean, description?: string): mutes or unmutes an agent for this agent everywhere, with an optional note. Positively phrased so a switch can pass `event.detail` bare
   - markRead(nodeId: string, spaceUuid?): marks a node read as of now, so it leaves unreadNodeIds. Silent on failure — a lost marker is a stale dot, not an error

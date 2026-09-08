@@ -4228,6 +4228,12 @@
           "required": false
         },
         {
+          "name": "slug",
+          "type": "string",
+          "predicate": "we://slug",
+          "required": false
+        },
+        {
           "name": "description",
           "type": "string",
           "predicate": "we://description",
@@ -7022,8 +7028,14 @@
         "updatePost",
         "moveChild",
         "createBoard",
-        "arrangeBoardColumn",
-        "moveTaskOnBoard",
+        "openBoardFor",
+        "addBoardColumn",
+        "removeBoardColumn",
+        "renameBoardColumn",
+        "reorderBoardColumns",
+        "arrangeColumn",
+        "moveCardToColumn",
+        "addTaskToColumn",
         "setAttending",
         "setAgentMuted",
         "markRead",

@@ -98,6 +98,7 @@ export interface CollectionBlockRecord extends WeNodeRecord {
   kind: string;
   mode: string;
   title: string;
+  slug: string;
   description: string;
   version: number;
   textContent: string;
