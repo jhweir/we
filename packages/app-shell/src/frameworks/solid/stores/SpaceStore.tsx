@@ -260,9 +260,8 @@ export interface ModuleSetting {
  * A state this space's work can be in, as a screen reads it.
  *
  * `defined` is the one field with no counterpart on the record: false means this is a default the
- * space has never written down. It matters because a default cannot be retired or renamed until it
- * exists — see `createTaskState`, which writes the whole resolved set the first time rather than
- * letting the first addition silently become the only state.
+ * space has never written down — a virtual state, which becomes a record the first time somebody
+ * reorders it, withdraws it, or names a state with its slug. See `adoptTaskState`.
  */
 export interface TaskStateView {
   /** Empty for a default the space has not written down. */
@@ -775,8 +774,8 @@ export interface SpaceStore {
   /** Withdraw a signal type from use, or bring it back. Never removes the signals given with it. */
   setSignalTypeRetired: (signalTypeId: string, retired: boolean) => Promise<void>;
   /**
-   * Name a state this community's work moves through. The first one also writes down the defaults,
-   * so adding a state never silently becomes replacing them.
+   * Name a state this community's work moves through. The defaults stay virtual beside it; one with
+   * a default's slug adopts that default. The space's own board gains a column for it.
    */
   createTaskState: (config: {
     name: string;
@@ -784,13 +783,17 @@ export interface SpaceStore {
     color?: string;
     icon?: string;
   }) => Promise<void>;
-  /** Withdraw a state from use, or bring it back. Never touches the work sitting in it. */
-  setTaskStateRetired: (stateId: string, retired: boolean) => Promise<void>;
+  /**
+   * Withdraw a state from use, or bring it back. Never touches the work sitting in it. By slug: a
+   * default has no record until this, or a reorder, adopts it.
+   */
+  setTaskStateRetired: (slug: string, retired: boolean) => Promise<void>;
   /**
    * Set the order this community reads its states in — the order of a board's columns. An ordered
    * relation, so two people reordering at once converge rather than one write discarding the other.
+   * By slug, since a default has no id until it is placed in an order, which adopts it.
    */
-  reorderTaskStates: (orderedIds: string[]) => Promise<void>;
+  reorderTaskStates: (orderedSlugs: string[]) => Promise<void>;
   upsertSignal: (nodeId: string, signalTypeId: string, value: number) => Promise<void>;
   navigateToSpace: (spaceId: string, view?: string) => Promise<void>;
   openRecordRef: (ref: string) => Promise<void>;
@@ -2254,6 +2257,14 @@ export function SpaceStoreProvider(props: ParentProps) {
     *none*. Reading an empty list as "no states" would empty every board in every space that existed
     before the vocabulary did.
 
+    The defaults are **virtual**. They are never written down as a set: a default becomes a record of
+    the community's own only when somebody does something to it that needs a record — reorders it,
+    withdraws it, or names a state with its slug. Materialising all three on the first create was the
+    alternative, and it had the race this branch treats as decisive everywhere else: two members
+    naming their first state on two nodes each wrote the three defaults, and the slug check read a
+    local memo that could not see the other node. Adopting one state at a time, on demand, makes the
+    race one duplicate at worst — and duplicates collapse on read, by slug, so even that is harmless.
+
     Loaded per space rather than queried in a template — unlike signal types, which templates resolve
     by slug through a hoisted `$query`. The difference is the fallback: a template can filter a list
     it was handed, and cannot substitute a list it was not.
@@ -2261,6 +2272,29 @@ export function SpaceStoreProvider(props: ParentProps) {
   const [ownTaskStates, setOwnTaskStates] = createSignal<TaskStateView[]>([]);
   const [taskStatesLoaded, setTaskStatesLoaded] = createSignal(false);
   const [taskStateOrder, setTaskStateOrder] = createSignal<string[]>([]);
+
+  /**
+   * One record per slug, the earliest written winning.
+   *
+   * Two nodes adopting the same default at the same moment produce two records with one slug, and a
+   * task names its state by slug — so to every task they are one state, and the list should say so
+   * too. The earliest is kept because it is the one most peers already hold; the later one is
+   * inert, never offered and never listed, and costs nothing.
+   */
+  function dedupeBySlug(records: TaskState[]): TaskState[] {
+    const stamp = (r: TaskState) =>
+      String(
+        (r as unknown as { timestamp?: unknown }).timestamp ??
+          (r as unknown as { createdAt?: unknown }).createdAt ??
+          '',
+      );
+    const bySlug = new Map<string, TaskState>();
+    for (const record of [...records].sort((a, b) => stamp(a).localeCompare(stamp(b)))) {
+      const slug = record.slug || deriveSlug(record.name || '');
+      if (!bySlug.has(slug)) bySlug.set(slug, record);
+    }
+    return [...bySlug.values()];
+  }
 
   async function loadTaskStates(): Promise<void> {
     const dataset = datasetStore.currentDataset()?.handle;
@@ -2277,7 +2311,7 @@ export function SpaceStoreProvider(props: ParentProps) {
       // diff-first idempotent path — a read in the common case — and the same step `loadShapes`
       // takes for exactly this reason.
       await ports.ensure(dataset, TaskState as never);
-      const records = await TaskState.findAll(dataset);
+      const records = dedupeBySlug(await TaskState.findAll(dataset));
       if (datasetStore.currentDataset()?.id !== uuid) return; // navigated away while loading
       // The community's chosen order, which is a separate fact from which states exist — see
       // `Space.taskStates`. A state missing from it is still a state; it simply has no position.
@@ -2309,7 +2343,13 @@ export function SpaceStoreProvider(props: ParentProps) {
   });
 
   /**
-   * The states this space uses — its own if it has any, otherwise the defaults.
+   * The states this space uses — its own records, and beneath them every default nobody has
+   * overridden.
+   *
+   * A record with a default's slug *is* that default, adopted: it replaces the virtual one, and
+   * whatever the community wrote on it — a name, an icon, a colour, `retired` — is what the state now
+   * is. So "To do" renamed to "Backlog" is one state with one slug, and every task holding `todo`
+   * follows it.
    *
    * Ordered by the community's own arrangement where it has one, and otherwise by semantic — what is
    * coming, what is happening, what is stuck, what is finished, what was dropped. That is the only
@@ -2318,22 +2358,23 @@ export function SpaceStoreProvider(props: ParentProps) {
    */
   const taskStates = createMemo<TaskStateView[]>(() => {
     const own = ownTaskStates();
-    const states = own.length
-      ? own
-      : DEFAULT_TASK_STATES.map((d) => ({
-          ...d,
-          icon: '',
-          id: '',
-          semantic: d.semantic as TaskStateView['semantic'],
-          retired: false,
-          defined: false,
-        }));
+    const overridden = new Set(own.map((state) => state.slug));
+    const virtual: TaskStateView[] = DEFAULT_TASK_STATES.filter((d) => !overridden.has(d.slug)).map((d) => ({
+      ...d,
+      icon: '',
+      id: '',
+      semantic: d.semantic as TaskStateView['semantic'],
+      retired: false,
+      defined: false,
+    }));
+    const states = [...own, ...virtual];
     /*
       The community's own order where it has one, and what a state *counts as* where it has not.
 
       Position hints over a membership, one more time: a state the order does not mention is not
       dropped, it follows the ones it does — which is what lets a newly named state appear at all
-      without anybody having to arrange the columns first.
+      without anybody having to arrange the columns first. A virtual default has no id and so no
+      position; reordering adopts it.
     */
     const chosen = taskStateOrder();
     // Reading order for a state nobody has positioned: what is coming, what is happening, what is
@@ -2344,7 +2385,7 @@ export function SpaceStoreProvider(props: ParentProps) {
       const i = state.id ? chosen.indexOf(state.id) : -1;
       return i === -1 ? Number.POSITIVE_INFINITY : i;
     };
-    return [...states].sort((a, b) => {
+    return states.sort((a, b) => {
       if (at(a) !== at(b)) return at(a) < at(b) ? -1 : 1;
       return (rank[a.semantic] ?? 0) - (rank[b.semantic] ?? 0);
     });
@@ -2362,10 +2403,11 @@ export function SpaceStoreProvider(props: ParentProps) {
    * "Blocked", get a Blocked column, and watch extraction keep writing the three defaults forever,
    * because nothing connected naming a state to telling the model it existed.
    *
-   * Only for a space that has defined its own states. One using the defaults already matches the
-   * declared hint, so writing it would customise every space to say what it already said — and a
+   * Only for a space that has written a state of its own. One still on the defaults already matches
+   * the declared hint, so writing it would customise every space to say what it already said — and a
    * customised hint stops receiving improvements from releases, which is a real cost to pay for a
-   * no-op.
+   * no-op. Once a space has any state of its own the hint lists everything it offers, virtual
+   * defaults included, since those are states too.
    *
    * Withdrawn states are left out: a state nobody may pick is not one a model should write.
    *
@@ -2378,8 +2420,8 @@ export function SpaceStoreProvider(props: ParentProps) {
   async function syncTaskStateHint(): Promise<void> {
     const dataset = datasetStore.currentDataset()?.handle;
     const ports = session.backendPorts()?.schemas;
-    const offered = offeredTaskStates().filter((state) => state.defined);
-    if (!dataset || !ports || !offered.length) return;
+    const offered = offeredTaskStates();
+    if (!dataset || !ports || !ownTaskStates().length || !offered.length) return;
     const list = offered.map((state) => `"${state.slug}"`).join(', ');
     /*
       Where a task lands when the conversation does not say.
@@ -2411,14 +2453,37 @@ export function SpaceStoreProvider(props: ParentProps) {
   }
 
   /**
+   * The record for a state, making one from the default where the community has never written it.
+   *
+   * The one place a default becomes a record. Called by whatever needs a record to act on — a
+   * withdrawal, a reorder — so the act that adopts a default is always one a person took on that
+   * state, and never a side effect of naming a different one. Answers null for a slug that is
+   * neither a record nor a default.
+   */
+  async function adoptTaskState(p: DatasetProxy, slug: string): Promise<TaskState | null> {
+    const existing = await TaskState.findAll(p, { where: { slug } }).catch(() => [] as TaskState[]);
+    if (existing.length) return dedupeBySlug(existing)[0] ?? null;
+    const fallback = DEFAULT_TASK_STATES.find((d) => d.slug === slug);
+    if (!fallback) return null;
+    return await TaskState.create(p, {
+      name: fallback.name,
+      slug: fallback.slug,
+      semantic: fallback.semantic,
+      color: fallback.color,
+    });
+  }
+
+  /**
    * Name a state this community's work moves through.
    *
-   * **The first one writes the defaults too.** A space with no states resolves to the three
-   * defaults; adding "Blocked" to it would flip that resolution from "the defaults" to "the space's
-   * own list", and a community that added one state would find they had exactly one — every task
-   * they own stranded under a state nothing shows. So the first create materialises what was
-   * previously implicit and then adds to it, which is the rule `setModuleEnabled` already follows
-   * ("writes the resolved list, so the first toggle also pins whatever was on by fallback").
+   * Nothing else is written. The defaults stay virtual, and a state whose slug matches one — "To do"
+   * given an icon, say — *is* that default adopted, replacing it in the list rather than sitting
+   * beside it. A slug matching a state the community already wrote is refused, since two records
+   * with one slug are one state to every task holding it.
+   *
+   * The space's own board — Everything, the catch-all — gains a column for the new state in the same
+   * act, so the one board whose job is to show all the work never lags the vocabulary. Boards people
+   * made are left alone; theirs offer the column from Unplaced when work in the state shows up.
    *
    * Slug derived from the name when none is given, as a signal type's is. It is what tasks store,
    * so it is not offered for editing afterwards — renaming is what `name` is for.
@@ -2432,14 +2497,8 @@ export function SpaceStoreProvider(props: ParentProps) {
     const p = datasetStore.currentDataset()?.handle;
     if (!p || !config.name?.trim()) return;
     try {
-      if (!ownTaskStates().length) {
-        for (const d of DEFAULT_TASK_STATES) {
-          await TaskState.create(p, { name: d.name, slug: d.slug, semantic: d.semantic, color: d.color });
-        }
-      }
       const slug = deriveSlug(config.name);
-      // A slug already in use would make two states indistinguishable to every task holding it.
-      if (taskStates().some((state) => state.slug === slug)) {
+      if (ownTaskStates().some((state) => state.slug === slug)) {
         toastService.error(`A state with the name "${config.name}" already exists`);
         return;
       }
@@ -2451,7 +2510,7 @@ export function SpaceStoreProvider(props: ParentProps) {
         icon: config.icon ?? '',
       });
       await loadTaskStates();
-      await syncTaskStateHint();
+      await Promise.all([syncTaskStateHint(), boards.addStateToSpaceBoard(slug, config.name.trim())]);
     } catch (error) {
       console.error('SpaceStore: could not create task state', error);
       toastService.error('Could not add that state');
@@ -2466,22 +2525,28 @@ export function SpaceStoreProvider(props: ParentProps) {
    * discards the first. It is the same reason a card's position lives on the board rather than on
    * the task, and the capability the model layer gained for exactly this.
    *
-   * Writes only the states that exist as records. A space still on the defaults has nothing to
-   * order — they have no ids — so the first act of reordering has to name them first, the same way
-   * the first `createTaskState` does.
+   * Takes slugs, because a default has no id until somebody does this to it: putting a default in an
+   * order is the act that adopts it, so every state the order names becomes a record here, and the
+   * relation is then written over their ids.
    */
-  async function reorderTaskStates(orderedIds: string[]): Promise<void> {
+  async function reorderTaskStates(orderedSlugs: string[]): Promise<void> {
     const p = datasetStore.currentDataset()?.handle;
     const space = currentSpace();
-    if (!p || !space?.id || !Array.isArray(orderedIds)) return;
-    const known = new Set(ownTaskStates().map((state) => state.id));
-    const ids = orderedIds.filter((id) => known.has(id));
-    if (!ids.length) return;
+    if (!p || !space?.id || !Array.isArray(orderedSlugs)) return;
+    const known = new Set(taskStates().map((state) => state.slug));
+    const slugs = orderedSlugs.filter((slug) => known.has(slug));
+    if (!slugs.length) return;
     try {
+      const ids: string[] = [];
+      for (const slug of slugs) {
+        const record = await adoptTaskState(p, slug);
+        if (record?.id) ids.push(record.id);
+      }
       const record = await Space.findOne(p, { where: { id: space.id } });
       if (!record) return;
       await record.setTaskStates(ids);
       setTaskStateOrder(ids);
+      await loadTaskStates();
     } catch (error) {
       console.error('SpaceStore: could not reorder task states', error);
       toastService.error('Could not save that order');
@@ -2495,12 +2560,15 @@ export function SpaceStoreProvider(props: ParentProps) {
    * names its state by slug, so deleting the state leaves every task holding a word nothing
    * defines. Retiring stops it being offered and leaves everything readable, and un-retiring puts
    * it back exactly as it was.
+   *
+   * Takes a slug rather than an id, because withdrawing a default is the act that adopts it — it has
+   * no record until it does.
    */
-  async function setTaskStateRetired(stateId: string, retired: boolean): Promise<void> {
+  async function setTaskStateRetired(slug: string, retired: boolean): Promise<void> {
     const p = datasetStore.currentDataset()?.handle;
-    if (!p || !stateId) return;
+    if (!p || !slug) return;
     try {
-      const record = await TaskState.findOne(p, { where: { id: stateId } });
+      const record = await adoptTaskState(p, slug);
       if (!record) return;
       record.retired = retired;
       await record.save();

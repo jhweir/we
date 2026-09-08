@@ -17,17 +17,25 @@ import { field, formModal, sectionCard } from '@we/template-kit';
  * semantic is the small closed fact underneath the free one, and picking it is the one part of
  * adding a state that is not merely naming.
  *
- * Three values because those are the only distinctions anything outside a board needs, and the
- * picker says what each is *for* rather than what it is called, since the whole point is that the
- * name is the community's and the meaning is shared.
+ * Five values, sized by the questions that have to be answerable from outside a space — see the
+ * table on `TaskState.semantic` — and the picker says what each is *for* rather than what it is
+ * called, since the whole point is that the name is the community's and the meaning is shared.
+ *
+ * ## Why the defaults are shown but not stored
+ *
+ * A space starts with three states it has never written down. They are listed here as "default"
+ * because they are real — every task in a new space holds one of their slugs — but nothing is
+ * written until somebody acts on one: dragging it into an order, withdrawing it, or naming a state
+ * with its slug. That act adopts it. Writing all three down the moment anybody added a fourth was
+ * the alternative, and two members doing so on two nodes at once wrote six.
  *
  * ## Why states are retired rather than deleted
  *
  * A task names its state by slug, so removing the state leaves the work holding a word nothing
  * defines. Unlike a connection type — where deleting leaves a connection that keeps its label and
  * loses its colour, a fair degradation — a task with an unrecognised state falls out of every
- * column. It is not lost (the tasks view gathers those into a column of their own so they can be
- * moved somewhere real), but it is displaced, and displacing somebody's work to tidy a vocabulary
+ * column. It is not lost (a board gathers those into a column of their own so they can be moved
+ * somewhere real), but it is displaced, and displacing somebody's work to tidy a vocabulary
  * is not a trade this offers. `SignalType` reached the same conclusion first.
  */
 
@@ -186,9 +194,9 @@ const stateRow: SchemaNode = {
               /*
                 A state the space has never written down.
 
-                Worth showing rather than hiding: it explains why there is nothing to withdraw yet,
-                and it is honest about the fallback — these three are what a space has until it
-                decides otherwise, and adding any state writes all of them down at once.
+                Worth showing rather than hiding: it is honest about the fallback — these three are
+                what a space has until it decides otherwise — and it says what will happen: acting on
+                one makes it the community's own.
               */
               type: '$if',
               props: {
@@ -211,28 +219,22 @@ const stateRow: SchemaNode = {
     },
     {
       /*
-        Withdraw, not delete — and absent entirely for a state the space has not written down, which
-        has no record to withdraw. Adding any state materialises these, and then they can be.
+        Withdraw, not delete. By slug, so a default can be withdrawn too: the store adopts it — writes
+        the record — as part of the same act, which is the only moment a default becomes one.
       */
-      type: '$if',
+      type: 'we-button',
       props: {
-        condition: { $: 'state.defined' },
-        then: {
-          type: 'we-button',
-          props: {
-            size: 'xs',
-            variant: 'ghost',
-            title: { $: "state.retired ? 'Bring this state back' : 'Stop offering this state'" },
-            onClick: {
-              $action: 'spaceStore.setTaskStateRetired',
-              args: [{ $: 'state.id' }, { $: '!state.retired' }],
-            },
-          },
-          children: [
-            { type: 'we-icon', props: { name: { $: "state.retired ? 'arrow-counter-clockwise' : 'eye-slash'" } } },
-          ],
+        size: 'xs',
+        variant: 'ghost',
+        title: { $: "state.retired ? 'Bring this state back' : 'Stop offering this state'" },
+        onClick: {
+          $action: 'spaceStore.setTaskStateRetired',
+          args: [{ $: 'state.slug' }, { $: '!state.retired' }],
         },
       },
+      children: [
+        { type: 'we-icon', props: { name: { $: "state.retired ? 'arrow-counter-clockwise' : 'eye-slash'" } } },
+      ],
     },
   ],
 };
@@ -258,14 +260,13 @@ export const taskStatesSection: SchemaNode = sectionCard({
         people reordering at once converge instead of one write discarding the other. That is the
         same reason a card's position lives on the board rather than on the task.
 
-        Locked until the space has states of its own: the defaults have no records and so nothing to
-        order, and the first state named writes all of them down.
+        The rows are keyed by slug rather than id, because a default has no id until it is placed in
+        an order — and placing it is what adopts it.
       */
       type: 'we-sortable',
       props: {
         direction: 'vertical',
         width: '100%',
-        locked: { $: '!first(spaceStore.taskStates).defined' },
         onReorder: { $action: 'spaceStore.reorderTaskStates', args: [{ $: 'arg.detail' }] },
       },
       children: [
@@ -280,7 +281,7 @@ export const taskStatesSection: SchemaNode = sectionCard({
               // `data-we-id` on a native element: a component's props are assigned as DOM
               // properties, so the attribute the sortable looks for would never exist on one.
               type: 'div',
-              props: { 'data-we-id': { $: 'state.id' }, style: { width: '100%' } },
+              props: { 'data-we-id': { $: 'state.slug' }, style: { width: '100%' } },
               children: [stateRow],
             },
           ],
