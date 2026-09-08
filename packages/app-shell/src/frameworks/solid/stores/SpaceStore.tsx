@@ -1920,18 +1920,27 @@ export function SpaceStoreProvider(props: ParentProps) {
     const p = datasetFor(dataset);
     if (!p || !collectionId) return '';
     try {
+      /*
+        `board` is hydrated; `children` deliberately is not.
+
+        Including `children` here failed outright — "the relation declares no target class, so its
+        targets cannot be hydrated" — even though the class declares `polymorphic: true` and the
+        renderer's own query path hydrates the same relation happily. Whatever the difference is, it
+        is not needed: an un-included to-many comes back as the ids, which is all this wants. Reading
+        the ids is also cheaper than hydrating every block in a call to find out whether any is a
+        task. See `notes/we/September-2026/ad4m-subscription-recovery.md`.
+      */
       const anchor = await CollectionBlock.findOne(p, {
         where: { id: collectionId },
-        include: { children: true, board: true },
+        include: { board: true },
       });
       if (!anchor) return '';
       const existing = anchor.board as unknown as CollectionBlock | undefined;
       if (existing?.id) return existing.id;
-      const children = (anchor.children ?? []) as unknown as CollectionBlock[];
+      const ids = (Array.isArray(anchor.children) ? anchor.children : []) as string[];
 
       // A bare list of ids is native on this backend — it pushes down to a VALUES clause — so this
       // asks "are any of these children tasks?" in one round trip rather than hydrating them all.
-      const ids = children.map((child) => child?.id).filter((id): id is string => !!id);
       if (!ids.length) return '';
       const Task = getEntitiesForPerspective('TaskBlock', p);
       const tasks = await Task?.findAll(p, { where: { id: ids }, limit: 1 });
