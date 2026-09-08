@@ -447,6 +447,43 @@ export function compileEntities(manifest: EntityManifest, runtime: EntityRuntime
         }
         notify(dataset);
       };
+
+      /*
+        The whole list at once, in this order — the accessor an *ordered* relation is written through.
+        `setChildren` on AD4M diffs the list against what it holds and records only what moved; here
+        the list simply becomes the row's, since nothing concurrent can happen to an in-memory table.
+        Without it a consumer that arranges a relation — a board column — had no accessor on this
+        backend at all, and the fixtures could only append.
+      */
+      if (relation.cardinality === 'many') {
+        proto[`set${suffix}`] = async function (this: AnyRow, related: unknown[]): Promise<void> {
+          const dataset = homes.get(this);
+          if (!dataset) throw new Error(`${name}.set${suffix}(): this instance was never loaded from a dataset`);
+          const next = (Array.isArray(related) ? related : [])
+            .map((entry) => (typeof entry === 'string' ? entry : (entry as AnyRow)?.id))
+            .filter((id): id is string => typeof id === 'string' && id.length > 0);
+          const current = Array.isArray(this[relation.name]) ? (this[relation.name] as string[]) : [];
+          const rowsOf = (id: string): AnyRow | undefined =>
+            relation.target
+              ? tableOf(dataset, relation.target).find((r) => r.id === id)
+              : Object.values(dataset.tables)
+                  .flatMap((rows) => rows as AnyRow[])
+                  .find((r) => r.id === id);
+          for (const id of current) {
+            if (next.includes(id)) continue;
+            const targetRow = rowsOf(id);
+            if (targetRow) delete targetRow[relation.foreignKey];
+          }
+          for (const id of next) {
+            const targetRow = rowsOf(id);
+            if (targetRow) targetRow[relation.foreignKey] = this.id;
+          }
+          this[relation.name] = next;
+          const row = tableOf(dataset, name).find((r) => r.id === this.id);
+          if (row) row[relation.name] = next;
+          notify(dataset);
+        };
+      }
     }
 
     classes[name] = Entity as unknown as EntityClassLike;

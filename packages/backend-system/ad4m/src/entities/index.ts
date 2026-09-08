@@ -36,6 +36,7 @@ export * from './SpacePreference';
 export * from './SpaceTemplatePreference';
 export * from './TagBlock';
 export * from './TaskBlock';
+export * from './TaskState';
 export * from './Template';
 export * from './TextBlock';
 export * from './Theme';

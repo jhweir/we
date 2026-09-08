@@ -43,6 +43,7 @@ export type AssertClassesSatisfyContract = [
   Satisfies<InstanceType<typeof C.SpaceTemplatePreference>, M.SpaceTemplatePreferenceRecord>,
   Satisfies<InstanceType<typeof C.TagBlock>, M.TagBlockRecord>,
   Satisfies<InstanceType<typeof C.TaskBlock>, M.TaskBlockRecord>,
+  Satisfies<InstanceType<typeof C.TaskState>, M.TaskStateRecord>,
   Satisfies<InstanceType<typeof C.Template>, M.TemplateRecord>,
   Satisfies<InstanceType<typeof C.TextBlock>, M.TextBlockRecord>,
   Satisfies<InstanceType<typeof C.Topic>, M.TopicRecord>,

@@ -14,7 +14,7 @@
  * ## Why a URI-shaped string rather than a struct
  *
  * A struct would be a nicer type and a worse key. Addresses are used as `Map` keys, `Set` members,
- * DOM ids, and persisted values on a board's nodes; every one of those wants a primitive. A struct
+ * DOM ids, and persisted values on a canvas's nodes; every one of those wants a primitive. A struct
  * would mean a canonical-serialisation function that has to agree with itself everywhere, which is
  * the same string with extra steps and a new class of bug when two call sites serialise differently.
  *
@@ -77,7 +77,7 @@ function dec(segment: string): string {
  *
  * `dataset` should be the id that is **the same on every agent** when one exists — a shared/global
  * dataset id rather than a local uuid. Two peers looking at one shared space must produce identical
- * addresses, or a board's saved positions land on nodes only their author can see. Where a dataset is
+ * addresses, or a canvas's saved positions land on nodes only their author can see. Where a dataset is
  * purely local the local id is correct and the question does not arise.
  */
 export function entityAddress(dataset: string, type: string, id: string): string {
@@ -118,7 +118,7 @@ export function resourceAddress(uri: string): string {
 /**
  * Parse an address, or `null` if it is not one.
  *
- * Returns `null` rather than throwing because addresses arrive from persisted board data and from
+ * Returns `null` rather than throwing because addresses arrive from persisted canvas data and from
  * expanders written by other people: an unreadable one should drop a node, not take down a render.
  */
 export function parseAddress(address: string): NodeAddress | null {

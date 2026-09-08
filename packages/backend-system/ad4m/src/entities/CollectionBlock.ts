@@ -4,7 +4,7 @@
  * The manifest module is the source of truth: its schema, hints and prose. Rebuild with
  * `pnpm --filter @we/entities generate:classes` after changing it.
  */
-import { Flag, HasMany, HasManyMethods, Model, Property } from '@coasys/ad4m';
+import { Flag, HasMany, HasManyMethods, HasOne, Model, Property } from '@coasys/ad4m';
 import { FILE_STORAGE_LANGUAGE } from '@we/entities';
 
 import { ExtractionPass } from './ExtractionPass';
@@ -18,6 +18,16 @@ export class CollectionBlock extends WeNode {
   @Property({ through: 'we://editor_state', resolveLanguage: FILE_STORAGE_LANGUAGE })
   editorState: string | null = null;
 
+  /**
+   * The **structural** node type — `root` for a composition, `collection` for a nested one — which
+   * the serializer round-trips.
+   *
+   * Semantic values do not belong here; that is `kind`. Boards briefly marked which one was
+   * canonical with `type: 'space'` and `type: 'anchor'`, which is the mistake this field's own
+   * documentation names (see `kind`, and the transcribe module writing `tag: 'transcript'` into
+   * `TextBlock.style`). It is a relation now — `CollectionBlock.board` and `Space.board` — which
+   * also converges where a marker could not.
+   */
   @Property({ through: 'we://type' })
   type: string = '';
 
@@ -96,6 +106,27 @@ export class CollectionBlock extends WeNode {
   @Property({ through: 'we://title' })
   title: string = '';
 
+  /**
+   * The vocabulary term this collection stands *for*, where it stands for one.
+   *
+   * A board's column is the case it exists for: a column bound to `todo` shows the work whose
+   * `status` is `todo`, so the column is a saved query as much as a container — `arranges` is
+   * the order somebody put those cards in, and this is what decides which cards they are.
+   * Empty means the collection stands for nothing, which for a column is a **local lane**:
+   * "Thursday", "Waiting on Ana". Nothing arrives in one on its own, and dropping a card there
+   * says nothing about the work — which is exactly what a lane claiming no shared meaning
+   * should do.
+   *
+   * A slug rather than a link to the `TaskState` record, for the reason `TaskBlock.status` holds
+   * one: the vocabulary is a naming of values that already exist, so a column keeps working when
+   * a state is retired, and a task whose state nothing recognises can still be found and moved.
+   *
+   * Its own field rather than more meaning on `type`, which is already the post discriminator
+   * and was explicitly not to accumulate a third reading.
+   */
+  @Property({ through: 'we://slug' })
+  slug: string = '';
+
   @Property({ through: 'we://description' })
   description: string = '';
 
@@ -118,9 +149,78 @@ export class CollectionBlock extends WeNode {
    * The target is empty because a collection holds text, images, tasks, further collections and
    * whatever a community has since defined — which also makes it polymorphic by default, so
    * each child is read as the class it actually is rather than as a bare reference.
+   *
+   * **This is ownership.** Everything that walks a collection — deleting it, reconciling an
+   * edit, opening it in the graph — follows `children` and treats what it finds as the
+   * collection's own. A board's columns are its children for exactly that reason: deleting the
+   * board should take them. The cards a column *positions* are not, which is what `arranges`
+   * is for.
    */
   @HasMany({ through: 'we://children', ordering: { strategy: 'linkedList' }, polymorphic: true })
   children: string[] = [];
+
+  /**
+   * Records this collection **arranges without owning** — a board column's cards, in the order
+   * somebody dragged them into.
+   *
+   * Its own relation rather than more meaning on `children`, because the two are different
+   * facts and every walker in the codebase reads `children` as the first one. `deleteBlocks`
+   * recurses through it, `reconcileBlocks` diffs against it, the graph's collection expander
+   * opens it, and an `include` on a call returns it. Had a column's cards sat there, deleting a
+   * call whose board held a card from elsewhere would have deleted that card; and the only thing
+   * saying "these children are not owned" would have been `kind: 'column'`, which is a free
+   * label registered nowhere — the lookup-by-label this class's own `mode` docblock refuses. A
+   * fact that changes what code may do to a record travels with the record, or here, with the
+   * link.
+   *
+   * `ordered` for the same reason `children` is, and it is the reason a column is a record at
+   * all: an ordered relation is a conflict-free sequence in the backend, so two people arranging
+   * one column at the same moment converge. Untyped, because a column can arrange whatever a
+   * board is about — tasks today, and any record with a state field or none tomorrow.
+   *
+   * A board carries it too, for what it holds in **no column**: a card whose lane was deleted
+   * stays on the board through this until a column claims it. Membership of a made board is the
+   * union of these across the board and its columns; see `docs/architecture/boards.md`.
+   */
+  @HasMany({ through: 'we://arranges', ordering: { strategy: 'linkedList' }, polymorphic: true })
+  arranges: string[] = [];
+
+  /**
+   * What this board draws its work from, where it draws any: the Space record for the space's
+   * own board, a container's record for that container's board. Empty means the board shows
+   * only what somebody put on it.
+   *
+   * On the board rather than inferred from which container points at it, because that inference
+   * was made by every surface that rendered a board and had to be made correctly each time — a
+   * view compared the open board against `Space.board` and the anchor's `board`, a template
+   * passed a literal, and a third surface would have had to learn the rule or silently shown
+   * everything or nothing. A board that knows what it gathers can be rendered by anything that
+   * has its id.
+   *
+   * Distinct from `CollectionBlock.board` / `Space.board`, which say which board is the
+   * container's **canonical** one. Those stay single-valued links because two boards claiming
+   * to be *the* one is a race that has to converge; two boards both gathering from the same
+   * container is merely two boards showing the same work, which is harmless and occasionally
+   * wanted. Untyped, since the two things it can name are a Space and a CollectionBlock.
+   */
+  @HasOne({ through: 'we://gathers', polymorphic: true })
+  gathers?: string;
+
+  /**
+   * The board this collection's work is arranged on — the canonical one, where it has several.
+   *
+   * A fact about the **collection**, not about the board: "the board for this call" is something
+   * the call knows, the way `taskStates` is something a space knows. Declared rather than marked
+   * with a value on the board, because a marker cannot stop two boards claiming to be the one —
+   * two members pressing the button at the same moment on two nodes would produce two — where a
+   * single-valued link converges and the loser is simply an ordinary board in the list.
+   *
+   * Distinct from being *in* `children`. A call may hold any number of boards, all of them its
+   * children and all listed together; this says which of them extraction lands on and which
+   * gathers the call's work rather than only holding what somebody put there.
+   */
+  @HasOne(() => CollectionBlock, { through: 'we://board' })
+  board?: CollectionBlock;
 
   /**
    * Every time a model was asked to read this collection — see {@link ExtractionPass}.
@@ -133,4 +233,7 @@ export class CollectionBlock extends WeNode {
   extractionPasses: string[] = [];
 }
 
-export interface CollectionBlock extends HasManyMethods<'children'> {}
+export interface CollectionBlock extends HasManyMethods<'children' | 'arranges'> {
+  /** Generated by @HasOne — links a new CollectionBlock as this collectionblock's board. */
+  setBoard(value: CollectionBlock): Promise<void>;
+}

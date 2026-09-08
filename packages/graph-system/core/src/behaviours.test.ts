@@ -106,10 +106,10 @@ describe('dragNodeBehaviour', () => {
     );
 
     const pinned = fakeContext();
-    const board = dragNodeBehaviour({ pin: true });
-    board.onPointerDown!(input(100, 100), pinned);
-    board.onPointerMove!(input(150, 100), pinned);
-    board.onPointerUp!(input(150, 100), pinned);
+    const canvas = dragNodeBehaviour({ pin: true });
+    canvas.onPointerDown!(input(100, 100), pinned);
+    canvas.onPointerMove!(input(150, 100), pinned);
+    canvas.onPointerUp!(input(150, 100), pinned);
     expect(pinned.pin).not.toHaveBeenCalledWith('n1', null);
   });
 

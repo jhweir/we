@@ -62,10 +62,10 @@ const OUTWARD: Record<EdgeSide, readonly [number, number]> = {
 /**
  * The anchors an edge is carrying in its data bag, if any.
  *
- * Read by those names rather than under a `board`-ish prefix, for the reason the `manual` layout
- * reads `x`/`y` by theirs: an anchor is a fact about a graph edge and not about boards, so anything
+ * Read by those names rather than under a `canvas`-ish prefix, for the reason the `manual` layout
+ * reads `x`/`y` by theirs: an anchor is a fact about a graph edge and not about canvases, so anything
  * that knows which side a connection should leave from can say so and the engine will honour it.
- * The board seed is simply the first thing that does.
+ * The canvas seed is simply the first thing that does.
  *
  * Anything that is not one of the four sides is dropped rather than passed on. A stored value can be
  * whatever a peer wrote — this is a shared, writable data layer — and a bad one reaching the router
@@ -114,7 +114,7 @@ export function endOf(
  * Every kind of malformed input answers with no waypoints rather than throwing. This is a shared,
  * writable, peer-to-peer data layer: the blob is whatever the last writer wrote, possibly by an
  * older version of this code or by something that is not this code at all, and a route that threw on
- * one bad record would take the whole board's rendering down with it.
+ * one bad record would take the whole canvas's rendering down with it.
  */
 export function waypointsOf(data: Record<string, unknown> | undefined): EdgeWaypoint[] {
   const raw = data?.waypoints;
@@ -274,7 +274,7 @@ function departure(
  *
  * `along` runs from the source (0) to the target (1); `across` is perpendicular, in the same units,
  * so a bend keeps its proportions. This is the whole difference between a route that survives
- * somebody tidying a board and one that becomes litter: in world coordinates, moving either card
+ * somebody tidying a canvas and one that becomes litter: in world coordinates, moving either card
  * leaves the line doglegging through empty space, and the first rearrangement turns every hand-drawn
  * route into a mess nobody chose. Both ends move here and the shape follows them.
  *
@@ -347,7 +347,7 @@ export function splineThrough(points: Point[]): { control: Point; control2: Poin
  * The same points joined at right angles — one corner per leg, on the axis that leg mostly runs.
  *
  * Deterministic rather than clever: a router that chose corners by looking at what else is on the
- * board would move lines nobody touched every time a card did. The point of a waypoint is that the
+ * canvas would move lines nobody touched every time a card did. The point of a waypoint is that the
  * shape is somebody's decision, so the legs between them follow one rule and stay put.
  */
 export function orthogonalThrough(points: Point[]): { to: Point }[] {
@@ -479,7 +479,7 @@ function trimToBox(from: Point, to: Point, halfWidth: number, halfHeight: number
  *
  * `step` is the exception and knowingly so: an anchor moves where it attaches, and its corners are
  * still derived from the axis the edge mostly runs along. Cross-axis anchors on an orthogonal route
- * want a router that solves the whole path, which is a different piece of work; the shape a board
+ * want a router that solves the whole path, which is a different piece of work; the shape a canvas
  * uses is `smooth`.
  *
  * `waypoints` are points the route must pass through, in world coordinates — somebody's decision

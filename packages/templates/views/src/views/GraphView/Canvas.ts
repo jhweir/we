@@ -1,14 +1,14 @@
 import type { SchemaNode } from '@we/schema-shared';
 import { composerModal, emptyState, field, formModal } from '@we/template-kit';
 
-import { boardLegend } from './Legend';
+import { canvasLegend } from './Legend';
 import { clearOnEmptySelection, selectNode } from './NodeDetail';
 
 /**
- * The board — the same engine, with position as the data.
+ * The canvas — the same engine, with position as the data.
  *
  * Every other mode on this route *derives* an arrangement: force settles a knowledge map, tree
- * ranks containment, the schema map is laid out from relations nobody chose. A board is the one
+ * ranks containment, the schema map is laid out from relations nobody chose. A canvas is the one
  * where somebody put a thing somewhere because that is what they meant, and the layout's whole job
  * is to leave it alone. `manual` reads each card's own `x`/`y`; `drag-node` with `pin: true` is what
  * makes a dropped card stay dropped rather than being reclaimed on the next change; and
@@ -16,10 +16,10 @@ import { clearOnEmptySelection, selectNode } from './NodeDetail';
  *
  * ## What a card is
  *
- * A `CollectionBlock`, parented to the board through `we://children` — which is to say, a post that
- * happens to live on a board. That is not a shortcut: it means a card holds composed content
+ * A `CollectionBlock`, parented to the canvas through `we://children` — which is to say, a post that
+ * happens to live on a canvas. That is not a shortcut: it means a card holds composed content
  * (`BlockComposer` writes it, `BlockRenderer` reads it), carries comments and signals like anything
- * else, and is found by everything that already walks a collection. Nothing here is board-shaped
+ * else, and is found by everything that already walks a collection. Nothing here is canvas-shaped
  * except the two numbers.
  *
  * ## Reading and editing
@@ -35,26 +35,26 @@ import { clearOnEmptySelection, selectNode } from './NodeDetail';
  * revisiting after this has been used, not before.
  */
 
-/** Which board is open. A picker writes it; the seed refuses to load until it is set. */
-const BOARD = { $: 'local.boardId' };
+/** Which canvas is open. A picker writes it; the seed refuses to load until it is set. */
+const CANVAS = { $: 'local.canvasId' };
 
-const boardCards: SchemaNode = {
+const canvasCards: SchemaNode = {
   type: 'GraphView',
   props: {
-    // The `board` seed reads the board's contents *and* the placements recorded against it, and
-    // merges the coordinates into each node. A template names the board and nothing else.
-    // `connections` draws the relationships whose two ends are both on this board — the same
+    // The `canvas` seed reads the canvas's contents *and* the placements recorded against it, and
+    // merges the coordinates into each node. A template names the canvas and nothing else.
+    // `connections` draws the relationships whose two ends are both on this canvas — the same
     // records the knowledge map draws as edges, seen from the arrangement somebody made instead of
     // from the query that found them.
-    // `typeStyles` is the board's key, read back: a colour per kind of thing, which every card of
+    // `typeStyles` is the canvas's key, read back: a colour per kind of thing, which every card of
     // that kind is drawn in unless it carries one of its own.
     // `routes` is the same idea for the lines: which side of a card each connection leaves and
     // arrives on, where somebody has pinned it rather than letting the geometry decide.
     seeds: {
-      source: 'board',
-      options: { board: BOARD, connections: 'Relationship', typeStyles: 'TypeStyle', routes: 'EdgeRoute' },
+      source: 'canvas',
+      options: { canvas: CANVAS, connections: 'Relationship', typeStyles: 'TypeStyle', routes: 'EdgeRoute' },
     },
-    // Nothing opens automatically: a board shows what is on it, and drilling into a card's own
+    // Nothing opens automatically: a canvas shows what is on it, and drilling into a card's own
     // blocks would turn a wall of notes into a tree of fragments.
     expansion: { defaultDepth: 0 },
     layout: { type: 'manual' },
@@ -70,7 +70,7 @@ const boardCards: SchemaNode = {
         Clipped, not scrolled, and that is the design: a card is a *preview*, and what does not fit
         is reached by opening it. Below half zoom it falls back to the label, because a hundred
         documents rendered at once is a hundred component trees and none of them is legible at the
-        size where a board reads as coloured rectangles.
+        size where a canvas reads as coloured rectangles.
       */
       {
         style: {
@@ -90,13 +90,13 @@ const boardCards: SchemaNode = {
       { when: { type: 'TaskBlock' }, style: { color: 'primary-50', labelColor: 'primary-800' } },
       { when: { type: 'EventBlock' }, style: { color: 'warning-50', labelColor: 'warning-800' } },
       /*
-        The board's key: a colour per kind of thing, decided once and applied to every card of that
+        The canvas's key: a colour per kind of thing, decided once and applied to every card of that
         kind. In front of the rules above — which are this template's opinion about what a note and a
         task look like — and behind the card's own colour below, because they answer different
-        questions. "Tasks are amber here" is a fact about the board; "this one is red" is a fact
+        questions. "Tasks are amber here" is a fact about the canvas; "this one is red" is a fact
         about the card.
       */
-      { style: { color: { from: 'data.boardTypeColor' } } },
+      { style: { color: { from: 'data.canvasTypeColor' } } },
       /*
         Last, and read off each card: the presentation somebody chose, in front of every rule above.
 
@@ -106,16 +106,16 @@ const boardCards: SchemaNode = {
         whatever the rules above gave it — that deferral is what makes this a *front* layer rather
         than a replacement for the ones behind it.
 
-        The board seed namespaces these on their way out of the placement, so `boardWidth` cannot be
+        The canvas seed namespaces these on their way out of the placement, so `canvasWidth` cannot be
         confused with an image's own pixel width.
       */
       {
         style: {
-          width: { from: 'data.boardWidth' },
-          height: { from: 'data.boardHeight' },
-          contentScale: { from: 'data.boardContentScale' },
-          cardShape: { from: 'data.boardCardShape' },
-          color: { from: 'data.boardColor' },
+          width: { from: 'data.canvasWidth' },
+          height: { from: 'data.canvasHeight' },
+          contentScale: { from: 'data.canvasContentScale' },
+          cardShape: { from: 'data.canvasCardShape' },
+          color: { from: 'data.canvasColor' },
         },
       },
     ],
@@ -140,23 +140,23 @@ const boardCards: SchemaNode = {
     ],
     edgeStyle: [
       { style: { curve: 'smooth', arrow: 'target', color: 'primary-500', width: 2, showLabel: true } },
-      // One rule per kind the community has named, exactly as the knowledge map does — a board's
+      // One rule per kind the community has named, exactly as the knowledge map does — a canvas's
       // connections mean the same things and should look the same way.
       {
         $: "local.relationshipKinds.map(item, { when: { 'data.relationshipTypeId': item.id }, style: { showLabel: true, width: 2, color: item.color, arrow: item.directed ? 'target' : 'none' } })",
       },
     ],
     // `lock` rather than `pin`: every card is placed already, so there is nothing to hold, and the
-    // risk worth guarding against is rearranging somebody else's board by accident.
+    // risk worth guarding against is rearranging somebody else's canvas by accident.
     controls: ['zoom-in', 'zoom-out', 'fit', 'lock'],
     height: '100%',
     revision: { $: '`${datasetStore.currentDataset.id}:${local.revision}`' },
     onNodeClick: selectNode,
-    // Clicking empty canvas deselects — the same handler the other three modes carry. The board is
+    // Clicking empty canvas deselects — the same handler the other three modes carry. The canvas is
     // where it matters most: it is the mode you click around in, and without it the only way to
     // dismiss the panel is to select something else.
     onSelectionChange: clearOnEmptySelection,
-    // Double-click opens the card. Nothing expands on a board, so the gesture is free — and it is
+    // Double-click opens the card. Nothing expands on a canvas, so the gesture is free — and it is
     // the one people arrive expecting from every other canvas they have used. A flag rather than an
     // id: the click that precedes the second one has already selected the node, and the modal reads
     // the selection.
@@ -179,69 +179,69 @@ const boardCards: SchemaNode = {
     /*
       The drop, written back.
 
-      Without this the board is a layout that forgets — and worse, forgets silently, since the cards
+      Without this the canvas is a layout that forgets — and worse, forgets silently, since the cards
       stay where they were dropped until the next reload.
 
-      An upsert against the *board*, not an update of the record. A coordinate is a fact about the
-      pair, so the same note can sit on two boards in two places, and the record itself never learns
-      it was on a board at all. `recordId`/`recordType` rather than the node's address: the graph
+      An upsert against the *canvas*, not an update of the record. A coordinate is a fact about the
+      pair, so the same note can sit on two canvases in two places, and the record itself never learns
+      it was on a canvas at all. `recordId`/`recordType` rather than the node's address: the graph
       names a node `we-graph://entity/<dataset>/<type>/<id>` and a template has no operator that
       could take that apart.
     */
     onNodeDragEnd: {
-      $action: 'recordStore.placeOnBoard',
-      args: [BOARD, { $: 'event.recordId' }, { $: 'event.recordType' }, { $: 'event.x' }, { $: 'event.y' }],
+      $action: 'recordStore.placeOnCanvas',
+      args: [CANVAS, { $: 'event.recordId' }, { $: 'event.recordType' }, { $: 'event.x' }, { $: 'event.y' }],
     },
     /*
       The corner drag, written back — and binding this is what puts the handle on a selected card.
 
       Onto the placement rather than the record, for the reason the position goes there: a size is a
       fact about the pair. Shrinking a post to fit six of them on a wall is not editing the post, and
-      the same post on somebody else's board must not change size because of it.
+      the same post on somebody else's canvas must not change size because of it.
     */
-    onNodeResize: { $action: 'recordStore.resizeOnBoard', args: [BOARD, { $: 'event' }] },
+    onNodeResize: { $action: 'recordStore.resizeOnCanvas', args: [CANVAS, { $: 'event' }] },
     /*
       Which side a connection attaches to, written back — and binding this is what puts the grips on
       the ends of a hovered line.
 
-      Onto an `EdgeRoute` parented to this board rather than onto the `Relationship`, for the reason
+      Onto an `EdgeRoute` parented to this canvas rather than onto the `Relationship`, for the reason
       a position goes on a placement: how a connection is *drawn* is a fact about a view. The same
-      claim shown on another board is tidied there on its own terms, and the claim itself never
+      claim shown on another canvas is tidied there on its own terms, and the claim itself never
       learns it was ever bent around anything.
     */
-    onEdgeAnchor: { $action: 'recordStore.anchorOnBoard', args: [BOARD, { $: 'event' }] },
+    onEdgeAnchor: { $action: 'recordStore.anchorOnCanvas', args: [CANVAS, { $: 'event' }] },
     /*
       The shape of a line, written back — and binding this is what puts the grips on a selected one.
 
       Points a route is bent through, so a connection can be taken round a card that sits between its
       two ends. Stored in the edge's own frame rather than in world coordinates, which is what makes
-      a bend survive somebody tidying the board: move either card and the shape follows them, where
+      a bend survive somebody tidying the canvas: move either card and the shape follows them, where
       absolute points would leave the line doglegging through empty space.
     */
-    onEdgeReroute: { $action: 'recordStore.rerouteOnBoard', args: [BOARD, { $: 'event' }] },
+    onEdgeReroute: { $action: 'recordStore.rerouteOnCanvas', args: [CANVAS, { $: 'event' }] },
     /*
       And the same handle dropped on a *different* card, which re-attaches the connection.
 
       The one gesture here that edits the claim rather than the view: an anchor and a bend are how
-      this board draws the line, and this is what the line *says* — so it changes wherever the
+      this canvas draws the line, and this is what the line *says* — so it changes wherever the
       relationship is shown. That end's anchor is cleared with it, a side pinned against the card
       that used to be there deciding nothing about the one that arrived.
     */
-    onEdgeRetarget: { $action: 'recordStore.retargetOnBoard', args: [BOARD, { $: 'event' }] },
+    onEdgeRetarget: { $action: 'recordStore.retargetOnCanvas', args: [CANVAS, { $: 'event' }] },
   },
 };
 
-/** Boards in this space, for the picker. Hoisted so the empty state can count them. */
-export const boardQuery = { entity: 'CollectionBlock', where: { kind: 'board' }, order: { createdAt: 'asc' } };
+/** Canvases in this space, for the picker. Hoisted so the empty state can count them. */
+export const canvasQuery = { entity: 'CollectionBlock', where: { kind: 'canvas' }, order: { createdAt: 'asc' } };
 
 /**
- * The board's own chrome: which board, and adding to it.
+ * The canvas's own chrome: which canvas, and adding to it.
  *
- * Separate from the route's mode/layout row because these are about *this* board rather than about
+ * Separate from the route's mode/layout row because these are about *this* canvas rather than about
  * how the route draws things — and because the layout picker is meaningless here, position being
  * the data rather than something a layout decides.
  */
-export const boardBar: SchemaNode = {
+export const canvasBar: SchemaNode = {
   type: 'Row',
   props: { gap: '300', ay: 'center' },
   children: [
@@ -249,10 +249,10 @@ export const boardBar: SchemaNode = {
       type: 'we-select',
       props: {
         size: 'sm',
-        placeholder: 'Pick a board…',
-        options: { $: 'local.boards.map(item, { label: item.title, value: item.id })' },
-        value: BOARD,
-        onChange: { $setLocal: 'boardId', value: { $: 'event.detail' } },
+        placeholder: 'Pick a canvas…',
+        options: { $: 'local.canvases.map(item, { label: item.title, value: item.id })' },
+        value: CANVAS,
+        onChange: { $setLocal: 'canvasId', value: { $: 'event.detail' } },
       },
     },
     {
@@ -262,12 +262,12 @@ export const boardBar: SchemaNode = {
         variant: 'ghost',
         onClick: { $setLocal: 'newBoardOpen', value: true },
       },
-      children: [{ type: 'we-icon', props: { name: 'plus' } }, 'Board'],
+      children: [{ type: 'we-icon', props: { name: 'plus' } }, 'Canvas'],
     },
     {
       type: '$if',
       props: {
-        condition: BOARD,
+        condition: CANVAS,
         then: {
           type: 'Row',
           props: { gap: '200', ay: 'center' },
@@ -291,7 +291,7 @@ export const boardBar: SchemaNode = {
             /*
               The key, which is also where a type's colour is set.
 
-              Toggleable rather than fixed: a board with three kinds of thing on it does not need a
+              Toggleable rather than fixed: a canvas with three kinds of thing on it does not need a
               legend, and a panel explaining what you can already see is a panel over the thing you
               are looking at.
             */
@@ -310,11 +310,11 @@ export const boardBar: SchemaNode = {
               children: [{ type: 'we-icon', props: { name: 'note' } }, 'Card'],
             },
             /*
-              A model instance, made *onto* this board.
+              A model instance, made *onto* this canvas.
 
-              The same form the New button opens anywhere else — `createOnBoard` only adds the
+              The same form the New button opens anywhere else — `createOnCanvas` only adds the
               intent, so what is created is placed here rather than left loose in the space. That is
-              the whole difference between a board that holds a community's own models and one that
+              the whole difference between a canvas that holds a community's own models and one that
               holds sticky notes, and it is one store call rather than a second authoring path.
             */
             {
@@ -326,7 +326,7 @@ export const boardBar: SchemaNode = {
                   props: {
                     size: 'sm',
                     variant: 'ghost',
-                    onClick: { $action: 'recordStore.createOnBoard', args: [BOARD] },
+                    onClick: { $action: 'recordStore.createOnCanvas', args: [CANVAS] },
                   },
                   children: [{ type: 'we-icon', props: { name: 'cube' } }, 'Record'],
                 },
@@ -339,25 +339,25 @@ export const boardBar: SchemaNode = {
   ],
 };
 
-/** Naming a board. `record.create` rather than the composer — a board is a container, not a document. */
-const newBoardModal: SchemaNode = formModal({
+/** Naming a canvas. `record.create` rather than the composer — a canvas is a container, not a document. */
+const newCanvasModal: SchemaNode = formModal({
   open: { $: 'local.newBoardOpen' },
   close: { $setLocal: 'newBoardOpen', value: false },
-  title: 'New board',
+  title: 'New canvas',
   size: 'sm',
-  localState: { boardName: { type: 'string', initial: '' } },
-  children: [field({ name: 'boardName', label: 'Name', placeholder: 'Ideas, retro, roadmap…' })],
+  localState: { canvasName: { type: 'string', initial: '' } },
+  children: [field({ name: 'canvasName', label: 'Name', placeholder: 'Ideas, retro, roadmap…' })],
   // Nothing about a name is locally judgeable beyond its presence, so this gates on the value
   // itself rather than dragging in the validation machinery.
-  disabled: { $: '!local.boardName' },
+  disabled: { $: '!local.canvasName' },
   submitLabel: 'Create',
   submit: {
     $action: 'record.create',
-    args: ['CollectionBlock', { kind: 'board', title: { $: 'local.boardName' } }],
-    // Straight into the new board: making one and then having to find it in a picker is a step
+    args: ['CollectionBlock', { kind: 'canvas', title: { $: 'local.canvasName' } }],
+    // Straight into the new canvas: making one and then having to find it in a picker is a step
     // nobody wanted.
     onSuccess: [
-      { $setLocal: 'boardId', value: { $: 'result.id' } },
+      { $setLocal: 'canvasId', value: { $: 'result.id' } },
       { $setLocal: 'revision', value: { $: 'local.revision + 1' } },
     ],
   },
@@ -366,7 +366,7 @@ const newBoardModal: SchemaNode = formModal({
 /**
  * A card, composed.
  *
- * The same handshake every composed artifact in WE uses, anchored to the board through
+ * The same handshake every composed artifact in WE uses, anchored to the canvas through
  * `we://children`. It lands unplaced, which the `manual` layout parks in a grid beside what is
  * already there — and then somebody drags it where they meant it to go, which writes its position.
  * Asking for a position up front would be asking where a thing goes before it exists.
@@ -380,7 +380,7 @@ const newCardModal: SchemaNode = composerModal({
 
     The card and the coordinate that says where it sits land as a single commit. Written separately
     they are two, and anything watching the data layer catches the state between them — which is
-    exactly what the board did: it drew the card unpositioned, in the tray, for as long as the
+    exactly what the canvas did: it drew the card unpositioned, in the tray, for as long as the
     placement took to arrive, and then moved it.
 
     `newCardAt` is null when the card came from the toolbar rather than a double-click, and the store
@@ -388,9 +388,9 @@ const newCardModal: SchemaNode = composerModal({
     "nobody said where" and the place it is recoverable from.
   */
   saveAction: {
-    $action: 'recordStore.createCardOnBoard',
+    $action: 'recordStore.createCardOnCanvas',
     // `'$arg'` first: the serialized tree, then where it goes.
-    args: [{ $: 'arg' }, { board: BOARD, at: { $: 'local.newCardAt' } }],
+    args: [{ $: 'arg' }, { canvas: CANVAS, at: { $: 'local.newCardAt' } }],
   },
   onSaved: [
     { $setLocal: 'newCardAt', value: null },
@@ -399,29 +399,29 @@ const newCardModal: SchemaNode = composerModal({
 });
 
 /** The canvas, or a reason there is nothing on it. */
-export const boardCanvas: SchemaNode = {
+export const canvasSurface: SchemaNode = {
   type: 'Column',
   props: { width: '100%', height: '100%', position: 'relative' },
   children: [
-    newBoardModal,
+    newCanvasModal,
     newCardModal,
-    boardLegend,
+    canvasLegend,
     {
       type: '$if',
       props: {
-        condition: BOARD,
-        then: boardCards,
-        // Two different absences, said differently: a space with no boards has one thing to do
-        // about it, and a space with boards nobody has opened has another.
+        condition: CANVAS,
+        then: canvasCards,
+        // Two different absences, said differently: a space with no canvases has one thing to do
+        // about it, and a space with canvases nobody has opened has another.
         else: {
           type: '$if',
           props: {
-            condition: { $: 'count(local.boards)' },
-            then: emptyState({ icon: 'squares-four', label: 'boards', message: 'Pick a board to open it.' }),
+            condition: { $: 'count(local.canvases)' },
+            then: emptyState({ icon: 'squares-four', label: 'canvases', message: 'Pick a canvas to open it.' }),
             else: emptyState({
               icon: 'squares-four',
-              label: 'boards',
-              message: 'No boards yet. Make one, and put things on it wherever you like.',
+              label: 'canvases',
+              message: 'No canvases yet. Make one, and put things on it wherever you like.',
             }),
           },
         },

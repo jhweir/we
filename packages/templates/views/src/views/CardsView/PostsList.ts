@@ -1,6 +1,7 @@
 import type { SchemaNode } from '@we/schema-shared';
 import {
   agentByline,
+  anchorScope,
   cardList,
   cardShell,
   composerModal,
@@ -27,6 +28,9 @@ export const postsList: SchemaNode = {
       query: {
         entity: 'CollectionBlock',
         where: { type: 'root', textContent: { contains: { $: 'local.searchText' } } },
+        // Space-wide unless the route names an anchor, in which case this is that container's own
+        // posts. See `anchorScope` — an unresolved anchor is dropped rather than matching nothing.
+        scope: anchorScope(),
         limit: 20,
         order: {
           $: "local.sortField == 'likes' ? { $likeCount: local.sortDirection } : { createdAt: local.sortDirection }",
