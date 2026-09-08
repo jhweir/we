@@ -385,6 +385,18 @@ export type QueryToken = {
     subscribe?: boolean;
     /** Store path to the dataset handle (e.g. '$currentDataset', 'testStore.perspective'). */
     dataset?: string;
+    /**
+     * Run only while this expression is truthy. Until then the result is empty and `<name>Loaded`
+     * stays false — the query has not been asked, rather than asked and answered with nothing.
+     *
+     * For a query whose shape depends on another's answer. A board's pool narrows to whatever the
+     * board record says it gathers; without this the pool ran once unanchored, drew the whole space,
+     * and re-ran narrowed a frame later — a flash of everybody's work on the way to one call's. An
+     * unresolved operand in `where` or `scope` is pruned, and pruning means "do not narrow", which
+     * is the right reading for an optional filter and the wrong one for a scope that is *about to*
+     * exist. `when: { $: 'local.board' }` says wait instead.
+     */
+    when?: Record<string, unknown>;
   };
 };
 
@@ -476,6 +488,8 @@ export type QueryDescriptor = {
   subscribe: boolean;
   dataset?: string;
   include?: Record<string, boolean | Record<string, unknown>>;
+  /** The query runs only while this resolves truthy — see `QueryToken.when`. Kept out of `params`. */
+  when?: unknown;
 };
 
 /** Union of every token a schema writes in a value or handler position. */

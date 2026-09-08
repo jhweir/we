@@ -88,11 +88,11 @@ describe('field references', () => {
 
   it('reads a size and a colour off the node itself', () => {
     const visual = nodeVisual(
-      card({ boardWidth: 320, boardColor: '#ffcc00' }),
+      card({ canvasWidth: 320, canvasColor: '#ffcc00' }),
       {
         shape: 'card',
-        width: { from: 'data.boardWidth' },
-        color: { from: 'data.boardColor' },
+        width: { from: 'data.canvasWidth' },
+        color: { from: 'data.canvasColor' },
       },
       NO_METRICS,
     );
@@ -102,24 +102,24 @@ describe('field references', () => {
   });
 
   it('defers to the rule above when the field is absent, rather than to the default', () => {
-    // The whole point of the cascade: a board colours every card by its type, then lets a card carry
+    // The whole point of the cascade: a canvas colours every card by its type, then lets a card carry
     // its own colour in front of that. If the second rule contributed `undefined` here, the cards
     // carrying none would come out the built-in default and the type rule would be pointless.
     const style = resolveStyle(card({ typeColor: 'success-500' }), [
       { style: { color: { from: 'data.typeColor' } } },
-      { style: { color: { from: 'data.boardColor' } } },
+      { style: { color: { from: 'data.canvasColor' } } },
     ]);
 
     expect(style.color).toEqual({ from: 'data.typeColor' });
   });
 
   it('lets a present field override the rule above', () => {
-    const style = resolveStyle(card({ typeColor: 'success-500', boardColor: '#ffcc00' }), [
+    const style = resolveStyle(card({ typeColor: 'success-500', canvasColor: '#ffcc00' }), [
       { style: { color: { from: 'data.typeColor' } } },
-      { style: { color: { from: 'data.boardColor' } } },
+      { style: { color: { from: 'data.canvasColor' } } },
     ]);
 
-    expect(style.color).toEqual({ from: 'data.boardColor' });
+    expect(style.color).toEqual({ from: 'data.canvasColor' });
   });
 
   it('accepts a number that was stored as a string', () => {
@@ -139,7 +139,7 @@ describe('field references', () => {
   });
 
   it('refuses a card shape it does not know', () => {
-    // This reads a *stored* value, so a board written by a newer version of the app must fall back
+    // This reads a *stored* value, so a canvas written by a newer version of the app must fall back
     // rather than hand the renderer a name it has no drawing for.
     const visual = nodeVisual(card({ s: 'hexagon' }), { shape: 'card', cardShape: { from: 'data.s' } }, NO_METRICS);
     expect(visual.cardShape).toBe('note');
@@ -237,7 +237,7 @@ describe('rule lists built from data', () => {
 
 describe('defaults', () => {
   it('scales labels and edges with the camera unless told otherwise', () => {
-    // The intuition people arrive with is a board, where zoom magnifies the whole drawing. Constant
+    // The intuition people arrive with is a canvas, where zoom magnifies the whole drawing. Constant
     // on-screen size is the specialist choice, so it is the one you ask for.
     expect(nodeVisual(belief, {}, NO_METRICS).scaleLabelWithZoom).toBe(true);
     expect(edgeVisual({ id: 'e', source: 'a', target: 'b', type: 'rel' }, {}, NO_METRICS).scaleWithZoom).toBe(true);

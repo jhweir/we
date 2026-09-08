@@ -89,6 +89,6 @@ export class EdgeRoute extends Ad4mModel {
    * Read as a bare URI rather than hydrated, for the reason `Placement.node` is: an untyped
    * relation has no target class to hydrate into, and the id is what the board wants anyway.
    */
-  @HasOne({ through: 'we://routed_connection' })
+  @HasOne({ through: 'we://routed_connection', polymorphic: true })
   connection?: string;
 }

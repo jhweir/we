@@ -768,6 +768,10 @@ describe('extraction', () => {
           reconciled.push(collectionId);
           return 0;
         },
+        // What the module actually calls: the host reconciles behind it, so the same list records it.
+        passSettled: async (collectionId: string) => {
+          reconciled.push(collectionId);
+        },
         proposals: async () => [],
         accept: async () => true,
         reject: async () => true,
@@ -822,9 +826,10 @@ describe('extraction', () => {
       expect(i.watches).toEqual([collection, `-${collection}`]);
     });
 
-    it('repairs unattached records when it adopts a collection', async () => {
+    it('tells the host a pass may have settled when it adopts a collection', async () => {
       // A pass can finish with nobody listening — on desktop the executor outlives the app — and
-      // those records would otherwise never get their place in the call.
+      // those records would otherwise never get their place in the call. The module names the
+      // collection; what follows (the repair, a board) is the host's.
       const i = interpreter();
       const h = harness(inCall, { interpretation: i.port });
       await h.say('worth writing down');
@@ -1526,6 +1531,21 @@ describe('staged suggestions', () => {
     await h.store.rejectProposal('task-1');
 
     expect(h.store.pendingIds()).toEqual([]);
+  });
+
+  it('offers the waiting suggestions as rows too, for a card that has to read one', async () => {
+    /*
+      A marker asks "is this waiting?" and takes ids; a card that shows what was proposed has to
+      find the proposal and read it. The task board needs the second and was reading the flat live
+      call's list for it — which is empty after a restart and wrong on a past call.
+    */
+    const i = interpreterWith([{ id: 'task-1', kind: 'create', entity: 'TaskBlock', values: { title: 'One' } }]);
+    const h = harness(inCall, { interpretation: i.port });
+    await h.say('hello');
+    await h.store.extract();
+
+    expect(h.store.pendingProposals().map((p) => p.id)).toEqual(['task-1']);
+    expect(h.store.pendingProposals()[0].summary).toBe('title: One');
   });
 
   it('refuses to offer editing where nothing could write the result back', async () => {

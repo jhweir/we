@@ -1,3 +1,4 @@
+import { createBoardActions, type CreateBoardOptions } from '@shared/boards';
 import {
   LEGACY_EXTRACTION_TARGETS,
   parseEntityList,
@@ -59,6 +60,7 @@ import {
   compressImageToFileData,
   type DatasetProxy,
   dataURIToFileData,
+  DEFAULT_TASK_STATES,
   type FileData,
   FOLLOW_SPACE,
   getEntitiesForPerspective,
@@ -71,6 +73,7 @@ import {
   SignalType,
   Space,
   SpacePreference,
+  TaskState,
 } from '@we/entities';
 import type { ResolvedView, TemplateSchema } from '@we/schema-shared';
 import { hasViewsMarker } from '@we/schema-shared';
@@ -251,6 +254,28 @@ export interface ModuleSetting {
   visible: boolean;
   /** All of the above agreeing — whether it actually renders here for this agent. */
   active: boolean;
+}
+
+/**
+ * A state this space's work can be in, as a screen reads it.
+ *
+ * `defined` is the one field with no counterpart on the record: false means this is a default the
+ * space has never written down — a virtual state, which becomes a record the first time somebody
+ * reorders it, withdraws it, or names a state with its slug. See `adoptTaskState`.
+ */
+export interface TaskStateView {
+  /** Empty for a default the space has not written down. */
+  id: string;
+  name: string;
+  /** What `TaskBlock.status` holds. */
+  slug: string;
+  /** See `TaskState.semantic` — five values, sized by the questions answerable from outside a space. */
+  semantic: 'open' | 'active' | 'blocked' | 'done' | 'cancelled';
+  color: string;
+  /** The community's own icon, empty where it has not chosen one. */
+  icon: string;
+  retired: boolean;
+  defined: boolean;
 }
 
 export interface SpaceMetaUpdate {
@@ -441,6 +466,16 @@ export interface SpaceStore {
    *  member. Falls back to everything the seed activated when the space has never decided, so
    *  spaces that predate the setting keep the chrome they had. */
   enabledModules: Accessor<string[]>;
+  /**
+   * The states this community's work moves through — its own if it has defined any, otherwise the
+   * defaults. Ordered open, then active, then done. Includes withdrawn states, so a task sitting in
+   * one still resolves; use `offeredTaskStates` for anything a person picks from.
+   */
+  taskStates: Accessor<TaskStateView[]>;
+  /** The same list without the withdrawn ones — what a picker or a new column should offer. */
+  offeredTaskStates: Accessor<TaskStateView[]>;
+  /** The space has been asked for its states. An empty list is otherwise "not fetched yet". */
+  taskStatesLoaded: Accessor<boolean>;
   /** Options for the per-space template override picker, including a "follow the space" entry. */
   templateOverrideOptions: Accessor<{ label: string; value: string }[]>;
   /** Options for the per-space theme override picker, including a "follow the space" entry. */
@@ -546,6 +581,28 @@ export interface SpaceStore {
    * `we://children` edges; the child itself is untouched.
    */
   moveChild: (childId: string, fromId: string, toId: string) => Promise<void>;
+  /** Make a board — a collection whose ordered children are its columns, seeded from the vocabulary. */
+  createBoard: (title: string, parentId?: string, options?: CreateBoardOptions) => Promise<string>;
+  /** The board for a container, or the space's own, making it if nobody has yet. Returns its id. */
+  openBoardFor: (anchorId?: string, title?: string, dataset?: string) => Promise<string>;
+  /** Make sure a container has a board, but only once it holds a task. What extraction calls. */
+  ensureBoardFor: (collectionId: string, dataset?: string) => Promise<string>;
+  /** Add a column — bound to a state when given a slug, a local lane when not. */
+  addBoardColumn: (boardId: string, name: string, slug?: string) => Promise<void>;
+  /** Give the space's own board a column for a newly named state. Host wiring, called by createTaskState. */
+  addStateToSpaceBoard: (slug: string, name: string) => Promise<void>;
+  /** Take a column off a board. The column record only — never the work positioned in it. */
+  removeBoardColumn: (boardId: string, columnId: string) => Promise<void>;
+  /** Rename one column on this board. Its slug — its meaning — is untouched. */
+  renameBoardColumn: (columnId: string, name: string) => Promise<void>;
+  /** The order this board reads its columns in. */
+  reorderBoardColumns: (boardId: string, orderedIds: string[]) => Promise<void>;
+  /** Record the order somebody dragged one column's cards into. */
+  arrangeColumn: (columnId: string, orderedIds: string[]) => Promise<void>;
+  /** Move a card between columns — and write its state, when the column it joins names one. */
+  moveCardToColumn: (fromColumnId: string, toColumnId: string, cardId: string, orderedIds?: string[]) => Promise<void>;
+  /** Make a task straight into a column, parented to the board's anchor when there is one. */
+  addTaskToColumn: (columnId: string, title: string, anchorId?: string) => Promise<void>;
   /**
    * Join or leave a node's participant roster — an RSVP. Writes only this agent's own entry, which
    * is what keeps the roster conflict-free without coordination.
@@ -716,6 +773,27 @@ export interface SpaceStore {
   createRelationshipType: (config: Partial<RelationshipType>) => Promise<void>;
   /** Withdraw a signal type from use, or bring it back. Never removes the signals given with it. */
   setSignalTypeRetired: (signalTypeId: string, retired: boolean) => Promise<void>;
+  /**
+   * Name a state this community's work moves through. The defaults stay virtual beside it; one with
+   * a default's slug adopts that default. The space's own board gains a column for it.
+   */
+  createTaskState: (config: {
+    name: string;
+    semantic?: TaskStateView['semantic'];
+    color?: string;
+    icon?: string;
+  }) => Promise<void>;
+  /**
+   * Withdraw a state from use, or bring it back. Never touches the work sitting in it. By slug: a
+   * default has no record until this, or a reorder, adopts it.
+   */
+  setTaskStateRetired: (slug: string, retired: boolean) => Promise<void>;
+  /**
+   * Set the order this community reads its states in — the order of a board's columns. An ordered
+   * relation, so two people reordering at once converge rather than one write discarding the other.
+   * By slug, since a default has no id until it is placed in an order, which adopts it.
+   */
+  reorderTaskStates: (orderedSlugs: string[]) => Promise<void>;
   upsertSignal: (nodeId: string, signalTypeId: string, value: number) => Promise<void>;
   navigateToSpace: (spaceId: string, view?: string) => Promise<void>;
   openRecordRef: (ref: string) => Promise<void>;
@@ -1156,6 +1234,9 @@ export function SpaceStoreProvider(props: ParentProps) {
   */
   onCleanup(
     provideModuleHostServices({
+      // Extraction's hook — see the declaration on `ModuleHostServices`, and `ensureBoardFor` for
+      // why it only fires once the collection holds a task.
+      ensureBoardFor: (collectionId: string, dataset?: string) => boards.ensureBoardFor(collectionId, dataset),
       datasets: {
         get: (uri: string) => {
           const id = sharedIdOf(uri);
@@ -1713,6 +1794,58 @@ export function SpaceStoreProvider(props: ParentProps) {
   }
 
   /**
+   * The dataset a board write means: the one named, or the space on screen.
+   *
+   * Named rather than assumed, because a board is not always made where the reader is looking — the
+   * extraction hook runs wherever the election landed. It resolves the same dataset
+   * `interpretCollection` does, which is the one the pass just wrote its records into, so a board
+   * cannot land somewhere its own cards did not.
+   */
+  function datasetFor(uri?: string): DatasetProxy | undefined {
+    if (!uri) return datasetStore.currentDataset()?.handle;
+    return datasetStore.datasets().find((d) => d.sharedUri === uri || d.id === uri)?.handle;
+  }
+
+  /*
+    The board writes, from `@shared/boards`.
+
+    Ten actions over one shape, and what they decide is the board design rather than anything about
+    this store: which list to store, what a drop means, and the invariant that a board's children are
+    columns. They moved out because they are a subsystem rather than because this file is long — the
+    ordering itself is the executor's, so what is left in them is meaning, and meaning reads better
+    beside the rest of its own meaning.
+
+    The store stays their **surface**: a template names `spaceStore.moveCardToColumn`, and where the
+    implementation sits is not a template author's business. Only three things reach outside the
+    module, and they arrive as arguments — which dataset, what the community's states are, and how a
+    failure reaches the person who caused it. `offeredStates` is wrapped rather than passed, since the
+    memo it names is declared further down this file.
+  */
+  const boards = createBoardActions({
+    dataset: datasetFor,
+    offeredStates: () => offeredTaskStates(),
+    notify: (message) => toastService.error(message),
+    /*
+      A staged suggestion for one property, dropped — see `BoardDeps.resolveSuggestion`. Checked
+      against the proposal list first rather than rejected blind, since a reject on a record with no
+      overlay is refused, and most moves are of cards nobody proposed. Best-effort throughout: the
+      move is the thing that matters, and a suggestion that survives is visible on the card.
+    */
+    resolveSuggestion: async (recordId, property) => {
+      const port = session.backendPorts()?.interpretation;
+      const dataset = datasetStore.currentDataset()?.handle;
+      if (!port || !dataset) return;
+      try {
+        const pending = await port.proposals(dataset);
+        if (!pending.some((proposal) => proposal.id === recordId && property in proposal.values)) return;
+        await port.reject(dataset, recordId, property);
+      } catch (error) {
+        console.warn('SpaceStore: could not settle a staged suggestion before a move', error);
+      }
+    },
+  });
+
+  /**
    * Join or leave a node's participant roster — an event RSVP, a document's co-editor list.
    *
    * **Writes only this agent's own entry, ever.** That is not a convenience, it is what keeps
@@ -2133,6 +2266,396 @@ export function SpaceStoreProvider(props: ParentProps) {
    * space of its chrome.
    */
   const enabledModules = createMemo<string[]>(() => resolveEnabledModules(currentSpace()?.enabledModules));
+
+  /*
+    ── Task states ──────────────────────────────────────────────────────────────────────────────
+
+    The states this community's work moves through, resolved the way `enabledModules` resolves: a
+    space that has defined none gets the defaults, because "unset" means *not decided* rather than
+    *none*. Reading an empty list as "no states" would empty every board in every space that existed
+    before the vocabulary did.
+
+    The defaults are **virtual**. They are never written down as a set: a default becomes a record of
+    the community's own only when somebody does something to it that needs a record — reorders it,
+    withdraws it, or names a state with its slug. Materialising all three on the first create was the
+    alternative, and it had the race this branch treats as decisive everywhere else: two members
+    naming their first state on two nodes each wrote the three defaults, and the slug check read a
+    local memo that could not see the other node. Adopting one state at a time, on demand, makes the
+    race one duplicate at worst — and duplicates collapse on read, by slug, so even that is harmless.
+
+    Loaded per space rather than queried in a template — unlike signal types, which templates resolve
+    by slug through a hoisted `$query`. The difference is the fallback: a template can filter a list
+    it was handed, and cannot substitute a list it was not.
+  */
+  const [ownTaskStates, setOwnTaskStates] = createSignal<TaskStateView[]>([]);
+  const [taskStatesLoaded, setTaskStatesLoaded] = createSignal(false);
+  const [taskStateOrder, setTaskStateOrder] = createSignal<string[]>([]);
+
+  /**
+   * One record per slug, the earliest written winning.
+   *
+   * Two nodes adopting the same default at the same moment produce two records with one slug, and a
+   * task names its state by slug — so to every task they are one state, and the list should say so
+   * too. The earliest is kept because it is the one most peers already hold; the later one is
+   * inert, never offered and never listed, and costs nothing.
+   */
+  function dedupeBySlug(records: TaskState[]): TaskState[] {
+    const stamp = (r: TaskState) =>
+      String(
+        (r as unknown as { timestamp?: unknown }).timestamp ??
+          (r as unknown as { createdAt?: unknown }).createdAt ??
+          '',
+      );
+    const bySlug = new Map<string, TaskState>();
+    for (const record of [...records].sort((a, b) => stamp(a).localeCompare(stamp(b)))) {
+      const slug = record.slug || deriveSlug(record.name || '');
+      if (!bySlug.has(slug)) bySlug.set(slug, record);
+    }
+    return [...bySlug.values()];
+  }
+
+  async function loadTaskStates(): Promise<void> {
+    const dataset = datasetStore.currentDataset()?.handle;
+    const uuid = datasetStore.currentDataset()?.id;
+    const ports = session.backendPorts()?.schemas;
+    if (!dataset || !ports || !datasetStore.isWeSpace()) {
+      setOwnTaskStates([]);
+      setTaskStatesLoaded(true);
+      return;
+    }
+    setTaskStatesLoaded(false);
+    try {
+      // Every space predates this entity, so none of them have its shape installed. `ensure` is the
+      // diff-first idempotent path — a read in the common case — and the same step `loadShapes`
+      // takes for exactly this reason.
+      await ports.ensure(dataset, TaskState as never);
+      const records = dedupeBySlug(await TaskState.findAll(dataset));
+      if (datasetStore.currentDataset()?.id !== uuid) return; // navigated away while loading
+      setOwnTaskStates(
+        records.map((r: TaskState) => ({
+          id: r.id,
+          name: r.name || r.slug,
+          slug: r.slug || deriveSlug(r.name || ''),
+          semantic: (r.semantic || 'open') as TaskStateView['semantic'],
+          color: r.color || '',
+          icon: r.icon || '',
+          retired: Boolean(r.retired),
+          defined: true,
+        })),
+      );
+    } catch (error) {
+      console.warn('SpaceStore: could not read task states', error);
+      if (datasetStore.currentDataset()?.id === uuid) setOwnTaskStates([]);
+    } finally {
+      if (datasetStore.currentDataset()?.id === uuid) setTaskStatesLoaded(true);
+    }
+  }
+
+  createEffect(() => {
+    void datasetStore.currentDataset()?.id;
+    void loadTaskStates();
+  });
+
+  /**
+   * The community's chosen order — a separate fact from which states exist, see `Space.taskStates`.
+   *
+   * Read through an `include` on a fresh fetch rather than off the subscribed space record. The
+   * subscription's copy is whatever the last push carried, and reading it right after a write handed
+   * back the order from *before* the write — the list snapped to the old arrangement, then never
+   * caught up, since nothing re-read it when the push arrived. A hydrated include goes through the
+   * executor's ordered read, so what comes back is the arrangement as every peer would read it.
+   *
+   * Re-run whenever the space record changes, which is how a peer's reorder reaches this screen, and
+   * how this agent's own write is confirmed after `reorderTaskStates` has already shown it.
+   */
+  async function loadTaskStateOrder(spaceId: string): Promise<void> {
+    const dataset = datasetStore.currentDataset()?.handle;
+    if (!dataset) return;
+    try {
+      const record = await Space.findOne(dataset, { where: { id: spaceId }, include: { taskStates: true } });
+      if (currentSpace()?.id !== spaceId) return; // moved on while loading
+      const rows = (Array.isArray(record?.taskStates) ? record.taskStates : []) as unknown as (
+        { id?: string } | string
+      )[];
+      setTaskStateOrder(rows.map((row) => (typeof row === 'string' ? row : (row?.id ?? ''))).filter(Boolean));
+    } catch (error) {
+      console.warn('SpaceStore: could not read the task state order', error);
+    }
+  }
+
+  createEffect(() => {
+    const space = currentSpace();
+    if (!space?.id) {
+      setTaskStateOrder([]);
+      return;
+    }
+    void loadTaskStateOrder(space.id);
+  });
+
+  /**
+   * The row objects the list rendered last time, by slug, so a recompute hands back the same object
+   * for a state that has not changed. The renderer keys `$each` rows by reference: a fresh object per
+   * state per recompute remounted every row — the flash — and with it the sortable's own bookkeeping.
+   */
+  let renderedTaskStates = new Map<string, TaskStateView>();
+  const sameState = (a: TaskStateView, b: TaskStateView) =>
+    a.id === b.id &&
+    a.name === b.name &&
+    a.slug === b.slug &&
+    a.semantic === b.semantic &&
+    a.color === b.color &&
+    a.icon === b.icon &&
+    a.retired === b.retired &&
+    a.defined === b.defined;
+
+  /**
+   * The states this space uses — its own records, and beneath them every default nobody has
+   * overridden.
+   *
+   * A record with a default's slug *is* that default, adopted: it replaces the virtual one, and
+   * whatever the community wrote on it — a name, an icon, a colour, `retired` — is what the state now
+   * is. So "To do" renamed to "Backlog" is one state with one slug, and every task holding `todo`
+   * follows it.
+   *
+   * Ordered by the community's own arrangement where it has one, and otherwise by semantic — what is
+   * coming, what is happening, what is stuck, what is finished, what was dropped. That is the only
+   * ordering that means anything across communities, and a position number on each state would be a
+   * scalar two people editing at once break — see the note on `TaskState`.
+   */
+  const taskStates = createMemo<TaskStateView[]>(() => {
+    const own = ownTaskStates();
+    const overridden = new Set(own.map((state) => state.slug));
+    const virtual: TaskStateView[] = DEFAULT_TASK_STATES.filter((d) => !overridden.has(d.slug)).map((d) => ({
+      ...d,
+      icon: '',
+      id: '',
+      semantic: d.semantic as TaskStateView['semantic'],
+      retired: false,
+      defined: false,
+    }));
+    const states = [...own, ...virtual];
+    /*
+      The community's own order where it has one, and what a state *counts as* where it has not.
+
+      Position hints over a membership, one more time: a state the order does not mention is not
+      dropped, it follows the ones it does — which is what lets a newly named state appear at all
+      without anybody having to arrange the columns first. A virtual default has no id and so no
+      position; reordering adopts it.
+    */
+    const chosen = taskStateOrder();
+    // Reading order for a state nobody has positioned: what is coming, what is happening, what is
+    // stuck, what is finished, what was dropped. An unrecognised value sorts first, with the
+    // outstanding work, which is where something nobody can read belongs.
+    const rank: Record<string, number> = { open: 0, active: 1, blocked: 2, done: 3, cancelled: 4 };
+    const at = (state: TaskStateView) => {
+      const i = state.id ? chosen.indexOf(state.id) : -1;
+      return i === -1 ? Number.POSITIVE_INFINITY : i;
+    };
+    const sorted = states.sort((a, b) => {
+      if (at(a) !== at(b)) return at(a) < at(b) ? -1 : 1;
+      return (rank[a.semantic] ?? 0) - (rank[b.semantic] ?? 0);
+    });
+    const next = new Map<string, TaskStateView>();
+    const stable = sorted.map((state) => {
+      const previous = renderedTaskStates.get(state.slug);
+      const view = previous && sameState(previous, state) ? previous : state;
+      next.set(state.slug, view);
+      return view;
+    });
+    renderedTaskStates = next;
+    return stable;
+  });
+
+  /** The states a person should be offered — the same list, without the withdrawn ones. */
+  const offeredTaskStates = createMemo<TaskStateView[]>(() => taskStates().filter((s) => !s.retired));
+
+  /**
+   * Tell extraction which states this space actually uses.
+   *
+   * A model fills `TaskBlock.status` from the vocabulary it is shown, and what it is shown is the
+   * hint on the *stored shape* — which the executor reads instead of the model class, so a space is
+   * already the override point (see `interpretationHints.ts`). Without this, a community could add
+   * "Blocked", get a Blocked column, and watch extraction keep writing the three defaults forever,
+   * because nothing connected naming a state to telling the model it existed.
+   *
+   * Only for a space that has written a state of its own. One still on the defaults already matches
+   * the declared hint, so writing it would customise every space to say what it already said — and a
+   * customised hint stops receiving improvements from releases, which is a real cost to pay for a
+   * no-op. Once a space has any state of its own the hint lists everything it offers, virtual
+   * defaults included, since those are states too.
+   *
+   * Withdrawn states are left out: a state nobody may pick is not one a model should write.
+   *
+   * Known limitation, and it is the one `interpretationHints.ts` documents for every hint: a
+   * *structural* shape refresh — the model gaining a property in a release — rewrites the shape
+   * graph and drops customised hints with it. This is re-derived the next time a state changes
+   * rather than watched for, because the alternative is a read on every space open to check whether
+   * a hint the community may never have touched still says what we last wrote.
+   */
+  async function syncTaskStateHint(): Promise<void> {
+    const dataset = datasetStore.currentDataset()?.handle;
+    const ports = session.backendPorts()?.schemas;
+    const offered = offeredTaskStates();
+    if (!dataset || !ports || !ownTaskStates().length || !offered.length) return;
+    const list = offered.map((state) => `"${state.slug}"`).join(', ');
+    /*
+      Where a task lands when the conversation does not say.
+
+      **The community's first column**, not "the first state that counts as open" — which is what
+      this used to say, and which any second open state could take over. Naming "Blocked" as open and
+      dragging it to the front would have had extraction filing new work as blocked, which nobody
+      would predict from either action.
+
+      Reading it as the first column makes it something the community can *see* and change: the
+      leftmost column of the board is where new work arrives. `offered` is already in their order.
+      Blocked and cancelled are refused outright — whatever is at the front, an extraction pass has no
+      business declaring work stuck or dropped before anybody has looked at it.
+    */
+    const entry = offered.find((state) => state.semantic === 'open' || state.semantic === 'active');
+    try {
+      await ports.setInterpretationHints(dataset, 'TaskBlock', {
+        propHints: {
+          'we://status': `Exactly one of: ${list}.${
+            entry ? ` Use "${entry.slug}" unless the speaker says work has begun.` : ''
+          }`,
+        },
+      });
+    } catch (error) {
+      // A space whose shape predates the property, or a peer without write access. The states still
+      // work; extraction just keeps using the vocabulary it already had.
+      console.warn('SpaceStore: could not update the extraction hint for task states', error);
+    }
+  }
+
+  /**
+   * The record for a state, making one from the default where the community has never written it.
+   *
+   * The one place a default becomes a record. Called by whatever needs a record to act on — a
+   * withdrawal, a reorder — so the act that adopts a default is always one a person took on that
+   * state, and never a side effect of naming a different one. Answers null for a slug that is
+   * neither a record nor a default.
+   */
+  async function adoptTaskState(p: DatasetProxy, slug: string): Promise<TaskState | null> {
+    const existing = await TaskState.findAll(p, { where: { slug } }).catch(() => [] as TaskState[]);
+    if (existing.length) return dedupeBySlug(existing)[0] ?? null;
+    const fallback = DEFAULT_TASK_STATES.find((d) => d.slug === slug);
+    if (!fallback) return null;
+    return await TaskState.create(p, {
+      name: fallback.name,
+      slug: fallback.slug,
+      semantic: fallback.semantic,
+      color: fallback.color,
+    });
+  }
+
+  /**
+   * Name a state this community's work moves through.
+   *
+   * Nothing else is written. The defaults stay virtual, and a state whose slug matches one — "To do"
+   * given an icon, say — *is* that default adopted, replacing it in the list rather than sitting
+   * beside it. A slug matching a state the community already wrote is refused, since two records
+   * with one slug are one state to every task holding it.
+   *
+   * The space's own board — Everything, the catch-all — gains a column for the new state in the same
+   * act, so the one board whose job is to show all the work never lags the vocabulary. Boards people
+   * made are left alone; theirs offer the column from Unplaced when work in the state shows up.
+   *
+   * Slug derived from the name when none is given, as a signal type's is. It is what tasks store,
+   * so it is not offered for editing afterwards — renaming is what `name` is for.
+   */
+  async function createTaskState(config: {
+    name: string;
+    semantic?: TaskStateView['semantic'];
+    color?: string;
+    icon?: string;
+  }): Promise<void> {
+    const p = datasetStore.currentDataset()?.handle;
+    if (!p || !config.name?.trim()) return;
+    try {
+      const slug = deriveSlug(config.name);
+      if (ownTaskStates().some((state) => state.slug === slug)) {
+        toastService.error(`A state with the name "${config.name}" already exists`);
+        return;
+      }
+      await TaskState.create(p, {
+        name: config.name.trim(),
+        slug,
+        semantic: config.semantic ?? 'open',
+        color: config.color ?? '',
+        icon: config.icon ?? '',
+      });
+      await loadTaskStates();
+      await Promise.all([syncTaskStateHint(), boards.addStateToSpaceBoard(slug, config.name.trim())]);
+    } catch (error) {
+      console.error('SpaceStore: could not create task state', error);
+      toastService.error('Could not add that state');
+    }
+  }
+
+  /**
+   * Set the order this community reads its states in — what a column drag on the board writes.
+   *
+   * An ordered relation rather than a number on each state, which is the difference between a
+   * reorder that survives two people doing it at once and one where the second write silently
+   * discards the first. It is the same reason a card's position lives on the board rather than on
+   * the task, and the capability the model layer gained for exactly this.
+   *
+   * Takes slugs, because a default has no id until somebody does this to it: putting a default in an
+   * order is the act that adopts it, so every state the order names becomes a record here, and the
+   * relation is then written over their ids.
+   */
+  async function reorderTaskStates(orderedSlugs: string[]): Promise<void> {
+    const p = datasetStore.currentDataset()?.handle;
+    const space = currentSpace();
+    if (!p || !space?.id || !Array.isArray(orderedSlugs)) return;
+    const known = new Set(taskStates().map((state) => state.slug));
+    const slugs = orderedSlugs.filter((slug) => known.has(slug));
+    if (!slugs.length) return;
+    try {
+      const ids: string[] = [];
+      for (const slug of slugs) {
+        const record = await adoptTaskState(p, slug);
+        if (record?.id) ids.push(record.id);
+      }
+      const record = await Space.findOne(p, { where: { id: space.id } });
+      if (!record) return;
+      // Shown before it is written, and kept until the space record's next push re-reads the order
+      // the executor holds — which is this one, or a peer's concurrent one that beat it.
+      setTaskStateOrder(ids);
+      await record.setTaskStates(ids);
+      await loadTaskStates();
+    } catch (error) {
+      console.error('SpaceStore: could not reorder task states', error);
+      toastService.error('Could not save that order');
+    }
+  }
+
+  /**
+   * Withdraw a state from use, or bring it back — without touching the work sitting in it.
+   *
+   * The same decision `setSignalTypeRetired` makes, for the same reason one layer along: a task
+   * names its state by slug, so deleting the state leaves every task holding a word nothing
+   * defines. Retiring stops it being offered and leaves everything readable, and un-retiring puts
+   * it back exactly as it was.
+   *
+   * Takes a slug rather than an id, because withdrawing a default is the act that adopts it — it has
+   * no record until it does.
+   */
+  async function setTaskStateRetired(slug: string, retired: boolean): Promise<void> {
+    const p = datasetStore.currentDataset()?.handle;
+    if (!p || !slug) return;
+    try {
+      const record = await adoptTaskState(p, slug);
+      if (!record) return;
+      record.retired = retired;
+      await record.save();
+      await loadTaskStates();
+      await syncTaskStateHint();
+    } catch (error) {
+      console.error('SpaceStore: could not update task state', error);
+      toastService.error('Could not update that state');
+    }
+  }
 
   /*
     ── Module settings ──────────────────────────────────────────────────────────────────────────
@@ -3621,6 +4144,9 @@ export function SpaceStoreProvider(props: ParentProps) {
     joinError,
     orderedSidebarItems,
     enabledModules,
+    taskStates,
+    offeredTaskStates,
+    taskStatesLoaded,
     installedModules,
     requiredModules,
     missingModules,
@@ -3644,6 +4170,7 @@ export function SpaceStoreProvider(props: ParentProps) {
     createPost,
     updatePost,
     moveChild,
+    ...boards,
     setAttending,
     mutedDids,
     mutedAgents,
@@ -3686,6 +4213,9 @@ export function SpaceStoreProvider(props: ParentProps) {
     createSignalType,
     createRelationshipType,
     setSignalTypeRetired,
+    createTaskState,
+    setTaskStateRetired,
+    reorderTaskStates,
     upsertSignal,
     navigateToSpace,
     openRecordRef,

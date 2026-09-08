@@ -22,6 +22,8 @@ export {
   datasetAddress,
   entityAddress,
   literalAddress,
+  NODE_TYPE_KEY,
+  nodeTypeOf,
   parseAddress,
   propertyAddress,
   resourceAddress,

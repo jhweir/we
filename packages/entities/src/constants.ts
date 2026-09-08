@@ -22,3 +22,25 @@ export const PREDICATES = {
    */
   MENTION: 'we://mention',
 } as const;
+
+/**
+ * The task states a space has before it decides on its own.
+ *
+ * **Unset means these, not none** — the same rule `Space.enabledModules` follows, and for the same
+ * reason: a space that has never thought about its vocabulary must still work, and every space that
+ * existed before this vocabulary did has tasks whose `status` holds one of these slugs. Reading an
+ * empty list as "no states" would empty every board in every existing space, which is a migration
+ * dressed up as a default.
+ *
+ * Creating a single `TaskState` is the act of opting in: from then on the space's own list is the
+ * list, and these stop applying. A community that wants to keep "To do" alongside its own additions
+ * re-creates it with the same slug, which costs nothing because a task holds the slug rather than a
+ * record id.
+ *
+ * Shaped like the records they stand in for, so a consumer never branches on which it is holding.
+ */
+export const DEFAULT_TASK_STATES = [
+  { slug: 'todo', name: 'To do', semantic: 'open', color: '' },
+  { slug: 'doing', name: 'Doing', semantic: 'active', color: '' },
+  { slug: 'done', name: 'Done', semantic: 'done', color: '' },
+] as const;

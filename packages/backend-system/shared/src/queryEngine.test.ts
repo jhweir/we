@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- result rows are Record<string, unknown>; tests cast to read hydrated relations */
 import { describe, expect, it } from 'vitest';
 
+import { compileQuery } from './queryCompiler';
 import { executeQueryIR, type InMemoryDataset } from './queryEngine';
 import type { QueryIR } from './queryIR';
 
@@ -242,5 +243,99 @@ describe('untyped relations', () => {
     );
     expect((rows[0].$cover as { id: string }).id).toBe('i1');
     expect((rows[1].$cover as { id: string }).id).toBe('i2');
+  });
+});
+
+describe('an ordered relation', () => {
+  // Children deliberately sit in the table in an order nobody chose, with the parent recording the
+  // order somebody did choose. Reading by foreign key alone gives the first; that is the bug.
+  const ordered: InMemoryDataset = {
+    tables: {
+      Collection: [{ id: 'c1', children: ['b3', 'b1', 'b2'] }],
+      Block: [
+        { id: 'b1', collectionId: 'c1', text: 'first written' },
+        { id: 'b2', collectionId: 'c1', text: 'second written' },
+        { id: 'b3', collectionId: 'c1', text: 'third written' },
+      ],
+    },
+    relations: {
+      Collection: { children: { target: 'Block', cardinality: 'many', foreignKey: 'collectionId', ordered: true } },
+    },
+  };
+
+  const childrenOf = (data: InMemoryDataset) =>
+    (executeQueryIR({ irVersion: 1, entity: 'Collection', include: { children: true } }, data)[0] as any).children.map(
+      (c: { id: string }) => c.id,
+    );
+
+  it('reads back in the order the parent recorded, not the order the members were written', () => {
+    expect(childrenOf(ordered)).toEqual(['b3', 'b1', 'b2']);
+  });
+
+  it('keeps a member the order does not mention, at the end', () => {
+    // Position and membership are separate facts, so an unlisted member is still a member. This is
+    // the partially-migrated collection: some order written, the rest not yet.
+    const partial = structuredClone(ordered);
+    partial.tables.Block.push({ id: 'b4', collectionId: 'c1', text: 'never positioned' });
+    expect(childrenOf(partial)).toEqual(['b3', 'b1', 'b2', 'b4']);
+  });
+
+  it('ignores an id in the order that is no longer a member', () => {
+    const stale = structuredClone(ordered);
+    (stale.tables.Collection[0].children as string[]).unshift('deleted');
+    expect(childrenOf(stale)).toEqual(['b3', 'b1', 'b2']);
+  });
+
+  it('reads exactly as before when no order has been recorded', () => {
+    // The migration case: a collection that predates ordering must not change what it shows.
+    const unwritten = structuredClone(ordered);
+    delete unwritten.tables.Collection[0].children;
+    expect(childrenOf(unwritten)).toEqual(['b1', 'b2', 'b3']);
+  });
+
+  it('leaves an unordered relation alone', () => {
+    const unordered = structuredClone(ordered);
+    delete unordered.relations!.Collection.children.ordered;
+    expect(childrenOf(unordered)).toEqual(['b1', 'b2', 'b3']);
+  });
+});
+
+/**
+ * The engine has always evaluated relation quantifiers and nothing could reach them: the flat
+ * dialect had no spelling, so `compileQuery` never produced one. These drive the whole chain a
+ * template now takes — a flat `where` in, rows out — rather than handing the engine an IR built by
+ * hand, because the half that was missing is the translation and an IR fixture would skip it.
+ */
+describe('relation quantifiers, from the flat where a template writes', () => {
+  const run = (where: Record<string, unknown>) => ids(executeQueryIR(compileQuery({ entity: 'Post', where }).ir, data));
+
+  it('finds records with none of a relation, and with any of it', () => {
+    // p3 is the only post nobody signalled — previously answerable only by fetching every post with
+    // its signals and counting client-side.
+    expect(run({ signals: { none: {} } })).toEqual(['p3']);
+    expect(run({ signals: { some: {} } })).toEqual(['p1', 'p2']);
+  });
+
+  it('filters on a property of the related record', () => {
+    expect(run({ signals: { some: { signalTypeId: 'star' } } })).toEqual(['p2']);
+    // "nobody starred this" is the negation of the above, not of `some: {}` — p1 has signals, just
+    // no stars, so it belongs in the answer.
+    expect(run({ signals: { none: { signalTypeId: 'star' } } })).toEqual(['p1', 'p3']);
+  });
+
+  it('composes with a scalar condition on the parent', () => {
+    expect(run({ title: { contains: 'graph' }, signals: { some: { signalTypeId: 'like' } } })).toEqual(['p1']);
+  });
+
+  it('reaches a relation of the related record', () => {
+    // Agents who wrote something somebody liked — a quantifier whose nested clause is itself one.
+    expect(
+      ids(
+        executeQueryIR(
+          compileQuery({ entity: 'Agent', where: { posts: { some: { signals: { some: {} } } } } }).ir,
+          data,
+        ),
+      ),
+    ).toEqual(['a1', 'a2']);
   });
 });

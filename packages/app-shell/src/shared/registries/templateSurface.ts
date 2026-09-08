@@ -403,11 +403,35 @@ export const TEMPLATE_SURFACE: Record<string, Record<string, Classification>> = 
     unreadNodeIds: state('content'),
     myMentions: state('content'),
     uploadFile: action('content'),
+    taskStates: state('content'),
+    offeredTaskStates: state('content'),
+    taskStatesLoaded: state('content'),
     mutedDids: state('content'),
     mutedAgents: state('content'),
     setAgentMuted: action('content'),
     getSubgroupMessages: action('content'),
     exportCallTranscript: action('content'),
+    // A board is a collection like a call, and arranging one is content work rather than
+    // administration: any member may make one and drag cards on it.
+    createBoard: action('content'),
+    openBoardFor: action('content'),
+    /*
+      Extraction's hook, and host wiring rather than a template's business: a template that wanted a
+      board would call `openBoardFor`, which asks. This one *decides* — it consults whether the
+      collection holds a task and creates the board and its columns without being asked — which is
+      right for a pass that just wrote work and wrong for a schema rendering a page.
+    */
+    ensureBoardFor: WIRING,
+    // The other half of naming a state: the space's own board grows a column for it. Reached from
+    // `createTaskState`, never from a schema, which has `addBoardColumn` for a board it can see.
+    addStateToSpaceBoard: WIRING,
+    addBoardColumn: action('content'),
+    removeBoardColumn: action('content'),
+    renameBoardColumn: action('content'),
+    reorderBoardColumns: action('content'),
+    arrangeColumn: action('content'),
+    moveCardToColumn: action('content'),
+    addTaskToColumn: action('content'),
 
     // ── signals ──
     createSignalType: action('signals'),
@@ -416,6 +440,17 @@ export const TEMPLATE_SURFACE: Record<string, Record<string, Classification>> = 
     // a community naming what it means by something.
     createRelationshipType: action('signals'),
     upsertSignal: action('signals'),
+    /*
+      The vocabulary of states, the third of the same kind — a community naming what it means by
+      something, alongside its reactions and its connections.
+
+      Reading the states is `content`, not `signals`: a card showing which state a task is in is for
+      every member, and a board that could not read them would be unable to draw a column. Naming a
+      new one is the act that commits the community to a word, so it sits with the other two.
+    */
+    createTaskState: action('signals'),
+    setTaskStateRetired: action('signals'),
+    reorderTaskStates: action('signals'),
 
     // ── navigation ──
     spaceList: state('navigation'),
@@ -646,14 +681,14 @@ export const TEMPLATE_SURFACE: Record<string, Record<string, Classification>> = 
     pendingLink: state('content'),
     openRecordForm: action('content'),
     connectNodes: action('content'),
-    createOnBoard: action('content'),
-    createCardOnBoard: action('content'),
-    placeOnBoard: action('content'),
-    removeFromBoard: action('content'),
-    resizeOnBoard: action('content'),
-    anchorOnBoard: action('content'),
-    rerouteOnBoard: action('content'),
-    retargetOnBoard: action('content'),
+    createOnCanvas: action('content'),
+    createCardOnCanvas: action('content'),
+    placeOnCanvas: action('content'),
+    removeFromCanvas: action('content'),
+    resizeOnCanvas: action('content'),
+    anchorOnCanvas: action('content'),
+    rerouteOnCanvas: action('content'),
+    retargetOnCanvas: action('content'),
     // Host wiring, both halves of one mechanism: the graph host reads what is pending and reports
     // the rows it read back. A template has no use for either — it writes through the actions above
     // and the optimism is applied for it.

@@ -47,6 +47,8 @@ export type Signal = M.SignalRecord;
 export const Signal = defineEntity('Signal') as unknown as EntityStatic<M.SignalRecord>;
 export type SignalType = M.SignalTypeRecord;
 export const SignalType = defineEntity('SignalType') as unknown as EntityStatic<M.SignalTypeRecord>;
+export type TaskState = M.TaskStateRecord;
+export const TaskState = defineEntity('TaskState') as unknown as EntityStatic<M.TaskStateRecord>;
 export type Space = M.SpaceRecord;
 export const Space = defineEntity('Space') as unknown as EntityStatic<M.SpaceRecord>;
 export { AGENT_DEFAULT, FOLLOW_SPACE } from './manifest/SpacePreference';
@@ -99,7 +101,7 @@ export type TextBlock = M.TextBlockRecord;
 export const TextBlock = defineEntity('TextBlock') as unknown as EntityStatic<M.TextBlockRecord>;
 export type VideoBlock = M.VideoBlockRecord;
 export const VideoBlock = defineEntity('VideoBlock') as unknown as EntityStatic<M.VideoBlockRecord>;
-export { FILE_STORAGE_LANGUAGE, PREDICATES } from './constants';
+export { DEFAULT_TASK_STATES, FILE_STORAGE_LANGUAGE, PREDICATES } from './constants';
 export {
   asFileField,
   dataURItoBlob,

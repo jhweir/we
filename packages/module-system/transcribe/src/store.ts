@@ -899,6 +899,13 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     if (settled === settledSeen) return;
     settledSeen = settled;
     void loadProposals();
+    /*
+      And the same for the board. A fresh call is adopted *before* it has produced anything, so the
+      hook on adoption finds nothing to arrange and does nothing — which left an auto-extracted call
+      showing an empty tasks route and an offer to make a board by hand. This is the moment the work
+      exists, and it is the same moment this effect already exists to notice.
+    */
+    void settleCollection(collectionId() ?? '');
   });
 
   /**
@@ -988,6 +995,16 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
       // calls list extracts a finished one, and reviewing what that found is the whole point of
       // being able to.
       if (result.proposed.length) await loadProposals(collection);
+      /*
+        A pass that produced something is a pass the host may want to act on — attach what it left
+        loose, give the call a board once it holds a task. What exactly follows is the host's rule
+        and lives in one place; this only says that a pass settled here.
+
+        Not awaited into the status: the pass is done and reported, and whatever follows failing is
+        not a failed extraction. Deliberately here rather than when somebody opens a route: a pass
+        runs on one node, where opening a route runs on everybody's.
+      */
+      if (result.ids.length) void interpretation.passSettled?.(collection);
     } catch (error) {
       setExtractError(error instanceof Error ? error.message : String(error));
       setExtractedId(collection);
@@ -1319,6 +1336,26 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
   let watched: string | null = null;
 
   /**
+   * Tell the host a pass has settled on this collection, so it can do whatever follows.
+   *
+   * Two moments make a pass known to this client and they cover opposite orderings, so both call
+   * this. **Adopting** a collection catches a pass that ran while nobody was here. A pass
+   * **settling** catches one that runs while somebody is — which is the ordinary case for a fresh
+   * call, where adoption happens before there is anything to arrange.
+   *
+   * What follows is the host's — see `passSettled` on the contract — and it is idempotent, so
+   * calling this more often than strictly necessary costs a round trip and changes nothing.
+   */
+  async function settleCollection(collection: string): Promise<void> {
+    if (!collection) return;
+    try {
+      await interpretation?.passSettled?.(collection);
+    } catch {
+      // Best-effort: the pass itself already succeeded, and the host reports its own failures.
+    }
+  }
+
+  /**
    * Set the collection, and move the watch with it.
    *
    * One function rather than an effect over the signal, because the watch has to follow every
@@ -1331,11 +1368,11 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     // conversation reads its own list — or the space's, when nobody has touched it.
     setCollectionId(next);
     void syncWatch(next);
-    // Repair anything a standing pass minted while nobody was here to attach it — see
-    // `reconcileCollection`. Adopting a collection is the moment somebody is about to look at it.
-    if (next && typeof interpretation?.reconcileCollection === 'function') {
-      // The host resolves what to repair, as it does for every other pass over this collection.
-      void interpretation.reconcileCollection(next).catch(() => 0);
+    // Tell the host a pass may have settled here while nobody was watching — see `passSettled`.
+    // Adopting a collection is the moment somebody is about to look at it.
+    if (next && typeof interpretation?.passSettled === 'function') {
+      // The host decides what follows, as it does for every other pass over this collection.
+      void settleCollection(next);
       // And whatever a standing pass staged while nobody was here to see it. The settled-pass effect
       // covers a call being watched right now; the activity feed expires, so opening an older call
       // needs its own read.
@@ -1999,6 +2036,14 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
      * second, and keying the first made switching calls flash every outgoing card as settled.
      */
     pendingIds,
+    /**
+     * The same suggestions as rows rather than ids, for a surface that has to *read* one.
+     *
+     * A card marker asks "is this waiting?" and wants {@link pendingIds}; a card that shows what was
+     * proposed has to find the proposal and read it, which ids cannot answer. Both are the union
+     * across every call asked about, for the reason `pendingIds` gives at length.
+     */
+    pendingProposals: allProposals,
     /**
      * The same, for the call this agent is in.
      *

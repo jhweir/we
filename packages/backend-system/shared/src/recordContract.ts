@@ -38,6 +38,32 @@ export interface RecordInstance {
   delete(batch?: string): Promise<unknown>;
 }
 
+/**
+ * The key a record read through a polymorphic relation carries its concrete entity name under.
+ *
+ * A heterogeneous relation hands back records of several kinds at once, and a consumer that has to
+ * do anything with one — draw it, address it, pick a display for it — needs to know which kind it
+ * got. The declared relation cannot say, because saying is the thing it gave up by being untyped.
+ *
+ * A contract rather than a convenience, and worth stating plainly because the value is not this
+ * repo's to choose: AD4M's executor writes this exact string, so what is written here is a *record*
+ * of somebody else's wire format, and any backend answering a polymorphic read has to match it. The
+ * failure mode if one does not is quiet — records arrive with no type and every consumer falls back
+ * to whatever it does for an unknown row, which looks the same as a relation that hydrated nothing.
+ *
+ * Named here rather than in the AD4M adapter so that the neutral layers reading it — the graph
+ * engine, anything picking a display per row — are not reaching into a `__`-prefixed literal they
+ * would have to know an adapter's internals to justify.
+ */
+export const RECORD_TYPE_KEY = '__subjectClass';
+
+/** The concrete entity name of a record read polymorphically, or undefined if it carries none. */
+export function recordTypeOf(row: unknown): string | undefined {
+  if (!row || typeof row !== 'object') return undefined;
+  const value = (row as Record<string, unknown>)[RECORD_TYPE_KEY];
+  return typeof value === 'string' && value ? value : undefined;
+}
+
 // ── Field classification (structural, over the neutral interfaces) ─────────────────────────────
 
 /** T's data fields: everything that is not the base contract and not a method. */

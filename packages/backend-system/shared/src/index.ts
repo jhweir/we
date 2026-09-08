@@ -76,6 +76,7 @@ export {
   getProperty,
   getRelation,
   modelManifestSchema,
+  resolvesPolymorphically,
   validateManifest,
 } from './manifest';
 export type {
@@ -110,7 +111,7 @@ export { queryIRSchema, filterSchema, validateQueryIR } from './queryIR';
 export { validateQueryAgainstManifest } from './queryValidation';
 export { planQuery } from './queryCapabilities';
 export type { AdapterCapabilities, AggregateFn, Disposition, CapabilityGap, QueryPlan } from './queryCapabilities';
-export { compileQuery, irToFlatQuery, whereUsesCombinator } from './queryCompiler';
+export { compileQuery, irToFlatQuery } from './queryCompiler';
 export type { FlatQuery, CompileResult } from './queryCompiler';
 export { executeQueryIR } from './queryEngine';
 export type { Row, InMemoryDataset, InMemoryRelation } from './queryEngine';
@@ -177,6 +178,7 @@ export type {
   TypedWhere,
   WriteProperties,
 } from './recordContract';
+export { RECORD_TYPE_KEY, recordTypeOf } from './recordContract';
 export type { LanguageModelPort } from './languageModel';
 export type { TranscriptionRecord, TranscriptionPort, TranscriptionStream, TranscriptionTuning } from './transcription';
 export type {

@@ -5,7 +5,7 @@
  * its box. The canvas is the full region and every pixel of it renders, so nothing about panning,
  * zooming or hit-testing changes — but "what can the reader see" stops being the same rectangle, and
  * a layout placing a node where nobody has placed one is asking exactly that question. The workshop
- * board asked it, got the whole region, and parked every freshly extracted card underneath the
+ * canvas asked it, got the whole region, and parked every freshly extracted card underneath the
  * transcript panel.
  */
 import { describe, expect, it } from 'vitest';

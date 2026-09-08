@@ -1,7 +1,7 @@
 # The graph system
 
 A general-purpose graph engine: knowledge maps, schema maps, hierarchies, cluster maps, static
-diagrams — and, later, free-positioned boards. One engine, configured as data.
+diagrams — and, later, free-positioned canvases. One engine, configured as data.
 
 ## The idea in one paragraph
 
@@ -34,8 +34,8 @@ imports a backend.
 - **Exploration** — `GraphStore`, `ExpansionState`, `GraphEngine`. Expanders, expansion state,
   reference-counted collapse, bundling, budgets.
 
-A board uses the scene and none of the exploration. A knowledge map uses both. Keeping them apart is
-what stops a board dragging in expansion state it has no use for, and stops undo and marquee selection
+A canvas uses the scene and none of the exploration. A knowledge map uses both. Keeping them apart is
+what stops a canvas dragging in expansion state it has no use for, and stops undo and marquee selection
 leaking into an explorer that will never want them.
 
 **Before extending any of this, read [`CONVENTIONS.md`](./CONVENTIONS.md)** — what belongs in the API
@@ -78,7 +78,7 @@ difference between "not here yet" and "nothing there", and without it every expa
 
 ## What is deliberately not here
 
-- **Boards.** The engine supports manual layout and a board is the obvious next mode, but a freeform
+- **Canvases.** The engine supports manual layout and a canvas is the obvious next mode, but a freeform
   canvas is its own project — undo, marquee, snapping, z-order, text editing on a transformed surface
   — and it needs durable entities this module does not yet declare.
 - **A dense canvas renderer.** The node-renderer registry and core-owned hit-testing exist so it can

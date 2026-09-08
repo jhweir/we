@@ -2,14 +2,14 @@
  * Workshop — a call, its transcript, and what came out of it.
  *
  * The seventh showcase template, and the first that is about *panels* rather than about a content
- * arrangement. The other six demonstrate that channels, boards, playlists and events are all one
+ * arrangement. The other six demonstrate that channels, canvases, playlists and events are all one
  * container seen differently; this one demonstrates that where the surfaces around the content sit
  * is also data.
  *
  * ## The screen
  *
  * A call is running. Down the left, the transcript as everyone speaks, and beneath it a readout of
- * what extraction is making of it. On the right, the call itself. In the middle, a board of the
+ * what extraction is making of it. On the right, the call itself. In the middle, a canvas of the
  * records the call produced — tasks and events — which can be dragged into an arrangement and joined
  * to each other.
  *
@@ -29,7 +29,7 @@
  *
  * Nothing. Like the other six, this template adds no content model. The transcript is the
  * `CollectionBlock` `@we/module-transcribe` already writes (`docs/architecture/transcripts.md`), and
- * the board's cards are the `TaskBlock`s and `EventBlock`s extraction already produces from it. The
+ * the canvas's cards are the `TaskBlock`s and `EventBlock`s extraction already produces from it. The
  * template is arrangement over both.
  *
  * ## Where the panels come from
@@ -47,31 +47,31 @@
  *   the module now and this places it. A body is for an arrangement the module genuinely cannot
  *   express, not for a difference it should have absorbed.
  * - **no `route` on any of them.** The key exists for a shell that routes itself and wants a panel on
- *   one page only — but scoping these to the board meant crossing to the tasks list *unregistered*
+ *   one page only — but scoping these to the canvas meant crossing to the tasks list *unregistered*
  *   them, throwing away their scroll position, their subscriptions and wherever they had been
  *   dragged. A column of context on a page that did not strictly need it is the cheaper of the two.
  * - **`open: false`** on the call, because the call module's launcher action is `goToCall`, which
  *   *joins a call* when there is not one. Placed, never opened.
  */
 import type { RouteSchema, SchemaNode, SchemaProp, TemplateSchema } from '@we/schema-shared';
-import { agentByline, emptyState, panelHeader, recordFormModal } from '@we/template-kit';
+import { anchorScope, emptyState, panelHeader, recordFormModal, taskBoard, taskBoardLoading } from '@we/template-kit';
 
 /**
  * The call on screen — **named in the address**, or the one being recorded when it names none.
  *
- * Every surface here is about one call: the transcript, the extraction readout, the board. That id
+ * Every surface here is about one call: the transcript, the extraction readout, the canvas. That id
  * used to be `modules.transcribe.collectionId`, which means "the call I am recording into" — so
  * looking at a finished call meant *joining a call* first, a refresh left the template about no call
- * at all, and there was no way to send somebody the board you were looking at. In the address
+ * at all, and there was no way to send somebody the canvas you were looking at. In the address
  * instead, which answers all three: it survives a reload, pastes into a message, and needs no state
  * anywhere. The live call is the default, so the ordinary case — you are in a meeting, you open the
- * board — is unchanged and names nothing.
+ * canvas — is unchanged and names nothing.
  *
  * ## A query parameter, not a path segment
  *
- * `/board/<call>` was the obvious spelling and it cannot work: a record id is a **URI**
- * (`we://…/<uuid>`), so it carries slashes and a colon, and `./board/we://…` is several segments —
- * `/board/:callId` matches none of them, and every click landed on the catch-all with "Page not
+ * `/canvas/<call>` was the obvious spelling and it cannot work: a record id is a **URI**
+ * (`we://…/<uuid>`), so it carries slashes and a colon, and `./canvas/we://…` is several segments —
+ * `/canvas/:callId` matches none of them, and every click landed on the catch-all with "Page not
  * found". A query value takes those characters as they are, which is why the host's own record
  * links are `…/record/<Entity>?id=<id>` and not a segment either.
  *
@@ -92,26 +92,26 @@ const CALL = { $: CALL_EXPR };
  * What extraction is allowed to make from a transcript — asked, rather than restated.
  *
  * This was `['TaskBlock', 'EventBlock']`, a copy of the two classes the module used to compile in,
- * with a comment admitting that the board would silently stop showing a new kind if that list ever
+ * with a comment admitting that the canvas would silently stop showing a new kind if that list ever
  * grew. It grew: what a space extracts is a community decision now, and the extraction panel offers
  * it as chips somebody can change mid-call. So the constant went from a maintenance note to a bug
  * one click away — turn on `Sighting`, extract, and the records land in the collection while the
- * board shows nothing and says nothing.
+ * canvas shows nothing and says nothing.
  *
  * The call's own list, not the space's: those differ the moment somebody narrows a call, and it is
- * the call that this board is about. Every entity in it, whether or not it is currently ticked — a
- * model switched off half way through a meeting must not take what it already found off the board.
+ * the call that this canvas is about. Every entity in it, whether or not it is currently ticked — a
+ * model switched off half way through a meeting must not take what it already found off the canvas.
  */
 const EXTRACTED = { $: `modules.transcribe.extractionFor[${CALL_EXPR}].targets.map(t, t.entity)` };
 
 /**
- * The page on screen, as a segment — or the board, before the redirect has landed on one.
+ * The page on screen, as a segment — or the canvas, before the redirect has landed on one.
  *
  * Changing which call you are looking at is not a reason to change the page. Both of these used to
- * name `board` outright, so choosing a call from the tasks list threw you onto the board, and the
+ * name `canvas` outright, so choosing a call from the tasks list threw you onto the canvas, and the
  * only way back was the switcher.
  */
-const PAGE_EXPR = "routeStore.templateSegments[0] ? routeStore.templateSegments[0] : 'board'";
+const PAGE_EXPR = "routeStore.templateSegments[0] ? routeStore.templateSegments[0] : 'canvas'";
 
 /** This space's current page, with whatever call parameter is given — `''` for none. */
 const pageWithCall = (callExpr: string): SchemaProp => ({
@@ -162,10 +162,10 @@ const openLiveCall: SchemaProp = pageWithCall("''");
  * segment it freed goes to the other half of what a conversation produces: tasks have no date and
  * events do, and a list is the wrong shape for the second.
  */
-const ROUTE = { board: 'board', tasks: 'tasks', events: 'events' } as const;
+const ROUTE = { canvas: 'canvas', tasks: 'tasks', events: 'events' } as const;
 
 const NAV = [
-  { segment: ROUTE.board, icon: 'graph', label: 'Board' },
+  { segment: ROUTE.canvas, icon: 'graph', label: 'Canvas' },
   { segment: ROUTE.tasks, icon: 'check-square', label: 'Tasks' },
   { segment: ROUTE.events, icon: 'calendar', label: 'Events' },
 ];
@@ -174,7 +174,7 @@ const NAV = [
  * Where a switcher button goes: this space's page for that segment, carrying the call on screen.
  *
  * The call has to come along. The panels stand on every route now, and they are about `CALL` — so a
- * link that dropped the parameter would show the transcript of the *live* call while the board two
+ * link that dropped the parameter would show the transcript of the *live* call while the canvas two
  * clicks away showed the one you chose, and switching pages would look like it changed the subject.
  *
  * `?? ''` rather than a ternary: an absent parameter interpolates as the word `undefined`, and an
@@ -241,7 +241,7 @@ const switcher: SchemaNode = {
  *
  * One query per class rather than one over both: a `$query` names an entity, and the two have
  * nothing in common to sort by across the pair. Newest first, because this is a "what just
- * happened" readout rather than a record — the board and the calendar are where they are kept.
+ * happened" readout rather than a record — the canvas and the calendar are where they are kept.
  */
 /**
  * The way into a call: start one, or go to the one already running.
@@ -289,10 +289,10 @@ const startCall: SchemaNode = {
 };
 
 /**
- * Pick a call up again — and land on the board that is about it.
+ * Pick a call up again — and land on the canvas that is about it.
  *
  * This template's three routes are all about `modules.transcribe.collectionId`: the transcript
- * panel, the extraction readout and the board all read it. Nothing set it but a call starting, so
+ * panel, the extraction readout and the canvas all read it. Nothing set it but a call starting, so
  * after a refresh the template was about no call at all and the only way back was to start a new
  * one — a fresh meeting, beside the record of the one you actually wanted.
  *
@@ -322,7 +322,7 @@ const continueCall: SchemaNode = {
     then: {
       type: 'we-tooltip',
       props: {
-        title: { $: "modules.call.active ? 'Go to the call' : 'Continue this call and put it on the board'" },
+        title: { $: "modules.call.active ? 'Go to the call' : 'Continue this call and put it on the canvas'" },
         placement: 'top',
       },
       children: [
@@ -364,7 +364,7 @@ const continueCall: SchemaNode = {
                   ],
                 },
               },
-              // The point of picking a call: its board. Cleared rather than named, for the reason
+              // The point of picking a call: its canvas. Cleared rather than named, for the reason
               // above — resuming makes this the live call.
               openLiveCall,
             ],
@@ -385,15 +385,15 @@ const continueCall: SchemaNode = {
  * appends it to every template's route table, self-routing ones included. It is the better surface
  * for reading one thing properly, and this links to it.
  *
- * It is the wrong surface for the question a board asks. Navigating away to read a card loses the
- * arrangement the card is *in* — which is the whole reason the thing is on a board rather than in a
+ * It is the wrong surface for the question a canvas asks. Navigating away to read a card loses the
+ * arrangement the card is *in* — which is the whole reason the thing is on a canvas rather than in a
  * list — so the two are different acts, and this template is the one that argues for the panel:
  * every other surface here is already beside the content rather than instead of it.
  *
  * ## Nothing here names a property of anything
  *
  * Which is the point, and the case that prompted it: a community defines a model, extraction writes
- * one, and it appears on the board as a card nobody can look inside. `recordStore.displays` is
+ * one, and it appears on the canvas as a card nobody can look inside. `recordStore.displays` is
  * derived from the model's own declaration, so the fields, their labels and their kinds all arrive
  * from the same place the create form gets them. A model adopted this morning renders here with
  * nothing written for it.
@@ -591,7 +591,7 @@ const inspectorPanel: SchemaNode = {
  * a panel that made you scroll past a meeting to reach the one below it would not be a switcher.
  *
  * Declared with no `route`, so it is reachable from the tasks list as well. Selection is a
- * *navigation* — `./board/<id>` — which is what makes it survive a reload and paste into a message.
+ * *navigation* — `./canvas/<id>` — which is what makes it survive a reload and paste into a message.
  */
 const callsPanel: SchemaNode = {
   type: 'Column',
@@ -725,37 +725,37 @@ const callsPanel: SchemaNode = {
 };
 
 /**
- * The board — what the call produced, arranged.
+ * The canvas — what the call produced, arranged.
  *
- * The `board` seed over the call's own collection: its contents at the positions somebody put them.
+ * The `canvas` seed over the call's own collection: its contents at the positions somebody put them.
  * `contains` narrows it to what extraction makes, because the collection's children are *also* every
- * utterance, and a board of six hundred transcript fragments is not a board.
+ * utterance, and a canvas of six hundred transcript fragments is not a canvas.
  *
  * `manual` layout parks anything without a placement in a grid, which is what makes a freshly
  * extracted record appear somewhere sensible rather than stacked at the origin. Dragging pins it and
- * `onNodeDragEnd` writes that back — without which the board is a layout that forgets, silently,
+ * `onNodeDragEnd` writes that back — without which the canvas is a layout that forgets, silently,
  * until the next reload.
  */
-const board: SchemaNode = {
+const canvas: SchemaNode = {
   type: 'GraphView',
   props: {
     seeds: {
-      source: 'board',
+      source: 'canvas',
       /*
         `pending` is what makes a suggestion look like one.
 
         An extraction pass can stage a *whole* record rather than writing it, and a staged record is
-        in the graph: it answers the board's query exactly as an accepted one does, so until now a
+        in the graph: it answers the canvas's query exactly as an accepted one does, so until now a
         card nobody had agreed to was indistinguishable from a card somebody had. The proposal list
         is the only thing that knows the difference, and its `id` is the record's own — so handing
         the ids over is the whole of the connection.
       */
       options: {
-        board: CALL,
+        canvas: CALL,
         contains: EXTRACTED,
         connections: 'Relationship',
-        // How this board draws those connections: which side of a card each line attaches to, and
-        // any points somebody bent it through. Per board, like a placement — the same claim shown
+        // How this canvas draws those connections: which side of a card each line attaches to, and
+        // any points somebody bent it through. Per canvas, like a placement — the same claim shown
         // elsewhere keeps its own shape there.
         routes: 'EdgeRoute',
         /*
@@ -789,7 +789,7 @@ const board: SchemaNode = {
           panels the design system already maintains for exactly this — legible in either polarity,
           with a foreground that is corrected against them.
 
-          The board's own per-type colours and each card's own colour still override these, and both
+          The canvas's own per-type colours and each card's own colour still override these, and both
           are palettes rather than meanings, so a scale position stays right there.
         */
         style: {
@@ -807,23 +807,23 @@ const board: SchemaNode = {
       // is a fact about the card, where the rules are this template's opinion about a kind.
       {
         style: {
-          width: { from: 'data.boardWidth' },
-          height: { from: 'data.boardHeight' },
-          color: { from: 'data.boardColor' },
+          width: { from: 'data.canvasWidth' },
+          height: { from: 'data.canvasHeight' },
+          color: { from: 'data.canvasColor' },
         },
       },
       /*
         Last, so it survives the card's own colour: a suggestion is faded whatever shade it is.
 
         Faded rather than hidden. The cards are worth seeing as they arrive — that is the point of a
-        board beside a live call — and half opacity says "this is not settled yet" without asking
+        canvas beside a live call — and half opacity says "this is not settled yet" without asking
         anybody to go and look somewhere else first. What it is *not* is a decision: that is on the
         card, in `nodeActions` below.
 
         `data.pending`, with the prefix. A bare key reads a node's *own* field — `type`, `label` —
         and anything a seed put in the node's data bag is behind `data.`. Written without it this
         matched nothing at all, silently, which is the failure mode a match clause has: no card
-        faded and no card offered the decision, on a board full of suggestions.
+        faded and no card offered the decision, on a canvas full of suggestions.
       */
       { when: { 'data.pending': true }, style: { opacity: 0.5 } },
     ],
@@ -848,7 +848,7 @@ const board: SchemaNode = {
     controls: ['zoom-in', 'zoom-out', 'fit', 'lock'],
     height: '100%',
     /*
-      The board's own words for an empty canvas, in the canvas.
+      The canvas's own words for an empty canvas, in the canvas.
 
       One expression rather than two branches, which is what lets one surface answer both states: no
       call to be about, and a call that has not produced anything yet. The generic
@@ -862,8 +862,8 @@ const board: SchemaNode = {
       The graph's own status strip, on.
 
       Every read a seed makes is caught and reported through `context.warn` rather than thrown — a
-      board that cannot read one of its types keeps the rest — and with no strip there is nowhere for
-      that report to land. A board that silently draws nothing is then indistinguishable from a call
+      canvas that cannot read one of its types keeps the rest — and with no strip there is nowhere for
+      that report to land. A canvas that silently draws nothing is then indistinguishable from a call
       that produced nothing, which is exactly the state this template spent three sittings in.
     */
     showStatus: true,
@@ -871,42 +871,42 @@ const board: SchemaNode = {
     // the same store call the knowledge map makes and ends in the same form.
     onEdgeCreate: { $action: 'recordStore.connectNodes', args: [{ $: 'event' }] },
     /*
-      The drop, written back — an upsert against the *board* rather than an update of the record.
+      The drop, written back — an upsert against the *canvas* rather than an update of the record.
 
-      A coordinate is a fact about the pair, so the same task can sit on two boards in two places and
+      A coordinate is a fact about the pair, so the same task can sit on two canvases in two places and
       the record never learns it was on one. `recordId`/`recordType` rather than the node's address:
       the graph names a node `we-graph://entity/<dataset>/<type>/<id>` and a template has no operator
       that could take that apart.
     */
     onNodeDragEnd: {
-      $action: 'recordStore.placeOnBoard',
+      $action: 'recordStore.placeOnCanvas',
       args: [CALL, { $: 'event.recordId' }, { $: 'event.recordType' }, { $: 'event.x' }, { $: 'event.y' }],
     },
-    onNodeResize: { $action: 'recordStore.resizeOnBoard', args: [CALL, { $: 'event' }] },
+    onNodeResize: { $action: 'recordStore.resizeOnCanvas', args: [CALL, { $: 'event' }] },
     /*
       Routing a line by hand, written back — and binding these is what puts the handles on one.
 
       Two gestures over one record: `onEdgeAnchor` pins which side of a card an end attaches to,
       dragged around the card's rim; `onEdgeReroute` carries the points the line is bent through, so
       a connection can be taken round a card sitting between its two ends. Both land on an
-      `EdgeRoute` parented to this board rather than on the `Relationship` — how a claim is *drawn*
-      is a fact about a view, and the same claim on another board is untouched.
+      `EdgeRoute` parented to this canvas rather than on the `Relationship` — how a claim is *drawn*
+      is a fact about a view, and the same claim on another canvas is untouched.
     */
-    onEdgeAnchor: { $action: 'recordStore.anchorOnBoard', args: [CALL, { $: 'event' }] },
-    onEdgeReroute: { $action: 'recordStore.rerouteOnBoard', args: [CALL, { $: 'event' }] },
+    onEdgeAnchor: { $action: 'recordStore.anchorOnCanvas', args: [CALL, { $: 'event' }] },
+    onEdgeReroute: { $action: 'recordStore.rerouteOnCanvas', args: [CALL, { $: 'event' }] },
     /*
       And the same handle dropped on a *different* card, which re-attaches the connection.
 
       The one gesture here that edits the claim rather than the view: an anchor and a bend are how
-      this board draws the line, and this is what the line *says* — so it changes wherever the
+      this canvas draws the line, and this is what the line *says* — so it changes wherever the
       relationship is shown. That end's anchor is cleared with it, a side pinned against the card
       that used to be there deciding nothing about the one that arrived.
     */
-    onEdgeRetarget: { $action: 'recordStore.retargetOnBoard', args: [CALL, { $: 'event' }] },
+    onEdgeRetarget: { $action: 'recordStore.retargetOnCanvas', args: [CALL, { $: 'event' }] },
     /*
       What is selected, in the address — because the inspector is a *panel*.
 
-      A panel is not inside this route's tree, so the two cannot share a `$localState`: the board
+      A panel is not inside this route's tree, so the two cannot share a `$localState`: the canvas
       would be writing a name the inspector has no way to read. The address is the one thing both
       can see, and it is what this template already uses to say which call it is about — with the
       same benefits, that a reload comes back to the same card and the link can be sent.
@@ -922,7 +922,7 @@ const board: SchemaNode = {
     /*
       A line is a record here too, so clicking one inspects it.
 
-      The board draws its connections from `Relationship`, a reified entity — which means each line
+      The canvas draws its connections from `Relationship`, a reified entity — which means each line
       *stands for* something with an author, a label and a description, and the inspector was the
       one surface that could not show it. `recordId` is absent on an ordinary edge, which stands for
       a declared relation and has no record of its own; setting both from an empty value clears the
@@ -956,7 +956,7 @@ const board: SchemaNode = {
       A suggestion is resolvable from the extraction panel too, and that is the right surface for
       working through a backlog. It is the wrong one when the thing you are looking at is in front
       of you: the card is what asked the question, so finding its line in a list somewhere else and
-      matching the two up by reading is work the board created and should absorb.
+      matching the two up by reading is work the canvas created and should absorb.
 
       `when` is the style rules' own match clause against the same node data, so the tick and the
       cross appear on exactly the cards the rule above faded — one fact, read twice, which is what
@@ -1018,13 +1018,13 @@ const board: SchemaNode = {
 };
 
 /**
- * The board's body. One route, whichever call it is about: the id is a query parameter, so the path
+ * The canvas's body. One route, whichever call it is about: the id is a query parameter, so the path
  * is the same for the live call and for one somebody chose — see `CALL`.
  */
-const boardBody: Omit<RouteSchema, 'path'> = {
+const canvasBody: Omit<RouteSchema, 'path'> = {
   type: 'Column',
   /*
-    `flex: 1`, not `height: '100%'` — and the difference is the whole board.
+    `flex: 1`, not `height: '100%'` — and the difference is the whole canvas.
 
     The root is `minHeight: '100%'`, because the task list and the calendar are taller than the
     viewport and must grow. That leaves its *specified* height `auto`, and a percentage height
@@ -1038,7 +1038,7 @@ const boardBody: Omit<RouteSchema, 'path'> = {
   */
   props: { width: '100%', flex: '1', minHeight: '0', overflow: 'hidden' },
   /*
-    `syncParam`, so the inspector panel can read what the board selected — see `onNodeClick`.
+    `syncParam`, so the inspector panel can read what the canvas selected — see `onNodeClick`.
 
     View state rather than a preference: if this address is sent to somebody, they should arrive
     looking at the same card. `push: false` (the default) because moving between cards is not
@@ -1050,7 +1050,7 @@ const boardBody: Omit<RouteSchema, 'path'> = {
     inspectingType: { type: 'string', initial: '', syncParam: 'cardType' },
   },
   /*
-    The board itself, always — never a placeholder standing in front of it.
+    The canvas itself, always — never a placeholder standing in front of it.
 
     There were two, and they swapped. This route gated on `CALL` and drew its own prompt when there
     was none; the graph drew its own "Nothing to show yet." once mounted with no nodes. So the first
@@ -1058,19 +1058,19 @@ const boardBody: Omit<RouteSchema, 'path'> = {
     two surfaces disagreeing about the same emptiness, which is what having two placeholders always
     comes to.
 
-    One now, inside the canvas, saying whichever of the two things is true. The graph's `board` seed
-    loads nothing until it is given a board, so mounting it with no call costs a read of nothing and
+    One now, inside the canvas, saying whichever of the two things is true. The graph's `canvas` seed
+    loads nothing until it is given a canvas, so mounting it with no call costs a read of nothing and
     keeps the surface constant from the first frame.
   */
   children: [
-    board,
+    canvas,
     /*
       Where a connection is actually written down.
 
       Drawing a line between two cards sets `recordStore.pendingLink` and opens the record form on a
       `Relationship` — and a form whose non-nullness mounts a modal needs something to mount it.
       Nothing here did: the modal is placed by the *default* template's graph view, and this template
-      supplies its own board. So the drag completed, the store opened a draft, and the screen showed
+      supplies its own canvas. So the drag completed, the store opened a draft, and the screen showed
       nothing at all — the connection gesture looked like it had silently failed when what had
       failed was the surface that asks about it.
 
@@ -1078,132 +1078,151 @@ const boardBody: Omit<RouteSchema, 'path'> = {
       transformed, zoomable surface and text entry on one is its own project, while what is being
       authored is a record and has nothing to do with where it will land.
 
-      No `onCreated`. The default's graph bumps a `revision` to force a reload; this board watches
+      No `onCreated`. The default's graph bumps a `revision` to force a reload; this canvas watches
       the entity it draws connections from, so a new `Relationship` arrives on its own.
     */
     recordFormModal(),
   ],
 };
 
-const boardRoute: RouteSchema = { path: '/board', ...boardBody };
-
-/** The states a task moves through. `status` is a closed vocabulary the model fills from. */
-const COLUMNS = [
-  { status: 'todo', label: 'To do', color: 'text-muted' },
-  { status: 'in-progress', label: 'In progress', color: 'accent-text' },
-  { status: 'done', label: 'Done', color: 'success-text' },
-];
+const canvasRoute: RouteSchema = { path: '/canvas', ...canvasBody };
 
 /**
- * The tasks, by state.
+ * The work this call produced, on a board of its own.
  *
- * Read off `status` rather than off containment, which is the distinction `TasksView` already draws
- * and is worth keeping: a kanban board's columns are collections and moving a card is a relink,
- * while a task's state is a property of the task. Extraction fills `status`, so these columns are
- * populated by the conversation rather than by anyone dragging.
+ * ## The board belongs to the call
  *
- * Every task in the space, not only this call's — the point of the list is what is outstanding, and
- * a task does not stop being outstanding because the meeting it came from ended.
+ * Every other surface of this template is about the call the address names — the canvas draws that
+ * call's records, the transcript is that call's, the nav carries `?call=` from page to page — so this
+ * is too. `taskBoard` is the same fragment the Boards view renders, given this call's board rather
+ * than one picked from a list, and scoped so the cards are the ones the conversation produced.
+ *
+ * The space-wide reading is not lost; it is the **Everything** board in the Boards view, which is a
+ * click away and unscoped.
+ *
+ * ## Made on a press, once
+ *
+ * A call gets no board until somebody wants one, and then it gets a real one — columns and all — so
+ * cards can be ordered inside a column from the first drag. Making it is a click rather than a side
+ * effect of opening the route: this is a shared space, and every member who opened the tab would
+ * otherwise race to create the same board.
  */
+/**
+ * What this route shows when it has no board to show.
+ *
+ * Two situations, and they are not the same one: nobody has chosen a call, or this call has not been
+ * given a board. Each says its own sentence, and only the second offers an action — so the icon is
+ * gradient where there is something to do and flat where there is not, since a dead end that looks
+ * like an invitation is worse than one that looks like a dead end.
+ */
+function tasksGate(message: string, action?: SchemaNode): SchemaNode {
+  return {
+    type: 'Column',
+    props: { width: '100%', ax: 'center', ay: 'center', gap: '400', p: '600' },
+    children: [
+      {
+        type: 'we-icon',
+        props: { name: 'kanban', size: 'xl', ...(action ? { gradient: 'primary' } : { color: 'text-faint' }) },
+      },
+      {
+        type: 'we-text',
+        props: { variant: 'body', textAlign: 'center', maxWidth: 'var(--we-layout-xs)', color: 'text-muted' },
+        children: [message],
+      },
+      ...(action ? [action] : []),
+    ],
+  };
+}
+
 const tasksRoute: RouteSchema = {
   path: '/tasks',
   type: 'Column',
   props: { width: '100%', minHeight: '100%', ax: 'center', px: '400', pt: '900', pb: '600' },
   children: [
     {
-      type: 'Grid',
-      props: { width: '100%', maxWidth: 'var(--we-layout-lg)', minChildWidth: '260px', gap: '400' },
+      type: 'Column',
+      props: { width: '100%', maxWidth: 'var(--we-layout-lg)', gap: '400' },
       children: [
         {
-          type: '$each',
-          props: { items: COLUMNS, as: 'column' },
-          children: [
-            {
+          type: '$if',
+          props: {
+            /*
+              Nothing is asked about a call until there is one, and that gate is load-bearing.
+
+              `pruneUnresolvedWhere` drops a `where` operand that is `undefined`, and
+              `modules.call.callRecordId` deliberately answers `''` rather than undefined so that every
+              surface reading it gets a string. So an ungated `where: { id: '' }` survived pruning and
+              was sent, and the backend built its `VALUES` clause with that one id dropped for not
+              being an IRI — leaving the clause empty, which is not parseable SPARQL: *Query is not
+              valid read-only SPARQL … expected UNDEF*.
+
+              Teaching the pruner to drop `''` would have silenced that and been the wrong repair. An
+              absent operand means "do not narrow", so the query would have answered with an
+              *arbitrary* collection and this route would have drawn some other call's board with
+              nothing on screen saying so — the same hazard the Boards view guards its `anchorRow`
+              against. `scopeIsAnchored` can read `''` as absent precisely because widening a scope is
+              what an unanchored view wants; widening an identity is never what anybody wants.
+            */
+            condition: CALL,
+            then: {
               type: 'Column',
-              props: { gap: '300', bg: 'surface', r: '400', border: '1px solid border', p: '400' },
+              props: { width: '100%', gap: '400' },
+              /*
+                Which board this call calls its own, if any — its `board` relation rather than "the
+                first board parented to it". A call may hold several; one of them is the one
+                extraction lands on, and only the call can say which. Its own query rather than the
+                fragment's, because the choice between "open it" and "make one" is made out here,
+                before there is an id to render.
+              */
               $queries: {
-                tasks: { entity: 'TaskBlock', where: { status: { $: 'column.status' } }, order: { createdAt: 'desc' } },
+                callRow: { entity: 'CollectionBlock', where: { id: CALL }, include: { board: true }, limit: 1 },
               },
               children: [
                 {
-                  type: 'Row',
-                  props: { ay: 'center', gap: '200' },
-                  children: [
-                    {
-                      type: 'we-text',
-                      props: { variant: 'label', color: { $: 'column.color' } },
-                      children: [{ $: 'column.label' }],
-                    },
-                    {
-                      type: 'we-badge',
-                      props: { size: 'xs' },
-                      children: [{ $: 'count(local.tasks)' }],
-                    },
-                  ],
-                },
-                {
                   type: '$if',
                   props: {
-                    condition: { $: 'count(local.tasks)' },
-                    then: {
-                      type: 'Column',
-                      props: { gap: '300' },
-                      children: [
-                        {
-                          type: '$each',
-                          props: { items: { $: 'local.tasks' }, as: 'task' },
-                          children: [
-                            {
-                              type: 'Column',
-                              props: { gap: '200', bg: 'surface-sunken', r: '300', p: '300' },
-                              children: [
-                                { type: 'we-text', props: { fontWeight: 'medium' }, children: [{ $: 'task.title' }] },
-                                {
-                                  type: '$if',
-                                  props: {
-                                    condition: { $: 'task.description' },
-                                    then: {
-                                      type: 'we-text',
-                                      props: { variant: 'footnote', color: 'text-muted' },
-                                      children: [{ $: 'task.description' }],
-                                    },
-                                  },
-                                },
-                                {
-                                  type: 'Row',
-                                  props: { ay: 'center', ax: 'between', gap: '200', wrap: true },
-                                  children: [
-                                    // Who wrote it — which for an extracted task is whoever's node
-                                    // ran the pass, so it answers "where did this come from".
-                                    agentByline({ did: { $: 'task.author' }, as: 'author', avatarSize: 'xxs' }),
-                                    {
-                                      type: '$if',
-                                      props: {
-                                        condition: { $: 'task.dueDate' },
-                                        then: {
-                                          type: 'we-timestamp',
-                                          props: { value: { $: 'task.dueDate' }, fontSize: '100', color: 'text-faint' },
-                                        },
-                                      },
-                                    },
-                                  ],
-                                },
-                              ],
-                            },
-                          ],
-                        },
-                      ],
-                    },
+                    condition: { $: 'first(local.callRow).board.id' },
+                    then: taskBoard({
+                      // The call's own board, which gathers from the call — a fact the board carries,
+                      // so nothing here has to say so.
+                      boardId: { $: 'first(local.callRow).board.id' },
+                      // Who ran the pass that wrote it — the provenance question this template is
+                      // built around, and the reason its cards carry a byline where a space's board
+                      // does not.
+                      byline: true,
+                      empty: emptyState({
+                        icon: 'check-square',
+                        label: 'work',
+                        message:
+                          'Nothing from this call yet. Cards appear here as the conversation commits to things — or add one to a column.',
+                      }),
+                    }),
+                    /*
+                      "No board yet" is an answer, and it is only given once the call record has
+                      answered. Before that the same spinner the board itself shows holds the place,
+                      so the route reads as one wait rather than a claim that turns out to be false.
+                    */
                     else: {
-                      type: 'we-text',
-                      props: { variant: 'footnote', color: 'text-faint', italic: true },
-                      children: ['Nothing here.'],
+                      type: '$if',
+                      props: {
+                        condition: { $: 'local.callRowLoaded' },
+                        then: tasksGate(
+                          'This call has no board yet. Making one arranges the work it produced — it never moves anything.',
+                          {
+                            type: 'we-button',
+                            props: { onClick: { $action: 'spaceStore.openBoardFor', args: [CALL, 'This call'] } },
+                            children: ['Make a board for this call'],
+                          },
+                        ),
+                        else: taskBoardLoading,
+                      },
                     },
                   },
                 },
               ],
             },
-          ],
+            else: tasksGate('Choose a call to see the work it produced.'),
+          },
         },
       ],
     },
@@ -1367,14 +1386,24 @@ const eventsRoute: RouteSchema = {
       },
       $queries: {
         /*
-          `include` on the place, because it is a record now rather than a word.
+          Scoped to the call this workshop is about, exactly as the tasks list is — and for the
+          reason given there: every other surface of this template answers about the call the
+          address names, so a list that quietly widened to the whole space was the odd one out.
+          Unscoped when no call is selected, since a scope whose anchor does not resolve is dropped.
 
-          `location` was a string and is a `HasOne → LocationBlock`, so the row below reads
-          `event.location.name`. Without hydrating it the relation arrives as a URI and the row
-          would print nothing at all — the silent half of this change, and the reason the query
-          moved rather than only the row.
+          `include` on the place, because it is a record now rather than a word. `location` was a
+          string and is a `HasOne → LocationBlock`, so the row below reads `event.location.name`.
+          Without hydrating it the relation arrives as a URI and the row would print nothing at
+          all — the silent half of that change, and the reason the query moved rather than only
+          the row.
         */
-        events: { entity: 'EventBlock', order: { startDate: 'asc' }, limit: 200, include: { location: true } },
+        events: {
+          entity: 'EventBlock',
+          scope: anchorScope(CALL),
+          order: { startDate: 'asc' },
+          limit: 200,
+          include: { location: true },
+        },
       },
       children: [
         // ── The month, with the way through them either side ──────────────────
@@ -1590,7 +1619,7 @@ const eventsRoute: RouteSchema = {
 export const workshopTemplate: TemplateSchema = {
   meta: {
     name: 'Workshop',
-    description: 'A call, its transcript, and what came out of it — as a board, a task list and a record.',
+    description: 'A call, its transcript, and what came out of it — as a canvas, a task list and a record.',
     icon: 'compass-tool',
     /*
       The band the floating switcher occupies, so panels clear it.
@@ -1603,7 +1632,7 @@ export const workshopTemplate: TemplateSchema = {
     /*
       The layout, and none of it is scoped to a route.
 
-      It was: the transcript and the readout were declared `route: 'board'`, on the argument that a
+      It was: the transcript and the readout were declared `route: 'canvas'`, on the argument that a
       task list does not need a transcript beside it. True, and beside the point — crossing to the
       tasks list *unregistered* both panels, so their scroll position, their subscriptions and
       wherever they had been dragged were destroyed and rebuilt on the way back. Panels that survive
@@ -1643,11 +1672,11 @@ export const workshopTemplate: TemplateSchema = {
         dock: 'transcript',
         snap: 'left',
         /*
-          One sidebar cut in two, rather than two cards over the board.
+          One sidebar cut in two, rather than two cards over the canvas.
 
           `displace` with a shared `band`: the transcript and the extraction readout are one lane
-          down the left, meeting flush and costing the board their width once, with the boundary
-          between them draggable. Floating, they covered the board's own edge and each kept its own
+          down the left, meeting flush and costing the canvas their width once, with the boundary
+          between them draggable. Floating, they covered the canvas's own edge and each kept its own
           width; the arrangement wanted here is a sidebar, and this is how a template says so.
         */
         displace: true,
@@ -1699,7 +1728,7 @@ export const workshopTemplate: TemplateSchema = {
         grow: 1,
       },
       /*
-        The inspector, open by default and on the edge the board's own controls are not.
+        The inspector, open by default and on the edge the canvas's own controls are not.
 
         Open, because a panel that has to be found before it can explain a card is a panel nobody
         discovers — and its empty state is a sentence rather than a blank box, so an unused one says
@@ -1717,9 +1746,9 @@ export const workshopTemplate: TemplateSchema = {
     This was `minHeight: '100%'`, so that a route taller than the viewport grew rather than clipped.
     It does grow — and the box growing is not the same as the height being *definite*. A flex item's
     post-flex main size counts as definite only where its container's main size is, and `height:
-    auto` with a min-height clamp is not: so the board route stretched down the screen while the
+    auto` with a min-height clamp is not: so the canvas route stretched down the screen while the
     canvas inside it resolved `height: 100%` against an indefinite height, got `auto`, and measured
-    zero. The board grew; the percentage inside it did not.
+    zero. The canvas grew; the percentage inside it did not.
 
     Nothing is lost by pinning it. The hazard `minHeight` was avoiding — this node's background
     stopping at the fold under a long task list — belongs to the scroll container above, which paints
@@ -1731,11 +1760,11 @@ export const workshopTemplate: TemplateSchema = {
   routes: [
     /*
       Relative, because the parent path this now sits under carries a parameter: an absolute target
-      is joined to the *pattern*, so `/board` became a literal `/space/:spaceId/board`. Relative
+      is joined to the *pattern*, so `/canvas` became a literal `/space/:spaceId/canvas`. Relative
       resolves against the address actually on screen.
     */
-    { path: '/', redirect: './board' },
-    boardRoute,
+    { path: '/', redirect: './canvas' },
+    canvasRoute,
     tasksRoute,
     eventsRoute,
     {

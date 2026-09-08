@@ -45,9 +45,9 @@ describe('GraphView mounts', () => {
     expect(host.querySelector('.we-graph__surface')).not.toBeNull();
   });
 
-  it('renders with the board’s own wiring bound', () => {
+  it('renders with the canvas’s own wiring bound', () => {
     /*
-      The props a board passes, which is what the route-editing handles are gated on: binding
+      The props a canvas passes, which is what the route-editing handles are gated on: binding
       `onEdgeAnchor` and `onEdgeReroute` is what makes the grips exist at all, so a mount without
       them would not exercise the branches those live in.
     */

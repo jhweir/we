@@ -17,6 +17,7 @@ export type { RecordInstance, WeNodeRecord };
 export type SignalMode = 'toggle' | 'vote' | 'rating' | 'slider';
 export type SignalAggregate = 'count' | 'mean' | 'sum' | 'median';
 export type SignalSemantic = 'approval' | 'quality' | 'relevance' | 'agreement' | 'custom';
+export type TaskStateSemantic = 'open' | 'active' | 'blocked' | 'done' | 'cancelled';
 
 export interface AgentSettingsRecord extends RecordInstance {
   currentTemplateId: string;
@@ -97,14 +98,22 @@ export interface CollectionBlockRecord extends WeNodeRecord {
   kind: string;
   mode: string;
   title: string;
+  slug: string;
   description: string;
   version: number;
   textContent: string;
   children: string[];
+  arranges: string[];
+  gathers?: string;
+  board?: CollectionBlockRecord;
   extractionPasses: string[];
   addChildren(value: string | { id: string }, batch?: string): Promise<unknown>;
   removeChildren(value: string | { id: string }, batch?: string): Promise<unknown>;
   setChildren(values: (string | { id: string })[], batch?: string): Promise<unknown>;
+  addArranges(value: string | { id: string }, batch?: string): Promise<unknown>;
+  removeArranges(value: string | { id: string }, batch?: string): Promise<unknown>;
+  setArranges(values: (string | { id: string })[], batch?: string): Promise<unknown>;
+  setBoard(value: CollectionBlockRecord): Promise<unknown>;
 }
 
 export interface DividerBlockRecord extends WeNodeRecord {
@@ -274,7 +283,13 @@ export interface SpaceRecord extends WeNodeRecord {
   moduleSettings: string;
   shareExtractionDetail: boolean;
   location?: LocationBlockRecord;
+  board?: CollectionBlockRecord;
+  taskStates: string[];
   setLocation(value: LocationBlockRecord): Promise<unknown>;
+  setBoard(value: CollectionBlockRecord): Promise<unknown>;
+  addTaskStates(value: string | { id: string }, batch?: string): Promise<unknown>;
+  removeTaskStates(value: string | { id: string }, batch?: string): Promise<unknown>;
+  setTaskStates(values: (string | { id: string })[], batch?: string): Promise<unknown>;
 }
 
 export interface SpacePreferenceRecord extends WeNodeRecord {
@@ -305,6 +320,17 @@ export interface TaskBlockRecord extends WeNodeRecord {
   dueDate: string;
   assignee: string;
   version: number;
+}
+
+export interface TaskStateRecord extends WeNodeRecord {
+  name: string;
+  slug: string;
+  description: string;
+  icon: string;
+  color: string;
+  semantic: 'open' | 'active' | 'blocked' | 'done' | 'cancelled';
+  retired: boolean;
+  schemaVersion: number;
 }
 
 export interface TemplateRecord extends WeNodeRecord {

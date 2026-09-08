@@ -133,8 +133,8 @@ export type GraphEvent =
    * The user resized a card, giving it this box in world units.
    *
    * Intent rather than a mutation, like every other event here: the engine has no write path, and
-   * where a card's box *lives* is the consumer's business — on a board it belongs to the placement,
-   * so the same note can be a wide banner on one board and a small square on another.
+   * where a card's box *lives* is the consumer's business — on a canvas it belongs to the placement,
+   * so the same note can be a wide banner on one canvas and a small square on another.
    *
    * The position travels with the size because resizing from one edge anchors the other, and a card
    * drawn from its centre has to move that centre to hold an edge still.
@@ -148,7 +148,7 @@ export type GraphEvent =
    *
    * Intent, never a mutation — the same rule `we-sortable` follows. What connecting two things
    * *means* is the consumer's business and differs completely: a knowledge map creates a
-   * relationship record somebody can argue with, a board might draw an arrow that is only ever
+   * relationship record somebody can argue with, a canvas might draw an arrow that is only ever
    * decoration, an outline would reparent. A gesture that wrote one of those would be useless to the
    * others, and the engine has no write path anyway.
    */
@@ -158,7 +158,7 @@ export type GraphEvent =
    *
    * Intent again, and the position is the whole of it: "make something here" is a different request
    * from "make something", and a surface where position is the data cannot ask the second one. What
-   * gets made is the consumer's business — a board creates a card, an outline might do nothing.
+   * gets made is the consumer's business — a canvas creates a card, an outline might do nothing.
    */
   | { type: 'canvasDoubleClick'; at: Point }
   | { type: 'expanded'; id: string; added: number; total?: number }
@@ -258,7 +258,7 @@ export interface ControlContext {
   /**
    * Whether node movement by the user is blocked.
    *
-   * Deliberately about the user rather than the layout: locking a board stops it being rearranged by
+   * Deliberately about the user rather than the layout: locking a canvas stops it being rearranged by
    * accident, and freezing a force simulation is a different request that nobody has made.
    */
   isLocked(): boolean;

@@ -9,8 +9,13 @@
  * anywhere — it would silently write data where nothing looks for it — which is why the comparison
  * is exhaustive rather than a spot check.
  */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import type { SHACLShape } from '@coasys/ad4m';
+import { resolvesPolymorphically } from '@we/backend-shared';
 import { CORE_MANIFEST } from '@we/entities/manifest';
+import { WE_NODE_RELATIONS } from '@we/entities/manifest';
 import { describe, expect, it } from 'vitest';
 
 import * as Classes from '../src/entities';
@@ -86,6 +91,34 @@ describe('core manifest ↔ hand-written classes', () => {
     const plain = (o: Record<string, unknown>) =>
       Object.fromEntries(Object.entries(o).filter(([k, v]) => typeof v !== 'function' && !k.startsWith('_')));
     expect(plain(new FromManifest()), REGENERATE).toEqual(plain(new Original()));
+  });
+
+  /**
+   * `WeNode` is the one class in this set that is hand-written rather than generated — it is the
+   * behavioural base the others are generated as subclasses of — so its relation decorators are the
+   * one place the manifest's answer is repeated by hand.
+   *
+   * The comparisons above cannot catch a mistake here: they compare SHACL, and `polymorphic` is a
+   * read-time instruction that never reaches a shape. So a `WeNode` whose decorators disagreed with
+   * `WE_NODE_RELATIONS` would compile, install, round-trip and pass every other test in this file,
+   * and fail only as a relation that quietly hands back bare URIs where the manifest promised
+   * records. Read from source for the same reason `generatedClasses` does: the decorator registry
+   * projection drops `polymorphic`, so the declaration itself is the only honest witness.
+   */
+  it('WeNode declares polymorphic exactly where the manifest says it should', () => {
+    // Line-based rather than one regex over the file: a typed relation's decorator carries an arrow
+    // function (`@HasMany(() => Signal, …)`), so "up to the closing paren" stops in the wrong place.
+    const lines = readFileSync(resolve(import.meta.dirname, '../src/entities/WeNode.ts'), 'utf8').split('\n');
+    for (const [name, spec] of Object.entries(WE_NODE_RELATIONS)) {
+      const field = lines.findIndex((l) => new RegExp(String.raw`^\s{2}${name}[?:]`).test(l));
+      expect(field, `WeNode has no "${name}" field — did the relation get renamed?`).toBeGreaterThan(0);
+      const decorator = lines[field - 1];
+      expect(decorator, `WeNode.${name} is not decorated`).toMatch(/@Has(Many|One)\(/);
+      expect(
+        decorator.includes('polymorphic: true'),
+        `WeNode.${name}: the manifest and this class disagree about polymorphic hydration`,
+      ).toBe(resolvesPolymorphically(spec));
+    }
   });
 });
 

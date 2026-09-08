@@ -20,18 +20,22 @@ export const EventBlock: CoreEntityDef = {
     // `location` has left too, being a relation now: the generated form is built from properties,
     // and a relation wants a picker over existing places rather than a text box.
     authoring: { fields: ['title', 'description', 'startDate', 'endDate', 'allDay'] },
-    /**
-     * What a card shows, which is not what a form asks for.
-     *
-     * Two absences, for opposite reasons. `occurrence` is machine bookkeeping — its own note calls
-     * it "a dedup key rather than something to display" — and it was reaching review cards, where a
-     * title and a date glued together read as a third, redundant field nobody could interpret.
-     *
-     * `allDay` is genuinely redundant rather than internal: a card renders a midnight time as a bare
-     * date, so an all-day event already looks like one. Saying "All day: true" underneath is the
-     * same fact twice, and on a card whose whole job is a quick decision that is one line of noise.
-     * It stays in `authoring`, because a *form* has to be able to set what a card can infer.
-     */
+    /*
+      What a card shows, which is not what a form asks for.
+
+      Two absences, for opposite reasons. `occurrence` is machine bookkeeping — its own note calls
+      it "a dedup key rather than something to display" — and it was reaching review cards, where a
+      title and a date glued together read as a third, redundant field nobody could interpret.
+
+      `allDay` is genuinely redundant rather than internal: a card renders a midnight time as a bare
+      date, so an all-day event already looks like one. Saying "All day: true" underneath is the
+      same fact twice, and on a card whose whole job is a quick decision that is one line of noise.
+      It stays in `authoring`, because a *form* has to be able to set what a card can infer.
+
+      A block comment rather than a docblock: `generate:classes` lifts JSDoc from properties and
+      relations onto the generated class, and has nowhere to put one attached to an entity-level
+      key — so a docblock here is prose the round-trip test then reports as missing from the class.
+    */
     display: { fields: ['title', 'description', 'startDate', 'endDate'] },
     properties: {
       /**

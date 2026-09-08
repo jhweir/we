@@ -180,75 +180,75 @@ export interface RecordStore {
   saveRecord: () => Promise<void>;
 
   /**
-   * Put a record at a position on a board, or move one already there.
+   * Put a record at a position on a canvas, or move one already there.
    *
    * An upsert, because dragging the same card twice must not leave two coordinates for it. The
-   * board is the parent; a record can be placed on as many boards as somebody puts it on, each with
+   * canvas is the parent; a record can be placed on as many canvases as somebody puts it on, each with
    * its own position, which is the whole reason a coordinate is not a field on the record.
    */
-  placeOnBoard: (board: string, nodeId: string, nodeType: string, x: number, y: number) => Promise<void>;
+  placeOnCanvas: (canvas: string, nodeId: string, nodeType: string, x: number, y: number) => Promise<void>;
   /**
-   * Take a record off a board, leaving the record itself alone.
+   * Take a record off a canvas, leaving the record itself alone.
    *
    * Deleting the placement and nothing else — which is the whole payoff of placement being
-   * membership. Being on a board was never what made a record exist, so coming off one cannot be
-   * what ends it: a task removed from a board is still owned by the call it came out of, and a card
-   * the board owns survives as an unplaced one in the tray, where it can be dragged back or deleted
+   * membership. Being on a canvas was never what made a record exist, so coming off one cannot be
+   * what ends it: a task removed from a canvas is still owned by the call it came out of, and a card
+   * the canvas owns survives as an unplaced one in the tray, where it can be dragged back or deleted
    * outright.
    */
-  removeFromBoard: (board: string, nodeId: string) => Promise<void>;
+  removeFromCanvas: (canvas: string, nodeId: string) => Promise<void>;
   /**
-   * Resize a card on a board. Takes the graph's `onNodeResize` payload as it arrives.
+   * Resize a card on a canvas. Takes the graph's `onNodeResize` payload as it arrives.
    *
    * The size goes on the placement, beside the position, for the reason the position is there: it is
    * a fact about a pair. Shrinking a post to fit six of them on a wall is not editing the post, and
-   * the same post on somebody else's board must not change size because of it.
+   * the same post on somebody else's canvas must not change size because of it.
    */
-  resizeOnBoard: (board: string, payload: unknown) => Promise<void>;
+  resizeOnCanvas: (canvas: string, payload: unknown) => Promise<void>;
   /**
-   * Pin which side of a card a connection leaves or arrives on, for this board. Takes the graph's
+   * Pin which side of a card a connection leaves or arrives on, for this canvas. Takes the graph's
    * `onEdgeAnchor` payload as it arrives.
    *
    * An empty `side` clears that end, and a route with neither end pinned and no bends is deleted — so
    * the way back out leaves nothing behind. The bends survive a clear either way: one record holds
-   * both, and letting go of a side says nothing about the shape somebody drew. Per board, like a
+   * both, and letting go of a side says nothing about the shape somebody drew. Per canvas, like a
    * placement: how a connection is drawn is a fact about a view, and the same connection on somebody
-   * else's board is unaffected.
+   * else's canvas is unaffected.
    */
-  anchorOnBoard: (board: string, payload: unknown) => Promise<void>;
+  anchorOnCanvas: (canvas: string, payload: unknown) => Promise<void>;
   /**
-   * Write the shape of one connection's route on this board. Takes the graph's `onEdgeReroute`
+   * Write the shape of one connection's route on this canvas. Takes the graph's `onEdgeReroute`
    * payload as it arrives.
    *
    * The whole list of points, in the edge's own frame, so a bend keeps its proportions when either
    * card moves. An empty list straightens the line, and a route with no points and no anchors left
    * is deleted.
    */
-  rerouteOnBoard: (board: string, payload: unknown) => Promise<void>;
+  rerouteOnCanvas: (canvas: string, payload: unknown) => Promise<void>;
   /**
    * Move one end of a connection onto a different record. Takes the graph's `onEdgeRetarget` payload.
    *
-   * Unlike the two above, this changes the **claim** rather than how one board draws it: the
+   * Unlike the two above, this changes the **claim** rather than how one canvas draws it: the
    * relationship now says something different, everywhere it is shown. That end's anchor is cleared,
    * since a side pinned against the card that used to be there decides nothing about the one that
    * arrived; the waypoints stay, being stored in the connection's own frame.
    */
-  retargetOnBoard: (board: string, payload: unknown) => Promise<void>;
+  retargetOnCanvas: (canvas: string, payload: unknown) => Promise<void>;
   /**
-   * Set one presentation property of one card on one board — colour, shape, content scale,
+   * Set one presentation property of one card on one canvas — colour, shape, content scale,
    * rotation, stacking.
    *
    * Takes the property name, so one action serves every control, which is the only shape that works
    * when a swatch, a picker and a slider all write to the same record. Nothing here touches the
-   * record being displayed: every one of these is undone by taking the card off the board.
+   * record being displayed: every one of these is undone by taking the card off the canvas.
    */
-  setCardStyle: (board: string, nodeId: string, field: string, value: unknown) => Promise<void>;
+  setCardStyle: (canvas: string, nodeId: string, field: string, value: unknown) => Promise<void>;
   /**
    * Placement fields written but not yet read back, keyed by the placed record's id.
    *
-   * The optimistic half of every board gesture that writes presentation. A resize, a colour or a
+   * The optimistic half of every canvas gesture that writes presentation. A resize, a colour or a
    * shape is answered by a record, and the answer comes back through a subscription and a re-read —
-   * a round trip at best, and a re-seed of the whole board after it. A slider that lags that far
+   * a round trip at best, and a re-seed of the whole canvas after it. A slider that lags that far
    * behind the finger reads as broken rather than as slow, so the change is drawn immediately and
    * this is what says so.
    *
@@ -277,36 +277,39 @@ export interface RecordStore {
    */
   previewCardStyle: (nodeId: string, field: string, value: unknown) => void;
   /**
-   * Set the colour every card of one type is drawn in, on one board.
+   * Set the colour every card of one type is drawn in, on one canvas.
    *
-   * The board's key, made writable. A colour per *type* rather than per card because that is what a
-   * legend is: "tasks are amber here" is a fact about the board, said once, and re-deciding it on
-   * every card somebody adds is the thing a key exists to avoid. Per board rather than per type,
-   * because two boards in the same space legitimately disagree about which question they are
+   * The canvas's key, made writable. A colour per *type* rather than per card because that is what a
+   * legend is: "tasks are amber here" is a fact about the canvas, said once, and re-deciding it on
+   * every card somebody adds is the thing a key exists to avoid. Per canvas rather than per type,
+   * because two canvases in the same space legitimately disagree about which question they are
    * colouring by. An empty colour clears it.
    */
-  setTypeColor: (board: string, nodeType: string, color: unknown) => Promise<void>;
+  setTypeColor: (canvas: string, nodeType: string, color: unknown) => Promise<void>;
   /**
-   * Open the create form, and place whatever it makes onto this board.
+   * Open the create form, and place whatever it makes onto this canvas.
    *
    * The counterpart to `connectNodes`: the same form and the same save path, with an intent held
-   * beside it. Without this, creating a model instance from a board makes a real record that simply
-   * does not appear on the board it was made from — which is the confusion the button was hidden to
+   * beside it. Without this, creating a model instance from a canvas makes a real record that simply
+   * does not appear on the canvas it was made from — which is the confusion the button was hidden to
    * avoid, and hiding it was the wrong answer.
    */
-  createOnBoard: (board: string, x?: number, y?: number) => void;
+  createOnCanvas: (canvas: string, x?: number, y?: number) => void;
   /**
-   * Compose a card onto a board, and record where it sits — as one write.
+   * Compose a card onto a canvas, and record where it sits — as one write.
    *
-   * The composer's counterpart to `createOnBoard`, and one action rather than two because two would
+   * The composer's counterpart to `createOnCanvas`, and one action rather than two because two would
    * be two commits. Anything watching the data layer sees every commit, so a card written first and
-   * positioned second is a card the board draws unpositioned and then moves.
+   * positioned second is a card the canvas draws unpositioned and then moves.
    *
    * `at` omitted — the toolbar's "Card", which names no point — creates the card and no placement,
    * so it lands in the tray. That is the honest answer to "nobody said where", and the tray is where
    * it is recoverable from.
    */
-  createCardOnBoard: (editorState: unknown, options: { board: string; at?: { x: number; y: number } }) => Promise<void>;
+  createCardOnCanvas: (
+    editorState: unknown,
+    options: { canvas: string; at?: { x: number; y: number } },
+  ) => Promise<void>;
 }
 
 const RecordStoreContext = createContext<RecordStore>();
@@ -439,9 +442,9 @@ export function RecordStoreProvider(props: ParentProps) {
     batch(() => {
       setRecordErrors([]);
       setRecordDraft(null);
-      // A form opened from a button is not a connection, and is not aimed at a board, whatever the
+      // A form opened from a button is not a connection, and is not aimed at a canvas, whatever the
       // last one was. Left set, the next ordinary record created would silently be linked to two
-      // nodes somebody connected earlier, or land on a board they had closed — a wrong write with
+      // nodes somebody connected earlier, or land on a canvas they had closed — a wrong write with
       // nothing on screen to suggest it happened.
       setPendingLink(null);
       setPendingBoard('');
@@ -546,11 +549,11 @@ export function RecordStoreProvider(props: ParentProps) {
     });
   }
 
-  function createOnBoard(board: string, x?: number, y?: number): void {
-    if (!board) return;
+  function createOnCanvas(canvas: string, x?: number, y?: number): void {
+    if (!canvas) return;
     openRecordForm();
     batch(() => {
-      setPendingBoard(board);
+      setPendingBoard(canvas);
       // A point only when somebody chose one — a double-click on the canvas has one, a toolbar
       // button does not. Inventing `(0, 0)` for the second case is what made a new record appear at
       // the world origin, which is wherever the reader is not looking.
@@ -559,19 +562,19 @@ export function RecordStoreProvider(props: ParentProps) {
   }
 
   /**
-   * Compose a card onto a board and place it, in one write group.
+   * Compose a card onto a canvas and place it, in one write group.
    *
    * `createBlocks` transacts internally, so it takes the batch rather than opening its own — see
    * `runEntityTransaction`'s `join`. Everything here lands as a single commit, which is the whole
-   * point: the board never observes a card that exists but is not yet anywhere.
+   * point: the canvas never observes a card that exists but is not yet anywhere.
    */
-  async function createCardOnBoard(
+  async function createCardOnCanvas(
     editorState: unknown,
-    options: { board: string; at?: { x: number; y: number } },
+    options: { canvas: string; at?: { x: number; y: number } },
   ): Promise<void> {
     const dataset = datasetStore.currentDataset();
-    if (!dataset || !options.board) return;
-    const parent = { id: options.board, predicate: PREDICATES.CHILDREN };
+    if (!dataset || !options.canvas) return;
+    const parent = { id: options.canvas, predicate: PREDICATES.CHILDREN };
 
     try {
       await runEntityTransaction(dataset.handle, async (tx) => {
@@ -585,26 +588,26 @@ export function RecordStoreProvider(props: ParentProps) {
         await createPlacement(dataset.handle, parent, root.id, 'CollectionBlock', options.at, tx.batchId);
       });
     } catch (error) {
-      console.error('RecordStore: creating a card on a board failed', error);
+      console.error('RecordStore: creating a card on a canvas failed', error);
       toastService.error('Could not add that card.');
     }
   }
 
   /**
-   * Upsert the coordinate for one node on one board.
+   * Upsert the coordinate for one node on one canvas.
    *
    * Read-then-write rather than blind create, because dragging a card twice must not leave two
-   * placements for it — and a board that accumulated one per drag would slow down in exactly
+   * placements for it — and a canvas that accumulated one per drag would slow down in exactly
    * proportion to how much anybody used it.
    *
-   * The read is scoped to the board's own children rather than filtered across every placement in
-   * the space: the parent link is what makes a placement belong to a board, so asking the board is
+   * The read is scoped to the canvas's own children rather than filtered across every placement in
+   * the space: the parent link is what makes a placement belong to a canvas, so asking the canvas is
    * both cheaper and the only phrasing that stays correct when the same record sits on two.
    */
-  async function placeOnBoard(board: string, nodeId: string, nodeType: string, x: number, y: number): Promise<void> {
+  async function placeOnCanvas(canvas: string, nodeId: string, nodeType: string, x: number, y: number): Promise<void> {
     const dataset = datasetStore.currentDataset();
-    if (!dataset || !board || !nodeId) return;
-    const parent = { id: board, predicate: PREDICATES.CHILDREN };
+    if (!dataset || !canvas || !nodeId) return;
+    const parent = { id: canvas, predicate: PREDICATES.CHILDREN };
 
     try {
       const existing = (await Placement.findAll(dataset.handle, { parent } as Record<string, unknown>)) as {
@@ -620,7 +623,7 @@ export function RecordStoreProvider(props: ParentProps) {
 
       await createPlacement(dataset.handle, parent, nodeId, nodeType, { x, y });
     } catch (error) {
-      console.error('RecordStore: placing a record on a board failed', error);
+      console.error('RecordStore: placing a record on a canvas failed', error);
       toastService.error('Could not save that position.');
     }
   }
@@ -640,55 +643,55 @@ export function RecordStoreProvider(props: ParentProps) {
   }
 
   /**
-   * Patch the placement for one node on one board.
+   * Patch the placement for one node on one canvas.
    *
    * Refuses rather than creating one, and says so: a node with no placement is an unplaced card in
    * the tray, and a placement minted here would have to invent a position — putting the card at the
-   * board's origin as a side effect of choosing a colour.
+   * canvas's origin as a side effect of choosing a colour.
    */
-  async function stylePlacement(board: string, nodeId: string, patch: Record<string, unknown>): Promise<void> {
+  async function stylePlacement(canvas: string, nodeId: string, patch: Record<string, unknown>): Promise<void> {
     const dataset = datasetStore.currentDataset();
-    if (!dataset || !board || !nodeId || !Object.keys(patch).length) return;
+    if (!dataset || !canvas || !nodeId || !Object.keys(patch).length) return;
     // Before the write, not after it: the point is that the card changes on the gesture rather than
     // on the round trip. Dropped again below if the write turns out not to be possible.
     hold(nodeId, patch);
     try {
       const existing = (await Placement.findAll(dataset.handle, {
-        parent: { id: board, predicate: PREDICATES.CHILDREN },
+        parent: { id: canvas, predicate: PREDICATES.CHILDREN },
       } as Record<string, unknown>)) as { id: string; node?: string }[];
       const already = existing.find((row) => row.node === nodeId);
       if (!already) {
         drop(nodeId);
-        toastService.error('Drag this onto the board first — how a card looks is saved with where it sits.');
+        toastService.error('Drag this onto the canvas first — how a card looks is saved with where it sits.');
         return;
       }
       await Placement.update(dataset.handle, already.id, patch);
     } catch (error) {
       drop(nodeId);
-      console.error('RecordStore: styling a card on a board failed', error);
+      console.error('RecordStore: styling a card on a canvas failed', error);
       toastService.error('Could not save that.');
     }
   }
 
   /**
-   * Pin which side of a card a connection leaves or arrives on, for this board.
+   * Pin which side of a card a connection leaves or arrives on, for this canvas.
    *
-   * Takes the graph's `onEdgeAnchor` payload as it arrives, the way `resizeOnBoard` takes
+   * Takes the graph's `onEdgeAnchor` payload as it arrives, the way `resizeOnCanvas` takes
    * `onNodeResize`'s. An empty `side` clears that end, and a route with neither end pinned and no
    * bends is deleted rather than left as a record saying nothing — the way back has to leave nothing
-   * behind, or a board accumulates a route per connection anybody ever touched. A route still holding
+   * behind, or a canvas accumulates a route per connection anybody ever touched. A route still holding
    * bends is not saying nothing, which is why the test asks about all three.
    *
-   * Per board, on an `EdgeRoute` parented to it, for the reason a placement is: how a connection is
-   * drawn is a fact about a *view*. Putting it on the `Relationship` would make one board's tidying
-   * follow the connection into every other board it appears on.
+   * Per canvas, on an `EdgeRoute` parented to it, for the reason a placement is: how a connection is
+   * drawn is a fact about a *view*. Putting it on the `Relationship` would make one canvas's tidying
+   * follow the connection into every other canvas it appears on.
    */
-  async function anchorOnBoard(board: string, payload: unknown): Promise<void> {
+  async function anchorOnCanvas(canvas: string, payload: unknown): Promise<void> {
     const event = (payload ?? {}) as { recordId?: string; end?: 'source' | 'target'; side?: string };
     const dataset = datasetStore.currentDataset();
-    if (!dataset || !board || !event.recordId || !event.end) return;
+    if (!dataset || !canvas || !event.recordId || !event.end) return;
     const side = typeof event.side === 'string' ? event.side : '';
-    const parent = { id: board, predicate: PREDICATES.CHILDREN };
+    const parent = { id: canvas, predicate: PREDICATES.CHILDREN };
 
     try {
       const existing = (await EdgeRoute.findAll(dataset.handle, { parent } as Record<string, unknown>)) as {
@@ -719,13 +722,13 @@ export function RecordStoreProvider(props: ParentProps) {
         { parent } as never,
       );
     } catch (error) {
-      console.error('RecordStore: anchoring a connection on a board failed', error);
+      console.error('RecordStore: anchoring a connection on a canvas failed', error);
       toastService.error('Could not save that.');
     }
   }
 
   /**
-   * Write the whole shape of one connection's route on this board.
+   * Write the whole shape of one connection's route on this canvas.
    *
    * The whole list rather than the point that moved, because a route is one shape: written per point,
    * two people bending the same line would each overwrite half of the other's and what came out would
@@ -733,15 +736,15 @@ export function RecordStoreProvider(props: ParentProps) {
    * each point is a shape nobody did.
    *
    * An empty list is a straightened route, and a route with nothing left to say — no points and no
-   * anchors — is deleted, so the way back leaves nothing behind. See {@link anchorOnBoard}, which is
+   * anchors — is deleted, so the way back leaves nothing behind. See {@link anchorOnCanvas}, which is
    * the other half of the same record.
    */
   /**
    * Move one end of a connection onto a different record.
    *
-   * The *claim* changes here, not the view. `anchorOnBoard` and `rerouteOnBoard` write to an
-   * `EdgeRoute` parented to one board, so the same connection shown elsewhere is untouched; this
-   * rewrites the `Relationship` itself, so it changes on every board, in the knowledge map, and for
+   * The *claim* changes here, not the view. `anchorOnCanvas` and `rerouteOnCanvas` write to an
+   * `EdgeRoute` parented to one canvas, so the same connection shown elsewhere is untouched; this
+   * rewrites the `Relationship` itself, so it changes on every canvas, in the knowledge map, and for
    * every member. That is the right answer for "this actually goes there" and it is a different kind
    * of edit from the two beside it — which is why it is its own action rather than a branch inside
    * one of them.
@@ -758,7 +761,7 @@ export function RecordStoreProvider(props: ParentProps) {
    * points are stored in the connection's own frame, so they follow the new geometry rather than
    * becoming litter — see `EdgeWaypoint`.
    */
-  async function retargetOnBoard(board: string, payload: unknown): Promise<void> {
+  async function retargetOnCanvas(canvas: string, payload: unknown): Promise<void> {
     const event = (payload ?? {}) as {
       recordId?: string;
       recordType?: string;
@@ -797,18 +800,18 @@ export function RecordStoreProvider(props: ParentProps) {
 
       // The anchor for the end that moved, dropped — see the note above. Reusing the same action a
       // person's own clear goes through, so there is one path that knows how to unset one.
-      if (board) await anchorOnBoard(board, { recordId: event.recordId, end: event.end, side: '' });
+      if (canvas) await anchorOnCanvas(canvas, { recordId: event.recordId, end: event.end, side: '' });
     } catch (error) {
       console.error('RecordStore: re-attaching a connection failed', error);
       toastService.error('Could not move that connection.');
     }
   }
 
-  async function rerouteOnBoard(board: string, payload: unknown): Promise<void> {
+  async function rerouteOnCanvas(canvas: string, payload: unknown): Promise<void> {
     const event = (payload ?? {}) as { recordId?: string; points?: unknown };
     const dataset = datasetStore.currentDataset();
-    if (!dataset || !board || !event.recordId || !Array.isArray(event.points)) return;
-    const parent = { id: board, predicate: PREDICATES.CHILDREN };
+    if (!dataset || !canvas || !event.recordId || !Array.isArray(event.points)) return;
+    const parent = { id: canvas, predicate: PREDICATES.CHILDREN };
     const points = JSON.stringify(event.points);
 
     try {
@@ -837,18 +840,18 @@ export function RecordStoreProvider(props: ParentProps) {
       // its old bends. A two-character JSON array is a value, and `waypointsOf` reads it as none.
       await EdgeRoute.update(dataset.handle, already.id, { points });
     } catch (error) {
-      console.error('RecordStore: rerouting a connection on a board failed', error);
+      console.error('RecordStore: rerouting a connection on a canvas failed', error);
       toastService.error('Could not save that.');
     }
   }
 
-  async function resizeOnBoard(board: string, payload: unknown): Promise<void> {
+  async function resizeOnCanvas(canvas: string, payload: unknown): Promise<void> {
     const event = (payload ?? {}) as { recordId?: string; width?: number; height?: number; x?: number; y?: number };
     if (!event.recordId || !event.width || !event.height) return;
     // Position travels with the size. Resizing from one edge anchors the other, and a card drawn
     // from its centre has to move that centre to hold an edge still — so writing only the size would
     // slide the card sideways by half the change every time.
-    await stylePlacement(board, event.recordId, {
+    await stylePlacement(canvas, event.recordId, {
       width: Math.round(event.width),
       height: Math.round(event.height),
       ...(typeof event.x === 'number' ? { x: Math.round(event.x) } : {}),
@@ -866,7 +869,7 @@ export function RecordStoreProvider(props: ParentProps) {
    * The empty string becomes {@link PLACEMENT_UNSET}, because an empty string cannot be *stored*: the
    * ORM's update skips `''` exactly as it skips `undefined`, so "no colour of its own" would be
    * unwritable — a card could be given an override and never have it taken away. A named value the
-   * board seed drops is the same trick `SpacePreference` uses for its two sentinels.
+   * canvas seed drops is the same trick `SpacePreference` uses for its two sentinels.
    */
   function cardStyleValue(field: string, value: unknown): string | number | undefined {
     if (!(CARD_STYLE_FIELDS as readonly string[]).includes(field)) {
@@ -885,25 +888,25 @@ export function RecordStoreProvider(props: ParentProps) {
     hold(nodeId, { [field]: scalar });
   }
 
-  async function setCardStyle(board: string, nodeId: string, field: string, value: unknown): Promise<void> {
+  async function setCardStyle(canvas: string, nodeId: string, field: string, value: unknown): Promise<void> {
     const scalar = cardStyleValue(field, value);
     if (scalar === undefined) return;
-    await stylePlacement(board, nodeId, { [field]: scalar });
+    await stylePlacement(canvas, nodeId, { [field]: scalar });
   }
 
-  async function setTypeColor(board: string, nodeType: string, color: unknown): Promise<void> {
+  async function setTypeColor(canvas: string, nodeType: string, color: unknown): Promise<void> {
     const dataset = datasetStore.currentDataset();
-    if (!dataset || !board || !nodeType) return;
+    if (!dataset || !canvas || !nodeType) return;
     const raw =
       color !== null && typeof color === 'object' && 'detail' in color ? (color as { detail: unknown }).detail : color;
     // The same sentinel a card's own colour uses, and for the same reason: `''` cannot be stored, so
     // without it a type could be given a colour and never have it taken away.
     const value = typeof raw === 'string' && raw ? raw : PLACEMENT_UNSET;
-    const parent = { id: board, predicate: PREDICATES.CHILDREN };
+    const parent = { id: canvas, predicate: PREDICATES.CHILDREN };
 
     try {
-      // An upsert against the board's own children, exactly as a placement is: the parent link is
-      // what makes a style belong to a board, and colouring a type twice must not leave two records
+      // An upsert against the canvas's own children, exactly as a placement is: the parent link is
+      // what makes a style belong to a canvas, and colouring a type twice must not leave two records
       // disagreeing about it.
       const existing = (await TypeStyle.findAll(dataset.handle, { parent } as Record<string, unknown>)) as {
         id: string;
@@ -918,25 +921,25 @@ export function RecordStoreProvider(props: ParentProps) {
       if (value === PLACEMENT_UNSET) return;
       await TypeStyle.create(dataset.handle as never, { nodeType, color: value } as never, { parent } as never);
     } catch (error) {
-      console.error('RecordStore: colouring a type on a board failed', error);
+      console.error('RecordStore: colouring a type on a canvas failed', error);
       toastService.error('Could not save that colour.');
     }
   }
 
-  async function removeFromBoard(board: string, nodeId: string): Promise<void> {
+  async function removeFromCanvas(canvas: string, nodeId: string): Promise<void> {
     const dataset = datasetStore.currentDataset();
-    if (!dataset || !board || !nodeId) return;
+    if (!dataset || !canvas || !nodeId) return;
     try {
       const existing = (await Placement.findAll(dataset.handle, {
-        parent: { id: board, predicate: PREDICATES.CHILDREN },
+        parent: { id: canvas, predicate: PREDICATES.CHILDREN },
       } as Record<string, unknown>)) as { id: string; node?: string }[];
       // Every placement for this node, not the first: a duplicate should not survive the removal and
-      // silently put the thing back on the board at the next refresh.
+      // silently put the thing back on the canvas at the next refresh.
       for (const row of existing.filter((placement) => placement.node === nodeId)) {
         await Placement.delete(dataset.handle, row.id);
       }
     } catch (error) {
-      console.error('RecordStore: removing a record from a board failed', error);
+      console.error('RecordStore: removing a record from a canvas failed', error);
       toastService.error('Could not remove that.');
     }
   }
@@ -974,19 +977,19 @@ export function RecordStoreProvider(props: ParentProps) {
       }
 
       /*
-        Created *inside* the board when there is one, not merely positioned on it.
+        Created *inside* the canvas when there is one, not merely positioned on it.
 
-        A board holds things by containment and positions them by placement — two facts, and it
+        A canvas holds things by containment and positions them by placement — two facts, and it
         needs both. Writing only the placement made a record that existed, had a coordinate, and was
-        invisible: the board's seed asks for each type among the board's own children, and a record
+        invisible: the canvas's seed asks for each type among the canvas's own children, and a record
         created loose in the space is nobody's child. It turned up in the cards route, which asks the
-        space rather than the board, which is exactly the shape of that bug from the outside.
+        space rather than the canvas, which is exactly the shape of that bug from the outside.
       */
-      const board = pendingBoard();
+      const canvas = pendingBoard();
       const created = (await Model.create(
         dataset.handle,
         fields,
-        board ? { parent: { id: board, predicate: PREDICATES.CHILDREN } } : undefined,
+        canvas ? { parent: { id: canvas, predicate: PREDICATES.CHILDREN } } : undefined,
       )) as {
         id?: string;
         setSource?: (value: string) => Promise<unknown>;
@@ -1007,7 +1010,7 @@ export function RecordStoreProvider(props: ParentProps) {
         instead dressed "nobody said" up as an answer, and put the card at the world origin.
       */
       const at = pendingPoint();
-      if (board && at && created?.id) await placeOnBoard(board, created.id, draft.entity, at.x, at.y);
+      if (canvas && at && created?.id) await placeOnCanvas(canvas, created.id, draft.entity, at.x, at.y);
 
       batch(() => {
         setLastCreatedId(created?.id ?? '');
@@ -1041,17 +1044,17 @@ export function RecordStoreProvider(props: ParentProps) {
     pendingLink,
     openRecordForm,
     connectNodes,
-    createOnBoard,
-    createCardOnBoard,
-    placeOnBoard,
-    removeFromBoard,
+    createOnCanvas,
+    createCardOnCanvas,
+    placeOnCanvas,
+    removeFromCanvas,
     pendingCardStyle,
     confirmPending,
     previewCardStyle,
-    resizeOnBoard,
-    anchorOnBoard,
-    rerouteOnBoard,
-    retargetOnBoard,
+    resizeOnCanvas,
+    anchorOnCanvas,
+    rerouteOnCanvas,
+    retargetOnCanvas,
     setCardStyle,
     setTypeColor,
     setRecordEntity,
