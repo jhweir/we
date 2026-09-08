@@ -1305,6 +1305,21 @@ So two rules, both no-ops for an item without form controls:
 
 Make the handle itself focusable (a `we-button` will do) so the keyboard path stays open: Space
 on a focused handle picks the row up exactly as it does on a plain item.
+
+#### Overlays opened from an item are not part of it
+
+A press that begins inside an `OverlayElement` — a modal, a drawer, a popover — never drags the
+item that overlay happens to sit inside, and no consumer has to declare anything for that.
+
+It is worth knowing why the case exists at all. A modal opened from a row is usually *declared* in
+that row, because it needs the row's data to say what it is renaming; overlays are promoted to the
+browser's top layer rather than reparented, so the sheet paints above the whole page while DOM
+containment still says it is inside the row. Without this rule, dragging to select text in a rename
+field dragged the column behind the modal.
+
+Same principle as nested zones, one layer up: the innermost thing under the pointer owns the
+gesture. A sortable *inside* an overlay is unaffected — only the path between the press and the
+item is considered.
   Props: direction: 'vertical' | 'horizontal' = 'vertical', gap: string = '', zone: string = '', group: string = '', locked: boolean = false
 - we-spinner (LayoutElement)
   Props: size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | (string & {}) = 'md', color: string = ''
