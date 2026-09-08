@@ -1825,6 +1825,24 @@ export function SpaceStoreProvider(props: ParentProps) {
     dataset: datasetFor,
     offeredStates: () => offeredTaskStates(),
     notify: (message) => toastService.error(message),
+    /*
+      A staged suggestion for one property, dropped — see `BoardDeps.resolveSuggestion`. Checked
+      against the proposal list first rather than rejected blind, since a reject on a record with no
+      overlay is refused, and most moves are of cards nobody proposed. Best-effort throughout: the
+      move is the thing that matters, and a suggestion that survives is visible on the card.
+    */
+    resolveSuggestion: async (recordId, property) => {
+      const port = session.backendPorts()?.interpretation;
+      const dataset = datasetStore.currentDataset()?.handle;
+      if (!port || !dataset) return;
+      try {
+        const pending = await port.proposals(dataset);
+        if (!pending.some((proposal) => proposal.id === recordId && property in proposal.values)) return;
+        await port.reject(dataset, recordId, property);
+      } catch (error) {
+        console.warn('SpaceStore: could not settle a staged suggestion before a move', error);
+      }
+    },
   });
 
   /**

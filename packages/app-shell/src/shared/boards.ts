@@ -43,6 +43,16 @@ export interface BoardDeps {
   offeredStates: () => { name: string; slug: string }[];
   /** How a failure reaches the person who caused it. */
   notify: (message: string) => void;
+  /**
+   * Drop a staged suggestion for one property of one record, if extraction left one there.
+   *
+   * A proposed task carries the model's `status` on its overlay until somebody presses Keep, and Keep
+   * copies every staged value onto the record. So a card dragged to Doing and *then* kept jumped back
+   * to To do: the older suggestion overwrote the decision a person had just made with a drag. A human
+   * write to a property is a decision about any suggestion for it, and this is how the board says so
+   * before it writes. Optional, since a host without extraction has nothing to settle.
+   */
+  resolveSuggestion?: (recordId: string, property: string) => Promise<void>;
 }
 
 export interface CreateBoardOptions {
@@ -73,7 +83,7 @@ export interface BoardActions {
 const ids = (value: unknown): string[] => (Array.isArray(value) ? (value as string[]) : []);
 
 export function createBoardActions(deps: BoardDeps): BoardActions {
-  const { dataset, offeredStates, notify } = deps;
+  const { dataset, offeredStates, notify, resolveSuggestion } = deps;
 
   /**
    * The title a column stores: nothing, when it is the name of the state it stands for.
@@ -515,6 +525,10 @@ export function createBoardActions(deps: BoardDeps): BoardActions {
       const task = to.slug
         ? await getEntitiesForPerspective('TaskBlock', p)?.findOne(p, { where: { id: cardId } })
         : null;
+      // The drag decides the state; a staged suggestion for it, if there is one, is superseded rather
+      // than left to overwrite this the moment somebody presses Keep. Before the write, so the two
+      // cannot race.
+      if (task && resolveSuggestion) await resolveSuggestion(cardId, 'status');
       await runEntityTransaction(p, async (tx) => {
         const current = ids(to.arranges);
         const dropped = Array.isArray(orderedIds) && orderedIds.includes(cardId) ? orderedIds : null;
