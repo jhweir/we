@@ -2309,9 +2309,10 @@ export function SpaceStoreProvider(props: ParentProps) {
   /**
    * The states this space uses — its own if it has any, otherwise the defaults.
    *
-   * Ordered by semantic (open, then active, then done) rather than by a stored position. That is the
-   * only ordering that means anything across communities, and a position number would be a scalar
-   * two people editing at once break — see the note on `TaskState`.
+   * Ordered by the community's own arrangement where it has one, and otherwise by semantic — what is
+   * coming, what is happening, what is stuck, what is finished, what was dropped. That is the only
+   * ordering that means anything across communities, and a position number on each state would be a
+   * scalar two people editing at once break — see the note on `TaskState`.
    */
   const taskStates = createMemo<TaskStateView[]>(() => {
     const own = ownTaskStates();

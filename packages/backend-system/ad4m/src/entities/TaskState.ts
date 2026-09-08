@@ -23,8 +23,8 @@ export type TaskStateSemantic = 'open' | 'active' | 'blocked' | 'done' | 'cancel
  * A name is for people and cannot be reasoned about. Once a community renames "Done" to "Shipped"
  * and adds "Parked", "what work is outstanding here" is no longer answerable by anything that did
  * not write the vocabulary — which is every other surface, every peer, and every agent. `semantic`
- * is the small closed fact underneath the free one: three values, chosen because they are the only
- * distinctions anything outside a board actually needs.
+ * is the small closed fact underneath the free one, sized by the questions that have to be
+ * answerable from outside the space — see the table on the property itself.
  *
  * Exactly `SignalType.semantic`'s reasoning, and for the same reason: a community should be able to
  * invent its vocabulary without making the space illegible to everything that has not learned it.
@@ -44,10 +44,11 @@ export type TaskStateSemantic = 'open' | 'active' | 'blocked' | 'done' | 'cancel
  * ## No explicit order
  *
  * Columns want an order, and this deliberately does not carry one. `semantic` already gives the only
- * ordering that means anything across communities — open, then active, then done — and a number
- * would be a position scalar of exactly the kind two people editing at once break. If a community
- * ever needs to interleave two "active" states in a chosen order, that is the point to add one, and
- * by then it will be clear whether it belongs here or on the board doing the showing.
+ * ordering that means anything across communities — what is coming, what is happening, what is
+ * stuck, what is finished, what was dropped — and a number here would be a position scalar of
+ * exactly the kind two people editing at once break. A community that wants its own order says so
+ * through `Space.taskStates`, which is an ordered relation and converges; this is the reading order
+ * for a state nobody has positioned.
  */
 @Model({ name: 'TaskState' })
 export class TaskState extends WeNode {

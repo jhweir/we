@@ -93,7 +93,7 @@ export class TaskBlock extends WeNode {
    *
    * `options` and the hint name the defaults, which is deliberately *not* the same list a space
    * may have defined. They steer an LLM, and a model cannot be asked to guess a vocabulary it
-   * has never been shown — so the three semantics are the floor, and a space that wants
+   * has never been shown — so the three default states are the floor, and a space that wants
    * extraction to know its own states says so through the per-space hint (see
    * `interpretationHints.ts`, where the executor reads prompts from the stored shape rather than
    * from this declaration).
