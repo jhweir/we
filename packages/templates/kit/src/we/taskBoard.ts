@@ -145,7 +145,38 @@ export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
       opacity: { $: `(${pending}) ? 0.75 : 1` },
     },
     children: [
-      { type: 'we-text', props: { fontWeight: 'semibold' }, children: [{ $: `${as}.title` }] },
+      {
+        type: 'Row',
+        props: { gap: '200', ay: 'start', ax: 'between', width: '100%' },
+        children: [
+          // The title gives up room; the badge never does — a badge squeezed onto three lines reads
+          // as three words.
+          {
+            type: 'we-text',
+            props: { fontWeight: 'semibold', flex: '1 1 auto', minWidth: '0' },
+            children: [{ $: `${as}.title` }],
+          },
+          {
+            type: '$if',
+            props: {
+              condition: { $: pending },
+              then: {
+                type: 'we-badge',
+                props: {
+                  size: 'xs',
+                  variant: 'warning',
+                  // Solid, as the recording badges are: a soft warning reads as decoration, and this
+                  // is the one thing on the card that asks for a decision.
+                  appearance: 'solid',
+                  flexShrink: '0',
+                  title: 'Extraction proposed this; nobody has agreed to it yet',
+                },
+                children: ['suggested'],
+              },
+            },
+          },
+        ],
+      },
       /*
         The proposal, in its own words. For a staged *update* this is the part that matters: the card
         shows the record as it is, and this line shows what extraction would change — "status:
@@ -157,24 +188,9 @@ export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
         props: {
           condition: { $: `(${pending}) && ${proposalSummary(as)}` },
           then: {
-            type: 'Row',
-            props: { gap: '200', ay: 'start' },
-            children: [
-              {
-                type: 'we-badge',
-                props: {
-                  size: 'xs',
-                  variant: 'warning',
-                  title: 'Extraction proposed this; nobody has agreed to it yet',
-                },
-                children: ['suggested'],
-              },
-              {
-                type: 'we-text',
-                props: { fontSize: '200', color: 'text-muted' },
-                children: [{ $: proposalSummary(as) }],
-              },
-            ],
+            type: 'we-text',
+            props: { fontSize: '200', color: 'text-muted' },
+            children: [{ $: proposalSummary(as) }],
           },
         },
       },
@@ -265,28 +281,38 @@ export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
                   then: {
                     type: 'Row',
                     props: { gap: '100', ay: 'center' },
+                    // Drawn as the canvas draws them: a raised circle, the glyph in the success or
+                    // danger role, filling with that role's surface under the pointer. The theme's
+                    // accent says "primary action"; a tick that means "yes, this" is green everywhere
+                    // else in the app.
                     children: [
                       {
                         type: 'we-button',
                         props: {
-                          variant: 'primary',
+                          variant: 'outline',
                           size: 'xs',
                           square: true,
+                          r: 'full',
+                          color: 'success-text',
+                          hoverProps: { bg: 'success-surface', borderColor: 'success-text' },
                           title: 'Keep this',
                           onClick: { $action: 'modules.transcribe.acceptProposal', args: [{ $: `${as}.id` }] },
                         },
-                        children: [{ type: 'we-icon', props: { name: 'check' } }],
+                        children: [{ type: 'we-icon', props: { name: 'check', weight: 'bold' } }],
                       },
                       {
                         type: 'we-button',
                         props: {
-                          variant: 'ghost',
+                          variant: 'outline',
                           size: 'xs',
                           square: true,
+                          r: 'full',
+                          color: 'danger-text',
+                          hoverProps: { bg: 'danger-surface', borderColor: 'danger-text' },
                           title: 'Discard this',
                           onClick: { $action: 'modules.transcribe.rejectProposal', args: [{ $: `${as}.id` }] },
                         },
-                        children: [{ type: 'we-icon', props: { name: 'x', color: 'danger-text' } }],
+                        children: [{ type: 'we-icon', props: { name: 'x', weight: 'bold' } }],
                       },
                     ],
                   },
