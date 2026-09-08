@@ -5,6 +5,7 @@ import { createSignalTypeModal } from './vocabulary/CreateSignalTypeModal.ts';
 import { modelsSection } from './vocabulary/EntitiesSection.ts';
 import { relationshipTypesSection } from './vocabulary/RelationshipTypesSection.ts';
 import { signalTypeCard } from './vocabulary/SignalTypeCard.ts';
+import { taskStatesSection } from './vocabulary/TaskStatesSection.ts';
 import { topicsSection } from './vocabulary/TopicsSection.ts';
 
 /**
@@ -102,8 +103,9 @@ export const spaceVocabularySection: SchemaNode = {
         createSignalTypeOpen: { type: 'boolean', initial: false },
         createRelationshipTypeOpen: { type: 'boolean', initial: false },
         createTopicOpen: { type: 'boolean', initial: false },
+        createTaskStateOpen: { type: 'boolean', initial: false },
       },
-      children: [signalTypesSection, relationshipTypesSection, topicsSection, modelsSection],
+      children: [signalTypesSection, relationshipTypesSection, taskStatesSection, topicsSection, modelsSection],
     },
     else: openSpaceFirst,
   },

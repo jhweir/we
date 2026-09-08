@@ -1243,6 +1243,25 @@ export interface ModuleInterpretationAccess {
    */
   reconcileCollection: (collectionId: string) => Promise<number>;
   /**
+   * A pass has left records on this collection; let the host do whatever follows from that.
+   *
+   * Named for what happened rather than for what follows, because what follows is the host's
+   * business and changes: today it attaches anything the pass left unattached and, once the
+   * collection holds a task, gives it a board to be arranged on; tomorrow it may notify somebody.
+   * A module that knew the list would have to be told each time the list grew — and the first
+   * spelling of this, `ensureBoard`, put a surface's name into a capability's contract.
+   *
+   * Called after a pass rather than when somebody opens a route, because what follows can write
+   * records into a space everybody shares, and doing that as a side effect of *navigating* means
+   * every member who opened the tab races to write the same thing. A pass runs on exactly one node.
+   *
+   * Idempotent, and a no-op when there is nothing to do, so a module may call it after any pass, on
+   * adopting a collection, and again when a standing pass settles, without keeping count. A
+   * collection and nothing else, like every member here: the dataset is the host's to resolve, and it
+   * resolves the same one the pass just wrote into.
+   */
+  passSettled: (collectionId: string) => Promise<void>;
+  /**
    * What extraction is doing in this space right now — this agent's passes and its peers'.
    *
    * Read-only and reactive, like {@link ModuleIdentityAccess.get}: a module reading it inside a

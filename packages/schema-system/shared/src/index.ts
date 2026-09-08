@@ -62,6 +62,7 @@ export {
   resolveProp,
   resolveProps,
   pruneUnresolvedWhere,
+  scopeIsAnchored,
   resolveQueryProp,
   splitProps,
   markReactive,

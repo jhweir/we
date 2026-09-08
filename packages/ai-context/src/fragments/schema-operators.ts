@@ -456,6 +456,14 @@ asserts "loaded and empty", never "not answered yet":
 { "type": "$if", "props": { "condition": { "$": "local.signalTypesLoaded" }, "then": <list-or-empty>, "else": <skeleton> } }
 $queries and $localState share the same local namespace — avoid duplicate names across both.
 $setLocal will warn and no-op on $queries entries (they are read-only).
+A query's where or scope may read a sibling declared on the same node — { "anchorId": { "$":
+"first(local.board).gathers" } } — and re-runs when that sibling answers. The order the entries are
+written in does not matter.
+An operand that has not resolved yet is PRUNED rather than sent, and pruning WIDENS: a where loses
+the condition, a scope is dropped and the query is space-wide. Right for an optional filter; wrong
+for a query whose scope is about to exist, which would draw everything for a frame and then narrow.
+Give such a query "when": { "$": "local.boardLoaded" } and it is not asked until the condition is
+truthy — the result stays empty and local.<name>Loaded stays false, so a loading state can hold.
 A $query cannot be read inside an expression — a question for the backend is hoisted here and read
 back through local. Use count() for conditional visibility:
 { "condition": { "$": "count(local.signalTypes)" } }

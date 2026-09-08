@@ -13,7 +13,7 @@ export function resolveQueryProp(value: unknown): QueryDescriptor {
   const { $query } = value as { $query: Record<string, unknown> };
   // Neutral authoring grammar all the way through: `entity` + `dataset`. `where`/`order`/`include`/
   // `limit` flow through in `params`, compiled to the IR downstream.
-  const { entity, subscribe: sub, dataset, include, ...params } = $query;
+  const { entity, subscribe: sub, dataset, include, when, ...params } = $query;
   return {
     // Left as authored. A name goes through untouched; an expression is resolved by the framework
     // layer, which is the only place a row's bindings exist — see `QueryDescriptor.entity`.
@@ -22,6 +22,8 @@ export function resolveQueryProp(value: unknown): QueryDescriptor {
     subscribe: sub !== false,
     dataset: dataset as string | undefined,
     ...(include !== undefined && { include: include as Record<string, boolean | Record<string, unknown>> }),
+    // Not a param: the backend never sees it. The framework layer reads it before asking.
+    ...(when !== undefined && { when }),
   };
 }
 
@@ -36,6 +38,12 @@ export function resolveQueryProp(value: unknown): QueryDescriptor {
  * untagged enum WhereCondition"). An unresolved input means "don't filter on
  * this yet", not "send a filter with a hole in it" — the effect re-runs and
  * applies the real filter once the value exists.
+ *
+ * **Only `undefined` is unresolved.** An empty string is a value, and it stays — which is not what
+ * {@link scopeIsAnchored} does one field along, and the asymmetry is deliberate. Widening a scope is
+ * what an unanchored view wants; widening an *identity* is never what anybody wants, so a template
+ * asking about a record it has no id for must be gated rather than quietly answered with whichever
+ * record the backend happened to return first.
  *
  * Returns the pruned clause, or `undefined` when nothing survives.
  */
@@ -75,4 +83,28 @@ export function pruneUnresolvedWhere(where: Record<string, unknown>): Record<str
   }
 
   return Object.keys(out).length ? out : undefined;
+}
+
+/**
+ * Whether a resolved `scope` still names an anchor.
+ *
+ * The counterpart to {@link pruneUnresolvedWhere}, and the same rule one field along: an operand
+ * that has not resolved means "do not narrow by this", never "narrow by nothing". The difference is
+ * which way the failure falls, and it is the whole reason this exists — a `where` with a hole in it
+ * is rejected by the backend and is therefore loud, whereas a scope whose `anchorId` is `undefined`
+ * is a perfectly valid query for the children of no record, which returns nothing at all. Silently.
+ *
+ * That distinction is what lets a view carry an anchor unconditionally. A shipped view reads its
+ * anchor from a URL parameter that is usually absent — `{ $: 'routeStore.params.anchor' }` — and
+ * absent has to mean *the whole space*, which is what an unanchored view has always shown. Without
+ * this the view would need two copies of every query behind an `$if`, or would go blank the moment
+ * nobody had named a container.
+ *
+ * A literal empty string counts as absent too: that is what a `$localState` field holding "nothing
+ * chosen yet" resolves to, and a template should not have to know the difference.
+ */
+export function scopeIsAnchored(scope: unknown): boolean {
+  if (!scope || typeof scope !== 'object') return false;
+  const anchorId = (scope as { anchorId?: unknown }).anchorId;
+  return anchorId !== undefined && anchorId !== null && anchorId !== '';
 }

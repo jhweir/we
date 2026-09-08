@@ -113,7 +113,7 @@ export function resolveStyle<TStyle extends object>(
  * The properties a rule actually has something to say about this subject.
  *
  * A {@link FieldRef} the subject cannot answer is dropped here, at merge time, rather than resolved
- * to a fallback later — and the difference is the whole cascade. A board colours every card by its
+ * to a fallback later — and the difference is the whole cascade. A canvas colours every card by its
  * type and then lets a card carry its own colour in front of that; if the second rule contributed
  * `undefined` for the cards that carry none, it would overwrite the type colour with the built-in
  * default and the first rule would be pointless. Deferring instead means "read this off the record,
@@ -186,7 +186,7 @@ export function resolveText<T extends string>(
   if (typeof value === 'string') return value;
   if (!isFieldRef(value)) return fallback;
   const read = readField(subject, value.from);
-  // Checked against the allowed set rather than cast: this reads a *stored* value, so a board
+  // Checked against the allowed set rather than cast: this reads a *stored* value, so a canvas
   // holding a name from a newer version of the app must fall back rather than reach the renderer.
   if (typeof read === 'string' && (allowed as readonly string[]).includes(read)) return read as T;
   return value.fallback ?? fallback;
@@ -256,7 +256,7 @@ export function nodeVisual(node: GraphNode, style: NodeStyle, metrics: MetricVal
     label: node.label ?? node.type,
     labelColor: style.labelColor ?? DEFAULT_NODE.labelColor,
     labelSize: style.labelSize ?? DEFAULT_NODE.labelSize,
-    // Scaling by default: the intuition people arrive with is a board, where zooming magnifies the
+    // Scaling by default: the intuition people arrive with is a canvas, where zooming magnifies the
     // whole drawing. Constant-size text is the specialist choice, so it is the one you ask for.
     scaleLabelWithZoom: style.scaleLabelWithZoom ?? true,
   };

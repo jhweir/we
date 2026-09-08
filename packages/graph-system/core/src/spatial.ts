@@ -26,7 +26,7 @@ export interface IndexedNode {
    * Box half-extents, for nodes that are rectangles rather than marks.
    *
    * A card is 170×128; picking it with a circle either misses the corners or overshoots the edges
-   * into its neighbours. Both matter on a board, where cards sit close together and a click landing
+   * into its neighbours. Both matter on a canvas, where cards sit close together and a click landing
    * on the wrong one is worse than a click landing on nothing.
    */
   halfWidth?: number;

@@ -121,7 +121,7 @@ describe('the showcase templates', () => {
         Relative, and pointing at a route that exists. Both halves matter and both fail silently.
 
         The host mounts every template under `/space/:spaceId`, and `buildRoutes` joins an absolute
-        redirect to the parent *pattern* — so `/board` became a literal `/space/:spaceId/board`,
+        redirect to the parent *pattern* — so `/canvas` became a literal `/space/:spaceId/canvas`,
         matching nothing. And a redirect at a path no route serves lands on the catch-all, which is
         the same "No such page" by a different route.
       */
@@ -133,7 +133,7 @@ describe('the showcase templates', () => {
 
   it.each(exported)('%s navigates relatively, so the host can mount it anywhere', (_name, schema) => {
     /*
-      A template addresses its own screens, not the whole URL. An absolute `/board` was correct only
+      A template addresses its own screens, not the whole URL. An absolute `/canvas` was correct only
       while these mounted at the root; under the space prefix it leaves the space entirely.
 
       Checked over the serialised schema rather than by walking it, because these paths appear in
@@ -151,10 +151,10 @@ describe('the showcase templates', () => {
  *
  * Three things it used to be, all wrong in the same way: `modules.transcribe.collectionId` means
  * "the call I am recording into", so looking at a finished call meant joining a call first, a reload
- * came back to no call at all, and the board you were looking at could not be sent to anybody.
+ * came back to no call at all, and the canvas you were looking at could not be sent to anybody.
  *
  * A **query parameter**, not a path segment, and that is the part worth pinning: a record id is a
- * URI, so `./board/we://…/<uuid>` is several segments, `/board/:callId` matches none of them, and
+ * URI, so `./canvas/we://…/<uuid>` is several segments, `/canvas/:callId` matches none of them, and
  * every click landed on the catch-all saying "Page not found". Nothing in the expression language
  * can percent-encode; `setParam` writes through `URLSearchParams`, so it does not have to.
  */
@@ -164,19 +164,19 @@ describe('the workshop template’s call selection', () => {
   // existed.
   const workshop = showcase.workshopTemplate as Schema & { meta?: { panels?: TemplatePanel[] } };
 
-  it('has one board route, whichever call it is about', () => {
+  it('has one canvas route, whichever call it is about', () => {
     const paths = (workshop.routes ?? []).map((route) => route.path);
 
-    expect(paths).toContain('/board');
+    expect(paths).toContain('/canvas');
     // The spelling that could never match: a record id is a URI, so it is not one segment.
-    expect(paths).not.toContain('/board/:callId');
+    expect(paths).not.toContain('/canvas/:callId');
   });
 
   it('carries the call in a query parameter, and falls back to the live one', () => {
     const json = JSON.stringify(workshop);
 
     expect(json).toContain('routeStore.params.call');
-    expect(json).not.toContain('./board/$');
+    expect(json).not.toContain('./canvas/$');
   });
 
   it('asks the call module which call is live, not the transcriber', () => {
@@ -184,7 +184,7 @@ describe('the workshop template’s call selection', () => {
       `liveCollectionId` means "the record I am writing into", and the transcriber adopts the call's
       record only when it first has something to write — so for the opening stretch of every meeting
       its honest answer is "nothing". Every surface here waited for somebody to speak before it would
-      admit a call was happening: an empty board, an empty feed, and a calls list that did not mark
+      admit a call was happening: an empty canvas, an empty feed, and a calls list that did not mark
       the call you were sitting in.
 
       The record exists from the first second — `startCall` writes it before anyone joins — and
@@ -204,15 +204,15 @@ describe('the workshop template’s call selection', () => {
       landed afterwards — the parameter took effect and the address ended up somewhere no route
       matched, which read as "the panels work and every route says Page not found".
 
-      And the **page it lands on**, which is the one you were on. Naming `board` outright threw you
-      onto the board every time you picked a call from the tasks list. Absolute either way, because
+      And the **page it lands on**, which is the one you were on. Naming `canvas` outright threw you
+      onto the canvas every time you picked a call from the tasks list. Absolute either way, because
       the control doing it is a panel: host chrome, rendered outside the route tree, where a relative
       path has nothing dependable to resolve against.
     */
     const select = JSON.stringify(workshop.meta?.panels?.find((panel) => panel.id === 'calls'));
 
     expect(select).toContain('spaceStore.spacePath}/${routeStore.templateSegments[0]');
-    expect(select).not.toContain('spacePath}/board?call=');
+    expect(select).not.toContain('spacePath}/canvas?call=');
     expect(select).not.toContain('routeStore.setParam');
   });
 
@@ -238,7 +238,7 @@ describe('the workshop template’s call selection', () => {
 
   it('leaves its panels standing across every route', () => {
     /*
-      They were scoped `route: 'board'`, which does not hide a panel — it unregisters the dock, so
+      They were scoped `route: 'canvas'`, which does not hide a panel — it unregisters the dock, so
       the transcript's scroll position, its subscription and wherever it had been dragged were
       destroyed on the way to the tasks list and rebuilt on the way back. Surviving navigation is
       the whole difference between a panel and a region of a page.
@@ -251,7 +251,7 @@ describe('the workshop template’s call selection', () => {
 
   it('carries the call from page to page in the switcher', () => {
     // Panels that stand on every route are about `CALL`, so a link that dropped the parameter would
-    // show one call's transcript beside another call's board.
+    // show one call's transcript beside another call's canvas.
     expect(JSON.stringify(workshop)).toContain("/${nav.segment}?call=${routeStore.params.call ?? ''}");
   });
 
@@ -297,7 +297,7 @@ describe('the workshop template’s call selection', () => {
   it('draws a card nobody has agreed to yet as unsettled, and offers the decision on it', () => {
     /*
       An extraction pass can stage a whole record, and a staged record is in the graph: it answers
-      the board's query exactly as an accepted one does, so the card was indistinguishable from one
+      the canvas's query exactly as an accepted one does, so the card was indistinguishable from one
       somebody had said yes to. The proposal list is the only thing that knows the difference.
     */
     const json = JSON.stringify(workshop);
@@ -308,7 +308,7 @@ describe('the workshop template’s call selection', () => {
 
       A match clause reads a node's own field for a bare key and the seed's data bag behind `data.`,
       so `{ pending: true }` named a field that is not there and matched nothing at all: no card
-      faded, no card offered the decision, on a board full of suggestions. Nothing failed, because
+      faded, no card offered the decision, on a canvas full of suggestions. Nothing failed, because
       nothing matching is what a clause does when it is right and there is nothing to match.
     */
     expect(json).toContain('{"when":{"data.pending":true},"style":{"opacity":0.5}}');
@@ -330,16 +330,16 @@ describe('the workshop template’s call selection', () => {
     expect(json).toContain('"id":"reject"');
   });
 
-  it('draws the board off the call’s own list of what is being extracted', () => {
+  it('draws the canvas off the call’s own list of what is being extracted', () => {
     /*
       What a space extracts is a community decision, changeable mid-call from the chips the
       extraction panel draws. Anything downstream that named the kinds itself was therefore a bug
-      waiting on one click: `['TaskBlock', 'EventBlock']` was written into the board's `contains`,
-      so turning a third model on produced records in the collection and nothing on the board, with
+      waiting on one click: `['TaskBlock', 'EventBlock']` was written into the canvas's `contains`,
+      so turning a third model on produced records in the collection and nothing on the canvas, with
       no sign of why.
 
       Read per call rather than for the live one. Those differ the moment somebody narrows a call,
-      and the board is about whichever call the address names — which is exactly the mismatch that
+      and the canvas is about whichever call the address names — which is exactly the mismatch that
       made this template's own extraction panel wrong before the module's absorbed it.
     */
     const json = JSON.stringify(workshop);
@@ -350,7 +350,7 @@ describe('the workshop template’s call selection', () => {
 
   it('inspects the selected card from a panel, through the model’s own declaration', () => {
     /*
-      A community defines a model, extraction writes one, and it lands on the board as a card nobody
+      A community defines a model, extraction writes one, and it lands on the canvas as a card nobody
       can look inside. The panel names no property of anything: `recordStore.displays` is derived
       from the model's own declaration, so a model adopted this morning renders with nothing written
       for it.
@@ -392,7 +392,7 @@ describe('the workshop template’s call selection', () => {
 
       `connectNodes` opens a draft, and a draft whose non-nullness mounts a modal needs something to
       mount it. The modal is placed by the default template's graph view, and this template supplies
-      its own board — so the drag completed, the store opened a form, and the screen showed nothing.
+      its own canvas — so the drag completed, the store opened a form, and the screen showed nothing.
       The gesture looked like it had silently failed when what had failed was the surface that asks
       about it.
     */
@@ -416,7 +416,7 @@ describe('the workshop template’s call selection', () => {
   it('offers a delete on every card, not only on the unsettled ones', () => {
     /*
       Extraction proposes things that are simply wrong about a conversation, and one that has been
-      accepted — or predates the proposal machinery — had no way off the board from the board.
+      accepted — or predates the proposal machinery — had no way off the canvas from the canvas.
 
       Through `record.delete` rather than a store action, so it is guarded by the host's own
       confirmation like every destructive call a template can name. The accept and discard controls
@@ -463,15 +463,15 @@ describe('the workshop template’s call selection', () => {
     expect(transcript?.snap).toBe('left');
   });
 
-  it('gives the board a height to be laid out in, the whole way down', () => {
+  it('gives the canvas a height to be laid out in, the whole way down', () => {
     /*
-      Both halves, because fixing the lower one alone left the board exactly as blank.
+      Both halves, because fixing the lower one alone left the canvas exactly as blank.
 
       The canvas sizes itself from its container, so every box above it has to have a height a
       percentage can resolve against. The root was `minHeight: '100%'` — the task list and the
       calendar are taller than the viewport and must grow — which leaves its specified height `auto`,
       and a flex item's post-flex main size counts as definite only where its container's does. So
-      the board route stretched down the screen and the canvas inside it still resolved `height:
+      the canvas route stretched down the screen and the canvas inside it still resolved `height:
       100%` to `auto`, to its content, to nothing: the graph read its row, built its node, positioned
       it, and laid it out into a box 2009 pixels wide and 0 high.
 
@@ -479,7 +479,7 @@ describe('the workshop template’s call selection', () => {
       taken for. Pinned rather than left to be noticed again.
     */
     const root = workshop as { props?: Record<string, unknown> };
-    const board = (workshop.routes ?? []).find((route) => route.path === '/board') as
+    const canvas = (workshop.routes ?? []).find((route) => route.path === '/canvas') as
       { props?: Record<string, unknown> } | undefined;
 
     // Definite, so what grows inside it can resolve against it. The scroll container above paints
@@ -487,8 +487,8 @@ describe('the workshop template’s call selection', () => {
     expect(root.props?.height).toBe('100%');
     expect(root.props?.minHeight).toBeUndefined();
 
-    expect(board?.props?.flex).toBe('1');
-    expect(board?.props?.height).toBeUndefined();
+    expect(canvas?.props?.flex).toBe('1');
+    expect(canvas?.props?.height).toBeUndefined();
   });
 });
 

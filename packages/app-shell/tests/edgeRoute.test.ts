@@ -37,7 +37,7 @@ describe('clearing a side', () => {
   });
 
   it('treats an empty point list as nothing drawn', () => {
-    // `rerouteOnBoard` writes `[]` to straighten a line, because an update skips `''` — so the
+    // `rerouteOnCanvas` writes `[]` to straighten a line, because an update skips `''` — so the
     // absence of bends reaches here spelled two different ways.
     expect(routeWrite({ sourceAnchor: 'n', points: '[]' }, 'source', '')).toEqual({ action: 'delete' });
   });

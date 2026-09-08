@@ -17,6 +17,7 @@ import {
   REACTIVE_ACCESSOR,
   resolveProp,
   resolveQueryProp,
+  scopeIsAnchored,
   validateField,
 } from '@we/schema-shared';
 import { batch, createEffect, createMemo, createSignal, For, JSX, onCleanup, Show } from 'solid-js';
@@ -99,11 +100,108 @@ function composeHandlers(handlers: unknown[]): (...args: unknown[]) => void {
 }
 
 /**
+ * What a subscription push actually carried — development only.
+ *
+ * Diagnostic for the class of bug where a write lands, a refresh shows it, and the screen does not:
+ * somewhere between the executor deciding a result set changed and Solid re-rendering, the change
+ * stops. This says which side of that line the problem is on, which is otherwise guesswork.
+ *
+ * Reports the *difference* rather than the rows — added and removed ids, and per surviving row the
+ * scalar fields whose values moved — because a query of two hundred tasks logged in full is
+ * unreadable and the interesting thing is always one field. A push that changed nothing is reported
+ * too, since "arrived and was identical" and "never arrived" have different causes and look the same
+ * from the screen.
+ *
+ * Pair with ad4m's own `[ModelQueryBuilder.subscribe]` lines, which say whether a push arrived at all
+ * and whether its fingerprint check suppressed it — both are `console.info`, so the browser console
+ * needs its Verbose level on to show either.
+ */
+function logSubscriptionDiff(entity: string, previous: unknown[] | null, next: unknown[]): void {
+  // Read through a cast rather than `import.meta.env.DEV` directly: this package carries no bundler
+  // types, and a diagnostic is not a reason to make the renderer depend on one. Absent reads as
+  // production, so a host that does not define it gets nothing.
+  if (!(import.meta as { env?: { DEV?: boolean } }).env?.DEV) return;
+  const rowsOf = (rows: unknown[]) =>
+    new Map(rows.map((row) => [String((row as { id?: unknown }).id ?? ''), row as Record<string, unknown>]));
+  const before = rowsOf(previous ?? []);
+  const after = rowsOf(next);
+  const added = [...after.keys()].filter((id) => !before.has(id));
+  const removed = [...before.keys()].filter((id) => !after.has(id));
+  const changed: string[] = [];
+  for (const [id, row] of after) {
+    const was = before.get(id);
+    if (!was) continue;
+    for (const [key, value] of Object.entries(row)) {
+      // Scalars only: a relation comes back as an array of ids and its own record's push reports it.
+      // And nothing `_`-prefixed — `Ad4mModel` keeps its dirty-tracking snapshot there, which reads
+      // as `_snapshot: [object Object] → null` and looks alarmingly like data going missing.
+      if (key.startsWith('_')) continue;
+      if (value !== null && typeof value === 'object') continue;
+      if (was[key] !== value) changed.push(`${id}.${key}: ${String(was[key])} → ${String(value)}`);
+    }
+  }
+  if (!previous) {
+    console.info(`[query] ${entity} ← first result, ${next.length} rows`);
+    return;
+  }
+  if (!added.length && !removed.length && !changed.length) {
+    console.info(`[query] ${entity} ← push with no difference (${next.length} rows)`);
+    return;
+  }
+  console.info(
+    `[query] ${entity} ←`,
+    [
+      added.length ? `+${added.length}` : '',
+      removed.length ? `-${removed.length}` : '',
+      changed.length ? changed.join(', ') : '',
+    ]
+      .filter(Boolean)
+      .join(' '),
+  );
+}
+
+/**
  * Create a reactive signal that subscribes to a $query and updates with results.
  * Must be called within a Solid reactive owner (component or createRoot).
  */
 /** Degradations already reported, keyed `entity:feature` — a reactive re-run must not respam. */
 const warnedDegradations = new Set<string>();
+
+const warnedEmptyIds = new Set<string>();
+
+/**
+ * Say so when a query asks for the record with no id.
+ *
+ * `pruneUnresolvedWhere` drops an operand that is `undefined`; an empty string is a value and stays,
+ * which is right — `''` is a real value for plenty of fields. For `id` it is not: no record has it,
+ * and it is what a `$localState` field or a store accessor answers when nothing has been chosen yet
+ * (`modules.call.callRecordId` returns `''` by design, so that every surface reading it gets a
+ * string).
+ *
+ * What reaches the screen without this is a SPARQL parse error. The AD4M executor builds a `VALUES`
+ * clause, drops the id for not being an IRI, and refuses the now-empty data block — "expected UNDEF"
+ * — naming neither the template, the entity nor the field.
+ *
+ * Reported rather than repaired, because no repair here is right. Pruning `''` would mean "do not
+ * narrow by id", which answers with an arbitrary record and draws somebody else's data with nothing
+ * on screen saying so; refusing the query outright needs a "matches nothing" the query IR has no way
+ * to express. The fix is always the same and belongs to the author: gate the query on having an id.
+ *
+ * Once per entity, like the degradation warnings above — a query re-runs on every reactive change,
+ * and a warning per frame is a warning nobody reads.
+ */
+function warnOnEmptyId(entity: string, where: unknown): void {
+  if (!(import.meta as { env?: { DEV?: boolean } }).env?.DEV) return;
+  if (!where || typeof where !== 'object') return;
+  if ((where as Record<string, unknown>).id !== '') return;
+  if (warnedEmptyIds.has(entity)) return;
+  warnedEmptyIds.add(entity);
+  console.warn(
+    `[query] "${entity}" asks for id "" — no record has it, and the backend will refuse the query. ` +
+      'Gate the query on having an id: an empty one cannot be pruned, because "do not narrow by id" ' +
+      'would answer with an arbitrary record.',
+  );
+}
 
 /**
  * Report a query failure through the host's `$onError` (a toast, in the AD4M app), falling back to
@@ -162,6 +260,7 @@ function routeQueryThroughIR(
   onError: (msg: string) => void,
 ): Record<string, unknown> | null {
   try {
+    warnOnEmptyId(entity, options.where);
     const { ir, unsupported } = compileQuery({ entity, ...options } as FlatQuery);
     if (unsupported.length > 0) {
       onError(`Query on "${entity}" uses features the query IR cannot express: ${unsupported.join(', ')}`);
@@ -246,6 +345,19 @@ function createQuerySignal(
       return;
     }
 
+    // A query that waits — see `QueryToken.when`. Read inside the effect, so the moment the
+    // condition turns true the query is asked; until then it has not been, which is what `Loaded`
+    // staying false says. Different from an unresolved `where` operand, which is pruned and the
+    // query asked anyway: pruning widens, and a scope that is about to exist must not be widened.
+    if (descriptor.when !== undefined) {
+      const ready = deepResolveTokens(descriptor.when, stores, context);
+      if (!ready) {
+        setItems(reconcile([]));
+        setLoaded(false);
+        return;
+      }
+    }
+
     // Dataset-scoped model lookup: prefer a dataset-specific dynamic model, fall back to the global
     // registry.
     // The dataset stays opaque here: the host derives whatever key its per-dataset model registry
@@ -269,6 +381,10 @@ function createQuerySignal(
       if (prunedWhere === undefined) delete resolvedParams.where;
       else resolvedParams.where = prunedWhere;
     }
+    // And the same rule for the anchor a scope narrows to: unresolved means "don't narrow", not
+    // "narrow to the children of nothing". A view that reads its anchor from a URL parameter carries
+    // the scope unconditionally and is unanchored when nobody named one.
+    if (resolvedParams.scope !== undefined && !scopeIsAnchored(resolvedParams.scope)) delete resolvedParams.scope;
     const resolvedInclude =
       descriptor.include !== undefined
         ? (deepResolveTokens(descriptor.include, stores, context) as Record<string, boolean | Record<string, unknown>>)
@@ -309,13 +425,21 @@ function createQuerySignal(
         subscribe: (cb: (results: unknown[]) => void) => Promise<unknown[]>;
         dispose: () => void;
       };
+      // Development only, and only what changed — see `logSubscriptionDiff`.
+      let seen: unknown[] | null = null;
       builder
         .subscribe((results) => {
-          setItems(reconcile(normalise(results), { key: 'id', merge: true }));
+          const rows = normalise(results);
+          logSubscriptionDiff(String(entity), seen, rows);
+          seen = rows;
+          setItems(reconcile(rows, { key: 'id', merge: true }));
           setLoaded(true);
         })
         .then((initial) => {
-          setItems(reconcile(normalise(initial), { key: 'id', merge: true }));
+          const rows = normalise(initial);
+          logSubscriptionDiff(String(entity), seen, rows);
+          seen = rows;
+          setItems(reconcile(rows, { key: 'id', merge: true }));
           setLoaded(true);
         })
         .catch((err) => {
@@ -574,9 +698,34 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
     // `<name>Loaded` — false until the first result set (or error) — so a
     // template can hold a skeleton instead of flashing its empty state.
     const queryAccessors: Record<string, () => unknown> = {};
-    for (const [name, field] of Object.entries(node.$queries as Record<string, QueryStateField>)) {
+    /*
+      A query may read the results of the queries declared before it.
+
+      Each entry's `where` and `scope` are resolved against the context it is created with, and
+      before this the accessors were merged into `$local` only after the whole list had been made —
+      so a query whose anchor was `first(local.board).gathers` read `local.board` as undeclared, got
+      nothing, dropped its scope, and drew the whole space. Not a frame to wait through: an
+      undeclared name is not a reactive read, so nothing re-ran it when the board arrived.
+
+      The names are declared up front as accessors that look the real one up at read time. Every
+      accessor exists before any query's effect first runs — effects are deferred past the
+      synchronous creation of the whole list — so a read inside one query's effect reaches the
+      other's signal whichever was declared first, is tracked by it, and re-runs the reader when it
+      answers. Declaration order does not matter, and the test says so.
+    */
+    const entries = Object.entries(node.$queries as Record<string, QueryStateField>);
+    const forward: Record<string, () => unknown> = {};
+    for (const [name] of entries) {
+      forward[name] = () => queryAccessors[name]?.() ?? [];
+      forward[`${name}Loaded`] = () => queryAccessors[`${name}Loaded`]?.() ?? false;
+    }
+    const queryContext = {
+      ...effectiveContext,
+      $local: { ...((effectiveContext.$local as Record<string, unknown>) ?? {}), ...forward },
+    };
+    for (const [name, field] of entries) {
       const descriptor = resolveQueryProp({ $query: field });
-      const accessor = createQuerySignal(descriptor, stores, effectiveContext);
+      const accessor = createQuerySignal(descriptor, stores, queryContext);
       queryAccessors[name] = accessor;
       queryAccessors[`${name}Loaded`] = accessor.loaded;
     }
@@ -821,6 +970,7 @@ export function RenderSchema({ node, stores, registry, context = {}, children }:
             if (prunedWhere === undefined) delete resolvedParams.where;
             else resolvedParams.where = prunedWhere;
           }
+          if (resolvedParams.scope !== undefined && !scopeIsAnchored(resolvedParams.scope)) delete resolvedParams.scope;
           const resolvedInclude =
             descriptor.include !== undefined
               ? (deepResolveTokens(descriptor.include, stores, effectiveContext) as Record<

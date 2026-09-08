@@ -87,6 +87,19 @@ export interface ModuleHostServices {
   unwatchCollection?: (collectionId: string) => Promise<void>;
   reconcileCollection?: (collectionId: string) => Promise<number>;
   /**
+   * Make sure a collection has a board, once it holds a task.
+   *
+   * Extraction's hook. A pass that leaves a call holding work needs somewhere for that work to be
+   * arranged, and the alternative — creating the board when somebody opens the route — is a write
+   * as a side effect of navigating, which on a neighbourhood means every member who opened the tab
+   * racing to create the same board. A pass runs on exactly one node, so it is the right writer.
+   *
+   * Takes an optional dataset for a host that knows one, and otherwise resolves the same dataset
+   * `interpretCollection` does — which is the one the pass just wrote its records into, so the board
+   * cannot land somewhere its own cards did not.
+   */
+  ensureBoardFor?: (collectionId: string, dataset?: string) => Promise<string>;
+  /**
    * Live extraction activity for the current space, published by the store that holds the feed.
    *
    * Separate from `interpretation` for the same reason `interpretCollection` is: the port reports
@@ -316,6 +329,25 @@ export function createModuleStoreDeps(framework: {
         await services.unwatchCollection?.(collectionId);
       },
       reconcileCollection: async (collectionId) => (await services.reconcileCollection?.(collectionId)) ?? 0,
+      /*
+        What follows a pass, in order: attach what it left unattached, then — the host deciding
+        whether the collection now holds a task — give it a board. The reconcile goes first because
+        the board question is answered by looking for tasks on the collection, and the reconcile is
+        what attaches them. Each half is best-effort on its own: a board that could not be made is not
+        a failed extraction, and neither is worth an error reaching the module.
+      */
+      passSettled: async (collectionId) => {
+        try {
+          await services.reconcileCollection?.(collectionId);
+        } catch (error) {
+          console.warn('moduleHostServices: could not reconcile a settled pass', error);
+        }
+        try {
+          await services.ensureBoardFor?.(collectionId);
+        } catch (error) {
+          console.warn('moduleHostServices: could not prepare a board for a settled pass', error);
+        }
+      },
       /*
         Reads through on every call rather than capturing, like every accessor here — a module store
         outlives a space switch, and a captured array would keep showing the passes of the space the

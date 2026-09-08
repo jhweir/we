@@ -94,12 +94,12 @@ in it. `SPACE_ROUTE_PATH` is the single literal.
 
 `$views` therefore means one thing only: **the community picks the sections
 here.** It is not a statement about where the template lives. A template that
-declares its own screens (`/board`, `/channel/:id`) is still a space template
+declares its own screens (`/canvas`, `/channel/:id`) is still a space template
 and still lives under the prefix; it simply names its children itself.
 
 Two consequences worth stating, because both were learned the hard way:
 
-- **A template navigates relatively.** `'./board'`, not `'/board'` — an absolute
+- **A template navigates relatively.** `'./canvas'`, not `'/canvas'` — an absolute
   target leaves the space, and inside a parameterised parent an absolute
   `redirect` is joined to the _pattern_, producing a literal `/space/:spaceId/…`
   that matches nothing.

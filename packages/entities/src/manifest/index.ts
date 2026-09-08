@@ -14,6 +14,7 @@ import { LinkBlock } from './LinkBlock';
 import { LocationBlock } from './LocationBlock';
 import { TagBlock } from './TagBlock';
 import { TaskBlock } from './TaskBlock';
+import { TaskState } from './TaskState';
 import { TextBlock } from './TextBlock';
 import { Topic } from './Topic';
 import { VideoBlock } from './VideoBlock';
@@ -81,6 +82,7 @@ export const CORE_DEFS: Record<string, CoreEntityDef> = {
   SpaceTemplatePreference,
   TagBlock,
   TaskBlock,
+  TaskState,
   Template,
   TextBlock,
   Topic,

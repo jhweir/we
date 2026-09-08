@@ -653,7 +653,7 @@ describe('the frame a waypoint is stored in', () => {
   it('follows the cards when they move, which is the whole reason for it', () => {
     /*
       The decision this file is really about. In world coordinates a bend is a pair of numbers that
-      stops meaning anything the moment either end moves — so the first time somebody tidies a board,
+      stops meaning anything the moment either end moves — so the first time somebody tidies a canvas,
       every hand-drawn route doglegs through empty space. Stored along and across the span, the shape
       travels with the cards: a point a quarter along and a tenth to the side stays there.
     */
@@ -769,7 +769,7 @@ describe('a route through waypoints', () => {
  *
  * The blob is whatever the last writer wrote — possibly an older version of this code, possibly
  * something that is not this code at all. A route that threw on one bad record would take the whole
- * board's rendering down with it, so every malformed shape answers with no waypoints.
+ * canvas's rendering down with it, so every malformed shape answers with no waypoints.
  */
 describe('waypointsOf', () => {
   it('reads a stored list', () => {

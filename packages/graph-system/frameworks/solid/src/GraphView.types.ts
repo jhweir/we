@@ -26,7 +26,7 @@ import type { JSX } from 'solid-js';
 
 /**
  * @ai A general-purpose graph view: knowledge maps, schema maps, hierarchies, cluster maps and
- * free-positioned boards, all from the same engine.
+ * free-positioned canvases, all from the same engine.
  *
  * The shape of a graph is set by four independent choices: where it starts (`seeds`), how much of it
  * opens (`expansion`), how it is arranged (`layout`), and how it looks (`nodeStyle` / `edgeStyle`).
@@ -103,7 +103,7 @@ export interface GraphViewProps {
    *
    * The default — "Nothing to show yet." — is the honest thing for a graph whose host has no
    * opinion, and it is the wrong thing wherever there is something to *do* about the emptiness. A
-   * board that fills as a conversation produces records can say so; the widget cannot know that, and
+   * canvas that fills as a conversation produces records can say so; the widget cannot know that, and
    * a caller that wraps its own placeholder around the graph instead ends up with two — one over the
    * page and one over the canvas, swapping as data arrives, with different words and a different
    * background.
@@ -169,9 +169,9 @@ export interface GraphViewProps {
    * arrives on. `side` is empty when they dragged it back to the middle, which clears the anchor.
    *
    * Intent, not a mutation, exactly as `onEdgeCreate` is: where a connection attaches is a fact
-   * about a *view*, and only the template knows which view it is looking at. On a board it belongs
-   * on an `EdgeRoute` parented to that board, so the same connection shown elsewhere is unaffected —
-   * see `recordStore.anchorOnBoard`.
+   * about a *view*, and only the template knows which view it is looking at. On a canvas it belongs
+   * on an `EdgeRoute` parented to that canvas, so the same connection shown elsewhere is unaffected —
+   * see `recordStore.anchorOnCanvas`.
    *
    * Binding this is also what makes the handles appear. Nothing draws an affordance for a gesture
    * that would end in nothing, which is the same rule the connect dots and the resize grips follow.
@@ -182,7 +182,7 @@ export interface GraphViewProps {
    * The other half of `onEdgeAnchor`, and the same gesture: which of the two fires is decided by
    * where the drag was let go. Worth knowing that they write at different scopes — an anchor is how
    * *one view* draws the connection, and this is what the connection **is**, so it changes on every
-   * board and for everyone. That is the right answer for "this actually goes there", but it is not
+   * canvas and for everyone. That is the right answer for "this actually goes there", but it is not
    * the same kind of edit.
    *
    * `nodeId`/`nodeType` are the new endpoint's record; `recordId`/`recordType` are the connection's,
@@ -221,7 +221,7 @@ export interface GraphViewProps {
    * The user dragged a line from one node to another, with the `connect-nodes` behaviour armed.
    *
    * Intent, not a mutation: the graph has no write path, and what connecting two things means
-   * differs completely between a knowledge map, a board and an outline. A template answers by
+   * differs completely between a knowledge map, a canvas and an outline. A template answers by
    * creating whatever record it thinks the connection is — for WE's own knowledge map, a
    * `Relationship`, whose fields are the two ends' ids and types.
    */
@@ -253,7 +253,7 @@ export interface GraphViewProps {
   onCanvasDoubleClick?: (payload: { x: number; y: number }) => void;
   onSelectionChange?: (ids: string[]) => void;
   /**
-   * Fired when a drag ends, with the world position — what a board persists.
+   * Fired when a drag ends, with the world position — what a canvas persists.
    *
    * `recordId` is the node's own id, parsed out of its address, since a template writing the
    * position back needs the record rather than the graph's name for it. Absent for a node that
@@ -272,8 +272,8 @@ export interface GraphViewProps {
    * so keeping one edge where it is means the centre moves. Storing only the size would slide the
    * card sideways by half the change on every resize.
    *
-   * Where the box *lives* is the template's decision, the same as a position: on a board it belongs
-   * to the placement rather than the record, so the same note can be a banner on one board and a
+   * Where the box *lives* is the template's decision, the same as a position: on a canvas it belongs
+   * to the placement rather than the record, so the same note can be a banner on one canvas and a
    * small square on another. `recordId` carries the record the node stands for, absent for a node
    * that stands for none.
    */
@@ -364,7 +364,7 @@ export interface GraphHostBindings {
    * Fields to lay over a node's own data, keyed by the record id the node stands for.
    *
    * The seam for **optimistic edits**, and it is here rather than in the engine because it is not
-   * the graph's business how long a write takes to come back. A board's own gestures — resize a
+   * the graph's business how long a write takes to come back. A canvas's own gestures — resize a
    * card, colour it, change its shape — are answered by a record the host writes, and the answer
    * arrives via a subscription and a re-seed. Even a fast backend is a round trip away, and a slider
    * that lags a round trip behind the finger reads as broken rather than as slow.
@@ -382,7 +382,7 @@ export interface GraphHostBindings {
    *
    * The graph fills the region the host gave it, and the host may float panels over that region
    * without shrinking it — so the canvas the engine believes is on screen and the canvas a reader
-   * can see are different rectangles. Nothing noticed until a board parked its unplaced cards in
+   * can see are different rectangles. Nothing noticed until a canvas parked its unplaced cards in
    * the top-left of the first one, which was underneath a panel: the cards were drawn, present and
    * findable by every gesture, and invisible.
    *
@@ -416,7 +416,7 @@ export interface GraphHostBindings {
    * Say what happened inside a load, for whoever is debugging an empty canvas.
    *
    * Optional, and a host without a trace sink omits it. Not `warn`: a warning is for the reader and
-   * appears in the status strip, where "the board read one row and built no nodes" is neither
+   * appears in the status strip, where "the canvas read one row and built no nodes" is neither
    * actionable nor interesting. It is the *only* place that difference is visible, though — a seed
    * that read nothing, a seed that read rows and dropped them, and a graph whose nodes are all off
    * screen are the same blank rectangle.
