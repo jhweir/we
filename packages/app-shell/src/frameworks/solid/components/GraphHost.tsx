@@ -20,15 +20,16 @@
 */
 import '@we/graph-solid/styles';
 
-import type { EntityClass, EntityManifestEntry, QueryOptions } from '@we/backend-shared';
+import type { EntityClass, QueryOptions } from '@we/backend-shared';
 import { manifestEntries, trace } from '@we/backend-shared';
 import { BlockRenderer } from '@we/block-solid';
 import { CORE_MANIFEST } from '@we/entities/manifest';
 import { placementStyle } from '@we/graph-expanders';
-import type { EntityShape, GraphNode, GraphValue, WatchQuery } from '@we/graph-protocol';
+import type { GraphNode, GraphValue, WatchQuery } from '@we/graph-protocol';
 import { GraphView, type GraphViewProps } from '@we/graph-solid';
 import { createMemo, Show } from 'solid-js';
 
+import { toEntityShape } from '../../../shared/graphEntityShape';
 import { useDatasetStore } from '../stores/DatasetStore';
 import { useProfileStore } from '../stores/ProfileStore';
 import { useRecordStore } from '../stores/RecordStore';
@@ -54,30 +55,6 @@ interface ScopeRequest {
   via: string;
   anchorId: string;
   direction?: 'in' | 'out';
-}
-
-/** Translate a backend model manifest entry into the neutral shape the graph reads. */
-function toEntityShape(entry: EntityManifestEntry): EntityShape {
-  const properties: EntityShape['properties'] = [];
-  const relations: EntityShape['relations'] = [];
-
-  for (const property of entry.properties) {
-    if (property.relatedEntity) {
-      relations.push({
-        name: property.name,
-        target: property.relatedEntity,
-        cardinality: property.isCollection ? 'many' : 'one',
-      });
-    } else {
-      properties.push({
-        name: property.name,
-        type: property.type,
-        ...(property.required ? { required: true } : {}),
-      });
-    }
-  }
-
-  return { name: entry.name, properties, relations };
 }
 
 /**

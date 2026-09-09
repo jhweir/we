@@ -185,7 +185,7 @@ const ANCHOR_HANDLE_R = 5;
  * The same split the connect dots make, and for the same reason said differently: the dot is a
  * *hint* and the target is what a mouse has to land on. Painted at five pixels they were smaller
  * than the cursor covering them, so aiming at one was guesswork and a miss grabbed the card behind
- * it or panned the board — which reads as the handle not working rather than as having been missed.
+ * it or panned the canvas — which reads as the handle not working rather than as having been missed.
  *
  * Twelve rather than the connect dots' fifteen: several of these can sit along one line, and a
  * target greedy enough to swallow the presses meant for its neighbours trades one aiming problem
@@ -518,7 +518,7 @@ export function GraphView(props: GraphViewProps) {
     Separate from the seeds effect above because the two mean different things: that one fires when
     the graph *becomes a different graph* and resets, while this one fires when the same graph has
     newer data behind it. Sharing a path would make creating a record throw away the arrangement the
-    user was working in, which is exactly the failure that made a board impossible to build on.
+    user was working in, which is exactly the failure that made a canvas impossible to build on.
 
     The first run only records the value — the seeds effect has already loaded, and refreshing on
     mount would run every seed query twice.
@@ -536,7 +536,7 @@ export function GraphView(props: GraphViewProps) {
     What the host has floating over the canvas, so "in view" means what a reader can see.
 
     An effect rather than a construction argument because panels move: dragging one across the
-    board changes which part of it is clear, and a card parked afterwards should land in the part
+    canvas changes which part of it is clear, and a card parked afterwards should land in the part
     that is clear *now*.
   */
   createEffect(() => engine.viewport.setObscured(props.host?.obscured?.()));
@@ -544,8 +544,8 @@ export function GraphView(props: GraphViewProps) {
   /**
    * The graph's own chrome, kept out from under whatever the host has floating over the canvas.
    *
-   * The status strip sits at the bottom-left of the graph's box, which on the workshop's board is
-   * behind the transcript panel: a warning nobody could read, about a board that was working. Same
+   * The status strip sits at the bottom-left of the graph's box, which on the workshop's canvas is
+   * behind the transcript panel: a warning nobody could read, about a canvas that was working. Same
    * inset the layout uses, for the same reason — the box and the visible part of it are different
    * rectangles once a host floats panels over one.
    *
@@ -708,7 +708,7 @@ export function GraphView(props: GraphViewProps) {
     /*
       An endpoint the draft has moved is settled when the edge itself says so.
 
-      `routesAlike` asks about the fields one board draws with, and a re-attachment is not one of
+      `routesAlike` asks about the fields one canvas draws with, and a re-attachment is not one of
       them — the claim changed, so the edge comes back from the seed attached somewhere else. Asking
       only the data would call the move settled on the frame it was made, drop the overlay, and snap
       the end back to the card it came from until the write returned.
@@ -824,7 +824,7 @@ export function GraphView(props: GraphViewProps) {
    * Nothing in three cases, each of which falls back to the label: the style named none, the host
    * supplies none by that name, or the camera is below the card's `contentMinZoom`. The last is the
    * one that decides whether rich cards scale — a hundred documents rendered at once is a hundred
-   * component trees, and at the zoom where a board is a wall of coloured rectangles not one of them
+   * component trees, and at the zoom where a canvas is a wall of coloured rectangles not one of them
    * can be read.
    */
   /**
@@ -866,8 +866,8 @@ export function GraphView(props: GraphViewProps) {
    * A load with nothing usable underneath it — so it is announced in the middle of the canvas.
    *
    * The engine's `reloading` covers the case that looks least like one: `start` clears the store and
-   * only notifies at the end, so the graph on screen during a board switch is the *old* graph, and
-   * saying so in a corner is how a stale board gets read as a live one. `loading` with no nodes is
+   * only notifies at the end, so the graph on screen during a canvas switch is the *old* graph, and
+   * saying so in a corner is how a stale canvas gets read as a live one. `loading` with no nodes is
    * the first load, where the middle of the canvas is empty anyway and a footnote in the corner is
    * the only thing standing between the reader and a blank screen.
    *
@@ -966,7 +966,7 @@ export function GraphView(props: GraphViewProps) {
     setHandleHint(null);
     setGesturing('connect');
     // Never reaches the canvas dispatcher: the node under the handle is the node being connected
-    // *from*, so a press that fell through would also start dragging it across the board.
+    // *from*, so a press that fell through would also start dragging it across the canvas.
     event.stopPropagation();
     event.preventDefault();
     const handle = event.currentTarget as HTMLElement;
@@ -1175,7 +1175,7 @@ export function GraphView(props: GraphViewProps) {
       /*
         Off every card the end is held loose and nothing is pinned yet — including the anchor, which
         is why the previous field is left alone rather than written from `side`. `sideOf` answers for
-        any point on the board, so writing it here would pin a side from a cursor nowhere near the
+        any point on the canvas, so writing it here would pin a side from a cursor nowhere near the
         card and undo the snap the moment the pointer left it.
       */
       draft(snapped ?? { [end]: '', [`${end}X`]: world.x, [`${end}Y`]: world.y });
@@ -1194,11 +1194,11 @@ export function GraphView(props: GraphViewProps) {
       const connection = behind?.kind === 'entity' ? { recordId: behind.id, recordType: behind.type } : {};
       const arrived = landing ? parseAddress(landing) : null;
       /*
-        A re-attachment rewrites the *claim*; an anchor rewrites how one board draws it.
+        A re-attachment rewrites the *claim*; an anchor rewrites how one canvas draws it.
 
         Two scopes on one gesture, decided by where it was let go, and worth being explicit about:
         "this connection actually goes there" is an edit to what the relationship asserts, so it
-        changes on every board and for everyone. Where it *attaches* is this board's business alone.
+        changes on every canvas and for everyone. Where it *attaches* is this canvas's business alone.
       */
       if (landing && arrived?.kind === 'entity' && arrived.id && props.onEdgeRetarget) {
         // The end settles onto the card it was dropped on, and the preview holds it there until the
@@ -1219,7 +1219,7 @@ export function GraphView(props: GraphViewProps) {
         Let go where nothing was offered, and nothing happens.
 
         The release has to agree with what the drag was showing. Off every card the end was drawn
-        loose under the cursor, promising nothing — and `sideOf` answers for any point on the board,
+        loose under the cursor, promising nothing — and `sideOf` answers for any point on the canvas,
         so anchoring anyway would pin a side chosen by a cursor nowhere near the card, which is a
         decision nobody made. So the preview is dropped and the line goes back to what is stored.
 
@@ -1236,7 +1236,7 @@ export function GraphView(props: GraphViewProps) {
       }
       /*
         Otherwise it was an anchor drag — including a drop on another card that nothing is listening
-        for. A board that has not wired re-attachment would otherwise swallow the gesture whole,
+        for. A canvas that has not wired re-attachment would otherwise swallow the gesture whole,
         leaving the end previewed on a card it never moved to, so the preview is withdrawn here
         rather than left for a write that is not coming.
       */
@@ -1560,9 +1560,9 @@ export function GraphView(props: GraphViewProps) {
         `--stale` while a reload runs, because what is drawn is the graph being replaced.
 
         `start` clears the store and only notifies once it has finished, so every node here belongs to
-        the board that was open a moment ago. Fading them says which of the two the spinner is about
-        — without it, a centred "Loading graph…" over a perfectly crisp board reads as though *that*
-        board is what is arriving.
+        the canvas that was open a moment ago. Fading them says which of the two the spinner is about
+        — without it, a centred "Loading graph…" over a perfectly crisp canvas reads as though *that*
+        canvas is what is arriving.
       */}
       <div
         classList={{ 'we-graph__layer': true, 'we-graph__layer--stale': status().reloading }}
@@ -1622,7 +1622,7 @@ export function GraphView(props: GraphViewProps) {
                   Only where the template is listening, like the connect dots and the resize handles:
                   a gesture that ends in nothing is worse than an affordance that was never offered.
                   On hover rather than always, for the reason the dots are on the selection — a grip
-                  at both ends of every line would speckle a board with furniture over the cards it is
+                  at both ends of every line would speckle a canvas with furniture over the cards it is
                   there to show.
 
                   And on the edge being dragged whatever the pointer is over, because the pointer
@@ -1950,7 +1950,7 @@ export function GraphView(props: GraphViewProps) {
               {/*
                 The node's own controls, above it, while it is selected.
 
-                Above rather than over: a card's content is the reason it is on the board, and
+                Above rather than over: a card's content is the reason it is on the canvas, and
                 furniture inside the box hides the thing being decided about. Above the top edge is
                 also where nothing else is — the resize handles ring the box, so a toolbar on any
                 other side would sit on one of them.
@@ -1965,7 +1965,7 @@ export function GraphView(props: GraphViewProps) {
 
                 Only where the template is listening, like the resize handles — a gesture that ends
                 in nothing is worse than an affordance that was never offered. Only on the selection,
-                for the same reason as those: dots on every card would ring the whole board with
+                for the same reason as those: dots on every card would ring the whole canvas with
                 furniture over the content it is there to show, and selecting first is how you say
                 which card you mean anyway.
 
@@ -1981,7 +1981,7 @@ export function GraphView(props: GraphViewProps) {
                       /*
                         The same tooltip the route handles use, rather than the `title` attribute
                         this carried. A native tooltip is the browser's: it ignores the theme
-                        outright — a blue plate with a white outline over a board that is neither —
+                        outright — a blue plate with a white outline over a canvas that is neither —
                         and there is no way to style one.
                       */
                       onPointerEnter={() =>
@@ -2098,7 +2098,7 @@ export function GraphView(props: GraphViewProps) {
         What the handle under the pointer does.
 
         `we-tooltip` rather than a `title` attribute or a box of our own: the native tooltip is the
-        browser's, so it ignores the theme entirely — a blue plate with a white outline over a board
+        browser's, so it ignores the theme entirely — a blue plate with a white outline over a canvas
         that is neither — and a box built here would be a copy of the primitive's look that stops
         matching the first time the design system moves.
 

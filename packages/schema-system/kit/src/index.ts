@@ -64,8 +64,6 @@ export type { SkeletonListOptions } from './states/skeletonList.ts';
 export { cardList, cardShell } from './lists/cards.ts';
 export type { CardListOptions, CardShellOptions } from './lists/cards.ts';
 
-export { kanbanBoard, moveCardMenu } from './lists/kanbanBoard.ts';
-export type { KanbanBoardOptions } from './lists/kanbanBoard.ts';
 export { loadMore } from './lists/loadMore.ts';
 export type { LoadMoreOptions } from './lists/loadMore.ts';
 export { pickerRow } from './lists/pickerRow.ts';

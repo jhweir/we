@@ -3,6 +3,8 @@ import type { CoreEntityDef } from './defs';
 export const Space: CoreEntityDef = {
   base: 'WeNode',
   optional: ['avatar', 'coverImage', 'location', 'url'],
+  // `setTaskStates` is how a column drag writes the community's order — see the relation below.
+  methodRelations: ['taskStates'],
   entity: {
     flag: { predicate: 'we://flag', value: 'we://space' },
     properties: {
@@ -104,6 +106,27 @@ export const Space: CoreEntityDef = {
        * nothing until somebody sets something, and the resolver takes the most specific level that
        * has an opinion. See `moduleSettings.ts` in the app shell for the order and for how a
        * `restrict` setting differs.
+       *
+       * ## Two of those three columns are staying, and this is not an oversight
+       *
+       * This field replaced the *shape*, not the three instances of it — and only one of them could
+       * move anyway. This resolver answers along one axis, **who is asking**: deployment → agent
+       * everywhere → community here → agent here, most specific wins. `autoInterpret` and
+       * `extractionTargets` carry a second axis it has no concept of, **which call** — a per-call
+       * decision belonging to that call's participants rather than to the space's administrator,
+       * held in `CallExtraction` and read through `spaceStore.autoInterpretForCall(collectionId)`,
+       * which is a function rather than a value for exactly that reason. Migrating them here as-is
+       * would typecheck, pass, and silently drop the layer where participants overrule the space.
+       *
+       * `shareExtractionDetail` has no such axis and could move. There is no reason to: it is a
+       * stored predicate with data behind it, and absent-means-no-opinion makes the move a
+       * read-fallback preserving a three-way distinction rather than a rename — against the gain of
+       * one fewer column.
+       *
+       * What was worth fixing is fixed: a capability that wants a setting today declares a
+       * `ModuleSetting` and gets a resolved value and a rendered control, so there is no fourth
+       * column coming. **Revisit the subject axis when a second capability wants a per-subject
+       * override** — one is not evidence the resolver needs one. Recording is the one to watch.
        */
       moduleSettings: { type: 'string', predicate: 'we://module_settings', default: '' },
       /**
@@ -129,6 +152,34 @@ export const Space: CoreEntityDef = {
     },
     relations: {
       location: { target: 'LocationBlock', cardinality: 'one', predicate: 'we://location' },
+      /**
+       * This space's own board — "Everything", the one that gathers all of the community's work.
+       *
+       * The counterpart of `CollectionBlock.board` one level up, and the same reasoning: which board
+       * is *the* space's is a fact about the space. It is also what makes curating every other board
+       * safe, since this is the catch-all nothing can hide from — see `docs/architecture/boards.md`.
+       */
+      board: { target: 'CollectionBlock', cardinality: 'one', predicate: 'we://board' },
+      /**
+       * The order this community reads its task states in — and only the order.
+       *
+       * Position hints over a membership defined elsewhere, the same shape a board's `children` have
+       * over the tasks a state gathers, and the same shape AD4M's ordering entries have over the
+       * links they order. A state is a state because a `TaskState` record exists, not because it is
+       * listed here; one that is not listed still appears, after the ones that are, sorted by what it
+       * counts as.
+       *
+       * That is what keeps reordering safe on a shared space. It is a relation rather than a number
+       * on each state, so two people dragging columns at the same moment converge instead of writing
+       * the same position and losing one of the answers — which is the whole reason this relation is
+       * `ordered` and the reason a `position` scalar was refused.
+       */
+      taskStates: {
+        target: 'TaskState',
+        cardinality: 'many',
+        predicate: 'we://task_state_order',
+        ordered: true,
+      },
     },
   },
 };

@@ -1,21 +1,21 @@
 /**
- * The board seed — a container's contents, at the positions somebody put them.
+ * The canvas seed — a container's contents, at the positions somebody put them.
  *
- * Every other seed answers "what is here". This one answers two questions, because a board holds
+ * Every other seed answers "what is here". This one answers two questions, because a canvas holds
  * three facts that are usually one:
  *
  * - **Ownership** — containment. Where a record *lives*, and what a delete cascades to. A note born
- *   on a board is owned by it; a task from a call is owned by the call.
- * - **Membership** — the placement's existence. That it *appears* on this board. Many per record,
- *   one per board it is on.
+ *   on a canvas is owned by it; a task from a call is owned by the call.
+ * - **Membership** — the placement's existence. That it *appears* on this canvas. Many per record,
+ *   one per canvas it is on.
  * - **Position** — the placement's coordinates.
  *
  * Letting containment carry both ownership and membership is what made "a note born here" and "a
- * task brought here" impossible to tell apart: putting an existing record on a board would have
- * reparented it, and a note the board owned could not be removed from view without deleting it.
+ * task brought here" impossible to tell apart: putting an existing record on a canvas would have
+ * reparented it, and a note the canvas owned could not be removed from view without deleting it.
  *
  * So placed records are fetched **by id**, from the placements. Containment is still read, but only
- * for what the board *owns* and nobody has positioned — the tray, which is a recovery surface rather
+ * for what the canvas *owns* and nobody has positioned — the tray, which is a recovery surface rather
  * than a third kind of membership: a placement that failed to write, or a card composed before
  * anybody said where it goes.
  *
@@ -28,10 +28,10 @@
  *
  * ## How it finds what to load without being told
  *
- * `contains` names the types a board may hold, and defaults to the block vocabulary — but a
+ * `contains` names the types a canvas may hold, and defaults to the block vocabulary — but a
  * community's own models are not in any list a template could have written. The placements supply
  * the rest: every one names the type of the thing it positions, so anything anybody has *placed* is
- * queried whether or not the template anticipated it. The two together are what let a board hold a
+ * queried whether or not the template anticipated it. The two together are what let a canvas hold a
  * `Sighting` nobody had heard of when this file was written.
  *
  * Placements are read first for that reason, and their node references are read as bare URIs rather
@@ -45,16 +45,16 @@ import { entityAddress } from '@we/graph-protocol';
 import { rowToNode } from './nodes';
 import { placementsFor, resolvePlacement } from './placements';
 
-export interface BoardSeedOptions {
-  /** Record id of the board. Nothing loads until this is set. */
-  board: string;
+export interface CanvasSeedOptions {
+  /** Record id of the canvas. Nothing loads until this is set. */
+  canvas: string;
   dataset?: string;
-  /** Relation holding the board's contents and its placements. */
+  /** Relation holding the canvas's contents and its placements. */
   via?: string;
   /** Entity holding coordinates. */
   placementEntity?: string;
   /**
-   * Types the board may hold, beyond whatever its placements name.
+   * Types the canvas may hold, beyond whatever its placements name.
    *
    * One drill-down query each, so this is a real cost rather than a free "list everything" — the
    * same bargain the collection expander makes, and the reason it is a list rather than every
@@ -62,28 +62,28 @@ export interface BoardSeedOptions {
    */
   contains?: string[];
   /**
-   * Entity to draw as connections between the things on this board, if any.
+   * Entity to draw as connections between the things on this canvas, if any.
    *
-   * Only those with *both* ends placed here are drawn. A board is a closed surface — a line to a
+   * Only those with *both* ends placed here are drawn. A canvas is a closed surface — a line to a
    * record that is not on it would leave the canvas and end nowhere, and pulling the far end in to
-   * fix that would put things on the board that nobody placed.
+   * fix that would put things on the canvas that nobody placed.
    */
   connections?: string;
   /**
-   * Entity holding this board's per-type colours, if any — WE passes `TypeStyle`.
+   * Entity holding this canvas's per-type colours, if any — WE passes `TypeStyle`.
    *
-   * Read into every node's data as `boardTypeColor`, for a style rule to pick up. The board decides
+   * Read into every node's data as `canvasTypeColor`, for a style rule to pick up. The canvas decides
    * what its kinds look like and each card may still carry its own colour in front of that, which is
    * two layers rather than one because they answer different questions: "tasks are amber here" is a
-   * fact about the board, and "this one is red" is a fact about the card.
+   * fact about the canvas, and "this one is red" is a fact about the card.
    */
   typeStyles?: string;
   /**
-   * Entity holding how this board draws its connections, if any — WE passes `EdgeRoute`.
+   * Entity holding how this canvas draws its connections, if any — WE passes `EdgeRoute`.
    *
    * Read onto each edge's data as `sourceAnchor` / `targetAnchor`, which is what the router reads
-   * (see `anchorsOf`). Per board for the reason a placement is: the same connection shown on two
-   * boards is tidied differently on each, and the route that keeps it clear of one board's cards
+   * (see `anchorsOf`). Per canvas for the reason a placement is: the same connection shown on two
+   * canvases is tidied differently on each, and the route that keeps it clear of one canvas's cards
    * says nothing about the other.
    */
   routes?: string;
@@ -93,7 +93,7 @@ export interface BoardSeedOptions {
    * Read onto the matching node's data as `pending: true`, for a style rule to pick up. Ids rather
    * than a query, because what makes a record provisional is not a property of the record: an
    * extraction pass can stage a whole instance, so it is in the graph and answers every query the
-   * accepted ones answer, and only the capability that staged it knows which those are. A board
+   * accepted ones answer, and only the capability that staged it knows which those are. A canvas
    * cannot ask; it can be told.
    *
    * Nothing here decides what provisional *looks* like — that is a `nodeStyle` rule, and an
@@ -107,7 +107,7 @@ export interface BoardSeedOptions {
 /**
  * Types checked for *owned but unplaced* records — the tray.
  *
- * One, deliberately. Everything that is on a board is placed; the only way to be owned by one and
+ * One, deliberately. Everything that is on a canvas is placed; the only way to be owned by one and
  * have no position is to be a card composed onto it before anybody said where, which is always a
  * `CollectionBlock`. Listing more would cost a drill-down query each, on every load and every
  * refresh, looking for what cannot be there.
@@ -121,8 +121,8 @@ interface Placed {
    * Presentation the placement carries, namespaced on its way into the node's data bag.
    *
    * Namespaced because it lands beside the *record's* own fields, and `width` on an `ImageBlock` is
-   * the picture's pixel width — a card silently sized by its image, on the one board where nobody
-   * had chosen a size, is exactly the kind of bug that gets diagnosed as "the board is broken".
+   * the picture's pixel width — a card silently sized by its image, on the one canvas where nobody
+   * had chosen a size, is exactly the kind of bug that gets diagnosed as "the canvas is broken".
    * `x`/`y` need no prefix for the same reason in reverse: no block has them, and the `manual`
    * layout reads them by those names.
    */
@@ -130,7 +130,7 @@ interface Placed {
 }
 
 /**
- * "Explicitly nothing" — a value the board drops as though the field were absent.
+ * "Explicitly nothing" — a value the canvas drops as though the field were absent.
  *
  * Needed because an empty string cannot be *stored*: `Ad4mModel`'s update skips `''` exactly as it
  * skips `undefined`, so a card given a colour of its own could never have it taken away, and the
@@ -152,7 +152,7 @@ export const PLACEMENT_UNSET = 'we:unset';
  * Exported because a host applying an **optimistic** placement edit — a card resized or recoloured,
  * drawn before the write comes back — has to name those fields the same way this does. Two copies of
  * the naming is exactly the sort of thing that drifts silently: the copy that fell behind would
- * write `boardColour`, nothing would read it, and the card would simply not change until the round
+ * write `canvasColour`, nothing would read it, and the card would simply not change until the round
  * trip landed.
  */
 export function placementStyle(row: Record<string, unknown>): Record<string, GraphValue> {
@@ -176,13 +176,13 @@ export function placementStyle(row: Record<string, unknown>): Record<string, Gra
     // The sentinel is dropped exactly as an empty value is — that is what makes it mean "unset".
     if (typeof row[key] === 'string' && row[key] && row[key] !== PLACEMENT_UNSET) style[as] = row[key] as string;
   };
-  number('width', 'boardWidth');
-  number('height', 'boardHeight');
-  number('contentScale', 'boardContentScale');
-  signed('rotation', 'boardRotation');
-  signed('z', 'boardZ');
-  text('color', 'boardColor');
-  text('cardShape', 'boardCardShape');
+  number('width', 'canvasWidth');
+  number('height', 'canvasHeight');
+  number('contentScale', 'canvasContentScale');
+  signed('rotation', 'canvasRotation');
+  signed('z', 'canvasZ');
+  text('color', 'canvasColor');
+  text('cardShape', 'canvasCardShape');
   return style;
 }
 
@@ -197,38 +197,38 @@ function scalarsOf(row: Record<string, unknown>): Record<string, GraphValue> {
   return data;
 }
 
-export function boardSeed(): SeedSource {
+export function canvasSeed(): SeedSource {
   return {
-    id: 'board',
+    id: 'canvas',
     description: "A container's contents, positioned by the placements recorded against it.",
     async seed(rawOptions, context, signal) {
-      const options = (rawOptions ?? {}) as BoardSeedOptions;
-      // No board chosen yet — a picker whose `$local` is still empty. Loading the types wholesale
+      const options = (rawOptions ?? {}) as CanvasSeedOptions;
+      // No canvas chosen yet — a picker whose `$local` is still empty. Loading the types wholesale
       // here would fill the canvas with every card in the space, which is worse than an empty one.
-      if (!options.board) return { nodes: [], edges: [], total: 0 };
+      if (!options.canvas) return { nodes: [], edges: [], total: 0 };
 
       const dataset = options.dataset ?? context.defaultDataset() ?? '';
       const shapes = context.models(dataset);
       const via = options.via ?? 'children';
       const placementEntity = options.placementEntity ?? 'Placement';
       const limit = options.limit ?? 200;
-      const scope = { anchor: 'CollectionBlock', via, anchorId: options.board };
+      const scope = { anchor: 'CollectionBlock', via, anchorId: options.canvas };
 
       const read = (entity: string, where?: Record<string, unknown>) =>
         context
           .query({ entity, dataset, limit, signal, ...(where ? { where } : { scope }) })
           .catch((error: unknown) => {
-            context.warn(`board: cannot read ${entity}: ${error instanceof Error ? error.message : String(error)}`);
+            context.warn(`canvas: cannot read ${entity}: ${error instanceof Error ? error.message : String(error)}`);
             return [] as Record<string, unknown>[];
           });
 
       const declared = (entity: string | undefined) => Boolean(entity) && shapes.some((s) => s.name === entity);
 
       /*
-        Round one: what is on this board, and how this board draws things.
+        Round one: what is on this canvas, and how this canvas draws things.
 
         Both together, because neither needs the other — and every read here is a round trip to a
-        peer-to-peer data layer, so what decides how long a board takes to appear is the number of
+        peer-to-peer data layer, so what decides how long a canvas takes to appear is the number of
         *sequential* rounds rather than the number of queries. Three rounds is the floor: what is
         placed, then the records it names, then the connections between them, each genuinely waiting
         on the one before.
@@ -240,9 +240,9 @@ export function boardSeed(): SeedSource {
       ]);
 
       /*
-        Which of the records on this board are still only suggestions — see `pending` in the options.
+        Which of the records on this canvas are still only suggestions — see `pending` in the options.
 
-        A set rather than the array, because it is asked once per row and a board holds hundreds.
+        A set rather than the array, because it is asked once per row and a canvas holds hundreds.
       */
       const pending = new Set(
         Array.isArray(options.pending)
@@ -251,7 +251,7 @@ export function boardSeed(): SeedSource {
       );
 
       /*
-        Placements *are* the membership: which records are on this board, of what type, and where.
+        Placements *are* the membership: which records are on this canvas, of what type, and where.
         Everything after this is looking those records up.
       */
       const positions = new Map<string, Placed>();
@@ -274,7 +274,7 @@ export function boardSeed(): SeedSource {
       }
 
       /*
-        The board's own vocabulary of colour, by type.
+        The canvas's own vocabulary of colour, by type.
 
         Stamped onto each node as it is built rather than patched on afterwards — cheaper than a
         second pass, and it keeps the rule that a node arrives from the seed complete rather than
@@ -293,7 +293,7 @@ export function boardSeed(): SeedSource {
 
         Loaded in round one with the placements, because it needs nothing they need: it is keyed by a
         record id, so it can be built long before the connections themselves are read. What decides
-        how long a board takes to appear is the number of *sequential* rounds, and this adds none.
+        how long a canvas takes to appear is the number of *sequential* rounds, and this adds none.
       */
       const routeFor = new Map<string, Record<string, GraphValue>>();
       for (const row of routes) {
@@ -313,7 +313,7 @@ export function boardSeed(): SeedSource {
 
       const nodes: GraphNode[] = [];
       const seen = new Set<string>();
-      /** Record ids on this board, so a connection can be checked for having both ends here. */
+      /** Record ids on this canvas, so a connection can be checked for having both ends here. */
       const placed = new Set<string>([...placedIds.values()].flat());
       /** Record id → its entity name, so a connection's endpoints can be addressed. */
       const typeOf = new Map<string, string>();
@@ -325,12 +325,12 @@ export function boardSeed(): SeedSource {
       };
 
       /*
-        Two passes, because a board answers two questions.
+        Two passes, because a canvas answers two questions.
 
         Placed records come back by id — one query per type, `where: { id: [...] }`, native on AD4M
         and pushed down as a SPARQL `VALUES` clause. By id rather than by containment because
-        placement is what puts something on a board: a task owned by a call belongs on this board
-        without being reparented into it, which asking for the board's children could never express.
+        placement is what puts something on a canvas: a task owned by a call belongs on this canvas
+        without being reparented into it, which asking for the canvas's children could never express.
 
         Owned-but-unplaced records come back by containment, and are the tray.
       */
@@ -344,7 +344,7 @@ export function boardSeed(): SeedSource {
 
         Issued together and consumed in order, which keeps the dedup below meaning what it says — the
         placed pass wins over the owned one — while paying one round trip for the lot instead of one
-        each. A board holding five kinds of thing was five sequential queries deep before anything
+        each. A canvas holding five kinds of thing was five sequential queries deep before anything
         appeared.
       */
       const wanted = passes.filter((pass) => pass.entity !== placementEntity && declared(pass.entity));
@@ -354,7 +354,7 @@ export function boardSeed(): SeedSource {
         Rows a row-to-node could make nothing of, counted rather than passed over in silence.
 
         `rowToNode` returns null for a row with no string `id`, which is the one shape of failure
-        that produces an empty board out of a successful read — and from outside the walk it is
+        that produces an empty canvas out of a successful read — and from outside the walk it is
         indistinguishable from a read that found nothing.
       */
       let dropped = 0;
@@ -363,10 +363,10 @@ export function boardSeed(): SeedSource {
         const entity = pass.entity;
         const shape = shapes.find((s) => s.name === entity);
         for (const row of results[index]) {
-          const node = rowToNode(row, entity, dataset, shape, 'board');
+          const node = rowToNode(row, entity, dataset, shape, 'canvas');
           if (!node) {
             dropped += 1;
-            context.trace?.('board:row-dropped', { entity, keys: Object.keys(row).slice(0, 8) });
+            context.trace?.('canvas:row-dropped', { entity, keys: Object.keys(row).slice(0, 8) });
             continue;
           }
           // A record both placed and owned answers both passes; the first one wins, and it is the
@@ -386,7 +386,7 @@ export function boardSeed(): SeedSource {
           const typeColor = typeColors.get(entity);
           const data = {
             ...node.data,
-            ...(typeColor ? { boardTypeColor: typeColor } : {}),
+            ...(typeColor ? { canvasTypeColor: typeColor } : {}),
             // Only when true, so a style rule matching `{ pending: true }` and one matching nothing
             // are the two states — an explicit `false` on every other card would make "not pending"
             // a value a rule could accidentally match on.
@@ -398,7 +398,7 @@ export function boardSeed(): SeedSource {
       }
 
       /*
-        Connections between what is on the board.
+        Connections between what is on the canvas.
 
         No *containment* edges — that would draw a line from an invisible parent to every card, a
         hub-and-spoke diagram rather than the freeform surface the mode exists to be. What is worth
@@ -421,12 +421,12 @@ export function boardSeed(): SeedSource {
           const to = addressOf(row.targetType, target);
           if (!from || !to) continue;
           edges.push({
-            id: `board-connection|${String(row.id)}`,
+            id: `canvas-connection|${String(row.id)}`,
             source: from,
             target: to,
             type: 'relates',
             ...(typeof row.label === 'string' && row.label ? { label: row.label } : {}),
-            // The connection's own scalars, then how this board draws it. Second, so a board's
+            // The connection's own scalars, then how this canvas draws it. Second, so a canvas's
             // routing wins over a like-named field on the connection — the same order a card's own
             // colour takes over its type's.
             data: { ...scalarsOf(row), ...(routeFor.get(String(row.id)) ?? {}) },
@@ -437,8 +437,8 @@ export function boardSeed(): SeedSource {
         }
       }
 
-      context.trace?.('board:built', {
-        board: options.board,
+      context.trace?.('canvas:built', {
+        canvas: options.canvas,
         placements: placements.length,
         rows: Object.fromEntries(wanted.map((pass, index) => [pass.entity, results[index].length])),
         nodes: nodes.length,

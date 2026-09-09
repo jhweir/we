@@ -28,6 +28,9 @@ import { fileURLToPath } from 'node:url';
 // Run via tsx (`pnpm generate:classes`), which resolves the manifest's TS modules directly.
 const here = dirname(fileURLToPath(import.meta.url));
 const { CORE_DEFS } = await import(resolve(here, '../../../entities/src/manifest/index.ts'));
+// Imported rather than reimplemented: the default for an untyped relation is stated once, so a
+// generated class and a compiled one cannot disagree about which relations are polymorphic.
+const { resolvesPolymorphically } = await import(resolve(here, '../../shared/src/manifest.ts'));
 
 const ENTITY_DIR = resolve(here, '../src/entities');
 const MANIFEST_DIR = resolve(here, '../../../entities/src/manifest');
@@ -77,6 +80,21 @@ function propertyDecorator(spec) {
   return `@Property({ ${opts.join(', ')} })`;
 }
 
+/**
+ * The options half of a relation's decorator, shared by both cardinalities.
+ *
+ * `ordering` is where the manifest's `ordered` becomes an AD4M mechanism: the declaration says the
+ * members are in a chosen order, and the strategy naming how that order survives two people editing
+ * at once is this backend's to pick. `polymorphic` is resolved through `resolvesPolymorphically`
+ * rather than tested against an empty target here, so the default lives in one place.
+ */
+function relationOptions(spec) {
+  const opts = [`through: ${q(spec.predicate)}`];
+  if (spec.cardinality === 'many' && spec.ordered) opts.push(`ordering: { strategy: 'linkedList' }`);
+  if (resolvesPolymorphically(spec)) opts.push('polymorphic: true');
+  return `{ ${opts.join(', ')} }`;
+}
+
 function fieldLine(name, spec, def) {
   const alias = def.unions?.[name]?.alias;
   const base = alias ?? TS_TYPE[spec.type];
@@ -115,7 +133,13 @@ function emitEntity(name, def) {
   const manyMethods = (def.methodRelations ?? []).filter((r) => e.relations[r]?.cardinality === 'many');
   if (manyMethods.length) ad4mImports.add('HasManyMethods');
 
-  for (const [, r] of relations) if (r.target) addRelative(`./${r.target}`, r.target);
+  /*
+    A relation onto the entity's own class needs no import — the class is right here. Emitting one
+    produced `import { CollectionBlock } from './CollectionBlock'` inside `CollectionBlock.ts`, which
+    TypeScript reads as a redeclaration rather than a self-reference. Reached the moment a collection
+    gained a relation to another collection: `CollectionBlock.board`.
+  */
+  for (const [, r] of relations) if (r.target && r.target !== name) addRelative(`./${r.target}`, r.target);
 
   const L = [];
   L.push('/**');
@@ -169,14 +193,14 @@ function emitEntity(name, def) {
       // gets no `set<Name>` companion for the same reason: the accessor's whole signature is its
       // target type.
       const decorator = spec.target
-        ? `@HasOne(() => ${spec.target}, { through: ${q(spec.predicate)} })`
-        : `@HasOne({ through: ${q(spec.predicate)} })`;
+        ? `@HasOne(() => ${spec.target}, ${relationOptions(spec)})`
+        : `@HasOne(${relationOptions(spec)})`;
       L.push(`  ${decorator}`);
       L.push(`  ${rname}?: ${spec.target ? spec.target : 'string'};`);
     } else {
       const decorator = spec.target
-        ? `@HasMany(() => ${spec.target}, { through: ${q(spec.predicate)} })`
-        : `@HasMany({ through: ${q(spec.predicate)} })`;
+        ? `@HasMany(() => ${spec.target}, ${relationOptions(spec)})`
+        : `@HasMany(${relationOptions(spec)})`;
       const fieldType = def.typedArrays?.includes(rname) ? `${spec.target}[]` : 'string[]';
       L.push(`  ${decorator}`);
       L.push(`  ${rname}: ${fieldType} = [];`);
@@ -188,12 +212,25 @@ function emitEntity(name, def) {
 
   // Typed to-ones only: `set<Name>(value: T)` has no signature to declare without a target class.
   const setters = relations.filter(([, r]) => r.cardinality === 'one' && r.target);
+  /*
+    Both halves, not one or the other.
+
+    This was an `if`/`else`, which silently dropped every to-one setter from any entity that also had
+    a `methodRelations` collection — the two are independent facts about a class and the branch made
+    them exclusive. `Space` is where it surfaced: it had no `methodRelations`, so `setLocation` was
+    emitted; the moment `taskStates` was listed the other branch took over and the setter vanished,
+    while `SpaceRecord` went on requiring it. The conformance assertion in `conformance.ts` is what
+    caught it, which is the job that file exists to do.
+  */
   if (manyMethods.length || setters.length) {
     L.push('');
-    if (manyMethods.length) {
-      L.push(`export interface ${name} extends HasManyMethods<${manyMethods.map((m) => q(m)).join(' | ')}> {}`);
+    const extendsClause = manyMethods.length
+      ? ` extends HasManyMethods<${manyMethods.map((m) => q(m)).join(' | ')}>`
+      : '';
+    if (!setters.length) {
+      L.push(`export interface ${name}${extendsClause} {}`);
     } else {
-      L.push(`export interface ${name} {`);
+      L.push(`export interface ${name}${extendsClause} {`);
       for (const [rname, r] of setters) {
         L.push(`  /** Generated by @HasOne — links a new ${r.target} as this ${name.toLowerCase()}'s ${rname}. */`);
         L.push(`  set${pascal(rname)}(value: ${r.target}): Promise<void>;`);

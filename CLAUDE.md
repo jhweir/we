@@ -189,6 +189,14 @@ relation gets the full query surface and can carry nothing about itself (no auth
 to comment on or rate); a reified one carries all of that and has no query pushdown at all. Declare
 what is a fact about the *type*; reify what is a claim about a *pair*.
 
+**Before changing anything about boards, read docs/architecture/boards.md.** A board's columns are
+records, and a column is *a saved query with an arrangement*: what is in it comes from each task's
+`status`, and the column's ordered `children` are only where the cards sit. That split is why work an
+extraction pass writes appears on every board without anyone placing it, why deleting a column must
+never delete its cards, and why the link state can be inconsistent after a partition and the board
+still renders one answer. The same doc records where new per-column state goes, so the entity does
+not accrete a scalar per feature.
+
 ---
 
 ## Contribution Surfaces (codebase work — not for JSON schema authoring)
@@ -466,6 +474,7 @@ registers (listed last). Wrong-typed input answers with the empty value of its k
     calendarMonths(options?) — The twelve months of the year an offset lands in — { label, month, year, offset, isThisMonth, isShown } — each carrying its own offset from today, for a jump-to-month picker.  e.g. calendarMonths({ offset: local.monthOffset })
     monthLabel(options?) — The month a calendar is showing, as "August 2026" in the viewer’s language. Same options as calendarMonth.  e.g. monthLabel({ offset: local.monthOffset })
     yearLabel(options?) — The year a calendar is showing, on its own. Same options as calendarMonth.  e.g. yearLabel({ offset: local.monthOffset })
+    arrangedBoard(options) — A board worked out from its three subscriptions — { ready, gathers, columns, contents, unplaced, unplacedStates, available, total }. columns are the caller’s own column records in the board’s order; contents[columnId] is { label, icon, color, lane, arranged, unarranged, count }; unplaced is work no column here shows. Options: board (the record with children hydrated), columns (its kind: "column" children), records (everything in scope), states (spaceStore.taskStates).  e.g. arrangedBoard({ board: first(local.board), columns: local.columns, records: local.pool, states: spaceStore.taskStates }).columns
 
 The where-object — one grammar shared by filter(), find(), and $query's where. Keys are field names;
 values may be expressions (in an expression) or tokens (in a $query):
@@ -478,7 +487,19 @@ values may be expressions (in an expression) or tokens (in a $query):
   { field: { endsWith: 'text' } }          — anchored suffix match, case-SENSITIVE
   { field: { exists: true } }              — non-null / non-undefined presence check
   { field: { exists: false } }             — null or undefined check
+  { relation: { some: {…} } }              — has at least one linked record matching the clause
+  { relation: { none: {…} } }              — has no linked record matching it; { none: {} } is "has none at all"
   { OR: [ {…}, {…} ] }  { AND: [ … ] }  { NOT: {…} }   — combinators; sibling keys are implicitly ANDed
+
+"some" and "none" ask about LINKED RECORDS rather than a field's value, and are the only way to do
+so: "posts with no comments", "nodes carrying a relationship of this kind". Without them the caller
+fetched everything with its children and counted client-side. An empty clause means "any", so
+{ comments: { some: {} } } is "has at least one". They nest — the clause inside one may itself
+contain a quantifier — and they are native on AD4M, where they compile to a SPARQL EXISTS group.
+
+A key is read as a quantifier because it carries "some" or "none", not because the model says it is
+a relation. So a scalar property can never be compared with those two words, and everything else on
+a relation-named key stays an ordinary field compare.
 
 A bare list is the positive counterpart of "not" with a list, and the way to fetch a known set:
 { id: ['id1', 'id2', 'id3'] }. Native on the AD4M backend, where it pushes down to a SPARQL VALUES
@@ -495,28 +516,36 @@ so it is simply not there. Three cases, and the middle one differs by backend:
                                != over an unbound variable excludes the row, exactly as SQL's
                                three-valued logic excludes NULL. A $query where written with "not"
                                can therefore pass every test and come back empty in production.
-  { field: { exists: false } } — means absent, unambiguously, on both.
+  { field: { exists: false } } — means absent, unambiguously — but see the warning below about
+                               where it can be used.
 
 A declared "default" does not rescue this. The manifest's default is applied when a record is
 CONSTRUCTED, so anything created normally does carry it — but a field added to an entity after
 some records already existed reads as absent on every one of them, and the query layer never
 consults the default when filtering.
 
-Say "absent counts as the default" explicitly when you mean it:
+"exists" IS NOT AVAILABLE IN A $query — only inside filter(), where it is evaluated client-side.
+The AD4M backend has no such operator, so a $query using one is refused rather than run. This is a
+change: it used to be claimed as supported and was not, and the consequence was worse than a refusal
+— the clause reached a filter that rejected every row, so the query answered nothing at all, always,
+with no error anywhere. A refusal at least says so.
 
-  { OR: [ { retired: false }, { retired: { exists: false } } ] }
+That invalidates the idiom this section used to recommend for "absent counts as the default":
 
-Native on AD4M — "exists" and the combinators are both supported — but the OR costs this query's
-sort pushdown (see below), so pair it with a plain sort or none. Where the set is small and already
-in hand, filtering client-side with filter() sidesteps the whole question.
+  { OR: [ { retired: false }, { retired: { exists: false } } ] }   ← NOT usable in a $query
+
+Until the operator exists, the ways to say it are: give the field a default and write the plain
+comparison; fetch the candidates and filter() client-side, where "exists" works; or, where the field
+is a relation rather than a scalar, ask { relation: { none: {} } }, which IS native.
 
 startsWith/endsWith are case-sensitive where contains is not: they match structured strings against
-a known prefix (an ISO date, an id out of a URI). They are NOT native to the AD4M backend, so a $query
-using one is refused — use contains there; inside filter() they are evaluated client-side.
+a known prefix (an ISO date, an id out of a URI). They are NOT native to the AD4M backend either, so
+a $query using one is refused — use contains there; inside filter() they are evaluated client-side.
 
-Note: OR/AND/NOT in a $query's where disables the SPARQL-level sort/pagination pushdown (see
-count-projection and relation-property ordering below) — those orderings silently stop working in the
-same query's where clause, because the fallback sort runs before the projection data is attached.
+OR/AND/NOT no longer cost a query its sort pushdown. They used to: the executor decided pushability
+with a second function that disagreed with what it actually emitted, and an explicit combinator fell
+outside it. One compiler now answers for its own emission, so a filter with an OR and a sort behaves
+like any other.
 
 Examples:
 { "$": "filter(spaceStore.members, { role: 'admin' })" }
@@ -630,10 +659,23 @@ Single-item projection — add a derived field that resolves to one instance or 
 { "$query": { "entity": "Post", "include": { "$myLike": { "from": "likes", "where": { "author": { "$": "me.did" } }, "limit": 1 } } } }
 With limit: 1 the field unwraps to T | null instead of an array.
 
-include only works with typed relations — ones where the target model class is known.
-For WE models this is always the case. For external models, check the externalEntities listing:
-relations marked "→ EntityName" are typed (safe for include); relations marked "parent query only"
-are untyped and will crash at runtime if used with include — use a scope drill-down instead.
+include works with an UNTYPED relation too — one whose target model class is not declared, like a
+collection's children. It used to crash, because there was no shape to hydrate the members into; now
+each member is read as the class it actually is, so one query returns a post's text blocks, images
+and tasks together, each with its own fields. Every member carries its type, so a card can pick a
+display per row rather than assuming one.
+
+That makes include the right tool for a FEED, where the alternative is one drill-down per parent:
+{ "$query": { "entity": "CollectionBlock", "where": { "type": "root" }, "include": { "children": true } } }
+
+A scope drill-down is still right on a DETAIL route, where the parent is fixed and its children are
+the whole subject — it is a narrower question, not a worse one. For external models, check the
+externalEntities listing: relations marked "→ EntityName" name their target, and untyped ones are
+read polymorphically.
+
+An ORDERED collection comes back in the order somebody arranged it — CollectionBlock.children is the
+one that matters, since the blocks of a post are a sequence its author chose rather than the order
+they happened to be typed in. Nothing to write in the query; the model declares it.
 
 Relational queries — fetch a parent record's children (drill-down navigation):
 { "$query": { "entity": "Conversation", "scope": { "anchor": "Channel", "via": "conversations", "anchorId": { "$": "channel.id" } } } }
@@ -711,6 +753,14 @@ asserts "loaded and empty", never "not answered yet":
 { "type": "$if", "props": { "condition": { "$": "local.signalTypesLoaded" }, "then": <list-or-empty>, "else": <skeleton> } }
 $queries and $localState share the same local namespace — avoid duplicate names across both.
 $setLocal will warn and no-op on $queries entries (they are read-only).
+A query's where or scope may read a sibling declared on the same node — { "anchorId": { "$":
+"first(local.board).gathers" } } — and re-runs when that sibling answers. The order the entries are
+written in does not matter.
+An operand that has not resolved yet is PRUNED rather than sent, and pruning WIDENS: a where loses
+the condition, a scope is dropped and the query is space-wide. Right for an optional filter; wrong
+for a query whose scope is about to exist, which would draw everything for a frame and then narrow.
+Give such a query "when": { "$": "local.boardLoaded" } and it is not asked until the condition is
+truthy — the result stays empty and local.<name>Loaded stays false, so a loading state can hold.
 A $query cannot be read inside an expression — a question for the backend is hoisted here and read
 back through local. Use count() for conditional visibility:
 { "condition": { "$": "count(local.signalTypes)" } }
@@ -1164,7 +1214,7 @@ Supports selected, active, and danger states.
 Use DropdownMenu component for dropdown menus.
   Props: open: boolean = false, placement: 'top' | 'bottom' | 'left' | 'right' | 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end' | 'left-start' | 'left-end' | 'right-start' | 'right-end' = 'bottom', popoverElement: HTMLElement, triggerElement: HTMLElement
 - we-progress-bar (DesignSystemElement)
-  Props: value: number = 0, max: number = 100, variant: 'neutral' | 'primary' | 'success' | 'warning' | 'danger' = 'primary', size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md'
+  Props: value: number = 0, max: number = 100, variant: 'neutral' | 'primary' | 'success' | 'warning' | 'danger' = 'primary', size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md', label: string = ''
 - we-radio (DesignSystemElement)
   Props: checked: boolean = false, disabled: boolean = false, name: string = '', label: string = '', value: string = '', size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md'
 - we-resize-handle (LayoutElement) — A drag target that reports how far it has moved, and nothing else.
@@ -1226,6 +1276,18 @@ by construction, needing no knowledge of the consumer's data shape. The innermos
 under the pointer wins, so dropping into a nested list does not also count as dropping into its
 parent.
 
+#### A zone that can be empty needs a size
+
+Hit-testing is by the zone's own bounding rectangle, so a zone holding nothing is a zero-height
+rectangle and nothing can be dropped into it — which is precisely the zone a person most wants to
+drop into. **Give any zone that can empty a `flex` or a `minHeight`**; without one the surrounding
+box may look like the target while not being it, which is worse than looking undroppable.
+
+Left to the consumer rather than defaulted here, because how much room an empty list should hold
+is a design decision and differs per surface — a kanban column reserves a trough, a reorderable
+settings list should collapse. What the primitive owes is that the rule is written down where
+somebody wiring one up will read it.
+
 #### Keyboard
 
 Space or Enter picks up the focused item; the arrow keys move it, along the list and across
@@ -1252,6 +1314,21 @@ So two rules, both no-ops for an item without form controls:
 
 Make the handle itself focusable (a `we-button` will do) so the keyboard path stays open: Space
 on a focused handle picks the row up exactly as it does on a plain item.
+
+#### Overlays opened from an item are not part of it
+
+A press that begins inside an `OverlayElement` — a modal, a drawer, a popover — never drags the
+item that overlay happens to sit inside, and no consumer has to declare anything for that.
+
+It is worth knowing why the case exists at all. A modal opened from a row is usually *declared* in
+that row, because it needs the row's data to say what it is renaming; overlays are promoted to the
+browser's top layer rather than reparented, so the sheet paints above the whole page while DOM
+containment still says it is inside the row. Without this rule, dragging to select text in a rename
+field dragged the column behind the modal.
+
+Same principle as nested zones, one layer up: the innermost thing under the pointer owns the
+gesture. A sortable *inside* an overlay is unaffected — only the path between the press and the
+item is considered.
   Props: direction: 'vertical' | 'horizontal' = 'vertical', gap: string = '', zone: string = '', group: string = '', locked: boolean = false
 - we-spinner (LayoutElement)
   Props: size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | (string & {}) = 'md', color: string = ''
@@ -1382,7 +1459,7 @@ when `relative` is enabled.
 
 @we/widgets:
 - GraphView — A general-purpose graph view: knowledge maps, schema maps, hierarchies, cluster maps and
-free-positioned boards, all from the same engine.
+free-positioned canvases, all from the same engine.
 
 The shape of a graph is set by four independent choices: where it starts (`seeds`), how much of it
 opens (`expansion`), how it is arranged (`layout`), and how it looks (`nodeStyle` / `edgeStyle`).
@@ -1419,16 +1496,16 @@ Names resolvable inside GraphView props: seed sources (seeds.source), expanders 
 - `schema` — Maps the dataset's own entity types and the relations between them — one node per type. Picks up model types installed after the template was written, so it suits spaces whose vocabulary is open-ended.
   - entities: string[] — Restrict to these types; omit for all of them.
   - Example: `{ "source": "schema" }`
-- `board` — A container's contents at the positions somebody put them. Membership is ordinary containment, so a card composed onto the board is found like any child; position comes from Placement records parented to the same board, which is why the same note can sit on two boards in two places. Pair with layout: manual and drag-node { pin: true }, and persist a drop through recordStore.placeOnBoard. Loads nothing until a board is chosen.
-  - board: string — Record id of the board (required).
-  - contains: string[] — Types the board may hold beyond whatever its placements name — one query each. Defaults to the block vocabulary; anything *placed* is loaded whether or not it is listed.
+- `canvas` — A container's contents at the positions somebody put them. Membership is ordinary containment, so a card composed onto the canvas is found like any child; position comes from Placement records parented to the same canvas, which is why the same note can sit on two canvases in two places. Pair with layout: manual and drag-node { pin: true }, and persist a drop through recordStore.placeOnCanvas. Loads nothing until a canvas is chosen.
+  - canvas: string — Record id of the canvas (required).
+  - contains: string[] — Types the canvas may hold beyond whatever its placements name — one query each. Defaults to the block vocabulary; anything *placed* is loaded whether or not it is listed.
   - via: string — Relation holding the contents. Defaults to "children".
-  - connections: string — Reified relation entity to draw as lines between the cards — e.g. "Relationship". Only pairs whose two ends are both on the board are drawn, since a line to something elsewhere would leave the canvas. Each line carries the record it stands for, so clicking one can open it. Omit for a board with no connections.
-  - typeStyles: string — Entity holding this board's colour per kind of thing — WE passes "TypeStyle". Read onto every node as `boardTypeColor`, for a style rule to pick up with `{ from: "data.boardTypeColor" }`. This is what a board's key writes.
-  - routes: string — Entity holding how this board draws its connections — WE passes "EdgeRoute". Read onto each edge as `sourceAnchor` / `targetAnchor`, which pin which SIDE of a card a line leaves and arrives on (`n`, `e`, `s`, `w`) instead of letting the geometry decide. Per board, like a placement: the same connection shown on two boards is tidied on each separately. Also carries the points a line is bent through, read onto the edge as `waypoints`. Pair with onEdgeAnchor/recordStore.anchorOnBoard and onEdgeReroute/recordStore.rerouteOnBoard to let people set them.
-  - pending: string[] — Record ids whose card stands for a suggestion nobody has agreed to yet — an extraction pass can stage a whole record, so it is on the board and answers every query the accepted ones do. Read onto the matching node as `data.pending`, for a style rule or a node action to pick up with `{ when: { "data.pending": true } }` — the `data.` prefix is required, since a bare key reads a node field rather than seeded data, and matches nothing here. Ids rather than a query because only the capability that staged them knows which they are.
+  - connections: string — Reified relation entity to draw as lines between the cards — e.g. "Relationship". Only pairs whose two ends are both on the canvas are drawn, since a line to something elsewhere would leave the canvas. Each line carries the record it stands for, so clicking one can open it. Omit for a canvas with no connections.
+  - typeStyles: string — Entity holding this canvas's colour per kind of thing — WE passes "TypeStyle". Read onto every node as `canvasTypeColor`, for a style rule to pick up with `{ from: "data.canvasTypeColor" }`. This is what a canvas's key writes.
+  - routes: string — Entity holding how this canvas draws its connections — WE passes "EdgeRoute". Read onto each edge as `sourceAnchor` / `targetAnchor`, which pin which SIDE of a card a line leaves and arrives on (`n`, `e`, `s`, `w`) instead of letting the geometry decide. Per canvas, like a placement: the same connection shown on two canvases is tidied on each separately. Also carries the points a line is bent through, read onto the edge as `waypoints`. Pair with onEdgeAnchor/recordStore.anchorOnCanvas and onEdgeReroute/recordStore.rerouteOnCanvas to let people set them.
+  - pending: string[] — Record ids whose card stands for a suggestion nobody has agreed to yet — an extraction pass can stage a whole record, so it is on the canvas and answers every query the accepted ones do. Read onto the matching node as `data.pending`, for a style rule or a node action to pick up with `{ when: { "data.pending": true } }` — the `data.` prefix is required, since a bare key reads a node field rather than seeded data, and matches nothing here. Ids rather than a query because only the capability that staged them knows which they are.
   - limit: number — Rows per type. Default 200.
-  - Example: `{ "source": "board", "options": { "board": { "$": "local.boardId" } } }`
+  - Example: `{ "source": "canvas", "options": { "canvas": { "$": "local.canvasId" } } }`
 - `dataset` — Seeds a single node for the current space — the starting point for exploring outward.
   - label: string — What the node is called. Defaults to the space name.
   - Example: `{ "source": "dataset", "options": { "label": "This space" } }`
@@ -1471,7 +1548,7 @@ Names resolvable inside GraphView props: seed sources (seeds.source), expanders 
   - columns: number — How many columns. Derived from the node count when omitted.
   - sortBy: string — Node data field to order by.
   - Example: `{ "type": "grid", "options": { "columns": 6, "sortBy": "name" } }`
-- `manual` — Positions come from the nodes themselves — a board, where position is the data being edited rather than something derived. Pair with drag-node and persist via onNodeDragEnd.
+- `manual` — Positions come from the nodes themselves — a canvas, where position is the data being edited rather than something derived. Pair with drag-node and persist via onNodeDragEnd.
   - xField: string — Node data field holding x. Default "x".
   - yField: string — Node data field holding y. Default "y".
   - Example: `{ "type": "manual" }`
@@ -1482,11 +1559,11 @@ Names resolvable inside GraphView props: seed sources (seeds.source), expanders 
   - Example: `"edgeStyle": [{ "style": { "curve": "smooth" } }]`
 - `arrow` — Edge style — which ends carry an arrowhead. "target" (default) points at the thing being related to; "both" for a mutual relationship drawn as one line; "none" when the relation has no direction worth showing. The head scales with the line's width, and the line stops short of it rather than running underneath.
   - Example: `"edgeStyle": [{ "style": { "arrow": "none" } }]`
-- `scaleWithZoom` — Edge style. true (default) treats the line as part of the drawing, so it thickens as you zoom in — right for a board. false pins it to a constant on-screen width, so hairlines stay visible when you zoom out to see a whole network.
+- `scaleWithZoom` — Edge style. true (default) treats the line as part of the drawing, so it thickens as you zoom in — right for a canvas. false pins it to a constant on-screen width, so hairlines stay visible when you zoom out to see a whole network.
   - Example: `"edgeStyle": [{ "style": { "scaleWithZoom": false } }]`
 - `content` — Node style, cards only. Names a host-supplied component to draw INSIDE the card instead of a text label — WE registers `block`, which renders a CollectionBlock's composed content the way a post card does. A label can only ever be the first line, so a card holding an image and three paragraphs shows sixty characters and gives no sign the rest exists. Clipped, not scrolled: a card is a preview, and what does not fit is reached by opening it. Falls back to the label when the host supplies no component by that name.
   - Example: `"nodeStyle": [{ "style": { "shape": "card", "width": 180, "content": "block" } }]`
-- `contentMinZoom` — Node style. Hides card content below this zoom and falls back to the label. The sibling of labelMinZoom, and the thing that decides whether rich cards scale: a hundred documents rendered at once is a hundred component trees, and at the zoom where a board reads as coloured rectangles none of them is legible anyway.
+- `contentMinZoom` — Node style. Hides card content below this zoom and falls back to the label. The sibling of labelMinZoom, and the thing that decides whether rich cards scale: a hundred documents rendered at once is a hundred component trees, and at the zoom where a canvas reads as coloured rectangles none of them is legible anyway.
   - Example: `"nodeStyle": [{ "style": { "shape": "card", "content": "block", "contentMinZoom": 0.5 } }]`
 - `scaleLabelWithZoom` — Node style. true (default) scales the label with the camera; false keeps it a constant on-screen size, which keeps text readable at any zoom on a map you navigate by reading. Affects the label only — a node mark always scales, because its size and its hit area are both world units.
   - Example: `"nodeStyle": [{ "style": { "scaleLabelWithZoom": false } }]`
@@ -1508,11 +1585,11 @@ Names resolvable inside GraphView props: seed sources (seeds.source), expanders 
   - Example: `"controls": ["zoom-in", "zoom-out", "fit"]`
 - `zoom-out` — Zooms out from the centre. Shown by default.
 - `fit` — Frames everything currently on the graph. Deliberately not a re-layout — it moves the camera, never the nodes.
-- `pin` — Holds the selected nodes where they are, so the layout stops moving them; press again to release. The usual way to shape a force graph — put the thing you care about where you want it, hold it there, and let the rest settle around it. Held nodes are ringed so the state is visible. Not shown by default: on a board every node is placed already and it means nothing.
+- `pin` — Holds the selected nodes where they are, so the layout stops moving them; press again to release. The usual way to shape a force graph — put the thing you care about where you want it, hold it there, and let the rest settle around it. Held nodes are ringed so the state is visible. Not shown by default: on a canvas every node is placed already and it means nothing.
   - Example: `"controls": ["zoom-in", "zoom-out", "fit", "pin"]`
 - `lock` — Blocks moving nodes, so a graph cannot be rearranged by accident while it is being read or shown to someone. Affects dragging only — panning, zooming and a settling force layout all carry on. Not shown by default, and only meaningful where the template allows dragging at all.
   - Example: `"controls": ["zoom-in", "zoom-out", "fit", "lock"]`
-- `relayout` — Re-runs the layout. Not shown by default: a rescue for a tangled force graph, and destructive on a board, where it would discard every position somebody chose.
+- `relayout` — Re-runs the layout. Not shown by default: a rescue for a tangled force graph, and destructive on a canvas, where it would discard every position somebody chose.
   - Example: `"controls": ["zoom-in", "zoom-out", "fit", "relayout"]`
 
 **behaviour**
@@ -1520,7 +1597,7 @@ Names resolvable inside GraphView props: seed sources (seeds.source), expanders 
 - `pan-zoom` — Drag the background to pan, wheel to zoom about the pointer. **List it last.** It claims a press on empty canvas, and dispatch stops at the first behaviour that claims — so anything after it never sees a background press. Listed before `select`, clicking empty canvas silently stops clearing the selection.
   - Example: `"behaviours": ["select", "expand-on-double-click", "pan-zoom"]`
 - `select` — Click to select, shift-click to extend, background to clear. Emits onNodeClick, and onSelectionChange with an empty list when a background click clears it. Must be listed BEFORE pan-zoom, which claims the background press it needs to see.
-- `drag-node` — Drag a node to move it. Releases on drop by default so the layout stays in charge; pass { pin: true } on a board.
+- `drag-node` — Drag a node to move it. Releases on drop by default so the layout stays in charge; pass { pin: true } on a canvas.
   - pin: boolean — Leave the node pinned where it was dropped.
   - Example: `{ "type": "drag-node", "options": { "pin": true } }`
 - `connect-nodes` — Drag from one node to another to connect them, emitting onEdgeCreate with both ends. Writes nothing — what a connection means is the template's decision, so it answers by creating whatever record it thinks the connection is. List it BEFORE drag-node: both claim a press on a node and the first wins. Arm it from a control the user can see rather than a modifier key, which is undiscoverable and absent on a touchscreen.
@@ -2029,11 +2106,15 @@ CollectionBlock extends WeNode:
   - kind: string [we://kind]
   - mode: string [we://mode]
   - title: string [we://title]
+  - slug: string [we://slug]
   - description: string [we://description]
   - version: number [we://version]
   - textContent: string [we://text_content]
   Relations:
   - children: HasMany [we://children]
+  - arranges: HasMany [we://arranges]
+  - gathers: HasOne [we://gathers]
+  - board: HasOne → CollectionBlock [we://board]
   - extractionPasses: HasMany → ExtractionPass [we://extraction_pass_record]
 
 DividerBlock extends WeNode:
@@ -2207,6 +2288,8 @@ Space extends WeNode:
   - shareExtractionDetail: boolean = false [we://share_extraction_detail]
   Relations:
   - location: HasOne → LocationBlock [we://location]
+  - board: HasOne → CollectionBlock [we://board]
+  - taskStates: HasMany → TaskState [we://task_state_order]
 
 SpacePreference extends WeNode:
   Fields:
@@ -2237,6 +2320,17 @@ TaskBlock extends WeNode:
   - dueDate: string [we://due_date]
   - assignee: string [we://assignee]
   - version: number [we://version]
+
+TaskState extends WeNode:
+  Fields:
+  - name: string (required) [we://name]
+  - slug: string [we://slug]
+  - description: string [we://description]
+  - icon: string [we://icon]
+  - color: string [we://color]
+  - semantic: TaskStateSemantic = 'open' [we://semantic]
+  - retired: boolean = false [we://retired]
+  - schemaVersion: number = 1 [we://schema_version]
 
 Template extends WeNode:
   Fields:
@@ -2506,17 +2600,17 @@ RecordStore:
   - setRelationshipKind(id): sets which named kind the pending connection is; an empty value clears it
   - cancelRecordForm(): closes the form, discarding it
   - saveRecord(): validates and creates. Errors land in recordErrors and the form stays open holding what was typed; success closes it and sets lastCreatedId
-  - placeOnBoard(board: string, nodeId: string, nodeType: string, x: number, y: number): puts a record at a position on a board, or moves one already there. An upsert, so dragging twice leaves one coordinate. Pair with the graph’s onNodeDragEnd
-  - removeFromBoard(board: string, nodeId: string): takes a record off a board, leaving the record itself alone. A card the board owns survives as an unplaced one in the tray
-  - resizeOnBoard(board: string, payload): resizes a card on a board. Takes the graph's onNodeResize payload as it arrives; the size lives on the placement, so the same post on another board is unaffected
-  - anchorOnBoard(board: string, payload): pins which SIDE of a card a connection leaves or arrives on, for this board. Takes the graph's onEdgeAnchor payload as it arrives; an empty side clears that end, and a route with neither end pinned and no bends is deleted. Bends survive a clear — one record holds both, and letting go of a side says nothing about the shape somebody drew. Per board, like a placement — the same connection on somebody else's board is unaffected
-  - rerouteOnBoard(board: string, payload): writes the shape of one connection's route on this board — the points it is bent through. Takes the graph's onEdgeReroute payload as it arrives; the whole list, in the edge's own frame, so a bend keeps its proportions when either card moves. An empty list straightens it, and a route with no points and no anchors is deleted
-  - retargetOnBoard(board: string, payload): moves one end of a connection onto a different record. Takes the graph's onEdgeRetarget payload as it arrives. Unlike anchorOnBoard and rerouteOnBoard this changes the CLAIM rather than how one board draws it — the relationship now says something different everywhere it is shown. That end's anchor is cleared; its waypoints stay
-  - setCardStyle(board: string, nodeId: string, field: string, value): sets one presentation property of one card on one board — 'color', 'cardShape', 'contentScale', 'rotation' (degrees clockwise) and 'z' (stacking order). Takes the field name so one action serves a swatch, a picker and a slider. 0 is unset for the numbers, so a card is un-rotated by writing 0. Undone by taking the card off the board
+  - placeOnCanvas(canvas: string, nodeId: string, nodeType: string, x: number, y: number): puts a record at a position on a canvas, or moves one already there. An upsert, so dragging twice leaves one coordinate. Pair with the graph’s onNodeDragEnd
+  - removeFromCanvas(canvas: string, nodeId: string): takes a record off a canvas, leaving the record itself alone. A card the canvas owns survives as an unplaced one in the tray
+  - resizeOnCanvas(canvas: string, payload): resizes a card on a canvas. Takes the graph's onNodeResize payload as it arrives; the size lives on the placement, so the same post on another canvas is unaffected
+  - anchorOnCanvas(canvas: string, payload): pins which SIDE of a card a connection leaves or arrives on, for this canvas. Takes the graph's onEdgeAnchor payload as it arrives; an empty side clears that end, and a route with neither end pinned and no bends is deleted. Bends survive a clear — one record holds both, and letting go of a side says nothing about the shape somebody drew. Per canvas, like a placement — the same connection on somebody else's canvas is unaffected
+  - rerouteOnCanvas(canvas: string, payload): writes the shape of one connection's route on this canvas — the points it is bent through. Takes the graph's onEdgeReroute payload as it arrives; the whole list, in the edge's own frame, so a bend keeps its proportions when either card moves. An empty list straightens it, and a route with no points and no anchors is deleted
+  - retargetOnCanvas(canvas: string, payload): moves one end of a connection onto a different record. Takes the graph's onEdgeRetarget payload as it arrives. Unlike anchorOnCanvas and rerouteOnCanvas this changes the CLAIM rather than how one canvas draws it — the relationship now says something different everywhere it is shown. That end's anchor is cleared; its waypoints stay
+  - setCardStyle(canvas: string, nodeId: string, field: string, value): sets one presentation property of one card on one canvas — 'color', 'cardShape', 'contentScale', 'rotation' (degrees clockwise) and 'z' (stacking order). Takes the field name so one action serves a swatch, a picker and a slider. 0 is unset for the numbers, so a card is un-rotated by writing 0. Undone by taking the card off the canvas
   - previewCardStyle(nodeId: string, field: string, value): shows a presentation change without writing it — for a slider that reports while it moves. Pair with setCardStyle on release; both go through the same pending map so the card never jumps
-  - setTypeColor(board: string, nodeType: string, color): sets the colour every card of one type is drawn in, on one board — the board's key, made writable. An empty colour clears it
-  - createOnBoard(board: string, x?: number, y?: number): opens the create form and places whatever it makes onto that board, at the point given. Pair with the graph’s onCanvasDoubleClick
-  - createCardOnBoard(editorState, { board, at? }): composes a card onto a board and records where it sits, as one write. Without `at` the card lands in the board's tray. The composer's counterpart to createOnBoard
+  - setTypeColor(canvas: string, nodeType: string, color): sets the colour every card of one type is drawn in, on one canvas — the canvas's key, made writable. An empty colour clears it
+  - createOnCanvas(canvas: string, x?: number, y?: number): opens the create form and places whatever it makes onto that canvas, at the point given. Pair with the graph’s onCanvasDoubleClick
+  - createCardOnCanvas(editorState, { canvas, at? }): composes a card onto a canvas and records where it sits, as one write. Without `at` the card lands in the canvas's tray. The composer's counterpart to createOnCanvas
 
 RouteStore:
 - State:
@@ -2753,6 +2847,9 @@ SpaceStore:
   - orderedSidebarItems: array of sidebar items in user-defined order (uuid, name, avatar, spaceId) — personal + shared spaces merged
   - foreignSpacePrefill: { name, description, avatar } | null — detected from a foreign app's own model (e.g. Flux's Community) for prefilling the "Initialize as WE space" gate; null once the perspective is a WE space or no recognized foreign model is found
   - enabledModules: string[] — ids of the feature modules THIS SPACE has turned on: the community’s decision, shared with every member. An unset value means "not decided", not "none": it falls back to every registered module, so spaces predating the setting keep the chrome they had
+  - taskStates: { id, name, slug, semantic, color, retired, defined }[] — the states this community’s work moves through, its own if it has defined any and otherwise the defaults ("unset" means not decided, never none). Ordered by the community’s own arrangement where it has one, otherwise by what each state counts as — what is coming, what is happening, what is stuck, what is finished, what was dropped. `slug` is what TaskBlock.status holds; `semantic` is the closed fact underneath a community’s own word, so "is this outstanding?" stays answerable after a rename. Includes withdrawn states, because a task sitting in one still has to resolve — offer offeredTaskStates instead. `defined` is false for a default the space has never written down — a virtual state, which becomes a record the first time somebody reorders it, withdraws it, or names a state with its slug
+  - offeredTaskStates: { id, name, slug, semantic, color, retired, defined }[] — the same list without the withdrawn ones. What a state picker or a new board column should offer
+  - taskStatesLoaded: boolean — the space has been asked for its states. An empty list is otherwise indistinguishable from "not fetched yet"; gate an empty state on it
   - templateOverrideOptions: { label, value }[] — options for the per-space template override picker: "Use the space’s default" (space-default), "Use my default" (agent-default), then every template. Each of the first two names what it resolves to. Pre-built because a schema can map a store array into options but cannot prepend one, and without those entries overriding would be one-way
   - themeOverrideOptions: { label, value }[] — the same, for themes
   - spaceThemePinned: boolean — this agent has pinned a theme for the space on screen that differs from what would otherwise apply, so there is something for a reset to undo. False outside a space, and false for a pin that happens to name what the space resolves to anyway. Gate a "pinned here / reset" affordance on it rather than on the pin merely existing
@@ -2785,7 +2882,16 @@ SpaceStore:
   - removeSpace(uuid: string): removes a space — clears its global-discovery listing (when authored by this agent) and removes the backing dataset
   - createPost(editorState: unknown): creates a new post
   - updatePost(postId: string, editorState: unknown): reconciles an edited post against its existing blocks — updates/reuses blocks whose id survived the edit, creates new ones, deletes ones no longer present
-  - moveChild(childId: string, fromId: string, toId: string): moves a child between two collections — a card between kanban columns. Relinks the two children edges; the child itself is untouched
+  - moveChild(childId: string, fromId: string, toId: string): moves an owned child between two collections. Relinks the two children edges; the child itself is untouched. Not for a board — a column arranges its cards through moveCardToColumn, which is a different relation
+  - createBoard(title: string, parentId?: string, options?: { gathers?: string }): makes a board — a CollectionBlock whose ordered children are its columns, one per state the community uses. Returns its id. Pass parentId to put the board inside another collection (a call’s record), which is where an anchored Boards view lists it. A board made this way shows only what is put on it; openBoardFor makes the ones that gather
+  - openBoardFor(anchorId?: string, title?: string, dataset?: string): the board for a container — one call’s, or the space’s own — making it if nobody has yet. Returns its id either way. The board it makes gathers from that container, a fact the board carries in its `gathers` relation, so anything rendering it needs only the id. Call it from a click rather than on mount: creating a board writes records into a space everybody shares
+  - addBoardColumn(boardId: string, name: string, slug?: string): adds a column. **With a slug** it IS that state on this board — matching work arrives on its own and dropping a card there changes the card’s state everywhere. **Without one** it is a local lane: nothing arrives by itself and a card put there is positioned rather than reclassified. A bound column given its state’s own name stores no title, so its heading follows the vocabulary when the state is renamed
+  - removeBoardColumn(boardId: string, columnId: string): takes a column off a board — the column record only, never the work in it. A column arranges its cards rather than owning them, so nothing that walks children can reach them; on a made board they are handed to the board itself so they stay on it. They keep their state, so they reappear in another column bound to it or in the unplaced column
+  - renameBoardColumn(columnId: string, name: string): renames one column on this board. Its slug — its meaning — is untouched; renaming a state everywhere is Settings → Vocabulary
+  - reorderBoardColumns(boardId: string, orderedIds: string[]): the order this board reads its columns in. Pair with we-sortable’s onReorder and pass { $: "arg.detail" }
+  - arrangeColumn(columnId: string, orderedIds: string[]): records the order somebody dragged one column’s cards into — the column’s `arranges`, an ordered relation, so two people rearranging at once converge instead of one write discarding the other. Pair with we-sortable’s onReorder
+  - moveCardToColumn(fromColumnId: string, toColumnId: string, cardId: string, orderedIds?: string[]): moves a card between columns — and writes its state when the column it joins names one, which is what makes “done is done” true on every board. A lane writes no state. One transaction, so no reader sees the card in two columns. Pass orderedIds — we-sortable’s `arg.detail.ids`, the target column’s whole new order — to seat the card where it was dropped; without it the card appends. An empty fromColumnId means the card came from nowhere on this board — Unplaced, or a picker
+  - addTaskToColumn(columnId: string, title: string, anchorId?: string): makes a task straight into a column, parented to the board’s anchor when there is one so every other scoped surface finds it. A bound column also gives it that column’s state
   - setAttending(nodeId: string, attending: boolean): joins or leaves a node's participant roster — an RSVP. Writes only this agent's own entry, so the roster stays conflict-free. Boolean, so a switch can pass `event.detail` bare
   - setAgentMuted(did: string, muted: boolean, description?: string): mutes or unmutes an agent for this agent everywhere, with an optional note. Positively phrased so a switch can pass `event.detail` bare
   - markRead(nodeId: string, spaceUuid?): marks a node read as of now, so it leaves unreadNodeIds. Silent on failure — a lost marker is a stale dot, not an error
@@ -2817,6 +2923,9 @@ SpaceStore:
   - createSignalType(config: Partial<SignalType>): creates a new signal type in the community; slug auto-derived from name if blank
   - createRelationshipType(config: Partial<RelationshipType>): names a kind of connection this community makes — "contradicts", "came out of". The counterpart to createSignalType; slug derived from name if blank
   - setSignalTypeRetired(signalTypeId: string, retired: boolean): withdraws a signal type from use, or brings it back. Never deletes the signals given with it — a signal names its type by record id while templates resolve it by slug, so DELETING a type strands every reaction ever given and re-creating one with the same slug does not restore them. Retiring is the reversible version: the type stops being offered, existing counts keep working, and un-retiring brings everything back. Filter the offered list with OFFERED_SIGNAL_TYPES from @we/template-kit; leave find()-by-slug unfiltered so history still resolves
+  - createTaskState(config: { name, semantic?, color?, icon? }): names a state this community’s work moves through — "Blocked", "In review". The counterpart to createSignalType one concept along. The defaults stay virtual beside it; a name whose slug matches a default adopts that default rather than sitting beside it. The space’s own board gains a column for the new state in the same act. Slug derived from the name; it is what tasks store, so it is not editable afterwards
+  - setTaskStateRetired(slug: string, retired: boolean): withdraws a state from use, or brings it back. Never touches the work sitting in it — a task names its state by slug, so deleting the state would leave the work holding a word nothing defines. The same decision setSignalTypeRetired makes. By slug, so a default can be withdrawn: doing so writes its record, which is the moment a default becomes the community’s own
+  - reorderTaskStates(orderedSlugs: string[]): sets the order this community reads its states in — which is the order of a board’s columns. An ordered relation rather than a number on each state, so two people reordering at once converge instead of one write discarding the other. A state the order does not mention still appears, after the ones it does. Slugs, because a default has no id until it is placed in an order, which adopts it. Key the rows by slug and pair with we-sortable’s onReorder, passing { $: "arg.detail" }
   - upsertSignal(nodeId: string, signalTypeId: string, value: number): adds or updates a signal on a node; value=0 deletes it
   - navigateToSpace(spaceId: string, view?: string): navigates to a space — accepts a perspective UUID or a neighbourhood CID (sharedUrl without the neighbourhood:// prefix); pre-loads space templates before switching so the template and data arrive together
   - openRecordRef(ref: string): goes to whatever a record reference names — the space, and the record's own page within it. Takes the whole `we:…` reference rather than its parts, so nothing outside the host restates where a record's page lives. A reference naming only a dataset opens the space; a relative one (`we:./…`) resolves against the space on screen; a person has no page, so nothing happens

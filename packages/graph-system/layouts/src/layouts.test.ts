@@ -3,7 +3,7 @@
  *
  * The properties worth pinning are the ones the protocol asks for and a layout can quietly not do:
  * warm start (an expansion must not move everything that was already placed), pinning (a node the user
- * dropped stays dropped), and — for the board case — that positions come from the data rather than
+ * dropped stays dropped), and — for the canvas case — that positions come from the data rather than
  * from arithmetic.
  */
 import type { GraphEdge, GraphNode, LayoutInput } from '@we/graph-protocol';
@@ -142,7 +142,7 @@ describe('grid layout', () => {
 });
 
 describe('manual layout', () => {
-  it('reads positions from the node data — the board case', () => {
+  it('reads positions from the node data — the canvas case', () => {
     const result = manualLayout().init(input([node('a', { x: 42, y: 84 })]));
     expect(result.positions.get('a')).toMatchObject({ x: 42, y: 84, fixed: true });
   });
@@ -189,8 +189,8 @@ describe('manual layout', () => {
     expect(result.positions.get('a')).toMatchObject({ x: 50, y: 50 });
   });
 
-  it('says nothing about a fresh board, where carrying no positions is the normal state', () => {
-    // The regression: this warned whenever no node carried x/y, which is every board before anybody
+  it('says nothing about a fresh canvas, where carrying no positions is the normal state', () => {
+    // The regression: this warned whenever no node carried x/y, which is every canvas before anybody
     // has dragged a card. It fired as a matter of course and then stayed on screen after the first
     // drag made it untrue — a permanent warning about a state that had passed.
     const result = manualLayout().init(input([node('a'), node('b')]));
@@ -204,12 +204,12 @@ describe('manual layout', () => {
     expect(result.warnings ?? []).toEqual([]);
   });
 
-  it('says nothing on the second run over a board whose cards it parked itself', () => {
+  it('says nothing on the second run over a canvas whose cards it parked itself', () => {
     /*
       The regression this actually shipped with. The first run parks a card that carries no
       coordinate; on the second, that parked position arrives as `previous` and counts as reused —
       nothing read from data, nothing newly parked, something reused, which is the exact shape of
-      "this layout did nothing". So a board of freshly extracted cards, laid out perfectly well,
+      "this layout did nothing". So a canvas of freshly extracted cards, laid out perfectly well,
       raised a warning telling its reader to choose a different layout.
 
       One layout instance across both runs, because that is what the engine keeps and what makes the

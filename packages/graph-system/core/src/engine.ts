@@ -93,7 +93,7 @@ export interface EngineStatus {
    * a reload means everything currently drawn is about to be thrown away, and a renderer that cannot
    * tell them apart has to pick one and be wrong about the other. It matters most where it is least
    * visible: `start` clears the store and only notifies at the end, so the *previous* graph stays
-   * painted for the whole load — announcing that in a footnote is how a stale board reads as a live one.
+   * painted for the whole load — announcing that in a footnote is how a stale canvas reads as a live one.
    */
   reloading: boolean;
   /** Set when expansion stopped because the node budget was reached. */
@@ -164,7 +164,7 @@ const WATCH_DEBOUNCE_MS = 250;
  *
  * A host subscribes to what it is given, and a backend that reports "this query's answer changed"
  * can only report about a query somebody asked. See `ExpanderContext.watch` for what the coarse
- * form cost: a board whose records arrived behind an existing one was never told.
+ * form cost: a canvas whose records arrived behind an existing one was never told.
  */
 type WatchTarget = WatchQuery;
 
@@ -301,7 +301,7 @@ export class GraphEngine {
    * Open an edge's route for editing, or close whichever was open.
    *
    * Clears the node selection, and `select` clears this — the two are alternatives rather than
-   * layers. A board showing a selected card's connect dots *and* a selected line's waypoints at once
+   * layers. A canvas showing a selected card's connect dots *and* a selected line's waypoints at once
    * is two sets of handles a few pixels apart, and a press that could plausibly mean either.
    */
   selectEdge(id: string | null): void {
@@ -313,7 +313,7 @@ export class GraphEngine {
       `selectionChange` means "these nodes are selected now", and firing it because an *edge* was
       clicked says something untrue about nodes — a host reading an empty list as "nothing is
       selected, clear the panel" is right to, and would be acting on a change that did not happen.
-      The workshop board does exactly that, which is how this was found.
+      The workshop canvas does exactly that, which is how this was found.
 
       When a card really was selected, clearing it *is* a change and saying so is the point.
     */
@@ -454,7 +454,7 @@ export class GraphEngine {
    * different graph now" and resets everything, while this says "the same graph, with newer data".
    * Positions, pins, the selection, the camera and every open node survive — so a record created in a
    * modal appears as one more node among the ones the user arranged, and a peer's edit arriving over
-   * the network does not rearrange a board somebody is working on.
+   * the network does not rearrange a canvas somebody is working on.
    *
    * Rows that have gone are removed, but only where the seeds were the *only* thing holding them:
    * a node the user reached by expanding something else is theirs, not the seed query's, and it stays
@@ -919,7 +919,7 @@ export class GraphEngine {
    * without shrinking its box — the covered pixels are still canvas — so the two differ, and this is
    * the one that answers the question a layout asks. `manual` puts a node with no stored position in
    * the top-left of this rectangle, which is right where a transcript panel sits: on the workshop's
-   * board every freshly extracted card appeared underneath one, present and unreachable. See
+   * canvas every freshly extracted card appeared underneath one, present and unreachable. See
    * `Viewport.setObscured`.
    */
   private visibleWorldRect(): { x: number; y: number; width: number; height: number } {
@@ -1127,7 +1127,7 @@ export class GraphEngine {
 
           A re-attachment being dragged moves the end to another node; a drag in open canvas holds it
           at a bare point, which is what makes dragging one *smooth*. A card has four sides and a
-          board has however many cards, so an end that could only ever be on one of those moves in
+          canvas has however many cards, so an end that could only ever be on one of those moves in
           jumps however finely the pointer moves.
         */
         const { node: sourceId, loose: looseFrom } = endOf(patch, 'source', edge.source);
@@ -1137,7 +1137,7 @@ export class GraphEngine {
         if (!from || !to) return;
         const style = resolveStyle(edge, this.spec.edgeStyle);
         // Where a connection leaves and arrives, when somebody has said. Off the edge's own data, so
-        // whatever loaded it decides — the board seed reads them from an `EdgeRoute` — with any
+        // whatever loaded it decides — the canvas seed reads them from an `EdgeRoute` — with any
         // overlay in front, which is how a drag previews and how a write holds until it lands.
         const anchors = anchorsOf({ ...edge.data, ...patch });
         // No node at a loose end, so nothing to stand off from: the line reaches the pointer itself.
@@ -1553,7 +1553,7 @@ export class GraphEngine {
    *
    * A layout warning describes the arrangement *as it is now* — "every node stayed where it was" —
    * so a later arrangement supersedes it rather than joining it. Left to accumulate through `warn`,
-   * a complaint that was true of an empty board stayed on screen after the first drag made it
+   * a complaint that was true of an empty canvas stayed on screen after the first drag made it
    * false, which is a worse failure than the one it was reporting: the reader has no way to tell a
    * live warning from a spent one.
    *

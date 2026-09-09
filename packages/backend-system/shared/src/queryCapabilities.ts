@@ -7,6 +7,17 @@
  *
  * This is the mechanism behind the L0–L4 tiers and "fail loudly, don't silently return nothing".
  * The compute-up toolkit itself is separate; this only decides the disposition.
+ *
+ * **Where a disposition takes effect**, which this file used to leave unsaid: `compileQueryOptions`
+ * in `@we/schema-solid`'s `SchemaRenderer`. It is worth reading before adding a feature here,
+ * because it implements *two* behaviours rather than four — a `degraded` gap warns once per
+ * entity/feature and runs the query; every other gap raises `onError` and returns null, so the
+ * query does not run. `compute-up` and `unsupported` are therefore indistinguishable at runtime
+ * today: the JS fallback the former names is not wired on any adapter's path.
+ *
+ * The practical consequence, when classifying something new: anything short of `degraded` means a
+ * template using that feature renders nothing at all. Choose it for a feature whose absence should
+ * stop the page, not for one whose absence merely makes the page different.
  */
 import type { Aggregation, Filter, IncludeMap, Op, Page, QueryIR, SortKey } from './queryIR';
 

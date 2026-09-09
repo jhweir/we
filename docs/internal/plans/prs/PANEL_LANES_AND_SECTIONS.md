@@ -24,7 +24,7 @@ Two rules that keep it a model rather than a list:
   arrangement that predates a coordinate working when the coordinate is added.
 - **Fixed depth.** Edge → lane → seat → stack, and a section's node may not contain a lane. A
   position is therefore a few integers, which is what keeps two arrangements mergeable per panel —
-  which is what makes a template's `meta.panels` a *suggestion* a drag overrules, and what makes
+  which is what makes a template's `meta.panels` a _suggestion_ a drag overrules, and what makes
   "save as template" a data copy. Make it recursive and both go.
 
 **Home lanes** put the same coordinates inside the template. A `$panels` outlet is a lane in the
@@ -73,7 +73,7 @@ Two bugs, both already true before lanes and both extended by them.
 
 - **It is drawn where it cannot be seen.** The grip lives inside the earlier panel's frame at
   `bottom: -6px`, and the frame is `overflow: hidden`, so the outer half — and the whole accent
-  line — is clipped. A divider is a property of the *seam*, not of a panel. It moves out of the
+  line — is clipped. A divider is a property of the _seam_, not of a panel. It moves out of the
   frame: `DockGeometry.seam` publishes the gap after each seated panel, and the frame's wrapper
   (outside the clipped box, where `insertLines` already lives) draws a fixed `we-resize-handle`
   over it. Both panels' facing grips are suppressed.
@@ -136,7 +136,7 @@ Picture-in-picture, generalised from `<video>` to any region of a template.
   nor floats. The frame renders nothing for it; the outlet renders the body.
 - **Two mount points, one remount at the gesture.** Inline in the template's flow when home; in the
   dock layer when not. A remount on a deliberate, rare transition is not the hazard the frame
-  guards against, which is remounting on *move*. Sections are schema nodes: a re-query and a scroll
+  guards against, which is remounting on _move_. Sections are schema nodes: a re-query and a scroll
   reset, once. Module panels never take this path.
 - **The affordance is host chrome over the section, not inside it.** The outlet wraps each section
   in a positioned host box carrying a hover-and-focus-revealed corner grip. Press-and-drag on it
@@ -175,8 +175,8 @@ Picture-in-picture, generalised from `<video>` to any region of a template.
 - **Workshop**'s two left panels become a displacing lane (`band: 0`) with a floor on the
   transcript. The board stays a route, for the same reason as the feed. The right-hand column is
   unchanged.
-- The panels fragment gains the lane rule with the force the panel rule has: *a lane is for a
-  region a reader might move, break out or swap; `$each` over collections is content, not lanes.*
+- The panels fragment gains the lane rule with the force the panel rule has: _a lane is for a
+  region a reader might move, break out or swap; `$each` over collections is content, not lanes._
   Kanban, Discord's channel list and every chrome template stay as they are, deliberately, as the
   counter-example.
 - Context regenerated; `chrome-and-panels.md` updated; `showcase.test.ts` covers the new shapes.
@@ -194,7 +194,7 @@ Picture-in-picture, generalised from `<video>` to any region of a template.
 
 ## What is deliberately not being unified
 
-The drag *gesture*. `@we/drag` is the session and the payload, not the gestures, by its own account:
+The drag _gesture_. `@we/drag` is the session and the payload, not the gestures, by its own account:
 a panel drag carries a dock id and lands on computed rects; a Pocket drag carries a record reference
 and lands on a registered zone. Phase 8 shares the state and the feedback and leaves the two
 gestures as they are.

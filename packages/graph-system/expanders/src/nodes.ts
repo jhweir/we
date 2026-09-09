@@ -11,7 +11,7 @@ import { entityAddress } from '@we/graph-protocol';
 /*
   Ordered by how deliberately a value names the thing.
 
-  `textContent` is last and was missing, which is why every composed card on a board read
+  `textContent` is last and was missing, which is why every composed card on a canvas read
   "CollectionBlock": a post has no `title` — the composer writes its text into `editorState` and a
   flattened copy into `textContent`, which exists "for search and preview" and is exactly a preview.
   With nothing matching, the label fell through to the entity name, so a wall of notes announced

@@ -10,13 +10,25 @@ import type { EntitySchema } from '@we/backend-shared';
  * `signals` is the one typed edge: `include: { signals: true }` must hydrate `Signal` instances.
  * The rest deliberately name no target — core mints the predicate and stays agnostic about the
  * other end (see the notes on `WeNode.calls`).
+ *
+ * **Untyped splits two ways here, and only one of them is polymorphic.** `comments` and `calls`
+ * hold records — heterogeneous ones, which is the case reading each member as its own class exists
+ * for. `participants` and `mentions` hold **agent DIDs**: `setAttending` writes `me.did` and
+ * `writeMentions` writes the DIDs its marks name. A DID is not an instance of anything, so
+ * classifying one finds no class and hydrating it yields nothing — the read degrades rather than
+ * failing, but it is work spent to learn that. They opt out explicitly, which is the whole reason
+ * the opt-out exists.
+ *
+ * Worth noticing as a modelling gap rather than a wart: `target: ''` is currently doing two jobs —
+ * "any record" and "not a record at all" — and only the second wants opting out. If a third such
+ * relation appears, that is the point to give the manifest a way to say which.
  */
 export const WE_NODE_RELATIONS: EntitySchema['relations'] = {
   comments: { target: '', cardinality: 'many', predicate: 'we://comment' },
   signals: { target: 'Signal', cardinality: 'many', predicate: 'we://signal' },
-  participants: { target: '', cardinality: 'many', predicate: 'we://participants' },
+  participants: { target: '', cardinality: 'many', predicate: 'we://participants', polymorphic: false },
   calls: { target: '', cardinality: 'many', predicate: 'we://call' },
-  mentions: { target: '', cardinality: 'many', predicate: 'we://mention' },
+  mentions: { target: '', cardinality: 'many', predicate: 'we://mention', polymorphic: false },
 };
 
 /**

@@ -349,6 +349,12 @@ export const storeEntries: StoreEntry[] = [
         type: 'array',
         properties: ['id', 'icon', 'label', 'active'],
       },
+      taskStates: { type: 'array', properties: ['id', 'name', 'slug', 'semantic', 'color', 'retired', 'defined'] },
+      offeredTaskStates: {
+        type: 'array',
+        properties: ['id', 'name', 'slug', 'semantic', 'color', 'retired', 'defined'],
+      },
+      taskStatesLoaded: { type: 'boolean' },
       unreadNodeIds: { type: 'array' },
       myMentions: { type: 'array', properties: ['id', 'author', 'createdAt'] },
     },
@@ -361,12 +367,24 @@ export const storeEntries: StoreEntry[] = [
       'createPost',
       'updatePost',
       'deleteCollection',
+      'createBoard',
+      'openBoardFor',
+      'addBoardColumn',
+      'removeBoardColumn',
+      'renameBoardColumn',
+      'reorderBoardColumns',
+      'arrangeColumn',
+      'moveCardToColumn',
+      'addTaskToColumn',
       'updateSpaceImage',
       'updateSpaceMeta',
       'setSpaceDefaultTemplate',
       'setSpaceDefaultTheme',
       'createSignalType',
       'setSignalTypeRetired',
+      'createTaskState',
+      'setTaskStateRetired',
+      'reorderTaskStates',
       'upsertSignal',
       'navigateToSpace',
       'openRecordRef',
@@ -974,6 +992,12 @@ export function generateStoresText(entries: StoreEntry[]): string {
           'string[] — ids of the feature modules THIS SPACE has turned on: the community\u2019s decision, shared with every member. An unset value means "not decided", not "none": it falls back to every registered module, so spaces predating the setting keep the chrome they had',
         installedModules:
           'string[] — ids of the feature modules THIS AGENT wants available anywhere. Personal, held in the root dataset; unset means "not decided" and falls back to every registered module',
+        taskStates:
+          '{ id, name, slug, semantic, color, retired, defined }[] — the states this community\u2019s work moves through, its own if it has defined any and otherwise the defaults ("unset" means not decided, never none). Ordered by the community’s own arrangement where it has one, otherwise by what each state counts as — what is coming, what is happening, what is stuck, what is finished, what was dropped. `slug` is what TaskBlock.status holds; `semantic` is the closed fact underneath a community\u2019s own word, so "is this outstanding?" stays answerable after a rename. Includes withdrawn states, because a task sitting in one still has to resolve — offer offeredTaskStates instead. `defined` is false for a default the space has never written down — a virtual state, which becomes a record the first time somebody reorders it, withdraws it, or names a state with its slug',
+        offeredTaskStates:
+          '{ id, name, slug, semantic, color, retired, defined }[] — the same list without the withdrawn ones. What a state picker or a new board column should offer',
+        taskStatesLoaded:
+          'boolean — the space has been asked for its states. An empty list is otherwise indistinguishable from "not fetched yet"; gate an empty state on it',
         templateOverrideOptions:
           '{ label, value }[] — options for the per-space template override picker: "Use the space\u2019s default" (space-default), "Use my default" (agent-default), then every template. Each of the first two names what it resolves to. Pre-built because a schema can map a store array into options but cannot prepend one, and without those entries overriding would be one-way',
         themeOverrideOptions: '{ label, value }[] — the same, for themes',
@@ -994,7 +1018,7 @@ export function generateStoresText(entries: StoreEntry[]): string {
       },
       actions: {
         moveChild:
-          '(childId: string, fromId: string, toId: string): moves a child between two collections — a card between kanban columns. Relinks the two children edges; the child itself is untouched',
+          '(childId: string, fromId: string, toId: string): moves an owned child between two collections. Relinks the two children edges; the child itself is untouched. Not for a board — a column arranges its cards through moveCardToColumn, which is a different relation',
         setAttending:
           "(nodeId: string, attending: boolean): joins or leaves a node's participant roster — an RSVP. Writes only this agent's own entry, so the roster stays conflict-free. Boolean, so a switch can pass `event.detail` bare",
         setAgentMuted:
@@ -1040,12 +1064,36 @@ export function generateStoresText(entries: StoreEntry[]): string {
           '(postId: string, editorState: unknown): reconciles an edited post against its existing blocks — updates/reuses blocks whose id survived the edit, creates new ones, deletes ones no longer present',
         deleteCollection:
           '(collectionId: string): permanently deletes a CollectionBlock and everything inside it, recursively. Kind-agnostic — a post, a call record and a notes collection are the same shape, so this is the one delete for all of them',
+        createBoard:
+          '(title: string, parentId?: string, options?: { gathers?: string }): makes a board \u2014 a CollectionBlock whose ordered children are its columns, one per state the community uses. Returns its id. Pass parentId to put the board inside another collection (a call\u2019s record), which is where an anchored Boards view lists it. A board made this way shows only what is put on it; openBoardFor makes the ones that gather',
+        openBoardFor:
+          '(anchorId?: string, title?: string, dataset?: string): the board for a container \u2014 one call\u2019s, or the space\u2019s own \u2014 making it if nobody has yet. Returns its id either way. The board it makes gathers from that container, a fact the board carries in its `gathers` relation, so anything rendering it needs only the id. Call it from a click rather than on mount: creating a board writes records into a space everybody shares',
+        addBoardColumn:
+          '(boardId: string, name: string, slug?: string): adds a column. **With a slug** it IS that state on this board \u2014 matching work arrives on its own and dropping a card there changes the card\u2019s state everywhere. **Without one** it is a local lane: nothing arrives by itself and a card put there is positioned rather than reclassified. A bound column given its state\u2019s own name stores no title, so its heading follows the vocabulary when the state is renamed',
+        removeBoardColumn:
+          '(boardId: string, columnId: string): takes a column off a board \u2014 the column record only, never the work in it. A column arranges its cards rather than owning them, so nothing that walks children can reach them; on a made board they are handed to the board itself so they stay on it. They keep their state, so they reappear in another column bound to it or in the unplaced column',
+        renameBoardColumn:
+          '(columnId: string, name: string): renames one column on this board. Its slug \u2014 its meaning \u2014 is untouched; renaming a state everywhere is Settings \u2192 Vocabulary',
+        reorderBoardColumns:
+          '(boardId: string, orderedIds: string[]): the order this board reads its columns in. Pair with we-sortable\u2019s onReorder and pass { $: "arg.detail" }',
+        arrangeColumn:
+          '(columnId: string, orderedIds: string[]): records the order somebody dragged one column\u2019s cards into \u2014 the column\u2019s `arranges`, an ordered relation, so two people rearranging at once converge instead of one write discarding the other. Pair with we-sortable\u2019s onReorder',
+        moveCardToColumn:
+          '(fromColumnId: string, toColumnId: string, cardId: string, orderedIds?: string[]): moves a card between columns \u2014 and writes its state when the column it joins names one, which is what makes \u201cdone is done\u201d true on every board. A lane writes no state. One transaction, so no reader sees the card in two columns. Pass orderedIds \u2014 we-sortable\u2019s `arg.detail.ids`, the target column\u2019s whole new order \u2014 to seat the card where it was dropped; without it the card appends. An empty fromColumnId means the card came from nowhere on this board \u2014 Unplaced, or a picker',
+        addTaskToColumn:
+          '(columnId: string, title: string, anchorId?: string): makes a task straight into a column, parented to the board\u2019s anchor when there is one so every other scoped surface finds it. A bound column also gives it that column\u2019s state',
         updateSpaceImage:
           '(field: "avatar" | "coverImage", imageFile: File, spaceUuid?): uploads and sets the space avatar or cover image',
         createSignalType:
           '(config: Partial<SignalType>): creates a new signal type in the community; slug auto-derived from name if blank',
         setSignalTypeRetired:
           '(signalTypeId: string, retired: boolean): withdraws a signal type from use, or brings it back. Never deletes the signals given with it — a signal names its type by record id while templates resolve it by slug, so DELETING a type strands every reaction ever given and re-creating one with the same slug does not restore them. Retiring is the reversible version: the type stops being offered, existing counts keep working, and un-retiring brings everything back. Filter the offered list with OFFERED_SIGNAL_TYPES from @we/template-kit; leave find()-by-slug unfiltered so history still resolves',
+        createTaskState:
+          '(config: { name, semantic?, color?, icon? }): names a state this community\u2019s work moves through — "Blocked", "In review". The counterpart to createSignalType one concept along. The defaults stay virtual beside it; a name whose slug matches a default adopts that default rather than sitting beside it. The space\u2019s own board gains a column for the new state in the same act. Slug derived from the name; it is what tasks store, so it is not editable afterwards',
+        setTaskStateRetired:
+          '(slug: string, retired: boolean): withdraws a state from use, or brings it back. Never touches the work sitting in it — a task names its state by slug, so deleting the state would leave the work holding a word nothing defines. The same decision setSignalTypeRetired makes. By slug, so a default can be withdrawn: doing so writes its record, which is the moment a default becomes the community\u2019s own',
+        reorderTaskStates:
+          '(orderedSlugs: string[]): sets the order this community reads its states in — which is the order of a board\u2019s columns. An ordered relation rather than a number on each state, so two people reordering at once converge instead of one write discarding the other. A state the order does not mention still appears, after the ones it does. Slugs, because a default has no id until it is placed in an order, which adopts it. Key the rows by slug and pair with we-sortable\u2019s onReorder, passing { $: "arg.detail" }',
         unreadNodeIds:
           'string[] — ids of containers in this space holding something newer than your read marker. The read side of `ReadMarker`: use it for unread dots with `{ "$": "channel.id in spaceStore.unreadNodeIds" }` rather than recomputing a `$latestChild` projection and a comparison per row',
         myMentions:
@@ -1112,28 +1160,28 @@ export function generateStoresText(entries: StoreEntry[]): string {
       },
       actions: {
         setRelationshipKind: '(id): sets which named kind the pending connection is; an empty value clears it',
-        placeOnBoard:
-          '(board: string, nodeId: string, nodeType: string, x: number, y: number): puts a record at a position on a board, or moves one already there. An upsert, so dragging twice leaves one coordinate. Pair with the graph’s onNodeDragEnd',
-        removeFromBoard:
-          '(board: string, nodeId: string): takes a record off a board, leaving the record itself alone. A card the board owns survives as an unplaced one in the tray',
-        resizeOnBoard:
-          "(board: string, payload): resizes a card on a board. Takes the graph's onNodeResize payload as it arrives; the size lives on the placement, so the same post on another board is unaffected",
-        anchorOnBoard:
-          "(board: string, payload): pins which SIDE of a card a connection leaves or arrives on, for this board. Takes the graph's onEdgeAnchor payload as it arrives; an empty side clears that end, and a route with neither end pinned and no bends is deleted. Bends survive a clear — one record holds both, and letting go of a side says nothing about the shape somebody drew. Per board, like a placement — the same connection on somebody else's board is unaffected",
-        rerouteOnBoard:
-          "(board: string, payload): writes the shape of one connection's route on this board — the points it is bent through. Takes the graph's onEdgeReroute payload as it arrives; the whole list, in the edge's own frame, so a bend keeps its proportions when either card moves. An empty list straightens it, and a route with no points and no anchors is deleted",
-        retargetOnBoard:
-          "(board: string, payload): moves one end of a connection onto a different record. Takes the graph's onEdgeRetarget payload as it arrives. Unlike anchorOnBoard and rerouteOnBoard this changes the CLAIM rather than how one board draws it — the relationship now says something different everywhere it is shown. That end's anchor is cleared; its waypoints stay",
+        placeOnCanvas:
+          '(canvas: string, nodeId: string, nodeType: string, x: number, y: number): puts a record at a position on a canvas, or moves one already there. An upsert, so dragging twice leaves one coordinate. Pair with the graph’s onNodeDragEnd',
+        removeFromCanvas:
+          '(canvas: string, nodeId: string): takes a record off a canvas, leaving the record itself alone. A card the canvas owns survives as an unplaced one in the tray',
+        resizeOnCanvas:
+          "(canvas: string, payload): resizes a card on a canvas. Takes the graph's onNodeResize payload as it arrives; the size lives on the placement, so the same post on another canvas is unaffected",
+        anchorOnCanvas:
+          "(canvas: string, payload): pins which SIDE of a card a connection leaves or arrives on, for this canvas. Takes the graph's onEdgeAnchor payload as it arrives; an empty side clears that end, and a route with neither end pinned and no bends is deleted. Bends survive a clear — one record holds both, and letting go of a side says nothing about the shape somebody drew. Per canvas, like a placement — the same connection on somebody else's canvas is unaffected",
+        rerouteOnCanvas:
+          "(canvas: string, payload): writes the shape of one connection's route on this canvas — the points it is bent through. Takes the graph's onEdgeReroute payload as it arrives; the whole list, in the edge's own frame, so a bend keeps its proportions when either card moves. An empty list straightens it, and a route with no points and no anchors is deleted",
+        retargetOnCanvas:
+          "(canvas: string, payload): moves one end of a connection onto a different record. Takes the graph's onEdgeRetarget payload as it arrives. Unlike anchorOnCanvas and rerouteOnCanvas this changes the CLAIM rather than how one canvas draws it — the relationship now says something different everywhere it is shown. That end's anchor is cleared; its waypoints stay",
         setCardStyle:
-          "(board: string, nodeId: string, field: string, value): sets one presentation property of one card on one board — 'color', 'cardShape', 'contentScale', 'rotation' (degrees clockwise) and 'z' (stacking order). Takes the field name so one action serves a swatch, a picker and a slider. 0 is unset for the numbers, so a card is un-rotated by writing 0. Undone by taking the card off the board",
+          "(canvas: string, nodeId: string, field: string, value): sets one presentation property of one card on one canvas — 'color', 'cardShape', 'contentScale', 'rotation' (degrees clockwise) and 'z' (stacking order). Takes the field name so one action serves a swatch, a picker and a slider. 0 is unset for the numbers, so a card is un-rotated by writing 0. Undone by taking the card off the canvas",
         previewCardStyle:
           '(nodeId: string, field: string, value): shows a presentation change without writing it — for a slider that reports while it moves. Pair with setCardStyle on release; both go through the same pending map so the card never jumps',
         setTypeColor:
-          "(board: string, nodeType: string, color): sets the colour every card of one type is drawn in, on one board — the board's key, made writable. An empty colour clears it",
-        createOnBoard:
-          '(board: string, x?: number, y?: number): opens the create form and places whatever it makes onto that board, at the point given. Pair with the graph’s onCanvasDoubleClick',
-        createCardOnBoard:
-          "(editorState, { board, at? }): composes a card onto a board and records where it sits, as one write. Without `at` the card lands in the board's tray. The composer's counterpart to createOnBoard",
+          "(canvas: string, nodeType: string, color): sets the colour every card of one type is drawn in, on one canvas — the canvas's key, made writable. An empty colour clears it",
+        createOnCanvas:
+          '(canvas: string, x?: number, y?: number): opens the create form and places whatever it makes onto that canvas, at the point given. Pair with the graph’s onCanvasDoubleClick',
+        createCardOnCanvas:
+          "(editorState, { canvas, at? }): composes a card onto a canvas and records where it sits, as one write. Without `at` the card lands in the canvas's tray. The composer's counterpart to createOnCanvas",
         openRecordForm:
           '(entity?): opens the create form — on that model, or on the first offered one. Clears any pending connection',
         connectNodes:

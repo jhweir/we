@@ -1,6 +1,6 @@
 import type { TemplateSchema } from '@we/schema-shared';
 import { expr } from '@we/schema-shared';
-import { pageShell } from '@we/template-kit';
+import { anchorBanner, pageShell } from '@we/template-kit';
 
 import { blocksList } from './BlocksList.ts';
 import { callsList } from './CallsList.ts';
@@ -86,6 +86,16 @@ export const cardsView: TemplateSchema = {
     minHeight: '100%',
     children: [
       cardsHeader,
+
+      /*
+        Says so when the route is narrowed to one container.
+
+        Not optional: an anchored Cards view and a quiet space look identical, and the parameter
+        arrives from a link somebody else built. Only the sections whose rows *live* in a container
+        narrow — posts, calls and the block types — so the banner reads as a claim about those and
+        not about the people or template lists, which are space-wide either way.
+      */
+      anchorBanner({ label: 'content' }),
 
       // Gates itself on `createPostOpen` — see `composerModal`.
       createPostModal,

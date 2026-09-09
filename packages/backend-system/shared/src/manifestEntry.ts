@@ -4,7 +4,7 @@
  * shape. The AD4M adapter builds these from SHACL; `toNeutralManifest` projects them onto the
  * neutral form; the AI layer formats them into prompts.
  */
-import type { EntityManifest, EntitySchema } from './manifest';
+import { type EntityManifest, type EntitySchema, resolvesPolymorphically } from './manifest';
 
 export type EntityManifestProperty = {
   name: string;
@@ -19,6 +19,14 @@ export type EntityManifestProperty = {
   interpretationHint?: string;
   /** This property is the entity's interpretation dedup key — see `PropertySchema.identity`. */
   identity?: boolean;
+  /** Relations only: the members are in a chosen order — see `RelationSchema.ordered`. */
+  ordered?: boolean;
+  /**
+   * Relations only: each member is read as the class it actually is — see
+   * `RelationSchema.polymorphic`. Already resolved through `resolvesPolymorphically`, so a consumer
+   * of an entry reads the answer rather than re-deriving the default from an empty `relatedEntity`.
+   */
+  polymorphic?: boolean;
 };
 
 export type EntityManifestEntry = {
@@ -93,9 +101,12 @@ export function manifestEntries(manifest: EntityManifest): EntityManifestEntry[]
             required: false,
             writable: true,
             // Absent for an untyped relation, which is the normal case for a heterogeneous edge like
-            // a collection's children. `scope` needs only the predicate, so it resolves either way —
-            // it is `include` that requires a target class to hydrate into.
+            // a collection's children. `scope` needs only the predicate, so it resolves either way;
+            // `include` used to need a target class to hydrate into, and `polymorphic` below is what
+            // replaces that requirement — each member is classified and read as what it is.
             ...(spec.target ? { relatedEntity: spec.target } : {}),
+            ...(spec.ordered ? { ordered: true } : {}),
+            ...(resolvesPolymorphically(spec) ? { polymorphic: true } : {}),
           })),
       ],
     };

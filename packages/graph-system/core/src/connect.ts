@@ -26,7 +26,7 @@
  *   data can hold.
  *
  * Emitting for either would open a dialog about a connection nobody made, which is worse than doing
- * nothing — a dialog has to be read and dismissed before the board is usable again.
+ * nothing — a dialog has to be read and dismissed before the canvas is usable again.
  *
  * Asked twice per gesture, on purpose: once on release to decide what is connected, and once per
  * move to decide which card is marked under the line. One rule, so the mark cannot promise a

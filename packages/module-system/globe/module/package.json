@@ -1,7 +1,7 @@
 {
   "name": "@we/module-globe",
   "version": "0.1.0",
-  "description": "Globe feature module \u2014 the Cesium layer registry, route and schema fragments",
+  "description": "Globe feature module — the Cesium layer registry, route and schema fragments",
   "license": "MIT",
   "type": "module",
   "scripts": {

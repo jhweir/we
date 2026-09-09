@@ -190,7 +190,19 @@ values may be expressions (in an expression) or tokens (in a $query):
   { field: { endsWith: 'text' } }          — anchored suffix match, case-SENSITIVE
   { field: { exists: true } }              — non-null / non-undefined presence check
   { field: { exists: false } }             — null or undefined check
+  { relation: { some: {…} } }              — has at least one linked record matching the clause
+  { relation: { none: {…} } }              — has no linked record matching it; { none: {} } is "has none at all"
   { OR: [ {…}, {…} ] }  { AND: [ … ] }  { NOT: {…} }   — combinators; sibling keys are implicitly ANDed
+
+"some" and "none" ask about LINKED RECORDS rather than a field's value, and are the only way to do
+so: "posts with no comments", "nodes carrying a relationship of this kind". Without them the caller
+fetched everything with its children and counted client-side. An empty clause means "any", so
+{ comments: { some: {} } } is "has at least one". They nest — the clause inside one may itself
+contain a quantifier — and they are native on AD4M, where they compile to a SPARQL EXISTS group.
+
+A key is read as a quantifier because it carries "some" or "none", not because the model says it is
+a relation. So a scalar property can never be compared with those two words, and everything else on
+a relation-named key stays an ordinary field compare.
 
 A bare list is the positive counterpart of "not" with a list, and the way to fetch a known set:
 { id: ['id1', 'id2', 'id3'] }. Native on the AD4M backend, where it pushes down to a SPARQL VALUES
@@ -207,28 +219,36 @@ so it is simply not there. Three cases, and the middle one differs by backend:
                                != over an unbound variable excludes the row, exactly as SQL's
                                three-valued logic excludes NULL. A $query where written with "not"
                                can therefore pass every test and come back empty in production.
-  { field: { exists: false } } — means absent, unambiguously, on both.
+  { field: { exists: false } } — means absent, unambiguously — but see the warning below about
+                               where it can be used.
 
 A declared "default" does not rescue this. The manifest's default is applied when a record is
 CONSTRUCTED, so anything created normally does carry it — but a field added to an entity after
 some records already existed reads as absent on every one of them, and the query layer never
 consults the default when filtering.
 
-Say "absent counts as the default" explicitly when you mean it:
+"exists" IS NOT AVAILABLE IN A $query — only inside filter(), where it is evaluated client-side.
+The AD4M backend has no such operator, so a $query using one is refused rather than run. This is a
+change: it used to be claimed as supported and was not, and the consequence was worse than a refusal
+— the clause reached a filter that rejected every row, so the query answered nothing at all, always,
+with no error anywhere. A refusal at least says so.
 
-  { OR: [ { retired: false }, { retired: { exists: false } } ] }
+That invalidates the idiom this section used to recommend for "absent counts as the default":
 
-Native on AD4M — "exists" and the combinators are both supported — but the OR costs this query's
-sort pushdown (see below), so pair it with a plain sort or none. Where the set is small and already
-in hand, filtering client-side with filter() sidesteps the whole question.
+  { OR: [ { retired: false }, { retired: { exists: false } } ] }   ← NOT usable in a $query
+
+Until the operator exists, the ways to say it are: give the field a default and write the plain
+comparison; fetch the candidates and filter() client-side, where "exists" works; or, where the field
+is a relation rather than a scalar, ask { relation: { none: {} } }, which IS native.
 
 startsWith/endsWith are case-sensitive where contains is not: they match structured strings against
-a known prefix (an ISO date, an id out of a URI). They are NOT native to the AD4M backend, so a $query
-using one is refused — use contains there; inside filter() they are evaluated client-side.
+a known prefix (an ISO date, an id out of a URI). They are NOT native to the AD4M backend either, so
+a $query using one is refused — use contains there; inside filter() they are evaluated client-side.
 
-Note: OR/AND/NOT in a $query's where disables the SPARQL-level sort/pagination pushdown (see
-count-projection and relation-property ordering below) — those orderings silently stop working in the
-same query's where clause, because the fallback sort runs before the projection data is attached.
+OR/AND/NOT no longer cost a query its sort pushdown. They used to: the executor decided pushability
+with a second function that disagreed with what it actually emitted, and an explicit combinator fell
+outside it. One compiler now answers for its own emission, so a filter with an OR and a sort behaves
+like any other.
 
 Examples:
 { "$": "filter(spaceStore.members, { role: 'admin' })" }
@@ -342,10 +362,23 @@ Single-item projection — add a derived field that resolves to one instance or 
 { "$query": { "entity": "Post", "include": { "$myLike": { "from": "likes", "where": { "author": { "$": "me.did" } }, "limit": 1 } } } }
 With limit: 1 the field unwraps to T | null instead of an array.
 
-include only works with typed relations — ones where the target model class is known.
-For WE models this is always the case. For external models, check the externalEntities listing:
-relations marked "→ EntityName" are typed (safe for include); relations marked "parent query only"
-are untyped and will crash at runtime if used with include — use a scope drill-down instead.
+include works with an UNTYPED relation too — one whose target model class is not declared, like a
+collection's children. It used to crash, because there was no shape to hydrate the members into; now
+each member is read as the class it actually is, so one query returns a post's text blocks, images
+and tasks together, each with its own fields. Every member carries its type, so a card can pick a
+display per row rather than assuming one.
+
+That makes include the right tool for a FEED, where the alternative is one drill-down per parent:
+{ "$query": { "entity": "CollectionBlock", "where": { "type": "root" }, "include": { "children": true } } }
+
+A scope drill-down is still right on a DETAIL route, where the parent is fixed and its children are
+the whole subject — it is a narrower question, not a worse one. For external models, check the
+externalEntities listing: relations marked "→ EntityName" name their target, and untyped ones are
+read polymorphically.
+
+An ORDERED collection comes back in the order somebody arranged it — CollectionBlock.children is the
+one that matters, since the blocks of a post are a sequence its author chose rather than the order
+they happened to be typed in. Nothing to write in the query; the model declares it.
 
 Relational queries — fetch a parent record's children (drill-down navigation):
 { "$query": { "entity": "Conversation", "scope": { "anchor": "Channel", "via": "conversations", "anchorId": { "$": "channel.id" } } } }
@@ -423,6 +456,14 @@ asserts "loaded and empty", never "not answered yet":
 { "type": "$if", "props": { "condition": { "$": "local.signalTypesLoaded" }, "then": <list-or-empty>, "else": <skeleton> } }
 $queries and $localState share the same local namespace — avoid duplicate names across both.
 $setLocal will warn and no-op on $queries entries (they are read-only).
+A query's where or scope may read a sibling declared on the same node — { "anchorId": { "$":
+"first(local.board).gathers" } } — and re-runs when that sibling answers. The order the entries are
+written in does not matter.
+An operand that has not resolved yet is PRUNED rather than sent, and pruning WIDENS: a where loses
+the condition, a scope is dropped and the query is space-wide. Right for an optional filter; wrong
+for a query whose scope is about to exist, which would draw everything for a frame and then narrow.
+Give such a query "when": { "$": "local.boardLoaded" } and it is not asked until the condition is
+truthy — the result stays empty and local.<name>Loaded stays false, so a loading state can hold.
 A $query cannot be read inside an expression — a question for the backend is hoisted here and read
 back through local. Use count() for conditional visibility:
 { "condition": { "$": "count(local.signalTypes)" } }

@@ -768,6 +768,10 @@ describe('extraction', () => {
           reconciled.push(collectionId);
           return 0;
         },
+        // What the module actually calls: the host reconciles behind it, so the same list records it.
+        passSettled: async (collectionId: string) => {
+          reconciled.push(collectionId);
+        },
         proposals: async () => [],
         accept: async () => true,
         reject: async () => true,
@@ -822,9 +826,10 @@ describe('extraction', () => {
       expect(i.watches).toEqual([collection, `-${collection}`]);
     });
 
-    it('repairs unattached records when it adopts a collection', async () => {
+    it('tells the host a pass may have settled when it adopts a collection', async () => {
       // A pass can finish with nobody listening — on desktop the executor outlives the app — and
-      // those records would otherwise never get their place in the call.
+      // those records would otherwise never get their place in the call. The module names the
+      // collection; what follows (the repair, a board) is the host's.
       const i = interpreter();
       const h = harness(inCall, { interpretation: i.port });
       await h.say('worth writing down');
