@@ -67,10 +67,17 @@ commands:
       #   - Stale `dist/` output from a previous commit makes a build that no
       #     longer produces a file look like it still does.
       #
-      # `git clean -xfd` removes untracked *and* ignored files, which is what a
+      # `git clean -xffd` removes untracked *and* ignored files, which is what a
       # hosted runner gets for free. It costs a `node_modules` reinstall per job —
       # paid back by the pnpm store cache below, which survives because it lives
       # in the runner's home directory rather than the repository.
+      #
+      # The second `f` is load-bearing and was learned the hard way. This runner
+      # is shared with AD4M, whose jobs leave `.hc-toolchain/` behind — and that
+      # directory contains its own `.git`. A single `-f` *skips nested
+      # repositories* ("Skipping repository .hc-toolchain/src"), so the tree
+      # stayed dirty, and the guard below correctly refused to let the drift
+      # check run against it.
       - run:
           name: Reset working directory
           command: |
@@ -79,13 +86,13 @@ commands:
               rm -rf .git
             fi
             if [ -d .git ]; then
-              git clean -xfd || true
+              git clean -xffd || true
             fi
       - checkout
       - run:
           name: Verify the tree is clean before anything runs
           command: |
-            git clean -xfd
+            git clean -xffd
             DIRT="$(git status --porcelain)"
             if [ -n "$DIRT" ]; then
               echo "Working tree is not clean after checkout — the drift check below cannot be trusted."
