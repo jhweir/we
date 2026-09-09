@@ -1192,10 +1192,15 @@ const extractionHistory: SchemaNode = {
                               props: {
                                 value: { $: 'pass.createdAt' },
                                 relative: true,
-                                // Abbreviated for the same reason as the transcript row: this sits
-                                // at the end of a line already holding an outcome that can be a
-                                // whole error message.
-                                relativeStyle: 'short',
+                                /*
+                                  Relative here and not on a transcript row, because these *are* the
+                                  feed of unrelated items relative time is for: passes run minutes or
+                                  days apart and "how recent is this one" is the whole question.
+
+                                  Abbreviated for the transcript row's reason — it sits at the end of
+                                  a line already holding an outcome that can be a whole error message.
+                                */
+                                relativeStyle: 'narrow',
                                 fontSize: '200',
                                 color: 'text-faint',
                               },
@@ -1624,21 +1629,35 @@ export const transcriptLines: SchemaNode = {
                           children: [{ $: 'speaker.name' }],
                         },
                         {
+                          /*
+                            How long ago while it is still happening; what time it was once it is not.
+
+                            Relative time answers "how fresh is this?", which is a question about a
+                            feed of unrelated items. A transcript is not one: every row came out of
+                            the same conversation, so on a call recorded last Tuesday all two hundred
+                            of them read "6 days ago" — the same string on every line, carrying no
+                            information and taking the width that made the row wrap. What a reader
+                            wants from a line of a finished meeting is where in it the line was, and
+                            that is the clock.
+
+                            On the live call relative earns its place: the tail is minutes old, the
+                            numbers differ row to row, and they move on their own.
+
+                            `narrow` for the live side because a transcript stamp is a *coordinate* —
+                            something skimmed past to find a moment, not read — and a coordinate wants
+                            to be terse at any width. That is a fact about the row rather than about
+                            the panel, so it is not conditional on how much room there is.
+
+                            One node rather than an `$if` on the two: `relative` short-circuits inside
+                            the primitive, so `timeStyle` simply goes unread while it is true. A
+                            branch here would unmount and rebuild the row every time a call ended.
+                          */
                           type: 'we-timestamp',
                           props: {
                             value: { $: 'utterance.createdAt' },
-                            relative: true,
-                            /*
-                              Abbreviated, because this row is three things competing for a panel
-                              that is often narrow — a name, a time and sometimes a badge — and the
-                              time is the one with a shorter form that loses nothing. "4 min. ago"
-                              rather than "4 minutes ago".
-
-                              Set here rather than defaulted in the primitive: how wordy a time
-                              should be is a density decision belonging to the surface, and the same
-                              stamp under a post in a full-width feed reads better spelled out.
-                            */
-                            relativeStyle: 'short',
+                            relative: VIEWING_LIVE,
+                            relativeStyle: 'narrow',
+                            timeStyle: 'short',
                             fontSize: '100',
                             color: 'text-faint',
                           },

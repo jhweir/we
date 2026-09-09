@@ -126,13 +126,30 @@ describe('the feed', () => {
     expect(feedJson).toContain('"jump":"both"');
   });
 
-  it('abbreviates the time on a row, which is the one thing on it with a shorter form', () => {
+  it('times a row by the clock once the call is over, and relatively while it is not', () => {
+    /*
+      Every row of a transcript came out of one conversation, so relative time says the same thing on
+      all of them — "6 days ago", two hundred times, carrying nothing and taking the width that made
+      the row wrap. The clock says where in the meeting the line was, which is the question.
+
+      Pinned as one node rather than two: `relative` short-circuits inside the primitive, so a branch
+      here would unmount and rebuild every row the moment a call ended.
+    */
+    expect(linesJson).toContain('"relative":{"$":"routeStore.params.call ? false : true"}');
+    expect(linesJson).toContain('"timeStyle":"short"');
+  });
+
+  it('abbreviates the relative form, which is the one thing on the row with a shorter form', () => {
     /*
       A prop nothing sets is a prop that does nothing, and this one shipped that way once: the
       primitive gained `relativeStyle` and no call site named it, so every row went on reading
       "3 hours ago" in a panel narrow enough that the phrase was the reason the row wrapped.
+
+      `narrow` rather than Intl's `short`, which in English does not abbreviate "days" at all — so it
+      leaves the widest string untouched — and spells the rest with full stops.
     */
-    expect(linesJson).toContain('"relativeStyle":"short"');
+    expect(linesJson).toContain('"relativeStyle":"narrow"');
+    expect(linesJson).not.toContain('"relativeStyle":"short"');
   });
 });
 
