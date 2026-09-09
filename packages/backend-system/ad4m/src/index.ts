@@ -59,4 +59,3 @@ export {
   transcriptScopeQuery,
 } from './interpretationAdapter';
 export { type Ad4mCapability, capabilitiesFromToken, createCapabilityCheck } from './capabilities';
-export { createCallSessionFactory } from './callSessionAdapter';

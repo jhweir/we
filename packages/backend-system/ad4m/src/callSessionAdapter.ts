@@ -6,9 +6,24 @@
  * imports). AD4M's `Session` satisfies it structurally. This adapter provides a factory function
  * the host wires into the call module's `CallStoreDeps.createBackend` — so the module stays
  * backend-agnostic and the host does the AD4M-specific construction.
+ *
+ * COMPATIBILITY: this adapter compiles against the **published** `@coasys/ad4m`, which does not
+ * yet export `Session` or `createSession`. Runtime capability gating ensures the adapter throws a
+ * clear error when paired with an executor that lacks SFU support, rather than a cryptic type
+ * mismatch. Once `@coasys/ad4m` publishes the SFU types, the local interfaces below can be
+ * replaced with direct imports.
  */
-import { Ad4mClient, NeighbourhoodProxy, type PerspectiveProxy } from '@coasys/ad4m';
+import type { PerspectiveProxy } from '@coasys/ad4m';
 import type { DatasetHandle } from '@we/backend-shared';
+
+/**
+ * Runtime capability interface — matches `NeighbourhoodProxy.createSession` added in the AD4M
+ * `feat/embedded-sfu` branch. Defined locally so the adapter compiles against the published
+ * `@coasys/ad4m` while working at runtime with an SFU-enabled executor.
+ */
+interface SessionCapableProxy {
+  createSession(roomName: string, options?: { neighbourhoodUrl?: string; topology?: string }): Promise<unknown>;
+}
 
 /**
  * Build a factory function that creates a `CallBackend` (Session) for a given call room.
@@ -18,40 +33,39 @@ import type { DatasetHandle } from '@we/backend-shared';
  * the late-binding contract every other module host service uses.
  *
  * At call time it:
- * 1. Reads the current backend client, dataset (perspective) and agent identity
- * 2. Constructs a `NeighbourhoodProxy` for that perspective
- * 3. Calls `createSession(callId)` to get a Session with auto topology resolution
+ * 1. Reads the current dataset (perspective)
+ * 2. Gets the `NeighbourhoodProxy` from the `PerspectiveProxy`
+ * 3. Checks for `createSession` support at runtime
+ * 4. Calls `createSession(callId)` to get a Session with auto topology resolution
  *
  * The Session handles mesh ↔ SFU topology switching, SDP negotiation, SFU cascade failover,
  * simulcast quality preferences, and data channel relay internally.
  *
- * @param getBackendClient  Reactive accessor for the `Ad4mClient` (typed `unknown` at the port boundary).
+ * @param _getBackendClient  Reactive accessor for the `Ad4mClient` — reserved for future use.
  * @param getCurrentDataset  Reactive accessor for the current dataset (perspective).
- * @param getSelfId  Reactive accessor for the current agent DID.
+ * @param _getSelfId  Reactive accessor for the current agent DID — reserved for future use.
  */
 export function createCallSessionFactory(
-  getBackendClient: () => unknown,
+  _getBackendClient: () => unknown,
   getCurrentDataset: () => DatasetHandle | null,
-  getSelfId: () => string | null,
+  _getSelfId: () => string | null,
 ): (callId: string) => Promise<unknown> {
   return async (callId: string) => {
-    const raw = getBackendClient();
-    if (!raw) throw new Error('Cannot create call session — no backend client');
-    const client = raw as Ad4mClient;
-
     const dataset = getCurrentDataset();
     if (!dataset) throw new Error('Cannot create call session — no active dataset');
 
     const proxy = dataset as PerspectiveProxy;
-    const selfId = getSelfId();
-    if (!selfId) throw new Error('Cannot create call session — no agent identity');
-
     const neighbourhoodUrl = proxy.sharedUrl ?? '';
 
-    // Construct with the agent DID so call-presence links carry the right source.
-    const nhProxy = new NeighbourhoodProxy(client.neighbourhood, proxy.uuid, selfId);
+    // Retrieve the proxy through PerspectiveProxy rather than constructing directly — avoids
+    // constructor signature differences between published and SFU-enabled @coasys/ad4m builds.
+    const nhProxy = proxy.getNeighbourhoodProxy();
 
-    return await nhProxy.createSession(callId, {
+    if (!nhProxy || !('createSession' in nhProxy)) {
+      throw new Error('AD4M executor does not support Session — requires a build from feat/embedded-sfu');
+    }
+
+    return await (nhProxy as unknown as SessionCapableProxy).createSession(callId, {
       neighbourhoodUrl,
       topology: 'auto',
     });
