@@ -2295,7 +2295,9 @@ export const transcriptComposer: SchemaNode = {
             autoGrow: true,
             maxRows: 6,
             submitOnEnter: true,
-            placeholder: 'Add a note to the transcript…',
+            // Short: a placeholder is read at a glance and the panel it sits in is already headed
+            // "Transcript", so naming the destination was the box explaining where it was.
+            placeholder: 'Type a message…',
             value: { $: 'local.comment' },
             onInput: { $setLocal: 'comment', value: { $: 'event.detail' } },
             // Enter commits, and the primitive suppresses the newline that would otherwise follow —
