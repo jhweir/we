@@ -24,10 +24,25 @@ version: 2.1
 # — on a hosted runner the tree is pristine by construction, here it is not. See
 # `clean_checkout` below.
 #
-# **No `actions/*`.** `setup-node`, `pnpm/action-setup`, `actions/cache` and
-# `upload/download-artifact` have no equivalents; they are `nvm`, `corepack`,
-# `save_cache`/`restore_cache` and `persist_to_workspace`/`attach_workspace`
-# respectively.
+# **No `actions/*`.** `setup-node` and `pnpm/action-setup` become `nvm` and
+# `corepack`.
+#
+# **Nothing here uses CircleCI network storage.** `save_cache`,
+# `persist_to_workspace` and `store_artifacts` all upload to CircleCI and are
+# billed even when the compute is free — so a self-hosted runner that used them
+# would quietly be the expensive kind of free. Every job in this file runs on the
+# same physical host, which makes all three unnecessary:
+#
+#   - the pnpm store already lives in `~/.local/share/pnpm/store`, outside the
+#     repository, so it survives `git clean` and every job finds it warm. That is
+#     `actions/cache` done by not needing one.
+#   - build output moves between jobs through `$CI_ARTIFACT_DIR`, a local
+#     directory keyed by `$CIRCLE_SHA1` — the same mechanism AD4M's config uses
+#     to hand its binaries between jobs, for the same reason.
+#
+# Keep it that way. If a job ever needs to publish something a human downloads
+# from the CircleCI UI, that is the one case worth paying for, and it should be
+# an explicit decision rather than a habit.
 #
 #
 # ## What has no equivalent and is a project setting instead
@@ -133,26 +148,17 @@ commands:
             corepack prepare --activate
             echo "pnpm: $(pnpm --version)   (packageManager: $(node -p "require('./package.json').packageManager"))"
 
-      # Cache the pnpm content-addressable store, not node_modules — the workspace
-      # nests packages 2–4 levels deep, so a node_modules key misses most of it.
-      #
-      # `restore_keys` in the GitHub action becomes the second, less specific key
-      # here: an exact lockfile match first, then the newest store from any
-      # previous run, which pnpm tops up rather than rebuilding.
-      - run:
-          name: Resolve pnpm store path
-          command: echo "export PNPM_STORE_PATH=$(pnpm store path --silent)" >> "$BASH_ENV"
-      - restore_cache:
-          keys:
-            - pnpm-store-v1-{{ checksum "pnpm-lock.yaml" }}
-            - pnpm-store-v1-
+      # No `restore_cache`/`save_cache`, deliberately. The GitHub workflow caches
+      # the pnpm content-addressable store because a hosted runner starts empty;
+      # this one does not. The store lives in the runner user's home directory,
+      # not the repository, so `git clean -xffd` above cannot reach it and it is
+      # already warm — uploading it to CircleCI would cost money to replace a
+      # directory that is sitting on the same disk.
       - run:
           name: Install dependencies
-          command: pnpm install --frozen-lockfile
-      - save_cache:
-          key: pnpm-store-v1-{{ checksum "pnpm-lock.yaml" }}
-          paths:
-            - /home/marvin/.local/share/pnpm/store
+          command: |
+            echo "pnpm store: $(pnpm store path --silent)"
+            pnpm install --frozen-lockfile
 
   restore_build:
     description: >
@@ -162,13 +168,19 @@ commands:
       # Must run *after* `setup`, not before: `pnpm install` writes into the same
       # package directories, and the build output is what should win. Same ordering
       # constraint the composite action documents.
-      - attach_workspace:
-          at: /tmp/we-build
+      #
+      # Read from local disk rather than a CircleCI workspace: every job runs on
+      # this one host, so the tarball never needs to leave it.
       - run:
           name: Unpack build outputs
           command: |
-            tar -xzf /tmp/we-build/build-outputs.tar.gz
-            echo "Restored $(tar -tzf /tmp/we-build/build-outputs.tar.gz | wc -l) paths."
+            STASH="${CI_ARTIFACT_DIR:-/var/lib/ci-artifacts}/we/${CIRCLE_SHA1}"
+            if [ ! -f "$STASH/build-outputs.tar.gz" ]; then
+              echo "No build output at $STASH — did the build job run on this host?"
+              exit 1
+            fi
+            tar -xzf "$STASH/build-outputs.tar.gz"
+            echo "Restored $(tar -tzf "$STASH/build-outputs.tar.gz" | wc -l) paths from $STASH."
 
 # ---------------------------------------------------------------------------
 # Jobs — one per GitHub Actions job, same names, same order
@@ -219,27 +231,32 @@ jobs:
       # Derived from `git status --ignored` rather than a path list, for the same
       # reason the GitHub workflow gives: the outputs are not only `dist/`
       # directories, and a hand-listed set would miss the next generator.
+      #
+      # `upload-artifact` → a directory on this host. The tarball is read by this
+      # pipeline's own downstream jobs and by nothing else afterwards — which is
+      # what the GitHub side expresses as `retention-days: 1`, and what the sweep
+      # below does without paying CircleCI to hold it.
       - run:
           name: Package build outputs
           command: |
-            mkdir -p /tmp/we-build
+            STASH="${CI_ARTIFACT_DIR:-/var/lib/ci-artifacts}/we/${CIRCLE_SHA1}"
+            mkdir -p "$STASH"
             git status --porcelain --ignored=traditional \
               | awk '$1 == "!!" { print $2 }' \
               | grep -vE '(^|/)node_modules/$' \
               > build-outputs.txt
             echo "Packaging $(wc -l < build-outputs.txt) paths:"
             cat build-outputs.txt
-            tar -czf /tmp/we-build/build-outputs.tar.gz -T build-outputs.txt
+            tar -czf "$STASH/build-outputs.tar.gz" -T build-outputs.txt
             rm build-outputs.txt
+            echo "Stashed at $STASH"
 
-      # `upload-artifact` → workspace. A workspace is the right primitive rather
-      # than `store_artifacts`: this tarball is read by this pipeline's own
-      # downstream jobs and by nothing else afterwards, which is exactly what the
-      # GitHub side expresses as `retention-days: 1`.
-      - persist_to_workspace:
-          root: /tmp/we-build
-          paths:
-            - build-outputs.tar.gz
+      # Same one-day sweep AD4M's config runs, so the stash cannot grow forever.
+      - run:
+          name: Sweep build stashes older than a day
+          command: |
+            ROOT="${CI_ARTIFACT_DIR:-/var/lib/ci-artifacts}/we"
+            find "$ROOT" -maxdepth 1 -mindepth 1 -mtime +1 -exec rm -rf {} + 2>/dev/null || true
 
   typecheck:
     executor: marvin
@@ -450,9 +467,9 @@ jobs:
             else
               echo "(no log captured — the failure happened before the build started)"
             fi
-      - store_artifacts:
-          path: compat.log
-          destination: compat.log
+            echo
+            echo "Full log kept on the runner at: ${CI_ARTIFACT_DIR:-/var/lib/ci-artifacts}/we/compat-${CIRCLE_SHA1}.log"
+            cp compat.log "${CI_ARTIFACT_DIR:-/var/lib/ci-artifacts}/we/compat-${CIRCLE_SHA1}.log" 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Workflows
