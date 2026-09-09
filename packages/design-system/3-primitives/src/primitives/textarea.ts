@@ -47,22 +47,27 @@ const styles = css`
   :host([size='xs']) {
     --we-context-icon-size: var(--we-size-xxs);
     --we-textarea-control-height: calc(var(--we-component-height-xs) + var(--we-theme-control-height-offset, 0px));
+    --we-textarea-padding-x: var(--we-space-100);
   }
   :host([size='sm']) {
     --we-context-icon-size: var(--we-size-xs);
     --we-textarea-control-height: calc(var(--we-component-height-sm) + var(--we-theme-control-height-offset, 0px));
+    --we-textarea-padding-x: var(--we-space-200);
   }
   :host([size='md']) {
     --we-context-icon-size: var(--we-size-sm);
     --we-textarea-control-height: calc(var(--we-component-height-md) + var(--we-theme-control-height-offset, 0px));
+    --we-textarea-padding-x: var(--we-space-300);
   }
   :host([size='lg']) {
     --we-context-icon-size: var(--we-size-md);
     --we-textarea-control-height: calc(var(--we-component-height-lg) + var(--we-theme-control-height-offset, 0px));
+    --we-textarea-padding-x: var(--we-space-400);
   }
   :host([size='xl']) {
     --we-context-icon-size: var(--we-size-lg);
     --we-textarea-control-height: calc(var(--we-component-height-xl) + var(--we-theme-control-height-offset, 0px));
+    --we-textarea-padding-x: var(--we-space-500);
   }
 
   [part='textarea'] {
@@ -88,6 +93,12 @@ const styles = css`
       support question. max() guards the case where a theme's type is taller than its controls,
       where the honest answer is no padding rather than negative padding.
 
+      The horizontal half follows the size for the same reason, and from the same place the rest of
+      the design system reads it: SIZE_DEFAULTS already says what a textarea's px is at each size and
+      has never been able to say it here, because nativePadding suppresses the generic declaration.
+      It was 12px at every size — md's again — so a small box gave up a third more of its width to
+      padding than the type inside it warranted, and the text sat noticeably inset.
+
       Only the innermost fallback: a theme or a call site that sets padding still wins outright.
     */
     padding: var(
@@ -106,7 +117,7 @@ const styles = css`
                   2
               )
             )
-            var(--we-space-300)
+            var(--we-textarea-padding-x, var(--we-space-300))
         )
       )
     );

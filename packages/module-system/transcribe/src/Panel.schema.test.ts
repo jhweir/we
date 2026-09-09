@@ -163,19 +163,19 @@ describe('the feed', () => {
     expect(linesJson).not.toContain('sparkle');
   });
 
-  it('keeps the marks away from the timestamp, which they used to read as part of', () => {
+  it('gives the typed mark a ground, so it does not read as part of the clock', () => {
     /*
-      In `en-US` the clock ends "AM"/"PM", and the typed mark is "Aa" — two letterforms beside two
-      letterforms in the same faint grey, which reads as one word. Separation rather than a
-      different icon or a brighter one, because `en-GB` renders "14:32" and never collided: a fix
-      aimed at the glyph would have been treating one locale's symptom.
+      In `en-US` the time ends "AM" or "PM", and a bare "Aa" in the same faint grey right after it is
+      one word to the eye. Moving the mark to the other side of the row was tried first and did not
+      help — what separates them is a *ground*, not a gap, so the mark stops being loose text on the
+      row and becomes a thing sitting on it.
+
+      The badge's own neutral fill is `control-surface` for exactly this: a step away from the row's
+      `surface-sunken` in either polarity. See BADGE_APPEARANCE_DEFAULTS, where this row is the case
+      that argued it.
     */
-    // Anchored on `createdAt`, which is the row's own clock. The edited mark carries a timestamp of
-    // its own inside its tooltip, on `updatedAt` — matching that one would compare a node with
-    // something nested inside it and pass whatever the order was.
-    const clock = linesJson.indexOf('utterance.createdAt');
-    expect(linesJson.indexOf('text-aa')).toBeLessThan(clock);
-    expect(linesJson.indexOf('(edited)')).toBeLessThan(clock);
+    expect(linesJson).toContain('{"type":"we-badge","props":{"size":"xs","variant":"neutral"}');
+    expect(linesJson).toContain('text-aa');
   });
 
   it('says a corrected line was edited in words, not behind a hover', () => {

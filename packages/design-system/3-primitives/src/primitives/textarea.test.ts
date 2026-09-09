@@ -231,6 +231,17 @@ describe('the vertical padding', () => {
     expect(rule).toMatch(/1em\s*\*/);
   });
 
+  it('sets the horizontal half from the size too, not md for everybody', () => {
+    /*
+      12px at every size meant a small box gave up a third more of its width to padding than its
+      type warranted, and the text sat visibly inset. SIZE_DEFAULTS already declares the px per
+      size; `nativePadding` is what stopped it ever reaching the element.
+    */
+    const rule = css();
+    expect(rule).toContain('--we-textarea-padding-x: var(--we-space-200)');
+    expect(rule).toContain('var(--we-textarea-padding-x');
+  });
+
   it('never goes negative, however tall a theme sets its type', () => {
     // A theme whose line box exceeds its control height should get no padding, not a negative one.
     expect(css()).toMatch(/max\(\s*0px/);

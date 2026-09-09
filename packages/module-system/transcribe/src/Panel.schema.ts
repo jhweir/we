@@ -1632,7 +1632,11 @@ export const transcriptLines: SchemaNode = {
                         {
                           type: 'we-avatar',
                           props: {
-                            size: 'xxs',
+                            // `xs`, not `xxs`. A transcript is a list of people talking, so who is
+                            // speaking is the second thing on the row after the words — at the
+                            // smallest size on the scale a face is a coloured dot and the run of
+                            // them stops being scannable.
+                            size: 'xs',
                             image: { $: 'speaker.avatar' },
                             // Always alongside `image`, never instead of it: a stable
                             // generated avatar keeps somebody whose profile has not
@@ -1643,8 +1647,56 @@ export const transcriptLines: SchemaNode = {
                         },
                         {
                           type: 'we-text',
-                          props: { variant: 'footnote', color: 'text-muted', truncate: true },
+                          // `label` rather than `footnote` — one step up the scale, and the weight
+                          // that comes with it is wanted here: a name is what the eye lands on when
+                          // skimming a transcript for who said something.
+                          props: { variant: 'label', color: 'text-muted', truncate: true },
                           children: [{ $: 'speaker.name' }],
+                        },
+                        {
+                          /*
+                            How long ago while it is still happening; what time it was once it is not.
+
+                            Relative time answers "how fresh is this?", which is a question about a
+                            feed of unrelated items. A transcript is not one: every row came out of
+                            the same conversation, so on a call recorded last Tuesday all two hundred
+                            of them read "6 days ago" — the same string on every line, carrying no
+                            information and taking the width that made the row wrap. What a reader
+                            wants from a line of a finished meeting is where in it the line was, and
+                            that is the clock.
+
+                            On the live call relative earns its place: the tail is minutes old, the
+                            numbers differ row to row, and they move on their own.
+
+                            `narrow` for the live side because a transcript stamp is a *coordinate* —
+                            something skimmed past to find a moment, not read — and a coordinate wants
+                            to be terse at any width. That is a fact about the row rather than about
+                            the panel, so it is not conditional on how much room there is.
+
+                            One node rather than an `$if` on the two: `relative` short-circuits inside
+                            the primitive, so `timeStyle` simply goes unread while it is true. A
+                            branch here would unmount and rebuild the row every time a call ended.
+
+                            ## Last on the row, after the marks
+
+                            It used to sit before them, and in `en-US` that put "Aa" hard against
+                            "PM" — two letterforms beside two letterforms in the same faint grey,
+                            reading as one word. Moving the marks up to the name fixes it by
+                            separation rather than by decoration, which is what makes it hold: an
+                            `en-GB` reader sees "14:32" and never had the collision, so an
+                            icon-level or colour-level fix would have been treating one locale's
+                            symptom. The mark is about the line and the time is about the moment;
+                            they were only ever neighbours by accident.
+                          */
+                          type: 'we-timestamp',
+                          props: {
+                            value: { $: 'utterance.createdAt' },
+                            relative: VIEWING_LIVE,
+                            relativeStyle: 'narrow',
+                            timeStyle: 'short',
+                            fontSize: '100',
+                            color: 'text-faint',
+                          },
                         },
                         /*
                           What this line is, where it is not simply what somebody said.
@@ -1682,7 +1734,27 @@ export const transcriptLines: SchemaNode = {
                               type: 'we-tooltip',
                               props: { content: 'Typed into the transcript, not spoken', placement: 'top' },
                               children: [
-                                { type: 'we-icon', props: { name: 'text-aa', size: 'xs', color: 'text-faint' } },
+                                {
+                                  /*
+                                    A chip, not a bare icon — because bare it read as part of the
+                                    clock beside it.
+
+                                    In `en-US` the time ends "AM" or "PM", and two letterforms in
+                                    the same faint grey immediately after two more letterforms are
+                                    one word to the eye. Moving the mark to the other side of the row
+                                    was tried first and did not help: what separates them is a
+                                    *ground*, not a gap, so the mark stops being loose text on the
+                                    row and becomes a thing sitting on it.
+
+                                    `control-surface` is a step away from the row's `surface-sunken`
+                                    in either polarity, which is the whole reason the neutral badge
+                                    is painted with it — see BADGE_APPEARANCE_DEFAULTS, where this
+                                    same transcript row is the case that argued it.
+                                  */
+                                  type: 'we-badge',
+                                  props: { size: 'xs', variant: 'neutral' },
+                                  children: [{ type: 'we-icon', props: { name: 'text-aa' } }],
+                                },
                               ],
                             },
                           },
@@ -1747,51 +1819,6 @@ export const transcriptLines: SchemaNode = {
                                 },
                               ],
                             },
-                          },
-                        },
-                        {
-                          /*
-                            How long ago while it is still happening; what time it was once it is not.
-
-                            Relative time answers "how fresh is this?", which is a question about a
-                            feed of unrelated items. A transcript is not one: every row came out of
-                            the same conversation, so on a call recorded last Tuesday all two hundred
-                            of them read "6 days ago" — the same string on every line, carrying no
-                            information and taking the width that made the row wrap. What a reader
-                            wants from a line of a finished meeting is where in it the line was, and
-                            that is the clock.
-
-                            On the live call relative earns its place: the tail is minutes old, the
-                            numbers differ row to row, and they move on their own.
-
-                            `narrow` for the live side because a transcript stamp is a *coordinate* —
-                            something skimmed past to find a moment, not read — and a coordinate wants
-                            to be terse at any width. That is a fact about the row rather than about
-                            the panel, so it is not conditional on how much room there is.
-
-                            One node rather than an `$if` on the two: `relative` short-circuits inside
-                            the primitive, so `timeStyle` simply goes unread while it is true. A
-                            branch here would unmount and rebuild the row every time a call ended.
-
-                            ## Last on the row, after the marks
-
-                            It used to sit before them, and in `en-US` that put "Aa" hard against
-                            "PM" — two letterforms beside two letterforms in the same faint grey,
-                            reading as one word. Moving the marks up to the name fixes it by
-                            separation rather than by decoration, which is what makes it hold: an
-                            `en-GB` reader sees "14:32" and never had the collision, so an
-                            icon-level or colour-level fix would have been treating one locale's
-                            symptom. The mark is about the line and the time is about the moment;
-                            they were only ever neighbours by accident.
-                          */
-                          type: 'we-timestamp',
-                          props: {
-                            value: { $: 'utterance.createdAt' },
-                            relative: VIEWING_LIVE,
-                            relativeStyle: 'narrow',
-                            timeStyle: 'short',
-                            fontSize: '100',
-                            color: 'text-faint',
                           },
                         },
                         /*
