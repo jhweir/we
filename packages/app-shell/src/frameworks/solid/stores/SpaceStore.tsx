@@ -6,6 +6,7 @@ import {
   resolveCallExtractionTargets,
   resolveSpaceExtractionTargets,
 } from '@shared/callExtraction';
+import { datasetAddressedBy } from '@shared/datasetIdentity';
 import { buildGuestLink } from '@shared/guestLink';
 import { containmentPredicate, gatherTranscriptTurns, type TurnRecord } from '@shared/interpretation/transcriptTurns';
 import {
@@ -1880,7 +1881,7 @@ export function SpaceStoreProvider(props: ParentProps) {
 
   async function navigateToSpace(spaceId: string, view?: string): Promise<void> {
     // spaceId may be a local id or a shared id — no shape-guessing needed with refs.
-    const ds = datasetStore.datasets().find((d) => d.id === spaceId || d.sharedId === spaceId);
+    const ds = datasetStore.datasets().find((d) => datasetAddressedBy(d, spaceId));
 
     /*
       Switching only when the space is actually changing — the same guard the route effect below
@@ -4071,7 +4072,7 @@ export function SpaceStoreProvider(props: ParentProps) {
     const segs = routeStore.segments();
     if (segs[0] !== 'space' || !segs[1]) return false;
     if (!datasetStore.datasetsLoaded()) return false;
-    return !datasetStore.datasets().some((d) => d.id === segs[1] || d.sharedId === segs[1]);
+    return !datasetStore.datasets().some((d) => datasetAddressedBy(d, segs[1]));
   });
 
   // Resolve the route segment to a local dataset whenever the route changes.
@@ -4083,7 +4084,7 @@ export function SpaceStoreProvider(props: ParentProps) {
     if (segs[0] !== 'space' || !segs[1]) return;
     const seg = segs[1];
 
-    const ds = datasetStore.datasets().find((d) => d.id === seg || d.sharedId === seg);
+    const ds = datasetStore.datasets().find((d) => datasetAddressedBy(d, seg));
     if (!ds) {
       // Routing policy, not backend dialect: a segment that isn't a local id is treated as a
       // shared link the agent hasn't joined — clear the current dataset so the join gate shows.

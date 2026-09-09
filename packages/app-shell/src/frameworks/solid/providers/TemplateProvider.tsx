@@ -1,3 +1,4 @@
+import { datasetAddressedBy } from '@shared/datasetIdentity';
 import { queryIRFlag } from '@shared/queryIRFlag';
 import { provideModuleHostServices } from '@shared/registries/moduleHostServices';
 import { resolveParts, resolvePartsInRoutes } from '@shared/registries/moduleParts';
@@ -743,6 +744,28 @@ export default function TemplateProvider() {
   createEffect(() => {
     const segments = routeStore.segments();
     if (segments[0] !== 'space' || !segments[1]) return;
+
+    /*
+      Only while the address on screen is about the space these sections belong to.
+
+      Everything below reads the *store's* space — its nav, its enabled sections — and writes the
+      *URL's* space. Those are the same space almost always, and the window where they are not is
+      the one that mattered: `navigateToSpace` switches the dataset first and navigates second, so
+      between the two the stores describe B while the URL still says A. This effect woke in that
+      window, because the template had just been replaced with B's default and the previous one was
+      self-routing — so `hasViewsMarker` went from false to true, on a URL holding a self-routing
+      template's own path, which is a section no space has.
+
+      It then did exactly what it is written to do, to the wrong space: rewrote the URL to
+      `/space/A/<B's first section>`. That is a route change naming A, so the route effect that
+      keeps the dataset in step with the address dutifully switched *back* to A — landing after the
+      switch to B had finished, since it starts later. The reader ended up in space B by every sign
+      the URL and the sidebar could give, reading space A's records.
+
+      The guard is the invariant stated plainly: correct an address only when it is an address about
+      the space you are reading from.
+    */
+    if (!datasetAddressedBy(datasetStore.currentDataset(), segments[1])) return;
 
     /*
       Only for a template whose sections these are.

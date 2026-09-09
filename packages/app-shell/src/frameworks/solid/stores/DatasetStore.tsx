@@ -811,13 +811,28 @@ export function DatasetStoreProvider(props: ParentProps) {
     }
   }
 
+  /**
+   * The switch most recently asked for — not the one most recently finished.
+   *
+   * A switch is several round trips long (`hasCoreSchema`, `installModules`, `refreshSpace`), so two
+   * of them overlap routinely: clicking a space runs one, and the route change that follows runs
+   * another. They finish in whatever order the network decides, and the last to finish used to be
+   * the one on screen — so a switch nobody wanted any more could land on top of the one they did,
+   * leaving the sidebar and the URL naming one space and every query reading another.
+   *
+   * Requested rather than started, because that is the question with an answer: "is this still what
+   * the reader asked for". Whichever ask is latest wins, however long it takes to arrive.
+   */
+  let requestedDataset: string | null = null;
+
   async function switchDataset(uuid: string): Promise<void> {
     const lifecycle = session.lifecycle();
     if (!lifecycle) return;
+    requestedDataset = uuid;
 
     try {
       const ref = await lifecycle.get(uuid);
-      if (!ref) return;
+      if (!ref || requestedDataset !== uuid) return;
       const app = toApp(ref);
       const handle = app.handle;
 
@@ -861,6 +876,10 @@ export function DatasetStoreProvider(props: ParentProps) {
         });
         if (written.length) console.info(`DatasetStore: brought space schemas up to date — ${written.join(', ')}`);
       }
+
+      // Everything above is a round trip, and the reader may have asked for somewhere else while
+      // they ran. Publishing now would overwrite a newer switch with an older answer.
+      if (requestedDataset !== uuid) return;
 
       // SDNA is installed — switch immediately so WE templates render. WE model classes
       // are pre-registered at module load; foreign (non-WE) model resolution isn't needed
@@ -947,6 +966,9 @@ export function DatasetStoreProvider(props: ParentProps) {
     removeDataset,
     updateAgentSettings,
     clearCurrentDataset: () => {
+      // Withdraws any switch still in flight as well — a join gate that had a space arrive behind
+      // it a second later is the same bug `requestedDataset` exists for, pointed the other way.
+      requestedDataset = null;
       setCurrentDataset(null);
       setIsWeSpace(false);
     },
