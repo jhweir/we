@@ -173,7 +173,10 @@ describe('the feed', () => {
       The name is the only thing on the row with a sensible narrower form, and `truncate` needs
       `minWidth: 0` to happen at all.
     */
-    expect(linesJson).toContain('"truncate":true,"flex":"1 1 auto","minWidth":"0"');
+    // `0 1 auto`: shrink without growing. A grow factor would take every spare pixel and push the
+    // clock, the marks and the pencil to the far edge, which is right-aligning a row nobody asked
+    // to be right-aligned.
+    expect(linesJson).toContain('"truncate":true,"flex":"0 1 auto","minWidth":"0"');
     expect(linesJson).toContain('"whiteSpace":"nowrap"');
     /*
       And nothing on the marks. `we-tooltip` is `display: contents`, so the badge and the text are

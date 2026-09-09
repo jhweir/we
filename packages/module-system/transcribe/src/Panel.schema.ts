@@ -1593,9 +1593,19 @@ export const transcriptLines: SchemaNode = {
                 {
                   type: 'Column',
                   props: {
-                    bg: 'surface-sunken',
-                    r: '300',
-                    p: '300',
+                    /*
+                      No fill, no padding — the gap between rows is what separates them.
+
+                      A card each gave every utterance a box, and a transcript is a hundred of them:
+                      the padding pushed the words apart far more than telling one line from the
+                      next needs, and the whole feed read as a stack of tiles rather than as a
+                      conversation. The gap does that job on its own.
+
+                      It also stops the panel fighting whatever is behind it. A docked panel can be
+                      floating over the content on a translucent ground, and a column of opaque
+                      sunken rectangles cancels that out — the glass shows through the gaps and
+                      nowhere else.
+                    */
                     gap: '100',
                     /*
                       The row knows whether the pointer is on it, so its pencil can keep out of the
@@ -1668,7 +1678,17 @@ export const transcriptLines: SchemaNode = {
                             variant: 'label',
                             color: 'text-muted',
                             truncate: true,
-                            flex: '1 1 auto',
+                            /*
+                              Shrink, but never grow — `0 1 auto`, not `1 1 auto`.
+
+                              A grow factor made the name take every spare pixel on the row, which
+                              pushed the clock, the marks and the pencil to the far edge. Nothing
+                              here wants to be right-aligned; the name only ever needed permission
+                              to *give up* space, which is the shrink half. `minWidth: 0` is what
+                              lets it, since a flex item is otherwise never asked to be narrower
+                              than its own text.
+                            */
+                            flex: '0 1 auto',
                             minWidth: '0',
                           },
                           children: [{ $: 'speaker.name' }],
@@ -1755,7 +1775,7 @@ export const transcriptLines: SchemaNode = {
                               // No `flexShrink` here: the tooltip generates no box, so the badge
                               // inside it is the flex item and its own refusal to shrink is what
                               // counts. That is the whole point of the wrapper being boxless.
-                              props: { content: 'Typed into the transcript, not spoken', placement: 'top' },
+                              props: { content: 'Typed, not spoken', placement: 'top' },
                               children: [
                                 {
                                   /*
@@ -1769,10 +1789,13 @@ export const transcriptLines: SchemaNode = {
                                     *ground*, not a gap, so the mark stops being loose text on the
                                     row and becomes a thing sitting on it.
 
-                                    `control-surface` is a step away from the row's `surface-sunken`
-                                    in either polarity, which is the whole reason the neutral badge
-                                    is painted with it — see BADGE_APPEARANCE_DEFAULTS, where this
-                                    same transcript row is the case that argued it.
+                                    `control-surface` is a step away from both `surface` and
+                                    `surface-sunken` in either polarity, which is the whole reason
+                                    the neutral badge is painted with it — see
+                                    BADGE_APPEARANCE_DEFAULTS, where this same transcript row is the
+                                    case that argued it. The row carried a sunken fill when that was
+                                    written and carries none now, and the choice survives the change
+                                    precisely because it was made against both grounds.
                                   */
                                   type: 'we-badge',
                                   props: { size: 'xs', variant: 'neutral' },
@@ -1863,12 +1886,12 @@ export const transcriptLines: SchemaNode = {
                             condition: { $: '!local.mending' },
                             then: {
                               type: 'we-tooltip',
-                              props: { content: 'Fix these words' },
+                              props: { content: 'Edit text' },
                               children: [
                                 {
                                   type: 'we-button',
                                   props: {
-                                    label: 'Fix these words',
+                                    label: 'Edit text',
                                     size: 'xs',
                                     variant: 'bare',
                                     color: 'text-faint',
