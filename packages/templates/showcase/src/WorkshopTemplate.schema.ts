@@ -258,9 +258,10 @@ const callPill: SchemaNode = {
         zIndex: 'sticky',
         gap: '200',
         ay: 'center',
-        p: '100',
-        pl: '300',
-        r: 'pill',
+        p: '200',
+        pl: '400',
+        // The theme's control shape, for the switcher's reason — see there.
+        r: 'control',
         bg: 'surface-raised',
         border: '1px solid border',
         shadow: 'lg',
@@ -288,7 +289,9 @@ const callPill: SchemaNode = {
       children: [
         {
           type: 'we-text',
-          props: { truncate: true, minWidth: '0', fontWeight: 'medium' },
+          // The name of the thing every other surface is about, so it reads as a heading rather
+          // than as a caption on the chrome around it.
+          props: { variant: 'subheading', tag: 'h5', truncate: true, minWidth: '0' },
           children: [{ $: "first(local.callRecord).title ? first(local.callRecord).title : 'Call'" }],
         },
         {
@@ -300,7 +303,6 @@ const callPill: SchemaNode = {
               props: {
                 label: 'Name this conversation',
                 variant: 'ghost',
-                size: 'sm',
                 square: true,
                 color: 'text-faint',
                 /*
@@ -318,10 +320,10 @@ const callPill: SchemaNode = {
             },
           ],
         },
-        { type: 'we-divider', props: { orientation: 'vertical', height: '20px' } },
+        { type: 'we-divider', props: { orientation: 'vertical', height: '24px' } },
         // No `noun`: the pill is chrome and a count beside three faces is a word doing no work. The
         // roster is on hover, which is where a name belongs when the faces are this small.
-        peopleRow({ items: { $: 'first(local.callRecord).participants' }, dids: true, max: 4, size: 'xs' }),
+        peopleRow({ items: { $: 'first(local.callRecord).participants' }, dids: true, max: 4, size: 'sm' }),
         formModal({
           open: { $: 'local.editOpen' },
           close: { $setLocal: 'editOpen', value: false },
@@ -366,8 +368,20 @@ const switcher: SchemaNode = {
     styles: { transform: 'translateX(calc(-50% + var(--we-chrome-center-x, 0px)))' },
     zIndex: 'sticky',
     gap: '100',
-    p: '100',
-    r: 'pill',
+    p: '200',
+    /*
+      The theme's control shape, not a hardcoded pill.
+
+      `r: 'control'` resolves to `var(--we-theme-control-radius, var(--we-radius-400))` — the same
+      expression the call bar spells out, and its note is where the argument lives: a pinned `pill`
+      left three of the theme's four shape presets working and the fourth indistinguishable from
+      Pill, because a bar that is always round cannot follow a theme set to Sharp. Matching the
+      *controls* rather than deriving a concentric figure is the rule that survives all four, since
+      the padding it would be derived from is not a theme variable and the radius is.
+
+      Unchanged that resolves to 8px, which is a slight round rather than a capsule.
+    */
+    r: 'control',
     bg: 'surface-raised',
     border: '1px solid border',
     shadow: 'lg',
@@ -380,8 +394,9 @@ const switcher: SchemaNode = {
         {
           type: 'we-button',
           props: {
-            size: 'sm',
-            r: 'pill',
+            // `md`, the default control height: these are the template's primary navigation and
+            // were reading as a row of small ornaments over a full-bleed canvas.
+            r: 'control',
             gap: '200',
             variant: { $: "nav.segment in routeStore.segments ? 'secondary' : 'ghost'" },
             onClick: { $action: 'routeStore.navigate', args: [navPath] },
