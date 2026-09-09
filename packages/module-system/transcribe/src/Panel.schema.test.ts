@@ -139,6 +139,29 @@ describe('the feed', () => {
     expect(linesJson).toContain('"timeStyle":"short"');
   });
 
+  it('leaves plain speech unmarked, and marks the two kinds of line that are not', () => {
+    /*
+      A transcript is speech almost all the way down. Marking it would put furniture on every row to
+      restate the panel's own title, and a mark that appears everywhere is one people stop reading —
+      so `spoken` is the silent default and the marks exist for where the reader's assumption would
+      be wrong.
+    */
+    expect(linesJson).toContain("utterance.source == 'typed'");
+    expect(linesJson).toContain("utterance.source == 'corrected'");
+    // No sparkle: machine-heard is the assumption in a transcript, so it would not be news.
+    expect(linesJson).not.toContain('sparkle');
+  });
+
+  it('says a corrected line was edited in words, not behind a hover', () => {
+    /*
+      This is a claim about whether the line is still a verbatim quote. A tooltip is invisible on a
+      touchscreen and to anybody not poking at rows, which is the wrong property for a trust signal —
+      so the words carry it and the tooltip only adds when.
+    */
+    expect(linesJson).toContain('(edited)');
+    expect(linesJson).toContain('"value":{"$":"utterance.updatedAt"}');
+  });
+
   it('abbreviates the relative form, which is the one thing on the row with a shorter form', () => {
     /*
       A prop nothing sets is a prop that does nothing, and this one shipped that way once: the

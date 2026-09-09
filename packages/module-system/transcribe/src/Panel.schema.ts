@@ -1665,19 +1665,97 @@ export const transcriptLines: SchemaNode = {
                         /*
                           What this line is, where it is not simply what somebody said.
 
-                          Only ever shown for the two that are not plain speech, because a badge on
-                          every row would be noise on the ordinary case and teach people to stop
-                          reading it. `spoken` is the silent default; the reader's assumption is
-                          already right, and the mark exists for where it would not be.
+                          Only ever shown for the two that are not plain speech, and `spoken` stays
+                          silent. That is the whole economy of the thing: a transcript is speech
+                          almost all the way down, so marking it would put furniture on every row to
+                          restate the panel's own title, and a mark that appears everywhere is one
+                          people stop reading. The reader's default assumption is already right; the
+                          mark exists for where it would not be.
+
+                          Which is also why neither of these is a sparkle. Machine-heard is the
+                          assumption here, so "this came from a model" is not news — that icon earns
+                          its place on an extraction card, where a record stands for something
+                          inferred and the reader would otherwise have no way to tell.
                         */
                         {
+                          /*
+                            Typed: an icon, because it is a provenance nicety rather than a warning.
+
+                            `keyboard` and not a pencil — the pencil is the edit button two elements
+                            along this same row, and one glyph cannot mean both "written rather than
+                            spoken" and "change these words".
+                          */
                           type: '$if',
                           props: {
-                            condition: { $: "utterance.source == 'typed' || utterance.source == 'corrected'" },
+                            condition: { $: "utterance.source == 'typed'" },
                             then: {
-                              type: 'we-badge',
-                              props: { size: 'xs', variant: 'neutral' },
-                              children: [{ $: "utterance.source == 'typed' ? 'typed' : 'corrected'" }],
+                              type: 'we-tooltip',
+                              props: { title: 'Typed into the transcript, not spoken', placement: 'top' },
+                              children: [
+                                { type: 'we-icon', props: { name: 'keyboard', size: 'xs', color: 'text-faint' } },
+                              ],
+                            },
+                          },
+                        },
+                        {
+                          /*
+                            Corrected: words, not an icon behind a hover.
+
+                            This one is a claim about whether the line is still a verbatim quote, and
+                            `editUtterance`'s own note is the reason it cannot be hover-only — a
+                            mended line reading as something somebody said is a claim nobody checked.
+                            A tooltip is invisible on a touchscreen and to anyone not poking at rows,
+                            which is exactly the wrong property for a trust signal.
+
+                            "(edited)" rather than a badge or an asterisk: it is lighter than the
+                            badge it replaces, needs no legend, and is the convention every reader
+                            already holds from chat. An asterisk needs learning, and a star reads as
+                            a rating.
+
+                            The tooltip is then the upgrade rather than the message — it says *when*,
+                            which is worth having and worth nothing if it is the only channel.
+                          */
+                          type: '$if',
+                          props: {
+                            condition: { $: "utterance.source == 'corrected'" },
+                            then: {
+                              type: 'we-tooltip',
+                              props: { placement: 'top' },
+                              children: [
+                                {
+                                  type: 'we-text',
+                                  props: { variant: 'footnote', color: 'text-faint' },
+                                  children: ['(edited)'],
+                                },
+                                {
+                                  /*
+                                    A formatted time, which is why this is slotted content rather
+                                    than the `title` string: a schema has no way to format a date,
+                                    and `updatedAt` arrives as epoch milliseconds. `we-timestamp`
+                                    already knows how, so the tooltip holds one.
+
+                                    `updatedAt` comes back on every fetch beside `author` and
+                                    `createdAt` — no field to declare. What it cannot say is *who*:
+                                    `author` stays the original speaker, and anybody may mend a line.
+                                  */
+                                  type: 'Row',
+                                  props: { gap: '100', ay: 'center' },
+                                  slot: 'content',
+                                  children: [
+                                    { type: 'we-text', props: { variant: 'footnote' }, children: ['Edited'] },
+                                    {
+                                      type: 'we-timestamp',
+                                      props: {
+                                        value: { $: 'utterance.updatedAt' },
+                                        relative: VIEWING_LIVE,
+                                        relativeStyle: 'narrow',
+                                        timeStyle: 'short',
+                                        fontSize: '100',
+                                      },
+                                    },
+                                  ],
+                                },
+                              ],
                             },
                           },
                         },
