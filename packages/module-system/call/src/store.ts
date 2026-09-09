@@ -235,7 +235,7 @@ export interface CallStoreDeps extends ModuleStoreDeps {
    * When both `createBackend` and `backend` exist, `createBackend` takes
    * precedence — a factory is always more specific than a static instance.
    */
-  createBackend?: (callId: string) => Promise<CallBackend>;
+  createBackend?: (callId: string) => Promise<unknown>;
 }
 
 /**
@@ -947,7 +947,7 @@ export function createCallStore(deps: CallStoreDeps) {
     // A static `backend` serves tests and hosts that already hold a Session.
     if (deps.createBackend) {
       try {
-        backend = await deps.createBackend(id);
+        backend = (await deps.createBackend(id)) as CallBackend;
       } catch (err) {
         console.error('call: createBackend failed', err);
         scope.dispose();
