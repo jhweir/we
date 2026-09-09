@@ -1109,26 +1109,32 @@ const moreMenu: SchemaNode = {
 const topologyIndicator: SchemaNode = {
   type: '$if',
   props: {
-    condition: { $: "modules.call.topology === 'sfu'" },
+    condition: { $: 'modules.call.hasSessionBackend' },
     then: {
-      type: 'we-tooltip',
-      props: { title: 'Routed through relay server (SFU)', placement: 'bottom' },
-      children: [
-        {
-          type: 'we-icon',
-          props: { name: 'broadcast', size: 'sm', color: 'var(--we-color-text-secondary)' },
+      type: '$if',
+      props: {
+        condition: { $: "modules.call.topology === 'sfu'" },
+        then: {
+          type: 'we-tooltip',
+          props: { title: 'Routed through relay server (SFU)', placement: 'bottom' },
+          children: [
+            {
+              type: 'we-icon',
+              props: { name: 'broadcast', size: 'sm', color: 'var(--we-color-text-secondary)' },
+            },
+          ],
         },
-      ],
-    },
-    else: {
-      type: 'we-tooltip',
-      props: { title: 'Peer-to-peer mesh', placement: 'bottom' },
-      children: [
-        {
-          type: 'we-icon',
-          props: { name: 'graph', size: 'sm', color: 'var(--we-color-text-tertiary)' },
+        else: {
+          type: 'we-tooltip',
+          props: { title: 'Peer-to-peer mesh', placement: 'bottom' },
+          children: [
+            {
+              type: 'we-icon',
+              props: { name: 'graph', size: 'sm', color: 'var(--we-color-text-tertiary)' },
+            },
+          ],
         },
-      ],
+      },
     },
   },
 };

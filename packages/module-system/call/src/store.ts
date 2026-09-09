@@ -336,6 +336,8 @@ export function createCallStore(deps: CallStoreDeps) {
   const [problem, setProblem] = signal<string | null>(null);
   /** Whether this call runs through the SFU relay or the peer-to-peer mesh. */
   const [topology, setTopology] = signal<CallTopology>('mesh');
+  /** Whether this call uses a Session backend (as opposed to pure-mesh fallback). */
+  const [hasSessionBackend, setHasSessionBackend] = signal(false);
   /** The SFU quality layer this agent prefers. Only meaningful when `topology() === 'sfu'`. */
   const [qualityPreference, setQualityPreferenceSignal] = signal<BackendQuality>('high');
   /** Whether the user explicitly chose a quality preference, disabling auto. */
@@ -671,6 +673,7 @@ export function createCallStore(deps: CallStoreDeps) {
     if (id) presence?.clearActivity('call', id);
     setCallId(null);
     setTopology('mesh');
+    setHasSessionBackend(false);
     qualityIsManual = false;
     anchor = undefined;
     setCallRecord(null);
@@ -956,6 +959,7 @@ export function createCallStore(deps: CallStoreDeps) {
     }
 
     if (backend) {
+      setHasSessionBackend(true);
       // ── Session backend path ────────────────────────────────────────
       //
       // The backend (Session from @coasys/ad4m) manages topology, signalling, roster polling,
@@ -1285,6 +1289,7 @@ export function createCallStore(deps: CallStoreDeps) {
     problem,
     /** Whether this call runs through the SFU relay (`'sfu'`) or the peer-to-peer mesh (`'mesh'`). */
     topology,
+    hasSessionBackend,
     /** The SFU quality layer this agent prefers. Only meaningful when `topology() === 'sfu'`. */
     qualityPreference,
     /**
