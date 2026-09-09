@@ -1626,6 +1626,20 @@ export const transcriptLines: SchemaNode = {
                   },
                   children: [
                     {
+                      /*
+                        Somebody has to give up the space, and it is the name.
+
+                        A row that overflows is a row where nobody said who yields: a flex item's
+                        automatic minimum size is its content, so the deficit comes out of whichever
+                        sibling *can* shrink. Here that was the marks — and worse than usual,
+                        because the design system defaults typography to `overflow-wrap: anywhere`,
+                        which reduces a word's min-content width to a single glyph. "(edited)" could
+                        therefore shrink to nearly nothing and broke mid-word onto two lines.
+
+                        The name is the one thing on the row with a sensible narrower form, and it
+                        already asks to be truncated — which needs `minWidth: 0` to happen at all,
+                        since without it the item is never asked to be narrower than its text.
+                      */
                       type: 'Row',
                       props: { gap: '200', ay: 'center' },
                       children: [
@@ -1650,7 +1664,13 @@ export const transcriptLines: SchemaNode = {
                           // `label` rather than `footnote` — one step up the scale, and the weight
                           // that comes with it is wanted here: a name is what the eye lands on when
                           // skimming a transcript for who said something.
-                          props: { variant: 'label', color: 'text-muted', truncate: true },
+                          props: {
+                            variant: 'label',
+                            color: 'text-muted',
+                            truncate: true,
+                            flex: '1 1 auto',
+                            minWidth: '0',
+                          },
                           children: [{ $: 'speaker.name' }],
                         },
                         {
@@ -1732,7 +1752,13 @@ export const transcriptLines: SchemaNode = {
                             condition: { $: "utterance.source == 'typed'" },
                             then: {
                               type: 'we-tooltip',
-                              props: { content: 'Typed into the transcript, not spoken', placement: 'top' },
+                              props: {
+                                content: 'Typed into the transcript, not spoken',
+                                placement: 'top',
+                                // The wrapper is the flex item, so this is where it has to be said —
+                                // `we-badge` refusing to shrink says nothing about the box around it.
+                                flexShrink: '0',
+                              },
                               children: [
                                 {
                                   /*
@@ -1753,7 +1779,10 @@ export const transcriptLines: SchemaNode = {
                                   */
                                   type: 'we-badge',
                                   props: { size: 'xs', variant: 'neutral' },
-                                  children: [{ type: 'we-icon', props: { name: 'text-aa' } }],
+                                  // Between the badge's own xxs (12px) and xs (16px). The badge's
+                                  // height is fixed per size, so a larger glyph fills it rather
+                                  // than stretching it.
+                                  children: [{ type: 'we-icon', props: { name: 'text-aa', size: '14px' } }],
                                 },
                               ],
                             },
@@ -1782,11 +1811,14 @@ export const transcriptLines: SchemaNode = {
                             condition: { $: "utterance.source == 'corrected'" },
                             then: {
                               type: 'we-tooltip',
-                              props: { placement: 'top' },
+                              props: { placement: 'top', flexShrink: '0' },
                               children: [
                                 {
                                   type: 'we-text',
-                                  props: { variant: 'footnote', color: 'text-faint' },
+                                  // `nowrap` because this is one atomic phrase with no narrower
+                                  // form, and the `anywhere` default would otherwise let it break
+                                  // between any two letters rather than not at all.
+                                  props: { variant: 'footnote', color: 'text-faint', whiteSpace: 'nowrap' },
                                   children: ['(edited)'],
                                 },
                                 {
@@ -1935,7 +1967,6 @@ export const transcriptLines: SchemaNode = {
                                       because there the colour IS the decision being offered.
                                     */
                                     variant: 'primary',
-                                    gap: '100',
                                     disabled: { $: '!trim(local.draft)' },
                                     onClick: {
                                       $action: 'modules.transcribe.editUtterance',
@@ -1946,7 +1977,7 @@ export const transcriptLines: SchemaNode = {
                                       onSuccess: [{ $setLocal: 'mending', value: false }],
                                     },
                                   },
-                                  children: [{ type: 'we-icon', props: { name: 'check' } }, 'Save'],
+                                  children: ['Save'],
                                 },
                                 {
                                   type: 'we-button',
@@ -2198,6 +2229,13 @@ export const transcriptComposer: SchemaNode = {
           type: 'we-textarea',
           props: {
             size: 'sm',
+            /*
+              Pinned for the mending field's reason, and it is the same trap: the size presets carry
+              type as well as padding, so `sm` reads at 14px while everything else on the panel —
+              the utterances it sits under, and what it will become once sent — is at 16px. The two
+              are separable, so a compact control does not have to mean small words.
+            */
+            fontSize: '300',
             rows: 1,
             flex: '1',
             minWidth: '0',

@@ -163,6 +163,22 @@ describe('the feed', () => {
     expect(linesJson).not.toContain('sparkle');
   });
 
+  it('names who gives up space on the meta row, so the marks are never crushed', () => {
+    /*
+      A flex item's automatic minimum size is its content, so an unsaid contract takes the deficit
+      out of whatever can shrink. Typography defaults to `overflow-wrap: anywhere`, which drops a
+      word's min-content width to one glyph — so "(edited)" could shrink to nothing and broke
+      mid-word onto two lines in a narrow panel.
+
+      The name is the only thing on the row with a sensible narrower form, and `truncate` needs
+      `minWidth: 0` to happen at all.
+    */
+    expect(linesJson).toContain('"truncate":true,"flex":"1 1 auto","minWidth":"0"');
+    // And the marks, which are the wrappers rather than the text inside them.
+    expect(linesJson).toContain('"whiteSpace":"nowrap"');
+    expect((linesJson.match(/"flexShrink":"0"/g) ?? []).length).toBeGreaterThanOrEqual(2);
+  });
+
   it('gives the typed mark a ground, so it does not read as part of the clock', () => {
     /*
       In `en-US` the time ends "AM" or "PM", and a bare "Aa" in the same faint grey right after it is
