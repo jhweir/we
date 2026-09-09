@@ -895,6 +895,15 @@ export interface ModuleStoreDeps {
   audioInput?: () => MediaStream | null;
 
   /**
+   * Factory that creates a call backend for a specific call room.
+   *
+   * Returns `unknown` here because the shared contract has no opinion on the call module's own
+   * types — the call store narrows to `CallBackend`. Absent on a backend that does not support
+   * session-managed calls; the call module falls back to its own peer-to-peer mesh.
+   */
+  createBackend?: (callId: string) => Promise<unknown>;
+
+  /**
    * Write a record into the current dataset.
    *
    * The imperative twin of the `record.create` a schema already has. A module that creates data in

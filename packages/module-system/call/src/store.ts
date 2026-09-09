@@ -225,6 +225,17 @@ export interface CallStoreDeps extends ModuleStoreDeps {
    * The Session resolves topology automatically (mesh, SFU, or auto).
    */
   backend?: CallBackend;
+  /**
+   * Factory that creates a CallBackend for a specific call room.
+   *
+   * Called at join time with the call id.  The host builds this from its backend
+   * connection — on AD4M, `NeighbourhoodProxy.createSession(roomName)` returns a
+   * Session that satisfies CallBackend structurally.
+   *
+   * When both `createBackend` and `backend` exist, `createBackend` takes
+   * precedence — a factory is always more specific than a static instance.
+   */
+  createBackend?: (callId: string) => Promise<CallBackend>;
 }
 
 /**
@@ -926,12 +937,29 @@ export function createCallStore(deps: CallStoreDeps) {
     // detects the mismatch.
     const started = controller;
 
-    if (deps.backend) {
+    // ── Resolve backend ──────────────────────────────────────────────
+    //
+    // A factory takes precedence over a static instance — it builds a Session scoped to this
+    // specific call room, which is how the AD4M host wires topology, signalling and SFU config.
+    // A static `backend` serves tests and hosts that already hold a Session.
+    if (deps.createBackend) {
+      try {
+        backend = await deps.createBackend(id);
+      } catch (err) {
+        console.error('call: createBackend failed', err);
+        scope.dispose();
+        setProblem('Could not connect to the call server.');
+        return;
+      }
+    } else if (deps.backend) {
+      backend = deps.backend;
+    }
+
+    if (backend) {
       // ── Session backend path ────────────────────────────────────────
       //
       // The backend (Session from @coasys/ad4m) manages topology, signalling, roster polling,
       // and peer connections internally. The store only drives lifecycle and reads participants.
-      backend = deps.backend;
 
       backend.on('participant-joined', () => {
         remoteStreams = new Map(backend!.participants.map((p) => [p.agentDid, p.stream]));
@@ -1798,6 +1826,20 @@ export function createCallStore(deps: CallStoreDeps) {
       qualityIsManual = true;
       setQualityPreferenceSignal(quality);
       if (backend) await backend.setQualityPreference(quality);
+    },
+
+    /**
+     * Cycle through quality presets: high → medium → low → high.
+     *
+     * A template action for the bar — one button rather than three, since a call bar has limited
+     * real estate and the quality labels read better as a cycling indicator than as a picker.
+     */
+    cycleQuality: async () => {
+      const order: BackendQuality[] = ['high', 'medium', 'low'];
+      const next = order[(order.indexOf(qualityPreference()) + 1) % order.length];
+      qualityIsManual = true;
+      setQualityPreferenceSignal(next);
+      if (backend) await backend.setQualityPreference(next);
     },
 
     /**

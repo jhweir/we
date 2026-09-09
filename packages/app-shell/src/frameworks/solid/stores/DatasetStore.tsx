@@ -21,6 +21,7 @@ import { containmentPredicate, gatherTranscriptTurns, type TurnRecord } from '@s
 import { provideModuleHostServices } from '@shared/registries/moduleHostServices';
 import { moduleRegistry } from '@shared/registries/moduleRegistry';
 import { getSeed } from '@shared/seedRegistry';
+import { createCallSessionFactory } from '@we/backend-ad4m';
 import { datasetKey, type DatasetRef, type EntityManifestEntry, trace } from '@we/backend-shared';
 import { toastService } from '@we/components/solid';
 import { AgentSettings, type DatasetProxy, ExtractionPass, getEntitiesForPerspective } from '@we/entities';
@@ -292,6 +293,14 @@ export function DatasetStoreProvider(props: ParentProps) {
       },
       selfId: () => session.me()?.did ?? null,
       ephemeral: session.ephemeralPort,
+      // Late-bound call session factory — the call module reads it as `createBackend`. All three
+      // accessors dereference at join time, so the factory is safe to construct before the backend
+      // connects or the user navigates to a space.
+      createCallBackend: createCallSessionFactory(
+        () => session.client(),
+        () => currentDataset()?.handle ?? null,
+        () => session.me()?.did ?? null,
+      ),
       // Read through `backendPorts()` on every call rather than captured: the backend connects after
       // this store is constructed, and a backend that cannot transcribe simply never sets it.
       transcription: {

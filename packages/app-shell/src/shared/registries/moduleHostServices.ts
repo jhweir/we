@@ -60,6 +60,14 @@ export interface ModuleHostServices {
     clearActivity: (type: string, id?: string) => void;
   };
   transcription?: TranscriptionPort;
+  /**
+   * Factory that creates a call backend (Session) for a specific call room.
+   *
+   * Bound by the store that owns the AD4M client, dataset, and agent identity — then forwarded
+   * through `createModuleStoreDeps` as `createBackend`. Absent on a backend without session
+   * support; the call module falls back to its own peer-to-peer mesh.
+   */
+  createCallBackend?: (callId: string) => Promise<unknown>;
   interpretation?: InterpretationPort;
   /**
    * Gather a collection's children and interpret them, published by whichever store can read the
@@ -409,6 +417,13 @@ export function createModuleStoreDeps(framework: {
     },
 
     audioInput: () => audioInput(),
+
+    // Late-bound call session factory, forwarded to the call module as `CallStoreDeps.createBackend`.
+    // A getter rather than a fixed function, so `deps.createBackend` reads as `undefined` before the
+    // backend binds the service — and the call module falls back to its own mesh.
+    get createBackend() {
+      return services.createCallBackend;
+    },
 
     createEntity: async (entity, fields, options) => (await services.createEntity?.(entity, fields, options)) ?? null,
 

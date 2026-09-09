@@ -1096,6 +1096,86 @@ const moreMenu: SchemaNode = {
 };
 
 /**
+ * Which topology this call runs on — peer-to-peer mesh or SFU relay.
+ *
+ * A non-interactive indicator between the divider and the participant count: one icon, coloured by
+ * the variant, with a tooltip that names the mode. Mesh calls show a network glyph; SFU calls show
+ * a broadcast glyph. Hidden when no backend manages the call (mesh-only without a Session).
+ *
+ * Placed on the "call" side of the divider — it describes the call rather than the user's device —
+ * and before the participant count, which it explains (a count of six on a mesh means six direct
+ * connections; on an SFU it means six streams through a relay).
+ */
+const topologyIndicator: SchemaNode = {
+  type: '$if',
+  props: {
+    condition: { $: "modules.call.topology === 'sfu'" },
+    then: {
+      type: 'we-tooltip',
+      props: { title: 'Routed through relay server (SFU)', placement: 'bottom' },
+      children: [
+        {
+          type: 'we-icon',
+          props: { name: 'broadcast', size: 'sm', color: 'var(--we-color-text-secondary)' },
+        },
+      ],
+    },
+    else: {
+      type: 'we-tooltip',
+      props: { title: 'Peer-to-peer mesh', placement: 'bottom' },
+      children: [
+        {
+          type: 'we-icon',
+          props: { name: 'graph', size: 'sm', color: 'var(--we-color-text-tertiary)' },
+        },
+      ],
+    },
+  },
+};
+
+/**
+ * SFU quality preference — a cycling button that walks through high → medium → low.
+ *
+ * Only shown when the call runs through the SFU relay, because the quality preference controls
+ * which simulcast layer the relay forwards — a mesh call has no simulcast layers to select.
+ *
+ * The icon changes with the preference: a full signal for high, two bars for medium, one for low.
+ * The variant flips to `secondary` on non-high settings so the user sees that quality has been
+ * reduced, same visual language as the other toggles.
+ */
+const qualitySelector: SchemaNode = {
+  type: '$if',
+  props: {
+    condition: { $: "modules.call.topology === 'sfu'" },
+    then: {
+      type: 'we-tooltip',
+      props: {
+        title: expr`"Quality: " + ${{ $: 'modules.call.qualityPreference' }}`,
+        placement: 'bottom',
+      },
+      children: [
+        {
+          type: 'we-button',
+          props: {
+            square: true,
+            variant: expr`${{ $: 'modules.call.qualityPreference' }} === "high" ? "ghost" : "secondary"`,
+            onClick: { $action: 'modules.call.cycleQuality' },
+          },
+          children: [
+            {
+              type: 'we-icon',
+              props: {
+                name: expr`${{ $: 'modules.call.qualityPreference' }} === "high" ? "cell-signal-full" : ${{ $: 'modules.call.qualityPreference' }} === "medium" ? "cell-signal-medium" : "cell-signal-low"`,
+              },
+            },
+          ],
+        },
+      ],
+    },
+  },
+};
+
+/**
  * The way back to a call happening somewhere else.
  *
  * Only mounted once you have navigated out of the call's space, which is the whole of when it means
@@ -1375,6 +1455,8 @@ const bar: SchemaNode = {
             // a rule drawn down the whole bar. It moved with the buttons: at 20px against `sm` it was
             // that already, and left alone against `md` it would have been half.
             { type: 'we-divider', props: { orientation: 'vertical', height: '26px' } },
+            topologyIndicator,
+            qualitySelector,
             participants,
             {
               type: 'we-tooltip',
