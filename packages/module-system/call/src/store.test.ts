@@ -508,6 +508,7 @@ describe('going to the call', () => {
       dispose: () => {},
     };
     let created = 0;
+    let onScreen: string | null = null;
 
     const store = createCallStore({
       signal,
@@ -521,11 +522,16 @@ describe('going to the call', () => {
       onDispose: () => {},
       createEntity: async () => `rec-${++created}`,
       createPeerConnection: () => ({}) as RTCPeerConnection,
+      callOnScreen: () => onScreen,
     } as never) as ReturnType<typeof createCallStore> & Record<string, (...args: unknown[]) => unknown>;
 
     return {
       store,
       opened,
+      /** What the address names, as the host would report it. */
+      showing(recordId: string | null) {
+        onScreen = recordId;
+      },
       goTo(next: { id: string } | null, nextUri: string | null) {
         dataset = next;
         uri = nextUri;
@@ -594,6 +600,37 @@ describe('going to the call', () => {
     expect(store.active()).toBe(true);
     // Getting to a call you have just started means seeing it, and `join` already opens the stage.
     expect(store.stageOpen()).toBe(true);
+  });
+
+  it('picks up the call on screen rather than starting one beside it', async () => {
+    /*
+      The rail's button on a template built around one conversation. Pressing it took the reader
+      *out* of the meeting they were plainly in and opened another — the one reading of "start a
+      call" nobody wants while a call is on screen.
+
+      A record is continued, not created: the assertion that matters is the count, since starting
+      fresh would also leave `active()` true and look right.
+    */
+    const { store, showing, recordsCreated } = railable();
+    showing('rec-from-the-workshop');
+
+    store.goToCall();
+    await Promise.resolve();
+
+    expect(store.callRecordId()).toBe('rec-from-the-workshop');
+    expect(recordsCreated()).toBe(0);
+  });
+
+  it('still starts a fresh call when the address names none', async () => {
+    // The ordinary case everywhere but a template built around one call, and the behaviour the
+    // launcher had before.
+    const { store, recordsCreated } = railable();
+
+    store.goToCall();
+    await Promise.resolve();
+
+    expect(store.active()).toBe(true);
+    expect(recordsCreated()).toBe(1);
   });
 
   it('shows the video once you are in the call, and never hides it', async () => {

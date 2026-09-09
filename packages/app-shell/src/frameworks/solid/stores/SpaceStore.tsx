@@ -1238,6 +1238,16 @@ export function SpaceStoreProvider(props: ParentProps) {
       // Extraction's hook — see the declaration on `ModuleHostServices`, and `ensureBoardFor` for
       // why it only fires once the collection holds a task.
       ensureBoardFor: (collectionId: string, dataset?: string) => boards.ensureBoardFor(collectionId, dataset),
+      /*
+        The call the address names — published here because this is a store that reads routes and a
+        module is not.
+
+        The param rather than anything derived: it is what a reload restores and what a pasted link
+        carries, which is the whole reason a module cannot hold this itself. Empty reads as null, so
+        "no call named" and "named nothing" are the same answer rather than an empty string a caller
+        might act on.
+      */
+      callOnScreen: () => routeStore.params().call || null,
       datasets: {
         get: (uri: string) => {
           const id = sharedIdOf(uri);

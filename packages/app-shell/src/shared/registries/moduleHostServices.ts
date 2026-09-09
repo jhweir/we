@@ -52,6 +52,28 @@ export interface ModuleHostServices {
    * on screen, and the second must refuse rather than silently write somewhere else.
    */
   datasetByUri?: (uri: string) => DatasetHandle | undefined;
+  /**
+   * The call record the address names, when the interface on screen is about one.
+   *
+   * ## Why the host answers this and not the module
+   *
+   * A module store has no route access, deliberately — and the answer lives in the address, because
+   * the address is what survives a reload. The template that put it there cannot tell a module
+   * either: a store signal set on a click is empty after a refresh, which is precisely the case
+   * this exists for. So the one thing that reads routes publishes it, once.
+   *
+   * `?call=<recordId>` was already a convention two modules read from their schemas, agreed by
+   * coincidence rather than contract. Naming it here makes it one contract in one place instead of
+   * a string every surface has to spell the same way.
+   *
+   * Specifically a *call* rather than "the record on screen", which was the tempting generalisation
+   * and is a worse one: the reader would have to trust that whatever is named is a call, and a
+   * caller acting on a task id would anchor a meeting to it without complaint.
+   *
+   * Absent, or null, means the address names no call — which is the ordinary case everywhere but a
+   * template built around one.
+   */
+  callOnScreen?: () => string | null;
   selfId?: () => string | null;
   ephemeral?: EphemeralPort;
   presence?: {
@@ -243,6 +265,9 @@ export function createModuleStoreDeps(framework: {
 
     dataset: () => services.dataset?.() ?? null,
     datasetUri: () => services.datasetUri?.() ?? null,
+    // Read through rather than captured, like every accessor here: the address changes under a
+    // module store that outlives every route it is asked about.
+    callOnScreen: () => services.callOnScreen?.() ?? null,
     datasetRefKey: () => services.datasetRefKey?.() ?? '',
     selfId: () => services.selfId?.() ?? null,
 

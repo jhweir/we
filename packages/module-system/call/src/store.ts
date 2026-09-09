@@ -166,6 +166,7 @@ export function createCallStore(deps: CallStoreDeps) {
     datasets,
     onDispose,
     createEntity,
+    callOnScreen,
   } = deps;
 
   /**
@@ -1450,6 +1451,26 @@ export function createCallStore(deps: CallStoreDeps) {
         const ongoing = liveCalls()[0];
         if (ongoing) {
           void join(ongoing.id, undefined, ongoing.recordId ?? undefined);
+          return;
+        }
+        /*
+          Pick up the call the reader is looking at, rather than opening a fresh one beside it.
+
+          On a template built around one conversation — the workshop's `?call=` — pressing the rail
+          took you *out* of the meeting you were plainly in and started another, which is the one
+          reading of "start a call" nobody wants while a call is on screen. The address is what
+          knows; the host publishes it, because a module has no route access and a value a template
+          sets on a click does not survive the refresh this is most needed after.
+
+          Only in this branch, and that is the safety gate rather than an accident of placement.
+          Continuing a past call *while another is running* tears the live one down and re-points
+          every peer's transcript at the old record, since peers adopt an announced record over
+          their own. Both branches above have already ruled that out: something is running, so
+          "go to the call" can only mean the one that is.
+        */
+        const onScreen = callOnScreen?.();
+        if (onScreen) {
+          void continueCall(onScreen);
           return;
         }
         void startCall();

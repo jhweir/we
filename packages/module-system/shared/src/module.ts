@@ -851,6 +851,17 @@ export interface ModuleStoreDeps {
    */
   identities?: ModuleIdentityAccess;
   /** Naming and reaching spaces — for a module whose state can outlive the space on screen. */
+  /**
+   * The call record the address names, when the interface on screen is about one.
+   *
+   * A module cannot work this out for itself: it has no route access, and a template that knows the
+   * answer cannot hand it over durably — a value set on a click is gone after a refresh, which is
+   * exactly when it is wanted. So the host publishes it and this reads through.
+   *
+   * `null` where the address names no call, which is everywhere but a template built around one.
+   */
+  callOnScreen?: () => string | null;
+
   datasets?: ModuleDatasetAccess;
 
   /**
