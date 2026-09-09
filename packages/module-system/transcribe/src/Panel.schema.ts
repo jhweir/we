@@ -1646,40 +1646,6 @@ export const transcriptLines: SchemaNode = {
                           props: { variant: 'footnote', color: 'text-muted', truncate: true },
                           children: [{ $: 'speaker.name' }],
                         },
-                        {
-                          /*
-                            How long ago while it is still happening; what time it was once it is not.
-
-                            Relative time answers "how fresh is this?", which is a question about a
-                            feed of unrelated items. A transcript is not one: every row came out of
-                            the same conversation, so on a call recorded last Tuesday all two hundred
-                            of them read "6 days ago" — the same string on every line, carrying no
-                            information and taking the width that made the row wrap. What a reader
-                            wants from a line of a finished meeting is where in it the line was, and
-                            that is the clock.
-
-                            On the live call relative earns its place: the tail is minutes old, the
-                            numbers differ row to row, and they move on their own.
-
-                            `narrow` for the live side because a transcript stamp is a *coordinate* —
-                            something skimmed past to find a moment, not read — and a coordinate wants
-                            to be terse at any width. That is a fact about the row rather than about
-                            the panel, so it is not conditional on how much room there is.
-
-                            One node rather than an `$if` on the two: `relative` short-circuits inside
-                            the primitive, so `timeStyle` simply goes unread while it is true. A
-                            branch here would unmount and rebuild the row every time a call ended.
-                          */
-                          type: 'we-timestamp',
-                          props: {
-                            value: { $: 'utterance.createdAt' },
-                            relative: VIEWING_LIVE,
-                            relativeStyle: 'narrow',
-                            timeStyle: 'short',
-                            fontSize: '100',
-                            color: 'text-faint',
-                          },
-                        },
                         /*
                           What this line is, where it is not simply what somebody said.
 
@@ -1781,6 +1747,51 @@ export const transcriptLines: SchemaNode = {
                                 },
                               ],
                             },
+                          },
+                        },
+                        {
+                          /*
+                            How long ago while it is still happening; what time it was once it is not.
+
+                            Relative time answers "how fresh is this?", which is a question about a
+                            feed of unrelated items. A transcript is not one: every row came out of
+                            the same conversation, so on a call recorded last Tuesday all two hundred
+                            of them read "6 days ago" — the same string on every line, carrying no
+                            information and taking the width that made the row wrap. What a reader
+                            wants from a line of a finished meeting is where in it the line was, and
+                            that is the clock.
+
+                            On the live call relative earns its place: the tail is minutes old, the
+                            numbers differ row to row, and they move on their own.
+
+                            `narrow` for the live side because a transcript stamp is a *coordinate* —
+                            something skimmed past to find a moment, not read — and a coordinate wants
+                            to be terse at any width. That is a fact about the row rather than about
+                            the panel, so it is not conditional on how much room there is.
+
+                            One node rather than an `$if` on the two: `relative` short-circuits inside
+                            the primitive, so `timeStyle` simply goes unread while it is true. A
+                            branch here would unmount and rebuild the row every time a call ended.
+
+                            ## Last on the row, after the marks
+
+                            It used to sit before them, and in `en-US` that put "Aa" hard against
+                            "PM" — two letterforms beside two letterforms in the same faint grey,
+                            reading as one word. Moving the marks up to the name fixes it by
+                            separation rather than by decoration, which is what makes it hold: an
+                            `en-GB` reader sees "14:32" and never had the collision, so an
+                            icon-level or colour-level fix would have been treating one locale's
+                            symptom. The mark is about the line and the time is about the moment;
+                            they were only ever neighbours by accident.
+                          */
+                          type: 'we-timestamp',
+                          props: {
+                            value: { $: 'utterance.createdAt' },
+                            relative: VIEWING_LIVE,
+                            relativeStyle: 'narrow',
+                            timeStyle: 'short',
+                            fontSize: '100',
+                            color: 'text-faint',
                           },
                         },
                         /*

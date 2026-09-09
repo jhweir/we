@@ -209,3 +209,45 @@ describe('autoGrow with an unreadable line height', () => {
     expect(field.style.overflowY).toBe('');
   });
 });
+
+/**
+ * One row is one control tall, at every size.
+ *
+ * The vertical padding used to be a fixed 8px, which is md's answer — a 40px control less a 24px
+ * line box, halved. Every other size inherited it and overshot: at sm a 21px line inside 16px of
+ * padding is 37px in a row built for 32, so the box stood proud of the button beside it and
+ * `min-height` could do nothing, 37px of content being 37px tall.
+ *
+ * Asserted on the declaration rather than on a computed pixel, because jsdom resolves neither `calc`
+ * nor a custom property — and the thing that was wrong was the *rule*, not the layout engine.
+ */
+describe('the vertical padding', () => {
+  const css = () => (Textarea as unknown as { styles: { cssText: string }[] }).styles.map((s) => s.cssText).join('\n');
+
+  it('is derived from the control height rather than pinned to one size', () => {
+    const rule = css();
+    expect(rule).toContain('--we-textarea-control-height');
+    // The line box, as 1em times the ratio — which is what avoids the `lh` unit.
+    expect(rule).toMatch(/1em\s*\*/);
+  });
+
+  it('never goes negative, however tall a theme sets its type', () => {
+    // A theme whose line box exceeds its control height should get no padding, not a negative one.
+    expect(css()).toMatch(/max\(\s*0px/);
+  });
+
+  it('still lets a theme or a call site set padding outright', () => {
+    /*
+      The derivation is the *innermost* fallback, so every override still wins: the call site's own
+      variable, then the theme's textarea slot, then the input group it belongs to. Read out of the
+      padding declaration itself — the control height is also named up in the size blocks, so
+      comparing positions across the whole sheet compares the wrong occurrence.
+    */
+    const declaration = /padding:\s*var\(([\s\S]*?)\n\s{4}\);/.exec(css())?.[1] ?? '';
+    const order = ['--we-textarea-padding', '--we-theme-textarea-padding', '--we-theme-input-padding', 'max('].map(
+      (name) => declaration.indexOf(name),
+    );
+    expect(order.every((at) => at >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+});

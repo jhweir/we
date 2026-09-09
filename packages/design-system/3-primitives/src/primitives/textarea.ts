@@ -72,9 +72,43 @@ const styles = css`
     color: inherit;
     font: inherit;
     outline: none;
+    /*
+      Vertical padding derived from the control height, so one row IS one control tall.
+
+      It used to be a fixed 8px whatever the size, and that number is md's: a 40px control less a
+      24px line box, halved. Every other size inherited md's padding and overshot — at sm, a 21px
+      line inside 16px of padding is 37px in a row built for 32, so the box stood proud of the
+      button beside it and min-height could do nothing about it, 37px of content being 37px tall.
+
+      we-input never had this because a single-line field sets an explicit height and centres its
+      text; its padding is decorative. A textarea's height is its content, so the padding is load
+      bearing, and it has to follow the size like everything else does.
+
+      The line box is 1em times the line-height ratio, which avoids the lh unit and its browser
+      support question. max() guards the case where a theme's type is taller than its controls,
+      where the honest answer is no padding rather than negative padding.
+
+      Only the innermost fallback: a theme or a call site that sets padding still wins outright.
+    */
     padding: var(
       --we-textarea-padding,
-      var(--we-theme-textarea-padding, var(--we-theme-input-padding, var(--we-space-200) var(--we-space-300)))
+      var(
+        --we-theme-textarea-padding,
+        var(
+          --we-theme-input-padding,
+          max(
+              0px,
+              calc(
+                (
+                    var(--we-textarea-control-height, var(--we-component-height-md)) - 1em *
+                      var(--we-theme-line-height, var(--we-line-height-normal, 1.5))
+                  ) /
+                  2
+              )
+            )
+            var(--we-space-300)
+        )
+      )
     );
     min-width: 0;
     resize: vertical;

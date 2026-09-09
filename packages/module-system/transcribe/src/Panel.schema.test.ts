@@ -163,6 +163,21 @@ describe('the feed', () => {
     expect(linesJson).not.toContain('sparkle');
   });
 
+  it('keeps the marks away from the timestamp, which they used to read as part of', () => {
+    /*
+      In `en-US` the clock ends "AM"/"PM", and the typed mark is "Aa" — two letterforms beside two
+      letterforms in the same faint grey, which reads as one word. Separation rather than a
+      different icon or a brighter one, because `en-GB` renders "14:32" and never collided: a fix
+      aimed at the glyph would have been treating one locale's symptom.
+    */
+    // Anchored on `createdAt`, which is the row's own clock. The edited mark carries a timestamp of
+    // its own inside its tooltip, on `updatedAt` — matching that one would compare a node with
+    // something nested inside it and pass whatever the order was.
+    const clock = linesJson.indexOf('utterance.createdAt');
+    expect(linesJson.indexOf('text-aa')).toBeLessThan(clock);
+    expect(linesJson.indexOf('(edited)')).toBeLessThan(clock);
+  });
+
   it('says a corrected line was edited in words, not behind a hover', () => {
     /*
       This is a claim about whether the line is still a verbatim quote. A tooltip is invisible on a
