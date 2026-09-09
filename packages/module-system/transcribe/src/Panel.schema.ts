@@ -2273,14 +2273,15 @@ export const transcriptComposer: SchemaNode = {
         {
           type: 'we-textarea',
           props: {
-            size: 'sm',
             /*
-              Pinned for the mending field's reason, and it is the same trap: the size presets carry
-              type as well as padding, so `sm` reads at 14px while everything else on the panel —
-              the utterances it sits under, and what it will become once sent — is at 16px. The two
-              are separable, so a compact control does not have to mean small words.
+              No `size`, which is `md` — the height every other field in WE stands at.
+
+              It was `sm`, and 32px is the compact size: right for a control tucked into a dense row
+              of something else, wrong for the one thing on the panel a person is meant to type
+              into. The `fontSize` that used to be pinned here goes with it, because md's own preset
+              already reads at 300 — that override existed only to undo `sm`'s smaller type, which
+              is the trap the size presets set by carrying both.
             */
-            fontSize: '300',
             rows: 1,
             flex: '1',
             minWidth: '0',
@@ -2314,7 +2315,7 @@ export const transcriptComposer: SchemaNode = {
               type: 'we-button',
               props: {
                 label: 'Add this to the transcript',
-                size: 'sm',
+                // No `size` either: the pair has to agree, and md is what the field is now.
                 variant: 'secondary',
                 disabled: { $: '!trim(local.comment)' },
                 onClick: {
