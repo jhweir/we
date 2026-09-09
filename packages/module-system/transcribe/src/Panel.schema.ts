@@ -1699,9 +1699,15 @@ export const transcriptLines: SchemaNode = {
                           /*
                             Typed: an icon, because it is a provenance nicety rather than a warning.
 
-                            `keyboard` and not a pencil — the pencil is the edit button two elements
-                            along this same row, and one glyph cannot mean both "written rather than
-                            spoken" and "change these words".
+                            `text-aa` rather than `keyboard`, which was the first guess and the
+                            wrong one: a keyboard is a grid of small keys, and at 12px they merge
+                            into a grey smudge that reads as "some icon". Two letterforms survive
+                            the size and say "text" on sight.
+
+                            And not a pencil, which is the edit button two elements along this same
+                            row — one glyph cannot mean both "written rather than spoken" and
+                            "change these words". `translate` means language and `key-return` means
+                            submit; both are the wrong claim rather than an unclear one.
                           */
                           type: '$if',
                           props: {
@@ -1710,7 +1716,7 @@ export const transcriptLines: SchemaNode = {
                               type: 'we-tooltip',
                               props: { content: 'Typed into the transcript, not spoken', placement: 'top' },
                               children: [
-                                { type: 'we-icon', props: { name: 'keyboard', size: 'xs', color: 'text-faint' } },
+                                { type: 'we-icon', props: { name: 'text-aa', size: 'xs', color: 'text-faint' } },
                               ],
                             },
                           },
@@ -1843,12 +1849,36 @@ export const transcriptLines: SchemaNode = {
                           props: { gap: '200' },
                           children: [
                             {
+                              /*
+                                One row, growing — and reading at the size of the words it replaces.
+
+                                Two rows was half a box of empty space under a line that is usually
+                                one line long. `autoGrow` starts it at the height of the text it is
+                                standing in for and takes the room only when there is something to
+                                put in it, which is the same behaviour the composer at the foot of
+                                the panel has.
+
+                                `fontSize` is pinned because `size: 'sm'` carries one: the size
+                                presets set padding *and* type, so a compact control also shrank the
+                                words — mending a line made it visibly smaller than the line beside
+                                it, and switching to `md` would have fixed the type by making the box
+                                bigger. The two are separable, so they are separated here.
+                              */
                               type: 'we-textarea',
                               props: {
                                 size: 'sm',
-                                rows: 2,
+                                fontSize: '300',
+                                rows: 1,
+                                autoGrow: true,
+                                maxRows: 6,
+                                submitOnEnter: true,
                                 value: { $: 'local.draft' },
                                 onInput: { $setLocal: 'draft', value: { $: 'event.detail' } },
+                                'on:submit': {
+                                  $action: 'modules.transcribe.editUtterance',
+                                  args: [{ $: 'utterance.id' }, { $: 'local.draft' }, { $: 'utterance.source' }],
+                                  onSuccess: [{ $setLocal: 'mending', value: false }],
+                                },
                               },
                             },
                             {
@@ -1859,7 +1889,14 @@ export const transcriptLines: SchemaNode = {
                                   type: 'we-button',
                                   props: {
                                     size: 'xs',
-                                    variant: 'success',
+                                    /*
+                                      Primary, not success. Green is the palette for an *outcome* —
+                                      it says something went well — and this button is a plain
+                                      submit that has not done anything yet. The Keep/Discard pair on
+                                      a proposal card is the case that earns success and danger,
+                                      because there the colour IS the decision being offered.
+                                    */
+                                    variant: 'primary',
                                     gap: '100',
                                     disabled: { $: '!trim(local.draft)' },
                                     onClick: {
@@ -1877,7 +1914,11 @@ export const transcriptLines: SchemaNode = {
                                   type: 'we-button',
                                   props: {
                                     size: 'xs',
-                                    variant: 'ghost',
+                                    // Secondary rather than ghost: ghost has no edge until it is
+                                    // hovered, so beside a filled Save it read as a word somebody
+                                    // had left next to a button rather than the other half of a
+                                    // pair.
+                                    variant: 'secondary',
                                     onClick: { $setLocal: 'mending', value: false },
                                   },
                                   children: ['Cancel'],

@@ -93,6 +93,19 @@ const styles = css`
       line up.
     */
     min-height: var(--we-textarea-control-height, var(--we-component-height-md));
+    /*
+      A line height autoGrow can actually measure.
+
+      The shared reset sets line-height to the theme's value falling back to "normal", and "normal"
+      is not a number: getComputedStyle reports the string, parseFloat returns NaN, and the row
+      arithmetic collapsed to zero — which capped the box at nothing, so min-height floored it at one
+      row and it never grew, while the cap being zero meant the overflow test was always true and
+      painted a scrollbar over a single line. One wrong reading, both reported symptoms.
+
+      A theme with an opinion still wins. This only replaces the "normal" fallback with the token
+      that says the same thing as a ratio.
+    */
+    line-height: var(--we-theme-line-height, var(--we-line-height-normal, 1.5));
   }
 
   [part='textarea']::placeholder {
@@ -241,15 +254,29 @@ export default class Textarea extends DesignSystemElement {
    * Measured from `scrollHeight` with the height released first: a textarea's `scrollHeight` never
    * reports less than its current height, so reading it without resetting would let the box grow and
    * never shrink back as somebody deletes what they wrote.
+   *
+   * ## The two measurements, and why they are not the same shape
+   *
+   * `scrollHeight` already includes padding; `line * maxRows` does not. The cap has to add it back,
+   * or the box stops growing a fraction of a row early and scrolls when it still had room. Both
+   * then add the border, because `box-sizing` is `border-box` here and `height` is the outside.
+   *
+   * `line` is defended rather than trusted. It is a computed value, and a computed `line-height`
+   * may be the string `normal`, which is not a number — see the CSS above for what that cost. The
+   * fallback approximates `normal`, which is font-dependent and near 1.2; being slightly out only
+   * moves where the cap falls by a fraction of a row, where NaN broke growing altogether.
    */
   private resize_() {
     const field = this.renderRoot.querySelector('textarea');
     if (!field || !this.autoGrow) return;
     field.style.height = 'auto';
-    const line = parseFloat(getComputedStyle(field).lineHeight) || 0;
-    const chrome = field.offsetHeight - field.clientHeight;
-    const cap = line * this.maxRows + chrome;
-    const wanted = field.scrollHeight + chrome;
+    const style = getComputedStyle(field);
+    const measured = parseFloat(style.lineHeight);
+    const line = Number.isFinite(measured) ? measured : (parseFloat(style.fontSize) || 0) * 1.2;
+    const padding = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+    const border = field.offsetHeight - field.clientHeight;
+    const cap = line * this.maxRows + padding + border;
+    const wanted = field.scrollHeight + border;
     field.style.height = `${Math.min(wanted, cap)}px`;
     field.style.overflowY = wanted > cap ? 'auto' : 'hidden';
   }

@@ -139,6 +139,17 @@ describe('the feed', () => {
     expect(linesJson).toContain('"timeStyle":"short"');
   });
 
+  it('mends a line at the size it is read at, in a box that starts one row tall', () => {
+    /*
+      `size` presets carry type as well as padding, so a compact control also shrank the words —
+      mending a line made it visibly smaller than the line beside it. And two fixed rows is half a
+      box of empty space under an utterance that is usually one line long.
+    */
+    expect(linesJson).toContain('"fontSize":"300"');
+    expect(linesJson).toContain('"autoGrow":true');
+    expect(linesJson).not.toContain('"rows":2');
+  });
+
   it('leaves plain speech unmarked, and marks the two kinds of line that are not', () => {
     /*
       A transcript is speech almost all the way down. Marking it would put furniture on every row to

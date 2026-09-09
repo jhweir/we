@@ -134,3 +134,78 @@ describe('submitOnEnter', () => {
     expect(event.defaultPrevented).toBe(false);
   });
 });
+
+/**
+ * Growing, when the line height cannot be read as a number.
+ *
+ * The shared reset sets line-height to the theme's value falling back to "normal", so on any theme
+ * with no opinion the computed value is that string — and parseFloat of it is NaN. The row
+ * arithmetic collapsed to zero, which pinned the box to its floor and made the overflow test always
+ * true: a single line got a scrollbar, and typing a second one grew nothing.
+ *
+ * jsdom performs no layout, so every measurement it reports is zero and the faulty arithmetic and
+ * the fixed one agree — a test written against it passes either way and pins nothing. The browser
+ * is therefore stood up explicitly: real padding, a real scroll height, and a line-height of
+ * "normal", which is the exact reading that broke it.
+ */
+describe('autoGrow with an unreadable line height', () => {
+  const FONT = 16;
+  const PADDING = 8;
+
+  /** A textarea that has been laid out — `content` lines of it, with the CSS the reset produces. */
+  const laidOut = async (lines: number, props: Record<string, unknown> = {}) => {
+    const el = document.createElement('we-textarea') as HTMLElement & {
+      updateComplete: Promise<unknown>;
+      [k: string]: unknown;
+    };
+    Object.assign(el, { autoGrow: true, maxRows: 6, value: 'x', ...props });
+    document.body.appendChild(el);
+    await el.updateComplete;
+    const field = el.shadowRoot?.querySelector('textarea') as HTMLTextAreaElement;
+
+    // What a browser would report, and what jsdom will not.
+    Object.defineProperty(field, 'scrollHeight', { configurable: true, value: lines * FONT * 1.2 + PADDING * 2 });
+    Object.defineProperty(field, 'offsetHeight', { configurable: true, value: 0 });
+    Object.defineProperty(field, 'clientHeight', { configurable: true, value: 0 });
+    const real = window.getComputedStyle;
+    window.getComputedStyle = ((node: Element) =>
+      node === field
+        ? // `normal` is what the reset resolves to on a theme that sets no line height.
+          { lineHeight: 'normal', fontSize: `${FONT}px`, paddingTop: `${PADDING}px`, paddingBottom: `${PADDING}px` }
+        : real(node)) as typeof window.getComputedStyle;
+    try {
+      field.dispatchEvent(new Event('input'));
+    } finally {
+      window.getComputedStyle = real;
+    }
+    return field;
+  };
+
+  it('grows to fit rather than collapsing to its floor', async () => {
+    const field = await laidOut(2);
+    // Two lines and the padding — a real height, where the faulty maths capped it at 0px.
+    expect(Number.parseFloat(field.style.height)).toBeCloseTo(2 * FONT * 1.2 + PADDING * 2, 1);
+  });
+
+  it('does not scroll while the content still fits', async () => {
+    const field = await laidOut(2);
+    expect(field.style.overflowY).toBe('hidden');
+  });
+
+  it('scrolls once past maxRows, counting the padding as part of the cap', async () => {
+    // Ten rows against a cap of six: comfortably over however the line height is approximated.
+    const field = await laidOut(10);
+    expect(field.style.overflowY).toBe('auto');
+  });
+
+  it('leaves the box alone when nobody asked it to grow', async () => {
+    const el = document.createElement('we-textarea') as HTMLElement & { updateComplete: Promise<unknown> };
+    document.body.appendChild(el);
+    await el.updateComplete;
+    const field = el.shadowRoot?.querySelector('textarea') as HTMLTextAreaElement;
+
+    // No inline height and no overflow rule: the CSS resize handle stays the mechanism.
+    expect(field.style.height).toBe('');
+    expect(field.style.overflowY).toBe('');
+  });
+});
