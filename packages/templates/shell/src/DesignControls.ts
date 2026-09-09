@@ -217,13 +217,27 @@ const templateRows = matching({ $: 'group.items' });
  * layout" is on the template's row: an arrangement is a fact about the whole interface, and a panel
  * somebody closed has no titlebar to reach a menu from. Absent entirely until there is a layout to
  * show or something worth saving — an interface with no panels never sees it.
+ *
+ * ## Behind the developer switch, for now
+ *
+ * Layouts, "Remember this arrangement…" and "Fork as a new template" are all built and none of them
+ * has been exercised. Three unproven entries at the top of the one menu people use to change
+ * template is a busy picker charging every reader for a feature nobody has tried, so it waits
+ * behind `sessionStore.devTools` until it has been.
+ *
+ * `devTools` rather than deleting the call: the section keeps being type-checked, validated and
+ * walked by the audits, and it is reachable for the testing that is the actual blocker — it is on
+ * in a development build, and Settings → Developer turns it off to see the picker as a reader will.
+ * A commented-out call would rot instead, which is what happened to the widget this shell replaced.
+ *
+ * Take the `devTools` term out of the condition to ship it; nothing else here is conditional on it.
  */
 function layoutsSection(): SchemaNode {
   const rows = { $: 'shellStore.layoutNames' };
   return {
     type: '$if',
     props: {
-      condition: { $: 'count(shellStore.layoutNames) || shellStore.layoutDirty' },
+      condition: { $: 'sessionStore.devTools && (count(shellStore.layoutNames) || shellStore.layoutDirty)' },
       then: {
         type: 'Column',
         props: { gap: '100' },
