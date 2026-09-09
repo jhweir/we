@@ -46,28 +46,39 @@ const rail: SchemaNode = railShell({
   // Whether somebody likes their rail pinned open is about their own window, so it is remembered
   // per device and never travels in a shared link.
   persistKey: 'shell.sidebarExpanded',
+  /*
+    The tooltip carries the box the rail sizes against, and the Column fills it.
+
+    A wrapper around a flex child takes over as the flex child, so `width` and `flex` have to move
+    out with it or the rail's header stops being 80px of fixed-height chrome. Everything about how
+    the logo sits *inside* that box stays where it was.
+  */
   header: {
-    type: 'Column',
-    props: {
-      width: COLLAPSED_WIDTH,
-      height: '80px',
-      flex: '0 0 auto',
-      ax: 'center',
-      ay: 'center',
-      cursor: 'pointer',
-      onClick: { $action: 'shellStore.openShellView', args: ['landing-page'] },
-      title: 'About WE',
-    },
+    type: 'we-tooltip',
+    props: { content: 'About WE', placement: 'right', width: COLLAPSED_WIDTH, height: '80px', flex: '0 0 auto' },
     children: [
       {
-        type: 'we-image',
+        type: 'Column',
         props: {
-          src: '/we-text.svg',
-          alt: 'WE Logo',
-          width: '38px',
-          height: '38px',
-          gradient: 'var(--we-gradient-primary)',
+          width: '100%',
+          height: '100%',
+          ax: 'center',
+          ay: 'center',
+          cursor: 'pointer',
+          onClick: { $action: 'shellStore.openShellView', args: ['landing-page'] },
         },
+        children: [
+          {
+            type: 'we-image',
+            props: {
+              src: '/we-text.svg',
+              alt: 'WE Logo',
+              width: '38px',
+              height: '38px',
+              gradient: 'var(--we-gradient-primary)',
+            },
+          },
+        ],
       },
     ],
   },

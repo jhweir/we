@@ -1592,7 +1592,24 @@ export const transcriptLines: SchemaNode = {
               children: [
                 {
                   type: 'Column',
-                  props: { bg: 'surface-sunken', r: '300', p: '300', gap: '100' },
+                  props: {
+                    bg: 'surface-sunken',
+                    r: '300',
+                    p: '300',
+                    gap: '100',
+                    /*
+                      The row knows whether the pointer is on it, so its pencil can keep out of the
+                      way until it is wanted.
+
+                      Held here rather than by the button, which is the whole point: an affordance
+                      that only appears once you are already on it cannot be found. `hoverProps` on
+                      the button answers for the button, and there is no way to say "when my parent
+                      is hovered" in props, so the parent says it instead — the same shape the
+                      break-out grip uses in `PanelLane`, written with a local rather than a signal.
+                    */
+                    onMouseEnter: { $setLocal: 'pointerOnRow', value: true },
+                    onMouseLeave: { $setLocal: 'pointerOnRow', value: false },
+                  },
                   /*
                     Per row, which is what makes this a local rather than store state.
 
@@ -1605,6 +1622,7 @@ export const transcriptLines: SchemaNode = {
                   $localState: {
                     mending: { type: 'boolean', initial: false },
                     draft: { type: 'string', initial: '' },
+                    pointerOnRow: { type: 'boolean', initial: false },
                   },
                   children: [
                     {
@@ -1771,20 +1789,44 @@ export const transcriptLines: SchemaNode = {
                           props: {
                             condition: { $: '!local.mending' },
                             then: {
-                              type: 'we-button',
-                              props: {
-                                size: 'xs',
-                                variant: 'bare',
-                                color: 'text-faint',
-                                title: 'Fix these words',
-                                onClick: [
-                                  // Seeded on the press rather than at mount, so a row reopened
-                                  // after a cancel starts from the words as they now stand.
-                                  { $setLocal: 'draft', value: { $: 'utterance.text' } },
-                                  { $setLocal: 'mending', value: true },
-                                ],
-                              },
-                              children: [{ type: 'we-icon', props: { size: 'xs', name: 'pencil-simple' } }],
+                              type: 'we-tooltip',
+                              props: { content: 'Fix these words' },
+                              children: [
+                                {
+                                  type: 'we-button',
+                                  props: {
+                                    label: 'Fix these words',
+                                    size: 'xs',
+                                    variant: 'bare',
+                                    color: 'text-faint',
+                                    /*
+                                      Out of the way until the row is pointed at — and back the
+                                      moment it is focused.
+
+                                      A pencil on all two hundred rows is furniture on the ordinary
+                                      case, which is reading. Faded rather than unmounted, so the
+                                      row does not change width as the pointer crosses it, and so
+                                      the button keeps its place in the tab order.
+
+                                      `focusProps` is the half that stops this being a mouse-only
+                                      affordance: it fires on `:focus-visible`, so tabbing to the
+                                      pencil brings it back into view even though nothing is
+                                      hovering it. Without that pair, a keyboard user would be
+                                      moving focus onto something invisible.
+                                    */
+                                    opacity: { $: 'local.pointerOnRow ? 1 : 0' },
+                                    focusProps: { opacity: 1 },
+                                    transition: 'opacity 200 ease-in-out',
+                                    onClick: [
+                                      // Seeded on the press rather than at mount, so a row reopened
+                                      // after a cancel starts from the words as they now stand.
+                                      { $setLocal: 'draft', value: { $: 'utterance.text' } },
+                                      { $setLocal: 'mending', value: true },
+                                    ],
+                                  },
+                                  children: [{ type: 'we-icon', props: { size: 'xs', name: 'pencil-simple' } }],
+                                },
+                              ],
                             },
                           },
                         },
@@ -2103,21 +2145,27 @@ export const transcriptComposer: SchemaNode = {
           },
         },
         {
-          type: 'we-button',
-          props: {
-            size: 'sm',
-            variant: 'secondary',
-            title: 'Add this to the transcript',
-            disabled: { $: '!trim(local.comment)' },
-            onClick: {
-              $action: 'modules.transcribe.addComment',
-              args: [{ $: EXTRACTION_SUBJECT_EXPR }, { $: 'local.comment' }],
-              // Cleared on success only — a failed write keeps what was typed rather than
-              // swallowing it and leaving an empty box as the only report.
-              onSuccess: [{ $setLocal: 'comment', value: '' }],
+          type: 'we-tooltip',
+          props: { content: 'Add this to the transcript' },
+          children: [
+            {
+              type: 'we-button',
+              props: {
+                label: 'Add this to the transcript',
+                size: 'sm',
+                variant: 'secondary',
+                disabled: { $: '!trim(local.comment)' },
+                onClick: {
+                  $action: 'modules.transcribe.addComment',
+                  args: [{ $: EXTRACTION_SUBJECT_EXPR }, { $: 'local.comment' }],
+                  // Cleared on success only — a failed write keeps what was typed rather than
+                  // swallowing it and leaving an empty box as the only report.
+                  onSuccess: [{ $setLocal: 'comment', value: '' }],
+                },
+              },
+              children: [{ type: 'we-icon', props: { name: 'paper-plane-tilt' } }],
             },
-          },
-          children: [{ type: 'we-icon', props: { name: 'paper-plane-tilt' } }],
+          ],
         },
       ],
     },
@@ -2366,23 +2414,27 @@ export const panel: SchemaNode = {
             props: {
               condition: VIEWING_LIVE,
               then: {
-                // The panel's own record control. The call bar is the natural place for it
-                // during a call, but the panel has to be self-sufficient: it opens outside a
-                // call too, and a template may place neither the bar nor the rail.
-                type: 'we-button',
-                props: {
-                  variant: { $: "modules.transcribe.enabled ? 'secondary' : 'ghost'" },
-                  size: 'sm',
-                  disabled: { $: '!modules.transcribe.enabled && !modules.transcribe.available' },
-                  onClick: { $action: 'modules.transcribe.toggle' },
-                  title: { $: "modules.transcribe.enabled ? 'Stop transcribing' : 'Start transcribing'" },
-                },
+                type: 'we-tooltip',
+                props: { content: { $: "modules.transcribe.enabled ? 'Stop transcribing' : 'Start transcribing'" } },
                 children: [
                   {
-                    type: 'we-icon',
+                    // The panel's own record control. The call bar is the natural place for it
+                    // during a call, but the panel has to be self-sufficient: it opens outside a
+                    // call too, and a template may place neither the bar nor the rail.
+                    type: 'we-button',
                     props: {
-                      name: 'record',
-                      /*
+                      label: { $: "modules.transcribe.enabled ? 'Stop transcribing' : 'Start transcribing'" },
+                      variant: { $: "modules.transcribe.enabled ? 'secondary' : 'ghost'" },
+                      size: 'sm',
+                      disabled: { $: '!modules.transcribe.enabled && !modules.transcribe.available' },
+                      onClick: { $action: 'modules.transcribe.toggle' },
+                    },
+                    children: [
+                      {
+                        type: 'we-icon',
+                        props: {
+                          name: 'record',
+                          /*
                         Not `weight: 'fill'` while listening, and not `danger-text` — the two bugs
                         `CallControl.schema.ts` documents fixing on the call bar's own record
                         button, still here on the panel's.
@@ -2394,8 +2446,10 @@ export const panel: SchemaNode = {
                         inverts to a pale pink in a dark theme. A record dot is a mark, so it wants
                         the fill.
                       */
-                      color: { $: "modules.transcribe.listening ? 'danger' : ''" },
-                    },
+                          color: { $: "modules.transcribe.listening ? 'danger' : ''" },
+                        },
+                      },
+                    ],
                   },
                 ],
               },
@@ -2404,21 +2458,26 @@ export const panel: SchemaNode = {
                 props: {
                   condition: { $: 'modules.call.canCall && !modules.call.active' },
                   then: {
-                    type: 'we-button',
-                    props: {
-                      variant: 'ghost',
-                      size: 'sm',
-                      gap: '200',
-                      title: 'Start a call on this record and carry on transcribing into it',
-                      onClick: [
-                        { $action: 'modules.call.continueCall', args: [{ $: 'routeStore.params.call' }] },
-                        { $action: 'modules.transcribe.resume', args: [{ $: 'routeStore.params.call' }] },
-                        { $action: 'routeStore.setParam', args: ['call', null] },
-                      ],
-                    },
+                    type: 'we-tooltip',
+                    props: { content: 'Start a call on this record and carry on transcribing into it' },
                     children: [
-                      { type: 'we-icon', props: { name: 'phone-call' } },
-                      { type: 'we-text', props: { variant: 'footnote' }, children: ['Continue'] },
+                      {
+                        type: 'we-button',
+                        props: {
+                          variant: 'ghost',
+                          size: 'sm',
+                          gap: '200',
+                          onClick: [
+                            { $action: 'modules.call.continueCall', args: [{ $: 'routeStore.params.call' }] },
+                            { $action: 'modules.transcribe.resume', args: [{ $: 'routeStore.params.call' }] },
+                            { $action: 'routeStore.setParam', args: ['call', null] },
+                          ],
+                        },
+                        children: [
+                          { type: 'we-icon', props: { name: 'phone-call' } },
+                          { type: 'we-text', props: { variant: 'footnote' }, children: ['Continue'] },
+                        ],
+                      },
                     ],
                   },
                 },

@@ -1208,17 +1208,23 @@ const bar: SchemaNode = {
               ],
             },
             {
-              // Starting a second call beside one already running is a real thing to want — a
-              // breakout, a different subject — and the only control that used to exist for it
-              // joined the call that was already there.
-              type: 'we-button',
-              props: {
-                variant: 'ghost',
-                size: 'sm',
-                title: 'Start another call',
-                onClick: { $action: 'modules.call.startCall' },
-              },
-              children: [{ type: 'we-icon', props: { name: 'plus' } }],
+              type: 'we-tooltip',
+              props: { content: 'Start another call' },
+              children: [
+                {
+                  // Starting a second call beside one already running is a real thing to want — a
+                  // breakout, a different subject — and the only control that used to exist for it
+                  // joined the call that was already there.
+                  type: 'we-button',
+                  props: {
+                    label: 'Start another call',
+                    variant: 'ghost',
+                    size: 'sm',
+                    onClick: { $action: 'modules.call.startCall' },
+                  },
+                  children: [{ type: 'we-icon', props: { name: 'plus' } }],
+                },
+              ],
             },
           ],
         }),
@@ -1547,7 +1553,6 @@ export const callModule = defineModule({
     that stayed true would make the bar permanent.
   */
   holdsWhen: 'modules.call.active',
-
   slots: [
     { anchor: 'dock-bottom', node: bar, order: 100 },
     { anchor: 'dock-bottom', node: problem, order: 80 },
@@ -1577,6 +1582,5 @@ export const callModule = defineModule({
   docks: [
     { edge: 'dockEdge', size: 'dockSize', float: 'dockFloat', aspect: 'dockAspect', close: 'closeStage', node: stage },
   ],
-
   createStore: (deps: ModuleStoreDeps) => createCallStore(deps),
 });

@@ -852,17 +852,22 @@ const moduleSettingsSection: SchemaNode = {
                     // from the deployment is not this screen's to reset.
                     condition: { $: 'setting.set && space.canAdminister' },
                     then: {
-                      type: 'we-button',
-                      props: {
-                        variant: 'ghost',
-                        size: 'xs',
-                        title: 'Stop deciding this here',
-                        onClick: {
-                          $action: 'spaceStore.setSpaceModuleSetting',
-                          args: [{ $: 'setting.group' }, { $: 'setting.key' }],
+                      type: 'we-tooltip',
+                      props: { content: 'Stop deciding this here' },
+                      children: [
+                        {
+                          type: 'we-button',
+                          props: {
+                            variant: 'ghost',
+                            size: 'xs',
+                            onClick: {
+                              $action: 'spaceStore.setSpaceModuleSetting',
+                              args: [{ $: 'setting.group' }, { $: 'setting.key' }],
+                            },
+                          },
+                          children: ['Use default'],
                         },
-                      },
-                      children: ['Use default'],
+                      ],
                     },
                   },
                 },

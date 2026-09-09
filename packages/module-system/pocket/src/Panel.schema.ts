@@ -78,16 +78,22 @@ const dragProps = {
 
 /** Take this out of the Pocket. The thing itself is untouched — a Pocket holds references. */
 const forgetButton = (extra: Record<string, unknown> = {}): SchemaNode => ({
-  type: 'we-button',
-  props: {
-    variant: 'ghost',
-    size: 'sm',
-    square: true,
-    title: 'Take out of your Pocket',
-    onClick: { $action: 'modules.pocket.forget', args: [{ $: 'item.id' }] },
-    ...extra,
-  },
-  children: [{ type: 'we-icon', props: { name: 'x' } }],
+  type: 'we-tooltip',
+  props: { content: 'Take out of your Pocket' },
+  children: [
+    {
+      type: 'we-button',
+      props: {
+        label: 'Take out of your Pocket',
+        variant: 'ghost',
+        size: 'sm',
+        square: true,
+        onClick: { $action: 'modules.pocket.forget', args: [{ $: 'item.id' }] },
+        ...extra,
+      },
+      children: [{ type: 'we-icon', props: { name: 'x' } }],
+    },
+  ],
 });
 
 /*
@@ -151,9 +157,15 @@ const itemRow: SchemaNode = {
           props: {
             condition: openable,
             then: {
-              type: 'we-button',
-              props: { variant: 'ghost', size: 'sm', square: true, title: 'Open', onClick: openAction },
-              children: [{ type: 'we-icon', props: { name: 'arrow-square-out' } }],
+              type: 'we-tooltip',
+              props: { content: 'Open' },
+              children: [
+                {
+                  type: 'we-button',
+                  props: { label: 'Open', variant: 'ghost', size: 'sm', square: true, onClick: openAction },
+                  children: [{ type: 'we-icon', props: { name: 'arrow-square-out' } }],
+                },
+              ],
             },
           },
         },
@@ -383,20 +395,31 @@ const itemTile: SchemaNode = {
       props: { position: 'relative' },
       children: [
         {
-          type: 'we-button',
-          props: { variant: 'bare', title: 'Open', disabled: { $: "item.datasetKey == 'agent'" }, onClick: openAction },
+          type: 'we-tooltip',
+          props: { content: 'Open' },
           children: [
-            recordCard({
-              label: itemLabel,
-              icon: itemIcon,
-              thumbnail: { $: 'item.thumbnail' },
-              // A DID with no name attached: the tile draws an identicon from it, and says where the
-              // thing came from in words. Resolving the DID to a name would mean reading the host's
-              // profile store, which this package will not do.
-              byline: { hash: { $: 'item.sourceAuthor' } },
-              source: itemSource,
-              date: { $: 'item.gatheredAt' },
-            }),
+            {
+              type: 'we-button',
+              props: {
+                label: 'Open',
+                variant: 'bare',
+                disabled: { $: "item.datasetKey == 'agent'" },
+                onClick: openAction,
+              },
+              children: [
+                recordCard({
+                  label: itemLabel,
+                  icon: itemIcon,
+                  thumbnail: { $: 'item.thumbnail' },
+                  // A DID with no name attached: the tile draws an identicon from it, and says where the
+                  // thing came from in words. Resolving the DID to a name would mean reading the host's
+                  // profile store, which this package will not do.
+                  byline: { hash: { $: 'item.sourceAuthor' } },
+                  source: itemSource,
+                  date: { $: 'item.gatheredAt' },
+                }),
+              ],
+            },
           ],
         },
         // Over the tile rather than beside it: at 100px there is no room in flow, and a grid you
@@ -612,29 +635,43 @@ const title: SchemaNode = panelHeader({
     props: { ay: 'center', gap: '100' },
     children: [
       {
-        type: 'we-button',
-        props: {
-          variant: 'ghost',
-          size: 'sm',
-          square: true,
-          title: { $: "local.pocketView == 'grid' ? 'Show as a list' : 'Show as a grid'" },
-          onClick: {
-            $setLocal: 'pocketView',
-            value: { $: "local.pocketView == 'grid' ? 'list' : 'grid'" },
+        type: 'we-tooltip',
+        props: { content: { $: "local.pocketView == 'grid' ? 'Show as a list' : 'Show as a grid'" } },
+        children: [
+          {
+            type: 'we-button',
+            props: {
+              label: { $: "local.pocketView == 'grid' ? 'Show as a list' : 'Show as a grid'" },
+              variant: 'ghost',
+              size: 'sm',
+              square: true,
+              onClick: {
+                $setLocal: 'pocketView',
+                value: { $: "local.pocketView == 'grid' ? 'list' : 'grid'" },
+              },
+            },
+            children: [
+              { type: 'we-icon', props: { name: { $: "local.pocketView == 'grid' ? 'list' : 'squares-four'" } } },
+            ],
           },
-        },
-        children: [{ type: 'we-icon', props: { name: { $: "local.pocketView == 'grid' ? 'list' : 'squares-four'" } } }],
+        ],
       },
       {
-        type: 'we-button',
-        props: {
-          variant: 'ghost',
-          size: 'sm',
-          square: true,
-          title: 'New folder',
-          onClick: { $setLocal: 'newFolderOpen', value: true },
-        },
-        children: [{ type: 'we-icon', props: { name: 'folder-plus' } }],
+        type: 'we-tooltip',
+        props: { content: 'New folder' },
+        children: [
+          {
+            type: 'we-button',
+            props: {
+              label: 'New folder',
+              variant: 'ghost',
+              size: 'sm',
+              square: true,
+              onClick: { $setLocal: 'newFolderOpen', value: true },
+            },
+            children: [{ type: 'we-icon', props: { name: 'folder-plus' } }],
+          },
+        ],
       },
     ],
   },
@@ -652,15 +689,21 @@ const header: SchemaNode = {
         // is a path to go back along rather than depending on a value the template computed.
         condition: { $: 'modules.pocket.canGoUp' },
         then: {
-          type: 'we-button',
-          props: {
-            variant: 'ghost',
-            size: 'sm',
-            square: true,
-            title: 'Back',
-            onClick: { $action: 'modules.pocket.up' },
-          },
-          children: [{ type: 'we-icon', props: { name: 'arrow-left' } }],
+          type: 'we-tooltip',
+          props: { content: 'Back' },
+          children: [
+            {
+              type: 'we-button',
+              props: {
+                label: 'Back',
+                variant: 'ghost',
+                size: 'sm',
+                square: true,
+                onClick: { $action: 'modules.pocket.up' },
+              },
+              children: [{ type: 'we-icon', props: { name: 'arrow-left' } }],
+            },
+          ],
         },
       },
     },

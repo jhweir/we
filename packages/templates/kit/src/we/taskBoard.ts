@@ -167,16 +167,21 @@ export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
             props: {
               condition: { $: pending },
               then: {
-                type: 'we-badge',
-                props: {
-                  size: 'xs',
-                  variant: 'warning',
-                  // Solid, as the recording badges are: a soft warning reads as decoration, and this
-                  // is the one thing on the card that asks for a decision.
-                  appearance: 'solid',
-                  title: 'Extraction proposed this; nobody has agreed to it yet',
-                },
-                children: ['suggested'],
+                type: 'we-tooltip',
+                props: { content: 'Extraction proposed this; nobody has agreed to it yet' },
+                children: [
+                  {
+                    type: 'we-badge',
+                    props: {
+                      size: 'xs',
+                      variant: 'warning',
+                      // Solid, as the recording badges are: a soft warning reads as decoration, and
+                      // this is the one thing on the card that asks for a decision.
+                      appearance: 'solid',
+                    },
+                    children: ['suggested'],
+                  },
+                ],
               },
             },
           },
@@ -253,15 +258,17 @@ export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
             props: {
               condition: { $: `(${opts.showState ?? 'false'}) && ${as}.status` },
               then: {
-                type: 'we-badge',
-                props: {
-                  size: 'xs',
-                  variant: 'neutral',
-                  title: 'The state this work is in — a lane does not change it',
-                },
+                type: 'we-tooltip',
+                props: { content: 'The state this work is in — a lane does not change it' },
                 children: [
                   {
-                    $: `find(spaceStore.taskStates, { slug: ${as}.status }).name ?? ${as}.status`,
+                    type: 'we-badge',
+                    props: { size: 'xs', variant: 'neutral' },
+                    children: [
+                      {
+                        $: `find(spaceStore.taskStates, { slug: ${as}.status }).name ?? ${as}.status`,
+                      },
+                    ],
                   },
                 ],
               },
@@ -292,32 +299,44 @@ export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
                     // else in the app.
                     children: [
                       {
-                        type: 'we-button',
-                        props: {
-                          variant: 'outline',
-                          size: 'xs',
-                          square: true,
-                          r: 'full',
-                          color: 'success-text',
-                          hoverProps: { bg: 'success-surface', borderColor: 'success-text' },
-                          title: 'Keep this',
-                          onClick: { $action: 'modules.transcribe.acceptProposal', args: [{ $: `${as}.id` }] },
-                        },
-                        children: [{ type: 'we-icon', props: { name: 'check', weight: 'bold' } }],
+                        type: 'we-tooltip',
+                        props: { content: 'Keep this' },
+                        children: [
+                          {
+                            type: 'we-button',
+                            props: {
+                              variant: 'outline',
+                              size: 'xs',
+                              square: true,
+                              r: 'full',
+                              label: 'Keep this',
+                              color: 'success-text',
+                              hoverProps: { bg: 'success-surface', borderColor: 'success-text' },
+                              onClick: { $action: 'modules.transcribe.acceptProposal', args: [{ $: `${as}.id` }] },
+                            },
+                            children: [{ type: 'we-icon', props: { name: 'check', weight: 'bold' } }],
+                          },
+                        ],
                       },
                       {
-                        type: 'we-button',
-                        props: {
-                          variant: 'outline',
-                          size: 'xs',
-                          square: true,
-                          r: 'full',
-                          color: 'danger-text',
-                          hoverProps: { bg: 'danger-surface', borderColor: 'danger-text' },
-                          title: 'Discard this',
-                          onClick: { $action: 'modules.transcribe.rejectProposal', args: [{ $: `${as}.id` }] },
-                        },
-                        children: [{ type: 'we-icon', props: { name: 'x', weight: 'bold' } }],
+                        type: 'we-tooltip',
+                        props: { content: 'Discard this' },
+                        children: [
+                          {
+                            type: 'we-button',
+                            props: {
+                              variant: 'outline',
+                              size: 'xs',
+                              square: true,
+                              r: 'full',
+                              label: 'Discard this',
+                              color: 'danger-text',
+                              hoverProps: { bg: 'danger-surface', borderColor: 'danger-text' },
+                              onClick: { $action: 'modules.transcribe.rejectProposal', args: [{ $: `${as}.id` }] },
+                            },
+                            children: [{ type: 'we-icon', props: { name: 'x', weight: 'bold' } }],
+                          },
+                        ],
                       },
                     ],
                   },
@@ -625,13 +644,18 @@ function column(opts: TaskBoardOptions): SchemaNode {
                       props: {
                         condition: { $: `${CELL}.lane` },
                         then: {
-                          type: 'we-badge',
-                          props: {
-                            size: 'xs',
-                            variant: 'neutral',
-                            title: 'A lane on this board only — dropping a card here changes no state',
-                          },
-                          children: ['lane'],
+                          type: 'we-tooltip',
+                          props: { content: 'A lane on this board only — dropping a card here changes no state' },
+                          children: [
+                            {
+                              type: 'we-badge',
+                              props: {
+                                size: 'xs',
+                                variant: 'neutral',
+                              },
+                              children: ['lane'],
+                            },
+                          ],
                         },
                       },
                     },
@@ -641,15 +665,21 @@ function column(opts: TaskBoardOptions): SchemaNode {
                 props: { variant: 'footnote', color: 'text-muted', ml: 'auto', text: { $: `${CELL}.count` } },
               },
               {
-                type: 'we-button',
-                props: {
-                  variant: 'ghost',
-                  size: 'xs',
-                  square: true,
-                  title: { $: `\`Add a card to \${${CELL}.label}\`` },
-                  onClick: { $setLocal: 'addOpen', value: true },
-                },
-                children: [{ type: 'we-icon', props: { name: 'plus' } }],
+                type: 'we-tooltip',
+                props: { content: { $: `\`Add a card to \${${CELL}.label}\`` } },
+                children: [
+                  {
+                    type: 'we-button',
+                    props: {
+                      label: { $: `\`Add a card to \${${CELL}.label}\`` },
+                      variant: 'ghost',
+                      size: 'xs',
+                      square: true,
+                      onClick: { $setLocal: 'addOpen', value: true },
+                    },
+                    children: [{ type: 'we-icon', props: { name: 'plus' } }],
+                  },
+                ],
               },
               {
                 type: 'DropdownMenu',

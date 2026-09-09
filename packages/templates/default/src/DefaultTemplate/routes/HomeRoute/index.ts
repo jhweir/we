@@ -41,38 +41,43 @@ export const homeRoute: RouteSchema = {
               },
               children: [
                 {
-                  type: 'Card',
-                  props: {
-                    ax: 'center',
-                    bg: 'surface-sunken',
-                    width: '160px',
-                    styles: { cursor: 'pointer' },
-                    onClick: { $action: 'spaceStore.navigateToSpace', args: [{ $: 'space.spaceId' }] },
-                    title: { $: '`Open ${space.name}`' },
-                  },
+                  type: 'we-tooltip',
+                  props: { content: { $: '`Open ${space.name}`' } },
                   children: [
                     {
-                      type: 'we-avatar',
+                      type: 'Card',
                       props: {
-                        image: { $: 'space.avatar' },
-                        initials: { $: 'space.name' },
-                        size: '56px',
+                        ax: 'center',
+                        bg: 'surface-sunken',
+                        width: '160px',
+                        styles: { cursor: 'pointer' },
+                        onClick: { $action: 'spaceStore.navigateToSpace', args: [{ $: 'space.spaceId' }] },
                       },
-                    },
-                    {
-                      type: 'we-text',
-                      props: {
-                        variant: 'body',
-                        fontWeight: 'medium',
-                        textAlign: 'center',
-                        styles: {
-                          overflow: 'hidden',
-                          'text-overflow': 'ellipsis',
-                          'white-space': 'nowrap',
-                          'max-width': '140px',
+                      children: [
+                        {
+                          type: 'we-avatar',
+                          props: {
+                            image: { $: 'space.avatar' },
+                            initials: { $: 'space.name' },
+                            size: '56px',
+                          },
                         },
-                      },
-                      children: [{ $: 'space.name' }],
+                        {
+                          type: 'we-text',
+                          props: {
+                            variant: 'body',
+                            fontWeight: 'medium',
+                            textAlign: 'center',
+                            styles: {
+                              overflow: 'hidden',
+                              'text-overflow': 'ellipsis',
+                              'white-space': 'nowrap',
+                              'max-width': '140px',
+                            },
+                          },
+                          children: [{ $: 'space.name' }],
+                        },
+                      ],
                     },
                   ],
                 },
