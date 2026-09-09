@@ -1246,21 +1246,27 @@ const canvasRoute: RouteSchema = { path: '/canvas', ...canvasBody };
  * otherwise race to create the same board.
  */
 /**
- * What this route shows when it has no board to show.
+ * What a route shows when it has nothing to be about.
  *
  * Two situations, and they are not the same one: nobody has chosen a call, or this call has not been
- * given a board. Each says its own sentence, and only the second offers an action — so the icon is
- * gradient where there is something to do and flat where there is not, since a dead end that looks
- * like an invitation is worse than one that looks like a dead end.
+ * given whatever the page draws. Each says its own sentence, and only the second offers an action —
+ * so the icon is gradient where there is something to do and flat where there is not, since a dead
+ * end that looks like an invitation is worse than one that looks like a dead end.
+ *
+ * Distinct from `emptyState`, which is the answer to "this list is empty": that sentence is about
+ * content, this one is about the *address*, and a page with no subject has not asked a question yet.
+ * Both routes that hang off a call need it — the tasks list, and now the calendar — so the icon is a
+ * parameter and the shape is shared. Kept local to this template rather than lifted into the kit: it
+ * has two callers in one file, and the extraction threshold is three.
  */
-function tasksGate(message: string, action?: SchemaNode): SchemaNode {
+function callGate(icon: string, message: string, action?: SchemaNode): SchemaNode {
   return {
     type: 'Column',
     props: { width: '100%', ax: 'center', ay: 'center', gap: '400', p: '600' },
     children: [
       {
         type: 'we-icon',
-        props: { name: 'kanban', size: 'xl', ...(action ? { gradient: 'primary' } : { color: 'text-faint' }) },
+        props: { name: icon, size: 'xl', ...(action ? { gradient: 'primary' } : { color: 'text-faint' }) },
       },
       {
         type: 'we-text',
@@ -1344,7 +1350,8 @@ const tasksRoute: RouteSchema = {
                       type: '$if',
                       props: {
                         condition: { $: 'local.callRowLoaded' },
-                        then: tasksGate(
+                        then: callGate(
+                          'kanban',
                           'This call has no board yet. Making one arranges the work it produced — it never moves anything.',
                           {
                             type: 'we-button',
@@ -1359,7 +1366,7 @@ const tasksRoute: RouteSchema = {
                 },
               ],
             },
-            else: tasksGate('Choose a call to see the work it produced.'),
+            else: callGate('kanban', 'Choose a call to see the work it produced.'),
           },
         },
       ],
@@ -1474,7 +1481,19 @@ const eventList: SchemaNode = {
         },
         else: emptyState({
           icon: 'calendar',
-          label: 'events',
+          /*
+            `message` rather than `label`, because the default sentence is about the wrong subject
+            twice over.
+
+            "This space doesn't have any events." says *space* about a list scoped to one call — the
+            calendar was space-wide once and the phrasing outlived the scoping. And this branch is
+            also what a day with nothing on it shows, where the sentence is wrong a second way: a
+            call with a full month in it says it has no events because a reader clicked a quiet
+            Tuesday. Two situations, so two sentences.
+          */
+          message: {
+            $: "local.day ? 'Nothing on this day.' : 'Nothing from this call yet. Events appear here as the conversation settles on dates.'",
+          },
         }),
       },
     },
@@ -1486,8 +1505,14 @@ const eventList: SchemaNode = {
  *
  * The counterpart to the tasks list, and the same argument: a conversation produces two kinds of
  * commitment, one with a date on it and one without, and neither stops mattering because the meeting
- * ended. So this is every `EventBlock` in the space rather than this call's — the calendar answers
- * "what is coming", which is a question about the community and not about a recording.
+ * ended. So this is one call's events, scoped and gated exactly as the board is — the whole point of
+ * this template being that every surface answers about the call the address names.
+ *
+ * This paragraph used to argue the opposite, that a calendar asks "what is coming" and so belongs to
+ * the community rather than to a recording. That reading is a good one and it has a home: the Events
+ * section, which is unscoped and a click away. What it cannot be is *this* page, sharing a nav strip
+ * and a `?call=` with three surfaces that mean something narrower — the argument survived the
+ * scoping and outlived it by long enough to make an ungated month look deliberate.
  *
  * It replaces the archive of past calls, which the calls panel does better and from every route.
  *
@@ -1515,240 +1540,273 @@ const eventsRoute: RouteSchema = {
     {
       type: 'Column',
       props: { width: '100%', maxWidth: 'var(--we-layout-lg)', gap: '400' },
-      $localState: {
-        // Paging is arithmetic on an offset, so every source reads the same offset and the template
-        // only ever adds to it.
-        monthOffset: { type: 'number', initial: 0 },
-        // The day a reader has picked, as `YYYY-MM-DD`, or empty for the whole month.
-        day: { type: 'string', initial: '' },
-      },
-      $queries: {
-        /*
-          Scoped to the call this workshop is about, exactly as the tasks list is — and for the
-          reason given there: every other surface of this template answers about the call the
-          address names, so a list that quietly widened to the whole space was the odd one out.
-          Unscoped when no call is selected, since a scope whose anchor does not resolve is dropped.
-
-          `include` on the place, because it is a record now rather than a word. `location` was a
-          string and is a `HasOne → LocationBlock`, so the row below reads `event.location.name`.
-          Without hydrating it the relation arrives as a URI and the row would print nothing at
-          all — the silent half of that change, and the reason the query moved rather than only
-          the row.
-        */
-        events: {
-          entity: 'EventBlock',
-          scope: anchorScope(CALL),
-          order: { startDate: 'asc' },
-          limit: 200,
-          include: { location: true },
-        },
-      },
       children: [
-        // ── The month, with the way through them either side ──────────────────
         {
-          type: 'Row',
+          type: '$if',
           props: {
-            width: '100%',
-            ay: 'center',
-            gap: '100',
-            bg: 'surface',
-            r: '500',
-            border: '1px solid border',
-            px: '400',
-            py: '300',
-          },
-          children: [
-            {
-              type: 'we-text',
-              props: { variant: 'heading-sm', flex: '1', text: { $: 'monthLabel({ offset: local.monthOffset })' } },
-            },
-            {
-              // Only when it would do something: "Today" on a calendar already showing today is a
-              // button that cannot be pressed to any effect.
-              type: '$if',
-              props: {
-                condition: { $: 'local.monthOffset' },
-                then: {
-                  type: 'we-button',
-                  props: { size: 'sm', variant: 'ghost', onClick: { $setLocal: 'monthOffset', value: 0 } },
-                  children: ['Today'],
+            /*
+              No call, no calendar — the same gate the tasks list keeps, and it was missing here.
+
+              A scope whose anchor does not resolve is DROPPED rather than refused, and pruning
+              WIDENS: with nothing selected this route quietly asked for every `EventBlock` in the
+              space and drew them all, on a page whose every other surface is about one call. Nothing
+              on screen said the reading had changed, which is the failure worth naming — a month full
+              of somebody else's meetings looks exactly like a month full of this call's.
+
+              The gate is outside the node that declares the query, so the question is never asked
+              rather than asked and discarded. The space-wide reading is not lost: it is the Events
+              section, a click away and unscoped, exactly as the space-wide board is.
+            */
+            condition: CALL,
+            then: {
+              type: 'Column',
+              props: { width: '100%', gap: '400' },
+              $localState: {
+                // Paging is arithmetic on an offset, so every source reads the same offset and the template
+                // only ever adds to it.
+                monthOffset: { type: 'number', initial: 0 },
+                // The day a reader has picked, as `YYYY-MM-DD`, or empty for the whole month.
+                day: { type: 'string', initial: '' },
+              },
+              $queries: {
+                /*
+                  Scoped to the call this workshop is about, exactly as the tasks list is — and for the
+                  reason given there: every other surface of this template answers about the call the
+                  address names, so a list that quietly widened to the whole space was the odd one out.
+                  The `$if` above is what makes the scope trustworthy: an anchor that does not resolve is
+                  dropped rather than refused, so without the gate this read the whole space.
+
+                  `include` on the place, because it is a record now rather than a word. `location` was a
+                  string and is a `HasOne → LocationBlock`, so the row below reads `event.location.name`.
+                  Without hydrating it the relation arrives as a URI and the row would print nothing at
+                  all — the silent half of that change, and the reason the query moved rather than only
+                  the row.
+                */
+                events: {
+                  entity: 'EventBlock',
+                  scope: anchorScope(CALL),
+                  order: { startDate: 'asc' },
+                  limit: 200,
+                  include: { location: true },
                 },
               },
-            },
-            {
-              type: 'we-button',
-              props: {
-                size: 'sm',
-                variant: 'ghost',
-                square: true,
-                onClick: { $setLocal: 'monthOffset', value: { $: 'local.monthOffset - 1' } },
-              },
-              children: [{ type: 'we-icon', props: { name: 'caret-left' } }],
-            },
-            {
-              type: 'we-button',
-              props: {
-                size: 'sm',
-                variant: 'ghost',
-                square: true,
-                onClick: { $setLocal: 'monthOffset', value: { $: 'local.monthOffset + 1' } },
-              },
-              children: [{ type: 'we-icon', props: { name: 'caret-right' } }],
-            },
-          ],
-        },
-
-        // ── The grid ──────────────────────────────────────────────────────────
-        {
-          type: 'Column',
-          props: {
-            width: '100%',
-            gap: '300',
-            bg: 'surface-sunken',
-            border: '1px solid border',
-            r: '500',
-            p: '400',
-          },
-          children: [
-            {
-              type: 'Row',
-              props: { width: '100%', gap: '100' },
               children: [
+                // ── The month, with the way through them either side ──────────────────
                 {
-                  type: '$each',
-                  props: { items: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'], as: 'weekday' },
+                  type: 'Row',
+                  props: {
+                    width: '100%',
+                    ay: 'center',
+                    gap: '100',
+                    bg: 'surface',
+                    r: '500',
+                    border: '1px solid border',
+                    px: '400',
+                    py: '300',
+                  },
+                  children: [
+                    {
+                      type: 'we-text',
+                      props: {
+                        variant: 'heading-sm',
+                        flex: '1',
+                        text: { $: 'monthLabel({ offset: local.monthOffset })' },
+                      },
+                    },
+                    {
+                      // Only when it would do something: "Today" on a calendar already showing today is a
+                      // button that cannot be pressed to any effect.
+                      type: '$if',
+                      props: {
+                        condition: { $: 'local.monthOffset' },
+                        then: {
+                          type: 'we-button',
+                          props: { size: 'sm', variant: 'ghost', onClick: { $setLocal: 'monthOffset', value: 0 } },
+                          children: ['Today'],
+                        },
+                      },
+                    },
+                    {
+                      type: 'we-button',
+                      props: {
+                        size: 'sm',
+                        variant: 'ghost',
+                        square: true,
+                        onClick: { $setLocal: 'monthOffset', value: { $: 'local.monthOffset - 1' } },
+                      },
+                      children: [{ type: 'we-icon', props: { name: 'caret-left' } }],
+                    },
+                    {
+                      type: 'we-button',
+                      props: {
+                        size: 'sm',
+                        variant: 'ghost',
+                        square: true,
+                        onClick: { $setLocal: 'monthOffset', value: { $: 'local.monthOffset + 1' } },
+                      },
+                      children: [{ type: 'we-icon', props: { name: 'caret-right' } }],
+                    },
+                  ],
+                },
+
+                // ── The grid ──────────────────────────────────────────────────────────
+                {
+                  type: 'Column',
+                  props: {
+                    width: '100%',
+                    gap: '300',
+                    bg: 'surface-sunken',
+                    border: '1px solid border',
+                    r: '500',
+                    p: '400',
+                  },
                   children: [
                     {
                       type: 'Row',
-                      props: { flex: '1', ax: 'center' },
+                      props: { width: '100%', gap: '100' },
                       children: [
-                        {
-                          type: 'we-text',
-                          props: { variant: 'footnote', color: 'text-muted', text: { $: 'weekday' } },
-                        },
-                      ],
-                    },
-                  ],
-                },
-              ],
-            },
-            {
-              type: 'Row',
-              props: { width: '100%', gap: '100', wrap: true },
-              children: [
-                {
-                  type: '$each',
-                  props: { items: { $: 'calendarMonth({ offset: local.monthOffset })' }, as: 'cell' },
-                  children: [
-                    {
-                      type: 'Column',
-                      props: {
-                        // Seven to a row, by width rather than by a grid the schema cannot express.
-                        width: 'calc(14.28% - 6px)',
-                        minHeight: '92px',
-                        gap: '050',
-                        p: '100',
-                        r: '300',
-                        cursor: 'pointer',
-                        overflow: 'hidden',
-                        // A tint and an outline rather than a fill: with titles in the cell, a solid
-                        // fill wins every contrast fight against its own contents.
-                        bg: { $: "cell.date == local.day ? 'accent-muted' : cell.inMonth ? '' : 'page'" },
-                        border: { $: "cell.date == local.day ? '1px solid accent' : '1px solid transparent'" },
-                        hoverProps: { bg: { $: "cell.date == local.day ? 'accent-muted' : 'surface-hover'" } },
-                        // Pressing the selected day again releases it — the first thing anyone tries.
-                        // Inside the handler so it reads the state at click time, not at paint.
-                        onClick: [
-                          {
-                            $if: {
-                              condition: { $: 'cell.date == local.day' },
-                              then: { $setLocal: 'day', value: '' },
-                              else: { $setLocal: 'day', value: { $: 'cell.date' } },
-                            },
-                          },
-                        ],
-                      },
-                      children: [
-                        {
-                          // Today in a filled disc — the one convention people read without being
-                          // taught.
-                          type: 'Row',
-                          props: {
-                            width: '20px',
-                            height: '20px',
-                            ax: 'center',
-                            ay: 'center',
-                            r: 'pill',
-                            bg: { $: "cell.isToday ? 'accent' : ''" },
-                          },
-                          children: [
-                            {
-                              type: 'we-text',
-                              props: {
-                                fontSize: '100',
-                                text: { $: 'cell.day' },
-                                color: { $: "cell.isToday ? 'on-accent' : cell.inMonth ? 'text' : 'text-faint'" },
-                                fontWeight: { $: "cell.isToday ? 'semibold' : ''" },
-                              },
-                            },
-                          ],
-                        },
                         {
                           type: '$each',
-                          props: {
-                            items: { $: 'filter(local.events, { startDate: { startsWith: cell.date } }, 2)' },
-                            as: 'mark',
-                          },
+                          props: { items: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'], as: 'weekday' },
                           children: [
                             {
-                              type: 'we-text',
-                              props: {
-                                width: '100%',
-                                fontSize: '100',
-                                truncate: true,
-                                px: '100',
-                                r: '200',
-                                text: { $: 'mark.title' },
-                                // Faded for the neighbouring months, so a busy 1st of next month
-                                // does not read as part of the month being looked at.
-                                bg: { $: "cell.inMonth ? 'accent-muted' : 'surface-sunken'" },
-                                color: { $: "cell.inMonth ? 'accent-text' : 'text-muted'" },
-                              },
+                              type: 'Row',
+                              props: { flex: '1', ax: 'center' },
+                              children: [
+                                {
+                                  type: 'we-text',
+                                  props: { variant: 'footnote', color: 'text-muted', text: { $: 'weekday' } },
+                                },
+                              ],
                             },
                           ],
                         },
+                      ],
+                    },
+                    {
+                      type: 'Row',
+                      props: { width: '100%', gap: '100', wrap: true },
+                      children: [
                         {
-                          // A third event and beyond, as a count. The two titles above answer "is
-                          // this worth clicking"; a number answers "how much more is there".
-                          type: '$if',
-                          props: {
-                            condition: {
-                              $: 'count(filter(local.events, { startDate: { startsWith: cell.date } })) > 2',
-                            },
-                            then: {
-                              type: 'we-text',
+                          type: '$each',
+                          props: { items: { $: 'calendarMonth({ offset: local.monthOffset })' }, as: 'cell' },
+                          children: [
+                            {
+                              type: 'Column',
                               props: {
-                                variant: 'footnote',
-                                color: 'text-faint',
-                                px: '100',
-                                text: {
-                                  $: '`+${count(filter(local.events, { startDate: { startsWith: cell.date } })) - 2} more`',
-                                },
+                                // Seven to a row, by width rather than by a grid the schema cannot express.
+                                width: 'calc(14.28% - 6px)',
+                                minHeight: '92px',
+                                gap: '050',
+                                p: '100',
+                                r: '300',
+                                cursor: 'pointer',
+                                overflow: 'hidden',
+                                // A tint and an outline rather than a fill: with titles in the cell, a solid
+                                // fill wins every contrast fight against its own contents.
+                                bg: { $: "cell.date == local.day ? 'accent-muted' : cell.inMonth ? '' : 'page'" },
+                                border: { $: "cell.date == local.day ? '1px solid accent' : '1px solid transparent'" },
+                                hoverProps: { bg: { $: "cell.date == local.day ? 'accent-muted' : 'surface-hover'" } },
+                                // Pressing the selected day again releases it — the first thing anyone tries.
+                                // Inside the handler so it reads the state at click time, not at paint.
+                                onClick: [
+                                  {
+                                    $if: {
+                                      condition: { $: 'cell.date == local.day' },
+                                      then: { $setLocal: 'day', value: '' },
+                                      else: { $setLocal: 'day', value: { $: 'cell.date' } },
+                                    },
+                                  },
+                                ],
                               },
+                              children: [
+                                {
+                                  // Today in a filled disc — the one convention people read without being
+                                  // taught.
+                                  type: 'Row',
+                                  props: {
+                                    width: '20px',
+                                    height: '20px',
+                                    ax: 'center',
+                                    ay: 'center',
+                                    r: 'pill',
+                                    bg: { $: "cell.isToday ? 'accent' : ''" },
+                                  },
+                                  children: [
+                                    {
+                                      type: 'we-text',
+                                      props: {
+                                        fontSize: '100',
+                                        text: { $: 'cell.day' },
+                                        color: {
+                                          $: "cell.isToday ? 'on-accent' : cell.inMonth ? 'text' : 'text-faint'",
+                                        },
+                                        fontWeight: { $: "cell.isToday ? 'semibold' : ''" },
+                                      },
+                                    },
+                                  ],
+                                },
+                                {
+                                  type: '$each',
+                                  props: {
+                                    items: { $: 'filter(local.events, { startDate: { startsWith: cell.date } }, 2)' },
+                                    as: 'mark',
+                                  },
+                                  children: [
+                                    {
+                                      type: 'we-text',
+                                      props: {
+                                        width: '100%',
+                                        fontSize: '100',
+                                        truncate: true,
+                                        px: '100',
+                                        r: '200',
+                                        text: { $: 'mark.title' },
+                                        // Faded for the neighbouring months, so a busy 1st of next month
+                                        // does not read as part of the month being looked at.
+                                        bg: { $: "cell.inMonth ? 'accent-muted' : 'surface-sunken'" },
+                                        color: { $: "cell.inMonth ? 'accent-text' : 'text-muted'" },
+                                      },
+                                    },
+                                  ],
+                                },
+                                {
+                                  // A third event and beyond, as a count. The two titles above answer "is
+                                  // this worth clicking"; a number answers "how much more is there".
+                                  type: '$if',
+                                  props: {
+                                    condition: {
+                                      $: 'count(filter(local.events, { startDate: { startsWith: cell.date } })) > 2',
+                                    },
+                                    then: {
+                                      type: 'we-text',
+                                      props: {
+                                        variant: 'footnote',
+                                        color: 'text-faint',
+                                        px: '100',
+                                        text: {
+                                          $: '`+${count(filter(local.events, { startDate: { startsWith: cell.date } })) - 2} more`',
+                                        },
+                                      },
+                                    },
+                                  },
+                                },
+                              ],
                             },
-                          },
+                          ],
                         },
                       ],
                     },
                   ],
                 },
+
+                // ── What is on the chosen day, or what is next ────────────────────────
+                eventList,
               ],
             },
-          ],
+            else: callGate('calendar', 'Choose a call to see the events it produced.'),
+          },
         },
-
-        // ── What is on the chosen day, or what is next ────────────────────────
-        eventList,
       ],
     },
   ],

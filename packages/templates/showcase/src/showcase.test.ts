@@ -24,6 +24,27 @@ import * as showcase from './index.ts';
 /** The workshop's own name for the call on screen — see `CALL_EXPR` in its schema. */
 const CALL_EXPR = 'routeStore.params.call ? routeStore.params.call : modules.call.callRecordId';
 
+type QueryNode = { $queries?: Record<string, unknown> };
+type GateNode = { type?: string; props?: { condition?: { $?: string }; else?: unknown } };
+
+/**
+ * The nodes on the path down to the first one matching, outermost last.
+ *
+ * For asserting that something is *underneath* a guard rather than merely beside it in the same
+ * JSON — the difference between a query that is never asked and one that is asked and discarded,
+ * which a string search cannot tell apart. Walks every object value, so it descends through
+ * `props`, `children`, `then`/`else` and `slots` alike without knowing which is which.
+ */
+function ancestorsOf(root: unknown, matches: (node: unknown) => boolean, trail: unknown[] = []): unknown[] {
+  if (typeof root !== 'object' || root === null) return [];
+  if (matches(root)) return trail;
+  for (const value of Object.values(root)) {
+    const found = ancestorsOf(value, matches, [root, ...trail]);
+    if (found.length) return found;
+  }
+  return [];
+}
+
 type Route = { path: string; redirect?: string; routes?: Route[] };
 type Schema = {
   meta?: { name?: string; description?: string; icon?: string; role?: string };
@@ -247,6 +268,42 @@ describe('the workshop template’s call selection', () => {
 
     expect(workshop.meta?.panels?.length).toBeGreaterThan(0);
     expect(scoped).toEqual([]);
+  });
+
+  it('asks for no events until a call is chosen, and says why it is empty-handed', () => {
+    /*
+      A scope whose anchor does not resolve is DROPPED rather than refused, and pruning WIDENS — so
+      with nothing selected the calendar asked for every `EventBlock` in the space and drew them
+      all, on a page whose every other surface is about one call, with nothing on screen saying the
+      reading had changed. The tasks list has kept this gate since it was written; the calendar was
+      the one route that never got it.
+
+      Asserted structurally rather than by looking for the sentence: the query must sit BENEATH the
+      `$if`, so it is never asked instead of asked and thrown away. The string spelling of this
+      passed while the query still hung off the route root.
+    */
+    const events = (workshop.routes ?? []).find((route) => route.path === '/events');
+    const gate = ancestorsOf(events, (node) => Boolean((node as QueryNode).$queries?.events)).find(
+      (node) => (node as GateNode).type === '$if',
+    ) as GateNode | undefined;
+
+    expect(gate).toBeDefined();
+    expect(gate?.props?.condition?.$).toBe(CALL_EXPR);
+    expect(JSON.stringify(gate?.props?.else)).toContain('Choose a call to see the events');
+  });
+
+  it('names the call, not the space, when there is nothing on the calendar', () => {
+    /*
+      `emptyState`'s own sentence is "This space doesn't have any events.", which is about the wrong
+      subject twice: the list is scoped to one call, and this branch is also what a day with nothing
+      on it shows — so a call with a full month in it announced that the space held no events
+      because somebody clicked a quiet Tuesday.
+    */
+    const events = JSON.stringify((workshop.routes ?? []).find((route) => route.path === '/events'));
+
+    expect(events).not.toContain("This space doesn't have any events");
+    expect(events).toContain('Nothing on this day.');
+    expect(events).toContain('Nothing from this call yet.');
   });
 
   it('carries the call from page to page in the switcher', () => {
