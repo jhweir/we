@@ -2316,6 +2316,9 @@ export const transcriptComposer: SchemaNode = {
               props: {
                 label: 'Add this to the transcript',
                 // No `size` either: the pair has to agree, and md is what the field is now.
+                // `square` sizes the width from that same height, so an icon-only button is a
+                // square rather than a rounded rectangle with an icon adrift in it.
+                square: true,
                 variant: 'secondary',
                 disabled: { $: '!trim(local.comment)' },
                 onClick: {

@@ -43,6 +43,18 @@ const SIZE_DEFAULTS: Record<ComponentSize, Partial<DesignSystemProps>> = {
 };
 
 const styles = css`
+  :host {
+    /*
+      The resting border's width, as a number the padding maths can use.
+
+      [part='base'] carries a 1px border from DEFAULT_PROPS and sits outside the textarea, so the
+      row the text has to fit inside is the control height less that border, twice. CSS cannot read
+      a width back out of a border shorthand, so it is named here — once, so a theme changing the
+      border sets this beside it rather than hunting through a calc.
+    */
+    --we-textarea-border-width: 1px;
+  }
+
   /* Provide icon sizing context for slotted we-icon children */
   :host([size='xs']) {
     --we-context-icon-size: var(--we-size-xxs);
@@ -68,6 +80,20 @@ const styles = css`
     --we-context-icon-size: var(--we-size-lg);
     --we-textarea-control-height: calc(var(--we-component-height-xl) + var(--we-theme-control-height-offset, 0px));
     --we-textarea-padding-x: var(--we-space-500);
+  }
+
+  /*
+    The control is the base, so the control height is the base's — which is how we-input and
+    we-button are built, and why they land on exactly the size asked for where this landed two
+    pixels over.
+
+    box-sizing is border-box, so a height on the base *includes* its border. Putting the floor on
+    the inner textarea instead, as this did, made the text one control tall and then drew the border
+    outside it: every textarea in the app stood two pixels proud of the input or button beside it,
+    at every size. Fixing the inner box was half the job and looked like all of it.
+  */
+  [part='base'] {
+    min-height: var(--we-textarea-control-height, var(--we-component-height-md));
   }
 
   [part='textarea'] {
@@ -111,7 +137,8 @@ const styles = css`
               0px,
               calc(
                 (
-                    var(--we-textarea-control-height, var(--we-component-height-md)) - 1em *
+                    var(--we-textarea-control-height, var(--we-component-height-md)) - 2 *
+                      var(--we-textarea-border-width) - 1em *
                       var(--we-theme-line-height, var(--we-line-height-normal, 1.5))
                   ) /
                   2
@@ -137,7 +164,6 @@ const styles = css`
       included — is what makes a one-line box line up with the controls around it rather than nearly
       line up.
     */
-    min-height: var(--we-textarea-control-height, var(--we-component-height-md));
     /*
       A line height autoGrow can actually measure.
 

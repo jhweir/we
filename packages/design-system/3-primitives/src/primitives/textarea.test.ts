@@ -21,11 +21,38 @@ describe('rows', () => {
     expect(el.shadowRoot?.querySelector('textarea')?.getAttribute('rows')).toBe('1');
   });
 
-  it('is floored at one control height, not at three rows', () => {
+  it('is floored at one control height, on the base rather than the box inside it', () => {
+    /*
+      The floor belongs to the *control*, which is `[part='base']` — the element carrying the border,
+      and the one `box-sizing: border-box` therefore measures from the outside. It used to sit on the
+      inner textarea, which made the text one control tall and then drew the border around it: every
+      textarea stood two pixels proud of the input or button beside it, at every size. Fixing the
+      inner box was half the job and looked like all of it.
+
+      `we-input` and `we-button` both put their height on the base, which is why they agree.
+    */
+    // Comments stripped first: these blocks argue about the very declarations being asserted on, so
+    // a plain `toContain` finds the prose and passes whatever the CSS says. The same reason
+    // `themeReach.test.ts` reads declarations rather than source.
+    const declarations = (text: string) => text.replace(/\/\*[\s\S]*?\*\//g, '');
     const sheet = (Textarea.styles as unknown as { cssText: string }[]).map((s) => s.cssText).join('\n');
-    const rule = /\[part='textarea'\]\s*\{([^}]*)\}/.exec(sheet)?.[1] ?? '';
-    expect(rule).toContain('min-height: var(--we-textarea-control-height');
-    expect(rule).not.toContain('min-height: 80px');
+    const base = declarations(/\[part='base'\]\s*\{([^}]*)\}/.exec(sheet)?.[1] ?? '');
+    const inner = declarations(/\[part='textarea'\]\s*\{([^}]*)\}/.exec(sheet)?.[1] ?? '');
+
+    expect(base).toContain('min-height: var(--we-textarea-control-height');
+    expect(inner).not.toContain('min-height');
+    expect(base).not.toContain('min-height: 80px');
+  });
+
+  it('leaves the border room inside that floor, so one row lands on it exactly', () => {
+    /*
+      The padding has to aim at the control height *less* the border, or the text fills the whole
+      floor and the border pushes the control past it — which is the same two pixels from the other
+      direction. CSS cannot read a width out of a border shorthand, so the primitive names it.
+    */
+    const sheet = (Textarea.styles as unknown as { cssText: string }[]).map((s) => s.cssText).join('\n');
+    expect(sheet).toContain('--we-textarea-border-width: 1px');
+    expect(sheet).toMatch(/2\s*\*\s*\n?\s*var\(--we-textarea-border-width\)/);
   });
 
   it('takes that floor from its own size rather than always from md', () => {
