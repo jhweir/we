@@ -15,21 +15,25 @@ set -euo pipefail
 
 AD4M_BRANCH="${AD4M_BRANCH:-dev}"
 AD4M_DIR="/tmp/ad4m-sdk"
+WE_ROOT="$PWD"
 
-echo "::group::Clone coasys/ad4m (branch: $AD4M_BRANCH)"
+echo "── Clone coasys/ad4m (branch: $AD4M_BRANCH)"
 git clone --depth 1 --branch "$AD4M_BRANCH" \
   https://github.com/coasys/ad4m.git "$AD4M_DIR"
 echo "  ad4m revision: $(git -C "$AD4M_DIR" rev-parse --short HEAD)"
-echo "::endgroup::"
 
-echo "::group::Build @coasys/ad4m from source"
+echo "── Build @coasys/ad4m from source"
 cd "$AD4M_DIR/core"
-pnpm install --frozen-lockfile
-pnpm run build
-echo "::endgroup::"
+# Use npm — AD4M workspace uses pnpm@9, WE uses pnpm@10. npm avoids the
+# version conflict entirely and works for the three runtime deps + devDeps.
+npm install --ignore-scripts
+npx patch-package
+npx tsc
+npx rollup -c rollup.config.js
+echo "  built: $(ls -la lib/index.cjs | awk '{print $5, $6, $7, $8}')"
 
-echo "::group::Link local SDK into WE workspace"
-cd "$NETLIFY_BUILD_BASE/repo"
+echo "── Link local SDK into WE workspace"
+cd "$WE_ROOT"
 
 # Rewrite the pnpm override to point at the local build.
 node -e "
@@ -43,8 +47,6 @@ node -e "
 # Re-resolve with the rewritten override. --no-frozen-lockfile because the
 # lockfile no longer matches the manifest (expected — the override changed).
 pnpm install --no-frozen-lockfile
-echo "::endgroup::"
 
-echo "::group::Build WE"
+echo "── Build WE"
 NODE_OPTIONS='--max-old-space-size=8192' pnpm build
-echo "::endgroup::"
