@@ -245,7 +245,16 @@ const callPill: SchemaNode = {
       props: {
         position: 'fixed',
         top: '300',
-        left: '300',
+        /*
+          Beside the content, not over the sidebar.
+
+          `--we-chrome-left` is the shell's published answer for exactly this: the sidebar's width
+          plus whatever any left-hand dock has taken. Chrome that worked it out from the ingredients
+          got it wrong in one arrangement or another every time, which is why the shell computes it
+          once — the switcher beside this reads the same number through `--we-chrome-center-x`, which
+          is a subtraction over it.
+        */
+        left: 'calc(var(--we-chrome-left, 0px) + var(--we-space-300))',
         zIndex: 'sticky',
         gap: '200',
         ay: 'center',
@@ -433,94 +442,6 @@ const startCall: SchemaNode = {
         {
           type: 'we-text',
           children: [{ $: "modules.call.active ? 'Go to the call' : 'New call'" }],
-        },
-      ],
-    },
-  },
-};
-
-/**
- * Pick a call up again — and land on the canvas that is about it.
- *
- * This template's three routes are all about `modules.transcribe.collectionId`: the transcript
- * panel, the extraction readout and the canvas all read it. Nothing set it but a call starting, so
- * after a refresh the template was about no call at all and the only way back was to start a new
- * one — a fresh meeting, beside the record of the one you actually wanted.
- *
- * `resume` is what sets it: it takes a *record* id (not a call id, which names the place calls
- * happen rather than any one of them) and holds it until there is a call to attach it to. Paired
- * with `goToCall`, that is "continue this conversation".
- *
- * ## The gate, which is the same one `CallsList` arrived at
- *
- * Offered only when no call is running — where it continues *this* one — or when this row **is** the
- * running call, where "go to the call" can only mean the one it is attached to. Mid-call on any
- * other row, `goToCall` silently tears down the call you are in and `resume` re-points everybody's
- * live transcript at last month's meeting, since peers adopt an announced record over their own. See
- * the long note in `templates/views/.../CallsList.ts`; this is the second surface with the problem
- * and the reasoning is not repeated here.
- *
- * Absent rather than disabled, for the same reason it is there: a disabled button does not reliably
- * deliver hover to the tooltip that would explain it, so the explanation is the part that goes
- * missing.
- */
-const continueCall: SchemaNode = {
-  type: '$if',
-  props: {
-    condition: {
-      $: 'modules.call.canCall && (!modules.call.active || call.id == modules.call.callRecordId)',
-    },
-    then: {
-      type: 'we-tooltip',
-      props: {
-        content: { $: "modules.call.active ? 'Go to the call' : 'Continue this call and put it on the canvas'" },
-        placement: 'top',
-      },
-      children: [
-        {
-          type: 'we-button',
-          props: {
-            variant: 'ghost',
-            size: 'sm',
-            square: true,
-            /*
-              Branched in the handler rather than around the node, so one button is rendered either
-              way. Handler arrays resolve lazily, so each condition reads the store as it is when the
-              button is pressed rather than as it was when the row painted.
-            */
-            onClick: [
-              {
-                $if: {
-                  condition: { $: 'modules.call.active' },
-                  then: { $action: 'modules.call.goToCall' },
-                },
-              },
-              {
-                $if: {
-                  condition: { $: '!modules.call.active' },
-                  /*
-                    `continueCall`, not `goToCall`. The latter is a *direction* — with nothing
-                    running it starts a fresh call, so pressing continue wrote a second record and
-                    joined that, leaving an empty call in the space and every surface reading
-                    `callRecordId` pointing at it while the transcript went to the record actually
-                    chosen. This names the record, and a call *is* its record, so there is nothing
-                    to create.
-
-                    `resume` stays beside it: the transcriber adopts the call's own record through
-                    presence, which is a round trip, and this says the answer immediately.
-                  */
-                  then: [
-                    { $action: 'modules.call.continueCall', args: [{ $: 'call.id' }] },
-                    { $action: 'modules.transcribe.resume', args: [{ $: 'call.id' }] },
-                  ],
-                },
-              },
-              // The point of picking a call: its canvas. Cleared rather than named, for the reason
-              // above — resuming makes this the live call.
-              openLiveCall,
-            ],
-          },
-          children: [{ type: 'we-icon', props: { name: 'phone-call', size: '20px' } }],
         },
       ],
     },
@@ -846,8 +767,6 @@ const callsPanel: SchemaNode = {
                             },
                           ],
                         },
-                        // The heavy half — join a call and point the recorder at this record.
-                        continueCall,
                         {
                           type: 'we-tooltip',
                           props: { content: 'Delete this call', placement: 'top' },
