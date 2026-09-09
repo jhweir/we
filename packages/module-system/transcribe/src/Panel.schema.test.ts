@@ -87,6 +87,25 @@ describe('a transcript with nothing in it', () => {
     expect(linesJson).toContain('local.utterancesLoaded');
   });
 
+  it('gates on the flag alone, naming no subject a `$part` would have to rewrite', () => {
+    /*
+      THE regression, and one the assertion above cannot catch: it was
+      `local.utterancesLoaded && modules.transcribe.collectionId`, which contains that string and
+      still never showed the placeholder on the transcripts it was written for.
+
+      Substitution is whole-token — `moduleParts` rewrites a `{ $ }` whose expression IS the
+      subject, and leaves one that merely mentions it inside a longer sentence alone, deliberately,
+      since half-rewriting somebody's sentence produces one nobody wrote. So a compound condition
+      goes on reading the LIVE collection id, which is null on a past call: the panel gated itself
+      shut exactly where an empty state was the whole point.
+
+      Nothing is lost by dropping the term — `when` (asserted below) refuses the query without a
+      subject, and a query never asked never reports itself loaded.
+    */
+    expect(linesJson).toContain('"condition":{"$":"local.utterancesLoaded"}');
+    expect(linesJson).not.toContain('local.utterancesLoaded &&');
+  });
+
   it('asks only about the call on screen, however slowly its id arrives', () => {
     /*
       The hazard the hoist introduced and `when` closes: an operand that has not resolved is pruned

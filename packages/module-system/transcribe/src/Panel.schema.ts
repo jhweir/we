@@ -2090,7 +2090,21 @@ export const transcriptLines: SchemaNode = {
         else: {
           type: '$if',
           props: {
-            condition: { $: 'local.utterancesLoaded && modules.transcribe.collectionId' },
+            /*
+              `utterancesLoaded` alone — naming the subject here is what stopped this appearing.
+
+              Substitution is whole-token: `{ $: 'modules.transcribe.collectionId' }` is rewritten
+              wherever a `$part` points this at another call, and an expression that merely
+              *mentions* it inside a longer sentence is left alone, deliberately — a partial rewrite
+              of somebody else's sentence produces ones nobody wrote. So this compound condition
+              went on reading the *live* collection, which is null on a past call, and the
+              placeholder never showed on exactly the transcripts it was written for.
+
+              Nothing is lost by dropping the term. `when` already refuses the query without a
+              subject, and a query never asked never reports itself loaded — so "no call at all"
+              stays silent through the same flag that keeps a loading one silent.
+            */
+            condition: { $: 'local.utterancesLoaded' },
             then: emptyState({
               icon: 'chat-dots',
               label: 'transcript',

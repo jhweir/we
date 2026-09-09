@@ -316,7 +316,16 @@ const callPill: SchemaNode = {
                   { $setLocal: 'editOpen', value: true },
                 ],
               },
-              children: [{ type: 'we-icon', props: { name: 'pencil-simple' } }],
+              /*
+                An explicit size, against the usual rule of letting a sized primitive set its own.
+
+                A control at the default height gives a nested icon 24px, which is right for a glyph
+                that *is* the button — a send arrow, a record dot — and heavy for one standing beside
+                a heading it belongs to. The box stays 40px: shrinking the button instead would take
+                the pill down with it, and the band reserved above is measured from a control at that
+                height.
+              */
+              children: [{ type: 'we-icon', props: { name: 'pencil-simple', size: '18px' } }],
             },
           ],
         },
