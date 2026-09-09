@@ -4,10 +4,16 @@ version: 2.1
 # `ad4m-compat.yaml`), running on Coasys's self-hosted machine runner.
 #
 # Why this exists alongside the GitHub Actions workflows: WE's tests are going to
-# need a real AD4M executor, and a hosted runner cannot have one. `coasys/marvin`
+# need a real AD4M executor, and a hosted runner cannot have one. The runner host
 # is a physical box that already builds AD4M, so it can hold an executor, a
 # Holochain conductor and a bootstrap server between jobs. This file is step one —
 # the same checks GitHub Actions already runs, running there instead.
+#
+# WE has its own resource class, `coasys/marvin-we`, with four runner instances
+# and their own working directories. It shared `coasys/marvin` with AD4M for
+# exactly one afternoon, which was enough to show why it should not: the two
+# projects landed in the same directory, so each one's cleanup destroyed the
+# other's cached build tree. Same hardware, separate pools.
 #
 #
 # ## What a self-hosted machine runner changes
@@ -58,7 +64,7 @@ version: 2.1
 executors:
   marvin:
     machine: true
-    resource_class: coasys/marvin
+    resource_class: coasys/marvin-we
 
 # ---------------------------------------------------------------------------
 # Commands — the composite actions from `.github/actions/`
@@ -87,12 +93,17 @@ commands:
       # paid back by the pnpm store cache below, which survives because it lives
       # in the runner's home directory rather than the repository.
       #
-      # The second `f` is load-bearing and was learned the hard way. This runner
-      # is shared with AD4M, whose jobs leave `.hc-toolchain/` behind — and that
-      # directory contains its own `.git`. A single `-f` *skips nested
+      # The second `f` is load-bearing and was learned the hard way, back when
+      # this pool was shared with AD4M: its jobs leave `.hc-toolchain/` behind,
+      # and that directory contains its own `.git`. A single `-f` *skips nested
       # repositories* ("Skipping repository .hc-toolchain/src"), so the tree
-      # stayed dirty, and the guard below correctly refused to let the drift
-      # check run against it.
+      # stayed dirty and the guard below correctly refused to run the drift check
+      # against it.
+      #
+      # The dedicated resource class removes that particular neighbour, but the
+      # `-ff` stays: WE's own tooling is free to write a nested repo into an
+      # ignored directory at any point, and this guard should not have to be
+      # rediscovered the day it does.
       - run:
           name: Reset working directory
           command: |
