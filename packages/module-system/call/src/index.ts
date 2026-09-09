@@ -1113,7 +1113,7 @@ const topologyIndicator: SchemaNode = {
     then: {
       type: '$if',
       props: {
-        condition: { $: "modules.call.topology === 'sfu'" },
+        condition: { $: "modules.call.topology == 'sfu'" },
         then: {
           type: 'we-tooltip',
           props: { title: 'Routed through relay server (SFU)', placement: 'bottom' },
@@ -1152,7 +1152,7 @@ const topologyIndicator: SchemaNode = {
 const qualitySelector: SchemaNode = {
   type: '$if',
   props: {
-    condition: { $: "modules.call.topology === 'sfu'" },
+    condition: { $: "modules.call.topology == 'sfu'" },
     then: {
       type: 'we-tooltip',
       props: {
@@ -1164,14 +1164,14 @@ const qualitySelector: SchemaNode = {
           type: 'we-button',
           props: {
             square: true,
-            variant: expr`${{ $: 'modules.call.qualityPreference' }} === "high" ? "ghost" : "secondary"`,
+            variant: expr`${{ $: 'modules.call.qualityPreference' }} == "high" ? "ghost" : "secondary"`,
             onClick: { $action: 'modules.call.cycleQuality' },
           },
           children: [
             {
               type: 'we-icon',
               props: {
-                name: expr`${{ $: 'modules.call.qualityPreference' }} === "high" ? "cell-signal-full" : ${{ $: 'modules.call.qualityPreference' }} === "medium" ? "cell-signal-medium" : "cell-signal-low"`,
+                name: expr`${{ $: 'modules.call.qualityPreference' }} == "high" ? "cell-signal-full" : ${{ $: 'modules.call.qualityPreference' }} == "medium" ? "cell-signal-medium" : "cell-signal-low"`,
               },
             },
           ],
