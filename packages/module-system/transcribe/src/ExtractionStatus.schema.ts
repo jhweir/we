@@ -33,6 +33,8 @@ import { SECTION_LABEL_PROPS } from '@we/schema-kit';
 import { type SchemaNode, type SchemaProp } from '@we/schema-shared';
 import { expr } from '@we/schema-shared';
 
+import { VIEWING_LIVE_EXPR } from './subject';
+
 /**
  * How big the leading glyph is, whichever glyph it happens to be.
  *
@@ -607,7 +609,7 @@ export const extractionActivity: SchemaNode = {
     which are written down and hang off the collection. See `extractionHistory`.
   */
   props: {
-    condition: { $: 'interpretationStore.hasActivity && !routeStore.params.call' },
+    condition: { $: `interpretationStore.hasActivity && (${VIEWING_LIVE_EXPR})` },
     then: {
       type: 'Column',
       $localState: activityLocalState,

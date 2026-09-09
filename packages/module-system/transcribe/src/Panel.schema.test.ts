@@ -26,6 +26,7 @@ import {
   transcriptFeed,
   transcriptLines,
 } from './Panel.schema';
+import { VIEWING_LIVE_EXPR } from './subject';
 
 const panelJson = JSON.stringify(panel);
 const feedJson = JSON.stringify(transcriptFeed);
@@ -59,7 +60,9 @@ describe('which call the panel is about', () => {
   });
 
   it('says which call it is showing, because it can now be either', () => {
-    expect(panelJson).toContain("routeStore.params.call ? 'Past call' : 'Transcript'");
+    expect(panelJson).toContain(
+      "(!routeStore.params.call || routeStore.params.call == modules.transcribe.callId) ? 'Transcript' : 'Past call'",
+    );
   });
 });
 
@@ -67,7 +70,7 @@ describe('what belongs to the live microphone only', () => {
   it('keeps the meter, the coverage readout and the status notes off a call being read back', () => {
     // All three are about the microphone this agent is running now, which says nothing about a
     // meeting somebody opened from a link. A bar moving beside it would measure the wrong thing.
-    const live = '{"$":"routeStore.params.call ? false : true"}';
+    const live = '{"$":"!routeStore.params.call || routeStore.params.call == modules.transcribe.callId"}';
     const meter = panelJson.indexOf('"Microphone"');
     const coverage = panelJson.indexOf('"Coverage"');
     const status = panelJson.indexOf('Starting\u2026');
@@ -87,7 +90,9 @@ describe('what belongs to the live microphone only', () => {
       condition by its consumer is a fragment that will be placed without one — the workshop wrapped
       it by hand, and nothing would have said so if it had been forgotten.
     */
-    expect(JSON.stringify(pendingUtterance)).toContain('modules.transcribe.pending && !routeStore.params.call');
+    expect(JSON.stringify(pendingUtterance)).toContain(
+      'modules.transcribe.pending && (!routeStore.params.call || routeStore.params.call == modules.transcribe.callId)',
+    );
   });
 
   it('offers recording on the live call and continuing on a past one, never both', () => {
@@ -105,6 +110,36 @@ describe('what belongs to the live microphone only', () => {
       subject would go on treating a live call as a past one.
     */
     expect(panelJson).toContain('{"$action":"routeStore.setParam","args":["call",null]}');
+  });
+});
+
+/**
+ * Whether the call on screen is the one being recorded.
+ *
+ * The reported bug: continuing a call from the module rail leaves the address naming it, where the
+ * panel's own continue button cleared the parameter as it went. While this asked "does the address
+ * name a call", those two paths disagreed — the rail's left a meeting in progress reading as a past
+ * one, with no meter, no coverage, no unsaved line and no REC badge for the rest of it.
+ */
+describe('which call is live', () => {
+  it('asks whether the call named is the one being recorded, not whether one is named', () => {
+    // `callId` rather than `collectionId`: the collection appears on the first utterance, so the
+    // panel would call a joined-but-silent call a past one until somebody spoke.
+    expect(VIEWING_LIVE_EXPR).toContain('modules.transcribe.callId');
+    expect(VIEWING_LIVE_EXPR).toContain('!routeStore.params.call');
+    // The test it used to make, which is true of a live call the address happens to name.
+    expect(VIEWING_LIVE_EXPR).not.toContain('? false : true');
+  });
+
+  it('is the one question, asked once', () => {
+    /*
+      Five surfaces gated on it and four of them had spelled it out for themselves, so the fix had
+      to land in five places or in none. They read the shared expression now.
+    */
+    for (const json of [panelJson, JSON.stringify(pendingUtterance), JSON.stringify(extractionActivity)]) {
+      expect(json).not.toContain("!routeStore.params.call'");
+    }
+    expect(panelJson).toContain(VIEWING_LIVE_EXPR);
   });
 });
 
@@ -135,7 +170,9 @@ describe('the feed', () => {
       Pinned as one node rather than two: `relative` short-circuits inside the primitive, so a branch
       here would unmount and rebuild every row the moment a call ended.
     */
-    expect(linesJson).toContain('"relative":{"$":"routeStore.params.call ? false : true"}');
+    expect(linesJson).toContain(
+      '"relative":{"$":"!routeStore.params.call || routeStore.params.call == modules.transcribe.callId"}',
+    );
     expect(linesJson).toContain('"timeStyle":"short"');
   });
 
@@ -307,7 +344,7 @@ describe('the extraction panel', () => {
   it('keeps "as it happens" to the live call, where it is the only thing that means anything', () => {
     // A meeting somebody opened from a link is not happening. Everything else here follows the call
     // on screen; this one cannot.
-    const live = '{"$":"routeStore.params.call ? false : true"}';
+    const live = '{"$":"!routeStore.params.call || routeStore.params.call == modules.transcribe.callId"}';
     expect(json.indexOf(live)).toBeLessThan(json.indexOf('As it happens'));
   });
 
@@ -438,6 +475,8 @@ describe('the history of what was read', () => {
 
   it('keeps the live feed to the live call, where its rows belong', () => {
     // The store's rows carry no call id, so on a past call they described the wrong conversation.
-    expect(JSON.stringify(extractionActivity)).toContain('interpretationStore.hasActivity && !routeStore.params.call');
+    expect(JSON.stringify(extractionActivity)).toContain(
+      'interpretationStore.hasActivity && (!routeStore.params.call || routeStore.params.call == modules.transcribe.callId)',
+    );
   });
 });

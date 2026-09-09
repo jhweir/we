@@ -20,6 +20,7 @@ import { type SchemaNode } from '@we/schema-shared';
 import { expr } from '@we/schema-shared';
 
 import { extractionActivity } from './ExtractionStatus.schema';
+import { SUBJECT_EXPR as SHARED_SUBJECT_EXPR, VIEWING_LIVE_EXPR } from './subject';
 
 /**
  * Which call this panel is about — the one named in the address, or the one being recorded.
@@ -37,7 +38,7 @@ import { extractionActivity } from './ExtractionStatus.schema';
  * utterance, so its absence is exactly "nothing has been said here", which is the question
  * `captureStatus` is already answering. A call with a record and no words is not a transcript.
  */
-export const SUBJECT_EXPR = 'routeStore.params.call ? routeStore.params.call : modules.transcribe.collectionId';
+export const SUBJECT_EXPR = SHARED_SUBJECT_EXPR;
 const SUBJECT = { $: SUBJECT_EXPR };
 
 /**
@@ -47,11 +48,23 @@ const SUBJECT = { $: SUBJECT_EXPR };
  * status notes, the unsaved line and the record button. A bar moving beside last month's meeting
  * would be measuring the wrong thing and saying so confidently.
  *
+ * ## Naming a call is not the same as reading one back
+ *
+ * This used to be "the address names a call", and the two coincided for as long as the only way to
+ * pick a call up was a button that cleared the parameter as it went. The module rail can now
+ * continue the call on screen, which leaves the address naming it — so the panel called a meeting
+ * in progress a past one, and hid the level meter, the coverage readout, the unsaved line and the
+ * REC badge for the rest of it.
+ *
+ * The honest question is whether the call named is the one being recorded, and this module can
+ * answer it without naming another: `callId` is what it is about, falling back to the live call's
+ * own record, so it is set from the moment a call is joined rather than from the first thing said.
+ *
  * Read from the address rather than derived from `SUBJECT`, because whole-token substitution cannot
  * rewrite an expression that merely mentions the subject: a `$part` pointed at another call is
  * expected to be on a route that names it, which is what `SUBJECT_EXPR` already assumes.
  */
-const VIEWING_LIVE = { $: 'routeStore.params.call ? false : true' };
+const VIEWING_LIVE = { $: VIEWING_LIVE_EXPR };
 
 /**
  * Which call the *extraction* surface is about.
@@ -2199,7 +2212,7 @@ export const pendingUtterance: SchemaNode = {
       is a fragment that will be placed without one. The workshop wrapped it by hand; nothing made
       that obligatory, and nothing would have said so if it had been forgotten.
     */
-    condition: { $: 'modules.transcribe.pending && !routeStore.params.call' },
+    condition: { $: `modules.transcribe.pending && (${VIEWING_LIVE_EXPR})` },
     then: {
       type: 'Column',
       props: { bg: 'accent-muted', r: '300', p: '300', gap: '200' },
@@ -2545,7 +2558,7 @@ export const panel: SchemaNode = {
     condition: { $: 'datasetStore.currentDataset && modules.transcribe.open' },
     then: panelShell({
       // Says which call this is about, because the panel can be about either.
-      title: { $: "routeStore.params.call ? 'Past call' : 'Transcript'" },
+      title: { $: `(${VIEWING_LIVE_EXPR}) ? 'Transcript' : 'Past call'` },
       aside: {
         type: 'Row',
         props: { gap: '200', ay: 'center' },
@@ -2553,7 +2566,7 @@ export const panel: SchemaNode = {
           {
             type: '$if',
             props: {
-              condition: { $: 'modules.transcribe.listening && !routeStore.params.call' },
+              condition: { $: `modules.transcribe.listening && (${VIEWING_LIVE_EXPR})` },
               // `solid`: this is the news, not an annotation on it. Soft would paint the dark
               // tint and a pale label, which reads as a note about recording rather than as
               // the fact that it is happening.
