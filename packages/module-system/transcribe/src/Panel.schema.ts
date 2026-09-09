@@ -1192,6 +1192,10 @@ const extractionHistory: SchemaNode = {
                               props: {
                                 value: { $: 'pass.createdAt' },
                                 relative: true,
+                                // Abbreviated for the same reason as the transcript row: this sits
+                                // at the end of a line already holding an outcome that can be a
+                                // whole error message.
+                                relativeStyle: 'short',
                                 fontSize: '200',
                                 color: 'text-faint',
                               },
@@ -1624,6 +1628,17 @@ export const transcriptLines: SchemaNode = {
                           props: {
                             value: { $: 'utterance.createdAt' },
                             relative: true,
+                            /*
+                              Abbreviated, because this row is three things competing for a panel
+                              that is often narrow — a name, a time and sometimes a badge — and the
+                              time is the one with a shorter form that loses nothing. "4 min. ago"
+                              rather than "4 minutes ago".
+
+                              Set here rather than defaulted in the primitive: how wordy a time
+                              should be is a density decision belonging to the surface, and the same
+                              stamp under a post in a full-width feed reads better spelled out.
+                            */
+                            relativeStyle: 'short',
                             fontSize: '100',
                             color: 'text-faint',
                           },

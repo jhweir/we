@@ -24,10 +24,12 @@ import {
   pendingUtterance,
   SUBJECT_EXPR,
   transcriptFeed,
+  transcriptLines,
 } from './Panel.schema';
 
 const panelJson = JSON.stringify(panel);
 const feedJson = JSON.stringify(transcriptFeed);
+const linesJson = JSON.stringify(transcriptLines);
 
 describe('which call the panel is about', () => {
   it('follows the call the address names, and falls back to the one being recorded', () => {
@@ -122,6 +124,15 @@ describe('the feed', () => {
     // `pin` lets go of a reader who scrolls up and offers nothing to undo that; in a live transcript
     // the bottom keeps moving, so scrolling back to it by hand is a chase.
     expect(feedJson).toContain('"jump":"both"');
+  });
+
+  it('abbreviates the time on a row, which is the one thing on it with a shorter form', () => {
+    /*
+      A prop nothing sets is a prop that does nothing, and this one shipped that way once: the
+      primitive gained `relativeStyle` and no call site named it, so every row went on reading
+      "3 hours ago" in a panel narrow enough that the phrase was the reason the row wrapped.
+    */
+    expect(linesJson).toContain('"relativeStyle":"short"');
   });
 });
 
