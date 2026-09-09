@@ -2308,7 +2308,7 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
      * ## Why it is the same kind of record as an utterance
      *
      * A transcript is one timeline ordered by `createdAt`, and a schema cannot merge two queries
-     * into one — so a comment kept in its own entity could only ever be listed *beside* the
+     * into one — so a message kept in its own entity could only ever be listed *beside* the
      * conversation rather than *in* it, which is not what somebody typing during a meeting means.
      * It is a `TextBlock` among the utterances, and `source` is what stops it passing as one.
      *
@@ -2316,17 +2316,17 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
      * author of what their own microphone heard.
      *
      * Written into the **call's** space rather than the space on screen, for the reason every other
-     * write here is: a call outlives the reader's navigation, and a comment landing in whichever
-     * space somebody had wandered to would be a note about a meeting, filed somewhere else.
+     * write here is: a call outlives the reader's navigation, and a message landing in whichever
+     * space somebody had wandered to would be a remark about a meeting, filed somewhere else.
      *
      * `collection` is named by the caller because the composer is no longer only about the call
      * being recorded: a transcript on screen is a transcript somebody can write into, and which one
      * that is, is a question the panel has already answered for every other row it draws. Omitted,
      * it falls back to the call in progress — the call's own record, which exists from its first
-     * second, since a comment does not need somebody to have spoken first and `collectionId` is
+     * second, since a message does not need somebody to have spoken first and `collectionId` is
      * null until they have.
      */
-    addComment: async (collection: string, text: string) => {
+    addMessage: async (collection: string, text: string) => {
       const words = String(text ?? '').trim();
       if (!words || !createEntity) return;
       const target = collection || targetCollection();
@@ -2336,7 +2336,7 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
 
         A live call in one space outlives a reader who walks to another, so `myCall().datasetUri`
         answers for the meeting being recorded rather than for the transcript on screen. Naming it
-        unconditionally would send a comment about a past call in *this* space to whichever space
+        unconditionally would send a message about a past call in *this* space to whichever space
         the live one is running in, where the record it names does not exist.
       */
       const dataset = target === targetCollection() ? (myCall()?.datasetUri ?? undefined) : undefined;

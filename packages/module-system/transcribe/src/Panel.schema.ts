@@ -2229,7 +2229,7 @@ export const pendingUtterance: SchemaNode = {
 };
 
 /**
- * Typing something into the transcript.
+ * Typing a message into the transcript.
  *
  * ## Why this belongs in the timeline rather than beside it
  *
@@ -2268,7 +2268,7 @@ export const transcriptComposer: SchemaNode = {
     then: {
       type: 'Row',
       props: { gap: '200', ay: 'end', width: '100%' },
-      $localState: { comment: { type: 'string', initial: '' } },
+      $localState: { message: { type: 'string', initial: '' } },
       children: [
         {
           type: 'we-textarea',
@@ -2298,14 +2298,14 @@ export const transcriptComposer: SchemaNode = {
             // Short: a placeholder is read at a glance and the panel it sits in is already headed
             // "Transcript", so naming the destination was the box explaining where it was.
             placeholder: 'Type a message…',
-            value: { $: 'local.comment' },
-            onInput: { $setLocal: 'comment', value: { $: 'event.detail' } },
+            value: { $: 'local.message' },
+            onInput: { $setLocal: 'message', value: { $: 'event.detail' } },
             // Enter commits, and the primitive suppresses the newline that would otherwise follow —
             // a schema can read a key event but has nothing that calls `preventDefault`.
             'on:submit': {
-              $action: 'modules.transcribe.addComment',
-              args: [{ $: EXTRACTION_SUBJECT_EXPR }, { $: 'local.comment' }],
-              onSuccess: [{ $setLocal: 'comment', value: '' }],
+              $action: 'modules.transcribe.addMessage',
+              args: [{ $: EXTRACTION_SUBJECT_EXPR }, { $: 'local.message' }],
+              onSuccess: [{ $setLocal: 'message', value: '' }],
             },
           },
         },
@@ -2322,13 +2322,13 @@ export const transcriptComposer: SchemaNode = {
                 // square rather than a rounded rectangle with an icon adrift in it.
                 square: true,
                 variant: 'secondary',
-                disabled: { $: '!trim(local.comment)' },
+                disabled: { $: '!trim(local.message)' },
                 onClick: {
-                  $action: 'modules.transcribe.addComment',
-                  args: [{ $: EXTRACTION_SUBJECT_EXPR }, { $: 'local.comment' }],
+                  $action: 'modules.transcribe.addMessage',
+                  args: [{ $: EXTRACTION_SUBJECT_EXPR }, { $: 'local.message' }],
                   // Cleared on success only — a failed write keeps what was typed rather than
                   // swallowing it and leaving an empty box as the only report.
-                  onSuccess: [{ $setLocal: 'comment', value: '' }],
+                  onSuccess: [{ $setLocal: 'message', value: '' }],
                 },
               },
               children: [{ type: 'we-icon', props: { name: 'paper-plane-tilt' } }],

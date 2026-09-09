@@ -1906,7 +1906,7 @@ describe('turning automatic extraction off for one call', () => {
 });
 
 /**
- * Writing into a transcript by hand — a note typed during a call, and a line the recogniser
+ * Writing into a transcript by hand — a message typed during a call, and a line the recogniser
  * misheard.
  *
  * Both put text in the same timeline a microphone writes into, which is the point: a remark typed
@@ -1929,30 +1929,30 @@ describe('typing into a transcript', () => {
     expect(h.created.find((c) => c.entity === 'TextBlock')?.fields.source).toBe('spoken');
   });
 
-  it('writes a typed note into the same timeline, saying it was typed', async () => {
+  it('writes a typed message into the same timeline, saying it was typed', async () => {
     const h = harness(inCall);
 
-    await h.store.addComment('', '  Sam is joining late  ');
+    await h.store.addMessage('', '  Sam is joining late  ');
 
     const block = h.created.find((c) => c.entity === 'TextBlock');
     expect(block?.fields).toEqual({ text: 'Sam is joining late', source: 'typed' });
-    // Into the call's own record, which exists from its first second — a note does not require
+    // Into the call's own record, which exists from its first second — a message does not require
     // somebody to have spoken first.
     expect(block?.options?.parent).toEqual({ id: RECORD, predicate: 'we://children' });
   });
 
-  it('writes nothing for an empty note', async () => {
+  it('writes nothing for an empty message', async () => {
     const h = harness(inCall);
 
-    await h.store.addComment('', '   ');
+    await h.store.addMessage('', '   ');
 
     expect(h.created.filter((c) => c.entity === 'TextBlock')).toEqual([]);
   });
 
-  it('has nowhere to put a note outside a call, and does not invent one', async () => {
+  it('has nowhere to put a message outside a call, and does not invent one', async () => {
     const h = harness([]);
 
-    await h.store.addComment('', 'a thought');
+    await h.store.addMessage('', 'a thought');
 
     expect(h.created.filter((c) => c.entity === 'TextBlock')).toEqual([]);
   });
@@ -1962,7 +1962,7 @@ describe('typing into a transcript', () => {
     // screen, and that is not always the one being recorded.
     const h = harness([]);
 
-    await h.store.addComment('past-call', 'watched this back');
+    await h.store.addMessage('past-call', 'watched this back');
 
     const block = h.created.find((c) => c.entity === 'TextBlock');
     expect(block?.options?.parent).toEqual({ id: 'past-call', predicate: 'we://children' });
@@ -2000,7 +2000,7 @@ describe('mending a line somebody misheard', () => {
     ]);
   });
 
-  it('leaves a typed note typed when its author fixes it', async () => {
+  it('leaves a typed message typed when its author fixes it', async () => {
     // Correcting your own writing is not a correction *of a transcript*, and calling it one would
     // put a mark on the ordinary act of fixing a typo.
     const h = harness(inCall, deps);
