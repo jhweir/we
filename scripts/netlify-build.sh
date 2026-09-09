@@ -31,9 +31,12 @@ git clone --depth 1 --branch "$AD4M_BRANCH" \
 echo "  revision: $(git -C "$AD4M_DIR" rev-parse --short HEAD)"
 
 echo "── Build @coasys/ad4m from source"
+# AD4M's root package.json declares `workspaces` — npm walks up from core/,
+# finds it, and tries to resolve every sibling (ui, connect, …) which use
+# pnpm's `workspace:*` protocol. Strip the workspace context so npm treats
+# core/ as a standalone package.
+rm -f "$AD4M_DIR/package.json" "$AD4M_DIR/pnpm-workspace.yaml"
 cd "$AD4M_DIR/core"
-# Use npm — AD4M workspace uses pnpm@9, WE uses pnpm@10. npm avoids the
-# version conflict entirely and works for the three runtime deps + devDeps.
 npm install --ignore-scripts
 npx patch-package
 npx tsc
