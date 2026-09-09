@@ -54,7 +54,19 @@
  *   *joins a call* when there is not one. Placed, never opened.
  */
 import type { RouteSchema, SchemaNode, SchemaProp, TemplateSchema } from '@we/schema-shared';
-import { anchorScope, emptyState, panelHeader, recordFormModal, taskBoard, taskBoardLoading } from '@we/template-kit';
+// `field` and `formModal` through the template kit rather than `@we/schema-kit`: this package
+// depends on the former, which re-exports them, and on the latter not at all.
+import {
+  anchorScope,
+  emptyState,
+  field,
+  formModal,
+  panelHeader,
+  peopleRow,
+  recordFormModal,
+  taskBoard,
+  taskBoardLoading,
+} from '@we/template-kit';
 
 /**
  * The call on screen — **named in the address**, or the one being recorded when it names none.
@@ -197,6 +209,145 @@ const navPath = { $: "`${spaceStore.spacePath}/${nav.segment}?call=${routeStore.
  * that displaces slides the content's centre, and a bar that ignored it would drift off-centre as
  * soon as anything opened.
  */
+/**
+ * What this conversation is called, and who was in it.
+ *
+ * ## Its own pill, beside the switcher rather than inside it
+ *
+ * The obvious home is the bar the route buttons live in, and it is the wrong one: that pill is
+ * content-sized and centred, so a title in it moves Canvas, Tasks and Events sideways every time
+ * somebody renames a call or opens one with a longer name. Nav you cannot build muscle memory for
+ * is worse than nav you have to look at. Two pills of the same family, each sized by its own
+ * contents, and neither disturbs the other.
+ *
+ * Left rather than centred, for the same reason: this one grows with its title, and a centred box
+ * that grows moves at both ends.
+ *
+ * ## Who counts as a participant
+ *
+ * `participants` on the call record — everyone who was *in* the call, whether or not they ever
+ * said anything. The transcribe module writes it for any agent present once the record exists, and
+ * its own note argues why: a transcript showing somebody was there and silent is worth more than
+ * one that quietly looks complete. Not live presence, which is empty for every call being read
+ * back, and not the set of people who spoke, which would drop exactly the attendee a reader is
+ * most likely to have forgotten.
+ *
+ * Read straight off the record as a list of DIDs — the relation is untyped, so it comes back
+ * unhydrated, which is the shape `peopleRow` takes.
+ */
+const callPill: SchemaNode = {
+  type: '$if',
+  props: {
+    // Nothing to name when no call is on screen, and the query below would have no id to ask about.
+    condition: CALL,
+    then: {
+      type: 'Row',
+      props: {
+        position: 'fixed',
+        top: '300',
+        left: '300',
+        zIndex: 'sticky',
+        gap: '200',
+        ay: 'center',
+        p: '100',
+        pl: '300',
+        r: 'pill',
+        bg: 'surface-raised',
+        border: '1px solid border',
+        shadow: 'lg',
+        // A title can be any length; the pill is chrome and must not span the window.
+        maxWidth: '360px',
+      },
+      /*
+        `when`, because an unresolved operand is *pruned* rather than sent — and pruning widens. A
+        `where` that lost its id would ask for every CollectionBlock in the space and hand back the
+        first one, which is a different call's name shown with confidence.
+      */
+      $queries: {
+        callRecord: {
+          entity: 'CollectionBlock',
+          where: { id: CALL },
+          limit: 1,
+          when: CALL,
+        },
+      },
+      $localState: {
+        editOpen: { type: 'boolean', initial: false },
+        titleDraft: { type: 'string', initial: '' },
+        descriptionDraft: { type: 'string', initial: '' },
+      },
+      children: [
+        {
+          type: 'we-text',
+          props: { truncate: true, minWidth: '0', fontWeight: 'medium' },
+          children: [{ $: "first(local.callRecord).title ? first(local.callRecord).title : 'Call'" }],
+        },
+        {
+          type: 'we-tooltip',
+          props: { content: 'Name this conversation' },
+          children: [
+            {
+              type: 'we-button',
+              props: {
+                label: 'Name this conversation',
+                variant: 'ghost',
+                size: 'sm',
+                square: true,
+                color: 'text-faint',
+                /*
+                  Seeded on the press, not at mount: the drafts have to hold what the record says
+                  *now*, and a local declared with an `initial` reads it once — before the query has
+                  answered, on the first frame. The Cards view's own edit button does the same.
+                */
+                onClick: [
+                  { $setLocal: 'titleDraft', value: { $: 'first(local.callRecord).title' } },
+                  { $setLocal: 'descriptionDraft', value: { $: 'first(local.callRecord).description' } },
+                  { $setLocal: 'editOpen', value: true },
+                ],
+              },
+              children: [{ type: 'we-icon', props: { name: 'pencil-simple' } }],
+            },
+          ],
+        },
+        { type: 'we-divider', props: { orientation: 'vertical', height: '20px' } },
+        // No `noun`: the pill is chrome and a count beside three faces is a word doing no work. The
+        // roster is on hover, which is where a name belongs when the faces are this small.
+        peopleRow({ items: { $: 'first(local.callRecord).participants' }, dids: true, max: 4, size: 'xs' }),
+        formModal({
+          open: { $: 'local.editOpen' },
+          close: { $setLocal: 'editOpen', value: false },
+          title: 'Name this conversation',
+          size: 'sm',
+          children: [
+            field({ name: 'titleDraft', label: 'Title', placeholder: 'What was this call about?' }),
+            field({
+              name: 'descriptionDraft',
+              label: 'Description',
+              control: 'textarea',
+              placeholder: 'Anything worth remembering about it',
+            }),
+          ],
+          /*
+            Changed, not filled in: the fields arrive holding the record, so a form nobody has
+            touched is already full and a guard testing non-emptiness would fire on every close.
+          */
+          discardWhen: {
+            $: 'local.titleDraft != first(local.callRecord).title || local.descriptionDraft != first(local.callRecord).description',
+          },
+          submit: {
+            $action: 'record.update',
+            args: [
+              'CollectionBlock',
+              CALL,
+              { title: { $: 'local.titleDraft' }, description: { $: 'local.descriptionDraft' } },
+            ],
+          },
+        }),
+      ],
+    },
+  },
+};
+
 const switcher: SchemaNode = {
   type: 'Row',
   props: {
@@ -661,11 +812,37 @@ const callsPanel: SchemaNode = {
                               },
                             },
                             {
-                              type: 'we-timestamp',
-                              // No `truncate`: a timestamp is one short token and the primitive has no such
-                              // prop. It went unnoticed because a panel's node was never walked by the
-                              // validator until sections were.
-                              props: { value: { $: 'call.createdAt' }, relative: true, flex: '1' },
+                              /*
+                                What it was called, and when — in that order, because a list of
+                                meetings told apart only by date is a list you read by elimination.
+
+                                The fallback is the same word the card in the Cards view falls back
+                                to, and for the same reason its edit form has no `required` rule on
+                                the title: clearing a name has to be allowed, and what it returns to
+                                is the plain "Call" it started as.
+                              */
+                              type: 'Column',
+                              props: { flex: '1', minWidth: '0', gap: '0', ax: 'start' },
+                              children: [
+                                {
+                                  type: 'we-text',
+                                  props: { truncate: true, width: '100%', textAlign: 'left' },
+                                  children: [{ $: "call.title ? call.title : 'Call'" }],
+                                },
+                                {
+                                  type: 'we-timestamp',
+                                  // No `truncate`: a timestamp is one short token and the primitive has
+                                  // no such prop. It went unnoticed because a panel's node was never
+                                  // walked by the validator until sections were.
+                                  props: {
+                                    value: { $: 'call.createdAt' },
+                                    relative: true,
+                                    relativeStyle: 'narrow',
+                                    fontSize: '100',
+                                    color: 'text-faint',
+                                  },
+                                },
+                              ],
                             },
                           ],
                         },
@@ -1756,7 +1933,7 @@ export const workshopTemplate: TemplateSchema = {
     clipped (no `overflow` here), and scrolls in that container exactly as before.
   */
   props: { bg: 'page', width: '100%', height: '100%' },
-  children: [switcher, { type: '$routes' }],
+  children: [callPill, switcher, { type: '$routes' }],
   routes: [
     /*
       Relative, because the parent path this now sits under carries a parameter: an absolute target
