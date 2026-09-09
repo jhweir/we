@@ -129,22 +129,44 @@ export default class Tooltip extends LayoutElement {
   @query('[part="arrow"]') arrowEl!: HTMLElement;
 
   /**
-   * What the bubble is positioned against: the slotted child, not the wrapper.
+   * What the bubble is positioned against: the first slotted thing that actually has a box.
    *
-   * Neither the host nor `[part='trigger']` generates a box any more, and a boxless element has no
-   * rectangle to measure — `getBoundingClientRect` on one collapses to a zero-size box at the
-   * position of nothing, which would put every tooltip in the top-left corner. The child is the
-   * thing on screen, so the child is what the bubble points at. `we-draggable` reaches for the
-   * assigned element for the same reason one concept along, where it is focus rather than geometry
-   * that the missing box takes away.
+   * Neither the host nor `[part='trigger']` generates one any more, and a boxless element has no
+   * rectangle to measure — `getBoundingClientRect` on one is zero at the origin, which puts the
+   * bubble in the top-left corner of the screen. So the anchor has to be found rather than assumed.
    *
-   * Falls back to the host, which still answers `getBoundingClientRect` through its children — good
-   * enough to keep an empty tooltip from throwing rather than something to rely on.
+   * ## Why the slotted element is not enough
+   *
+   * The schema renderer wraps every node in a `display: contents` div, so `assignedElements` hands
+   * back wrappers rather than what an author wrote — and a wrapper is boxless for the same reason
+   * this element now is. Taking the assigned element at face value therefore worked in a test that
+   * mounted the child directly and put every tooltip in the corner in the real app.
+   * `we-sortable._resolveItem` sees through the same wrappers for the same reason, one concept
+   * along, where it costs a drag its geometry instead of a bubble its position.
+   *
+   * So: descend until something generates a box. Through the light DOM first, then the shadow root,
+   * which is where a boxless custom element keeps its own drawing — `we-icon` is `display: contents`
+   * and renders an `svg` inside, so a tooltip on a bare icon is anchored on that svg.
    */
   private get anchorEl(): HTMLElement {
     const slot = this.renderRoot?.querySelector('slot:not([name])') as HTMLSlotElement | null;
-    const assigned = slot?.assignedElements({ flatten: true }) ?? [];
-    return (assigned.find((el): el is HTMLElement => el instanceof HTMLElement) ?? this) as HTMLElement;
+    for (const assigned of slot?.assignedElements({ flatten: true }) ?? []) {
+      const box = this.firstBoxIn(assigned);
+      if (box) return box;
+    }
+    // Nothing to point at — better a bubble in the wrong place than a thrown getter.
+    return this;
+  }
+
+  /** The nearest descendant that takes part in layout, `el` itself included. */
+  private firstBoxIn(el: Element, depth = 0): HTMLElement | null {
+    if (!(el instanceof HTMLElement) || depth > 4) return null;
+    if (getComputedStyle(el).display !== 'contents') return el;
+    for (const child of [...el.children, ...(el.shadowRoot?.children ?? [])]) {
+      const found = this.firstBoxIn(child, depth + 1);
+      if (found) return found;
+    }
+    return null;
   }
 
   @state() private cleanup?: () => void;

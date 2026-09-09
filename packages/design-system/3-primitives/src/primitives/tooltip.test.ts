@@ -52,6 +52,30 @@ describe('what the missing box takes away', () => {
     expect(anchor.tagName.toLowerCase()).toBe('we-badge');
   });
 
+  it('sees through the renderer wrapper, which is boxless for the same reason this is', async () => {
+    /*
+      THE regression, and the one the first version of this file could not have caught: it mounted
+      the child directly, and the app does not. The schema renderer wraps every node in a
+      `display: contents` div, so `assignedElements` hands back a wrapper with no box — and taking
+      it at face value put every tooltip in the app's top-left corner while this suite stayed green.
+
+      `we-sortable._resolveItem` sees through the same wrappers, and its docblock is where the
+      behaviour is written down.
+    */
+    const el = await mount({ content: 'hello' }, '<div style="display: contents"><we-badge>x</we-badge></div>');
+    const anchor = (el as unknown as { anchorEl: HTMLElement }).anchorEl;
+    expect(anchor.tagName.toLowerCase()).toBe('we-badge');
+  });
+
+  it('descends more than one wrapper deep', async () => {
+    // Nothing says the renderer wraps exactly once — a node with `styles` gets another.
+    const el = await mount(
+      { content: 'hello' },
+      '<div style="display: contents"><div style="display: contents"><we-badge>x</we-badge></div></div>',
+    );
+    expect((el as unknown as { anchorEl: HTMLElement }).anchorEl.tagName.toLowerCase()).toBe('we-badge');
+  });
+
   it('falls back to itself rather than throwing when it wraps nothing', async () => {
     const el = await mount({ content: 'hello' }, '');
     expect((el as unknown as { anchorEl: HTMLElement }).anchorEl).toBe(el);
