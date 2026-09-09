@@ -13,14 +13,22 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
+echo "── Environment"
+echo "  node: $(node --version)"
+echo "  npm:  $(npm --version)"
+echo "  pnpm: $(pnpm --version 2>/dev/null || echo 'not found')"
+echo "  git:  $(git --version)"
+echo "  pwd:  $PWD"
+
 AD4M_BRANCH="${AD4M_BRANCH:-dev}"
 AD4M_DIR="/tmp/ad4m-sdk"
 WE_ROOT="$PWD"
 
 echo "── Clone coasys/ad4m (branch: $AD4M_BRANCH)"
+rm -rf "$AD4M_DIR"
 git clone --depth 1 --branch "$AD4M_BRANCH" \
   https://github.com/coasys/ad4m.git "$AD4M_DIR"
-echo "  ad4m revision: $(git -C "$AD4M_DIR" rev-parse --short HEAD)"
+echo "  revision: $(git -C "$AD4M_DIR" rev-parse --short HEAD)"
 
 echo "── Build @coasys/ad4m from source"
 cd "$AD4M_DIR/core"
@@ -30,7 +38,7 @@ npm install --ignore-scripts
 npx patch-package
 npx tsc
 npx rollup -c rollup.config.js
-echo "  built: $(ls -la lib/index.cjs | awk '{print $5, $6, $7, $8}')"
+echo "  built: $(ls lib/index.cjs 2>/dev/null && echo 'ok' || echo 'MISSING')"
 
 echo "── Link local SDK into WE workspace"
 cd "$WE_ROOT"
@@ -41,7 +49,7 @@ node -e "
   const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
   pkg.pnpm.overrides['@coasys/ad4m'] = 'link:${AD4M_DIR}/core';
   fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-  console.log('  override rewritten to:', pkg.pnpm.overrides['@coasys/ad4m']);
+  console.log('  override:', pkg.pnpm.overrides['@coasys/ad4m']);
 "
 
 # Re-resolve with the rewritten override. --no-frozen-lockfile because the
