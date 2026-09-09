@@ -20,7 +20,7 @@
   # The build runs from the repo root: the web app is one package in a pnpm workspace and
   # cannot be built without the 40-odd packages it depends on.
   base = "/"
-  command = "pnpm build"
+  command = "bash scripts/netlify-build.sh"
   publish = "apps/we-web/dist"
 
 [build.environment]
