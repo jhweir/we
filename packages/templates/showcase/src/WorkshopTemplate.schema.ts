@@ -1751,13 +1751,30 @@ export const workshopTemplate: TemplateSchema = {
     description: 'A call, its transcript, and what came out of it — as a canvas, a task list and a record.',
     icon: 'compass-tool',
     /*
-      The band the floating switcher occupies, so panels clear it.
+      The band the two floating pills occupy, so panels clear them.
 
-      Its collapsed height, as the contract asks: the bar is a row of `sm` buttons in a padded pill,
-      and it never grows. The width is generous on purpose — over-reporting costs a panel that moves
-      slightly earlier than it had to, and under-reporting puts two things on top of each other.
+      Written as the arithmetic rather than as a number, because it is a number that has already
+      gone stale once: the pills grew from `sm` controls to `md` and this stayed at the old 64,
+      which is four pixels less than they now occupy — so a panel snapped to the top opened
+      underneath the bar it was supposed to clear.
+
+        12   the pills' own offset from the top (`top: '300'`)
+      + 40   the tallest thing in either — a control at the default height
+      + 16   the pill's padding, 8 above and 8 below (`p: '200'`)
+      + 12   clearance, so a panel meets the bar rather than touching it
+      ────
+        80
+
+      Both pills come to the same height, which is not a coincidence: each is a padded row whose
+      tallest child is one control, and that is what makes one band cover both. `top` stacks across
+      every contributor and spans the full width, so the left-hand pill needs no term of its own.
+
+      The width describes the *centred* bar alone — it is what decides whether the module rail has
+      to drop below it, and the rail is a column at top right that a left-hand pill cannot reach.
+      Generous on purpose: over-reporting costs a rail that moves earlier than it had to, and
+      under-reporting puts two things on top of each other.
     */
-    chromeReserve: { top: 64, width: 420 },
+    chromeReserve: { top: 80, width: 520 },
     /*
       The layout, and none of it is scoped to a route.
 
