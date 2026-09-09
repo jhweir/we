@@ -358,7 +358,7 @@ export const contextData: ContextData = {
       ownProps: [
         { name: 'collapsible', type: 'boolean', optional: false, default: 'false' },
         { name: 'open', type: 'boolean', optional: false, default: 'false' },
-        { name: 'title', type: 'string', optional: false, default: "''" },
+        { name: 'heading', type: 'string', optional: false, default: "''" },
       ],
     },
     {
@@ -700,7 +700,7 @@ export const contextData: ContextData = {
       superclass: 'LayoutElement',
       ownProps: [
         { name: 'open', type: 'boolean', optional: false, default: 'false' },
-        { name: 'title', type: 'string', optional: false, default: "''" },
+        { name: 'content', type: 'string', optional: false, default: "''" },
         {
           name: 'placement',
           type: "'top' | 'bottom' | 'left' | 'right' | 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end' | 'left-start' | 'left-end' | 'right-start' | 'right-end'",

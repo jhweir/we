@@ -109,7 +109,25 @@ export default class Tooltip extends LayoutElement {
   private _tooltipId = `we-tooltip-${++tooltipIdCounter}`;
 
   @property({ type: Boolean, reflect: true }) open = false;
-  @property({ type: String, reflect: true }) title = '';
+  /**
+   * What the tooltip says.
+   *
+   * ## Why this is not called `title`
+   *
+   * It was, and that name is a trap rather than a preference. `title` is a **global HTML
+   * attribute**, so a component that declares one is sharing a name with a browser feature: the
+   * value reflected to the host produced the browser's own native tooltip *as well as* this one —
+   * two bubbles for one phrase, ours immediately and the browser's a second later, unstyled.
+   *
+   * Dropping the reflection was not enough to trust, either. An attribute set directly (which
+   * hand-written JSX does for a custom element) brings the native tooltip straight back, and
+   * nothing about that failure is visible from the call site. The only fix that cannot recur is to
+   * stop squatting on the name.
+   *
+   * Not reflected: it is prose, and an attribute holding a sentence is noise in the inspector.
+   * Slotted `content` overrides it, for a tooltip that is not a phrase — see `render`.
+   */
+  @property({ type: String }) content = '';
   @property({ type: String, reflect: true }) placement: Placement = 'top';
 
   @query('[part="tooltip"]') tooltipEl!: HTMLElement;
@@ -123,6 +141,31 @@ export default class Tooltip extends LayoutElement {
     this.addEventListener('mouseleave', this.hide);
     this.addEventListener('focusin', this.show);
     this.addEventListener('focusout', this.hide);
+    this._warnAboutTitle();
+  }
+
+  /**
+   * Say so when somebody writes `title` here, rather than quietly showing two tooltips.
+   *
+   * The rename stops this element from *producing* a native tooltip. It cannot stop a consumer
+   * asking for one by hand, and that mistake is invisible from the call site: the styled bubble
+   * still appears, so nothing looks broken until the browser's own arrives a second later — which
+   * is how this survived long enough to be reported three times.
+   *
+   * A diagnostic rather than a silent fix: removing the attribute would also swallow the one case
+   * where somebody genuinely meant a native tooltip, and leave them wondering where it went. The
+   * same shape as `warnAboutSmil` in `we-html`, and for the same reason — the failure was never the
+   * behaviour, it was that nothing said anything.
+   */
+  private _warnAboutTitle() {
+    if (!import.meta.env?.DEV) return;
+    if (!this.hasAttribute('title')) return;
+    console.warn(
+      `we-tooltip: a \`title\` attribute here gives the browser's own tooltip as well as this one. ` +
+        `Use \`content\` for what the tooltip says; if the trigger needs an accessible name, put it ` +
+        `on the trigger (\`label\` on a we-button) rather than out here.`,
+      this,
+    );
   }
 
   disconnectedCallback() {
@@ -137,7 +180,7 @@ export default class Tooltip extends LayoutElement {
     super.updated(changed);
     // A tooltip whose text is bound to a signal would otherwise keep describing the trigger with
     // whatever it said first.
-    if (changed.has('title')) this._describeTrigger();
+    if (changed.has('content')) this._describeTrigger();
     if (changed.has('open')) {
       if (this.open) this.openTooltip();
       else this.closeTooltip();
@@ -226,7 +269,7 @@ export default class Tooltip extends LayoutElement {
    */
   private _describeTrigger = () => {
     const slot = this.renderRoot?.querySelector('slot:not([name])') as HTMLSlotElement | null;
-    const text = this.title || (this.textContent ?? '').trim();
+    const text = this.content || (this.textContent ?? '').trim();
     for (const el of slot?.assignedElements({ flatten: true }) ?? []) {
       if (text) el.setAttribute('aria-description', text);
       else el.removeAttribute('aria-description');
@@ -250,7 +293,7 @@ export default class Tooltip extends LayoutElement {
           every existing caller is untouched. Keep slotted content non-interactive: this lives in a
           \`role="tooltip"\`, which promises the reader there is nothing in here to operate.
         -->
-        <slot name="content">${this.title}</slot>
+        <slot name="content">${this.content}</slot>
         <span part="arrow"></span>
       </span>
     `;

@@ -56,7 +56,7 @@ export function AiPanel() {
       <Row ax="between" ay="center" px="300" py="300" flexShrink="0">
         <we-text {...PANEL_TITLE_PROPS}>AI Chat</we-text>
         <Row ay="center" gap="100">
-          <we-tooltip title="New chat session">
+          <we-tooltip content="New chat session">
             <we-button variant="ghost" size="sm" onClick={() => session.newChat()}>
               <we-icon name="file-plus" size="sm" />
             </we-button>

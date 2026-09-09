@@ -176,12 +176,12 @@ export function EditingBar() {
             r="var(--we-theme-control-radius, var(--we-radius-400))"
             p="200"
           >
-            <we-tooltip title="Undo" placement="bottom">
+            <we-tooltip content="Undo" placement="bottom">
               <we-button variant="ghost" square disabled={!session.canUndo()} onClick={() => void session.undo()}>
                 <we-icon name="arrow-u-up-left" />
               </we-button>
             </we-tooltip>
-            <we-tooltip title="Redo" placement="bottom">
+            <we-tooltip content="Redo" placement="bottom">
               <we-button variant="ghost" square disabled={!session.canRedo()} onClick={() => void session.redo()}>
                 <we-icon name="arrow-u-up-right" />
               </we-button>
@@ -198,7 +198,7 @@ export function EditingBar() {
               r="var(--we-theme-control-radius, var(--we-radius-400))"
               p="200"
             >
-              <we-tooltip title="Preview" placement="bottom">
+              <we-tooltip content="Preview" placement="bottom">
                 <we-button
                   variant={session.contentMode() === 'preview' ? 'secondary' : 'ghost'}
                   square
@@ -207,7 +207,7 @@ export function EditingBar() {
                   <we-icon name="eye" />
                 </we-button>
               </we-tooltip>
-              <we-tooltip title="Visual editor" placement="bottom">
+              <we-tooltip content="Visual editor" placement="bottom">
                 <we-button
                   variant={session.contentMode() === 'visual' ? 'secondary' : 'ghost'}
                   square
@@ -238,7 +238,7 @@ export function EditingBar() {
           >
             <Show when={session.isEditingTemplate()}>
               <Show when={session.contentMode() === 'visual'}>
-                <we-tooltip title="Properties" placement="bottom">
+                <we-tooltip content="Properties" placement="bottom">
                   <we-button
                     variant={session.visualPanelOpen() ? 'secondary' : 'ghost'}
                     square
@@ -248,7 +248,7 @@ export function EditingBar() {
                   </we-button>
                 </we-tooltip>
               </Show>
-              <we-tooltip title="Code editor" placement="bottom">
+              <we-tooltip content="Code editor" placement="bottom">
                 <we-button
                   variant={session.codePanelOpen() ? 'secondary' : 'ghost'}
                   square
@@ -257,14 +257,14 @@ export function EditingBar() {
                   <we-icon name="code" />
                 </we-button>
               </we-tooltip>
-              <we-tooltip title="AI chat" placement="bottom">
+              <we-tooltip content="AI chat" placement="bottom">
                 <we-button variant={session.isOpen() ? 'secondary' : 'ghost'} square onClick={() => session.toggle()}>
                   <we-icon name="chat-circle" />
                 </we-button>
               </we-tooltip>
             </Show>
             <Show when={session.isEditingTheme()}>
-              <we-tooltip title="Theme editor" placement="bottom">
+              <we-tooltip content="Theme editor" placement="bottom">
                 <we-button
                   variant={session.themePanelOpen() ? 'secondary' : 'ghost'}
                   square
@@ -286,7 +286,7 @@ export function EditingBar() {
               r="var(--we-theme-control-radius, var(--we-radius-400))"
               p="200"
             >
-              <we-tooltip title="Share" placement="bottom">
+              <we-tooltip content="Share" placement="bottom">
                 <we-button
                   variant={anyOpen() ? 'secondary' : 'ghost'}
                   square
@@ -295,7 +295,7 @@ export function EditingBar() {
                   <we-icon name="share-network" />
                 </we-button>
               </we-tooltip>
-              <we-tooltip title="Finish editing" placement="bottom">
+              <we-tooltip content="Finish editing" placement="bottom">
                 <we-button
                   variant="ghost"
                   square

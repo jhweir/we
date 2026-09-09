@@ -448,7 +448,7 @@ export const callsList: SchemaNode = {
                                 then: {
                                   type: 'we-tooltip',
                                   props: {
-                                    title: { $: "modules.call.active ? 'Go to the call' : 'Continue this call'" },
+                                    content: { $: "modules.call.active ? 'Go to the call' : 'Continue this call'" },
                                     placement: 'top',
                                   },
                                   children: [
@@ -533,7 +533,7 @@ export const callsList: SchemaNode = {
                                 condition: { $: 'modules.transcribe.extractable' },
                                 then: {
                                   type: 'we-tooltip',
-                                  props: { title: 'Find the tasks and events in this call', placement: 'top' },
+                                  props: { content: 'Find the tasks and events in this call', placement: 'top' },
                                   children: [
                                     {
                                       type: 'we-button',
@@ -579,7 +579,7 @@ export const callsList: SchemaNode = {
                         */
                             {
                               type: 'we-tooltip',
-                              props: { title: 'Export the transcript', placement: 'top' },
+                              props: { content: 'Export the transcript', placement: 'top' },
                               children: [
                                 {
                                   type: 'we-button',
@@ -660,7 +660,7 @@ export const callsList: SchemaNode = {
                                 },
                                 then: {
                                   type: 'we-tooltip',
-                                  props: { title: { $: 'modules.transcribe.extractError' }, placement: 'top' },
+                                  props: { content: { $: 'modules.transcribe.extractError' }, placement: 'top' },
                                   children: [
                                     {
                                       type: 'we-text',

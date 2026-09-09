@@ -231,7 +231,7 @@ export interface RailButtonOptions {
 export function railButton(opts: RailButtonOptions): SchemaNode {
   return {
     type: 'we-tooltip',
-    props: { title: opts.tooltip, placement: opts.tooltipPlacement ?? 'left' },
+    props: { content: opts.tooltip, placement: opts.tooltipPlacement ?? 'left' },
     children: [
       {
         type: 'we-button',
@@ -428,7 +428,7 @@ export function railItem(opts: RailItemOptions): SchemaNode {
   const withTooltip: SchemaNode = opts.tooltip
     ? {
         type: 'we-tooltip',
-        props: { title: opts.tooltip, placement: 'right', width: '100%' },
+        props: { content: opts.tooltip, placement: 'right', width: '100%' },
         children: [button],
       }
     : button;
@@ -566,7 +566,7 @@ export function railGroup(opts: RailGroupOptions): SchemaNode {
                     condition: isExpanded,
                     then: {
                       type: 'we-tooltip',
-                      props: { title: opts.action.label, placement: 'right' },
+                      props: { content: opts.action.label, placement: 'right' },
                       children: [
                         {
                           type: 'we-button',

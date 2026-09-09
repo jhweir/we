@@ -964,7 +964,7 @@
           "default": "false"
         },
         {
-          "name": "title",
+          "name": "heading",
           "type": "string",
           "optional": false,
           "default": "''"
@@ -1963,7 +1963,7 @@
           "default": "false"
         },
         {
-          "name": "title",
+          "name": "content",
           "type": "string",
           "optional": false,
           "default": "''"

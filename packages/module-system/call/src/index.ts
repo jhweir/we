@@ -770,7 +770,7 @@ const devPeerControls: SchemaNode = {
     { type: 'we-divider', props: { orientation: 'vertical', height: '26px' } },
     {
       type: 'we-tooltip',
-      props: { title: 'One fewer fake participant', placement: 'bottom' },
+      props: { content: 'One fewer fake participant', placement: 'bottom' },
       children: [
         {
           type: 'we-button',
@@ -789,7 +789,7 @@ const devPeerControls: SchemaNode = {
     },
     {
       type: 'we-tooltip',
-      props: { title: 'Fake participants — development only', placement: 'bottom' },
+      props: { content: 'Fake participants — development only', placement: 'bottom' },
       children: [
         {
           type: 'we-text',
@@ -800,7 +800,7 @@ const devPeerControls: SchemaNode = {
     },
     {
       type: 'we-tooltip',
-      props: { title: 'One more fake participant', placement: 'bottom' },
+      props: { content: 'One more fake participant', placement: 'bottom' },
       children: [
         {
           type: 'we-button',
@@ -848,7 +848,7 @@ function mediaToggle(opts: {
 
   return {
     type: 'we-tooltip',
-    props: { title: toggled(opts.tip.on, opts.tip.off), placement: 'bottom' },
+    props: { content: toggled(opts.tip.on, opts.tip.off), placement: 'bottom' },
     children: [
       {
         type: 'we-button',
@@ -1105,7 +1105,7 @@ const returnToCall: SchemaNode = {
     then: {
       type: 'we-tooltip',
       props: {
-        title: {
+        content: {
           $: "modules.call.callSpace.name ? `Back to the call in ${modules.call.callSpace.name}` : 'Back to the call'",
         },
         placement: 'bottom',
@@ -1366,7 +1366,7 @@ const bar: SchemaNode = {
             participants,
             {
               type: 'we-tooltip',
-              props: { title: 'Leave the call', placement: 'bottom' },
+              props: { content: 'Leave the call', placement: 'bottom' },
               children: [
                 {
                   // Square like the toggles at the other end, being an icon and nothing else.

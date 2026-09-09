@@ -322,7 +322,7 @@ const continueCall: SchemaNode = {
     then: {
       type: 'we-tooltip',
       props: {
-        title: { $: "modules.call.active ? 'Go to the call' : 'Continue this call and put it on the canvas'" },
+        content: { $: "modules.call.active ? 'Go to the call' : 'Continue this call and put it on the canvas'" },
         placement: 'top',
       },
       children: [
@@ -673,7 +673,7 @@ const callsPanel: SchemaNode = {
                         continueCall,
                         {
                           type: 'we-tooltip',
-                          props: { title: 'Delete this call', placement: 'top' },
+                          props: { content: 'Delete this call', placement: 'top' },
                           children: [
                             {
                               type: 'we-button',

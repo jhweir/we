@@ -391,7 +391,7 @@ const proposalDetail: SchemaNode = {
             condition: { $: FIELD_ICON },
             then: {
               type: 'we-tooltip',
-              props: { title: { $: 'field.label' } },
+              props: { content: { $: 'field.label' } },
               children: [{ type: 'we-icon', props: { size: 'xs', name: { $: FIELD_ICON }, color: 'text-faint' } }],
             },
             else: {
@@ -1690,7 +1690,7 @@ export const transcriptLines: SchemaNode = {
                             condition: { $: "utterance.source == 'typed'" },
                             then: {
                               type: 'we-tooltip',
-                              props: { title: 'Typed into the transcript, not spoken', placement: 'top' },
+                              props: { content: 'Typed into the transcript, not spoken', placement: 'top' },
                               children: [
                                 { type: 'we-icon', props: { name: 'keyboard', size: 'xs', color: 'text-faint' } },
                               ],

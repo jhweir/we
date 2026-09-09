@@ -1196,7 +1196,7 @@ development only.
 - we-menu (DesignSystemElement) — Vertical list container for menu items inside a popover.
 Not a standalone selector — wrap in we-popover for dropdown behavior.
 - we-menu-group (LayoutElement)
-  Props: collapsible: boolean = false, open: boolean = false, title: string = ''
+  Props: collapsible: boolean = false, open: boolean = false, heading: string = ''
 - we-menu-item (DesignSystemElement) — Single actionable item inside a we-menu.
 Supports selected, active, and danger states.
   Props: selected: boolean = false, active: boolean = false, variant: 'default' | 'danger' = 'default', label: unknown, value: unknown
@@ -1348,7 +1348,7 @@ item is considered.
 when `relative` is enabled.
   Props: value: string = '', relative: boolean = false, relativeStyle: Intl.RelativeTimeFormatStyle = 'long', locale: string = 'en', dateStyle: Intl.DateTimeFormatOptions['dateStyle'] | null = null, timeStyle: Intl.DateTimeFormatOptions['timeStyle'] | null = null, weekday: Intl.DateTimeFormatOptions['weekday'] | null = null, year: Intl.DateTimeFormatOptions['year'] | null = null, month: Intl.DateTimeFormatOptions['month'] | null = null, day: Intl.DateTimeFormatOptions['day'] | null = null, hour: Intl.DateTimeFormatOptions['hour'] | null = null, minute: Intl.DateTimeFormatOptions['minute'] | null = null, second: Intl.DateTimeFormatOptions['second'] | null = null, timeZone: string | null = null, hourCycle: Intl.DateTimeFormatOptions['hourCycle'] | null = null, formattedTime: string
 - we-tooltip (LayoutElement)
-  Props: open: boolean = false, title: string = '', placement: 'top' | 'bottom' | 'left' | 'right' | 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end' | 'left-start' | 'left-end' | 'right-start' | 'right-end' = 'top', tooltipEl: HTMLElement, triggerEl: HTMLElement, arrowEl: HTMLElement
+  Props: open: boolean = false, content: string = '', placement: 'top' | 'bottom' | 'left' | 'right' | 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end' | 'left-start' | 'left-end' | 'right-start' | 'right-end' = 'top', tooltipEl: HTMLElement, triggerEl: HTMLElement, arrowEl: HTMLElement
 - we-video (LayoutVisualElement)
   Props: src: string = '', poster?: string | undefined, controls: boolean = false, preload: 'none' | 'metadata' | 'auto' = 'metadata', fit: '' | 'cover' | 'contain' | 'fill' | 'none' | 'scale-down' = '', autoplay: boolean = false, loop: boolean = false, muted: boolean = false, playsinline: boolean = false, stream?: MediaStream | null | undefined
 

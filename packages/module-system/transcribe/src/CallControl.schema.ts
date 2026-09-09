@@ -122,7 +122,7 @@ export const callControl: SchemaNode = {
           */
           type: 'we-tooltip',
           props: {
-            title: { $: "modules.transcribe.enabled ? 'Stop transcribing' : 'Transcribe this call'" },
+            content: { $: "modules.transcribe.enabled ? 'Stop transcribing' : 'Transcribe this call'" },
             placement: 'bottom',
           },
           children: [

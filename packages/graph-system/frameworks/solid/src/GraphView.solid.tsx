@@ -2111,7 +2111,7 @@ export function GraphView(props: GraphViewProps) {
         {(hint) => (
           <we-tooltip
             open
-            title={hint().text}
+            content={hint().text}
             placement="top"
             style={{
               position: 'absolute',

@@ -694,7 +694,7 @@ export const extractionControl: SchemaNode = {
     then: {
       type: 'we-tooltip',
       props: {
-        title: {
+        content: {
           $: "modules.transcribe.autoExtract ? 'Stop reading this call for everyone in it' : 'Read this call as it happens, for everyone in it'",
         },
         placement: 'bottom',
