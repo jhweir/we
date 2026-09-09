@@ -59,10 +59,41 @@ describe('which call the panel is about', () => {
     expect(feedJson).toContain(subject);
   });
 
-  it('says which call it is showing, because it can now be either', () => {
-    expect(panelJson).toContain(
-      "(!routeStore.params.call || routeStore.params.call == modules.transcribe.callId) ? 'Transcript' : 'Past call'",
-    );
+  it('says what the panel is, not which call it is about', () => {
+    /*
+      It used to say "Past call" when the address named one, which was the heading answering a
+      question nothing else could: before the pill above it, the panel's own title was the only
+      thing naming the conversation. The pill names it and says who was in it, so a title that
+      changes as you move between calls is one that has to be re-read to learn nothing.
+    */
+    // `panelShell` paints its title into a `we-text`, so what is asserted is the heading it renders
+    // rather than the prop handed to it — and that it is a plain string, not a branch.
+    expect(panelJson).toContain('"children":["Transcript"]');
+    expect(panelJson).not.toContain('Past call');
+  });
+});
+
+describe('a transcript with nothing in it', () => {
+  it('says so, rather than showing an empty panel', () => {
+    expect(linesJson).toContain('Nothing has been said here yet.');
+  });
+
+  it('waits for the query to answer before asserting emptiness', () => {
+    /*
+      A list backed by a query is empty on its first frame, so an unqualified else claims "nothing
+      here" about a transcript that is still arriving — which on a long one is the wrong sentence
+      for as long as it takes to fetch.
+    */
+    expect(linesJson).toContain('local.utterancesLoaded');
+  });
+
+  it('asks only about the call on screen, however slowly its id arrives', () => {
+    /*
+      The hazard the hoist introduced and `when` closes: an operand that has not resolved is pruned
+      rather than sent, and pruning WIDENS — a scope that lost its anchor asks for every TextBlock
+      in the space. The `$if` that used to wrap the query stood in for this by never rendering it.
+    */
+    expect(linesJson).toContain('"when":{"$":"modules.transcribe.collectionId"}');
   });
 });
 

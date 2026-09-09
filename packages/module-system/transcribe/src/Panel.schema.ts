@@ -15,7 +15,7 @@
  * rendering. The other three modules still declare their fragments inline; this is the shape they
  * should move to.
  */
-import { panelShell, sectionLabel } from '@we/schema-kit';
+import { emptyState, panelShell, sectionLabel } from '@we/schema-kit';
 import { type SchemaNode } from '@we/schema-shared';
 import { expr } from '@we/schema-shared';
 
@@ -1571,26 +1571,38 @@ export const transcriptLines: SchemaNode = {
   // The gap is the only thing separating one utterance from the next now that a row carries no
   // fill or padding of its own, so it does that job alone and is a step wider than it was.
   props: { gap: '400' },
+  /*
+    Hoisted so the count is readable from outside the loop — a `$query` on the `$each` answers only
+    the `$each`, and "are there none" is a question about the list rather than about a row.
+
+    `when` is not optional here, and its absence is the hazard rather than an omission: an operand
+    that has not resolved is *pruned* rather than sent, and pruning **widens**. Without it, a subject
+    that has not arrived would drop the scope and ask for every TextBlock in the space — a
+    transcript of the whole community, shown with confidence, for a frame or forever. The `$if` on
+    the same expression used to stand in for this by never rendering the query at all.
+  */
+  $queries: {
+    utterances: {
+      entity: 'TextBlock',
+      scope: {
+        anchor: 'CollectionBlock',
+        via: 'children',
+        anchorId: { $: 'modules.transcribe.collectionId' },
+      },
+      // Oldest first, because a transcript read backwards is not a transcript.
+      order: { createdAt: 'asc' },
+      when: { $: 'modules.transcribe.collectionId' },
+    },
+  },
   children: [
     {
       type: '$if',
       props: {
-        condition: { $: 'modules.transcribe.collectionId' },
+        condition: { $: 'count(local.utterances)' },
         then: {
           type: '$each',
           props: {
-            items: {
-              $query: {
-                entity: 'TextBlock',
-                scope: {
-                  anchor: 'CollectionBlock',
-                  via: 'children',
-                  anchorId: { $: 'modules.transcribe.collectionId' },
-                },
-                // Oldest first, because a transcript read backwards is not a transcript.
-                order: { createdAt: 'asc' },
-              },
-            },
+            items: { $: 'local.utterances' },
             as: 'utterance',
           },
           children: [
@@ -2062,6 +2074,29 @@ export const transcriptLines: SchemaNode = {
               ],
             },
           ],
+        },
+        /*
+          A call somebody opened and nobody has said anything in yet.
+
+          Gated on the query having *answered*, not merely on the count: a list backed by a query is
+          empty on its first frame, so an unqualified else asserts "nothing here" about a transcript
+          that is still arriving — which on a long one is the wrong sentence for as long as it takes
+          to fetch.
+
+          "yet" is right even on a call that finished. A past transcript is not closed: the composer
+          below this writes into whichever one is on screen, so a meeting nobody spoke in is still
+          somewhere a note can be left.
+        */
+        else: {
+          type: '$if',
+          props: {
+            condition: { $: 'local.utterancesLoaded && modules.transcribe.collectionId' },
+            then: emptyState({
+              icon: 'chat-dots',
+              label: 'transcript',
+              message: 'Nothing has been said here yet.',
+            }),
+          },
         },
       },
     },
@@ -2558,7 +2593,16 @@ export const panel: SchemaNode = {
     condition: { $: 'datasetStore.currentDataset && modules.transcribe.open' },
     then: panelShell({
       // Says which call this is about, because the panel can be about either.
-      title: { $: `(${VIEWING_LIVE_EXPR}) ? 'Transcript' : 'Past call'` },
+      /*
+        One word, whichever call this is about.
+
+        It said "Past call" when the address named one, which was the panel answering a question
+        nothing else could: before the pill above it, the only way to know which conversation you
+        were reading was the panel's own heading. The pill names the call and says who was in it, so
+        the heading went back to describing what the panel *is* — and a title that changes as you
+        move between calls is a heading that has to be re-read to learn nothing.
+      */
+      title: 'Transcript',
       aside: {
         type: 'Row',
         props: { gap: '200', ay: 'center' },
