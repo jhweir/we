@@ -708,7 +708,6 @@ export const contextData: ContextData = {
           default: "'top'",
         },
         { name: 'tooltipEl', type: 'HTMLElement', optional: false },
-        { name: 'triggerEl', type: 'HTMLElement', optional: false },
         { name: 'arrowEl', type: 'HTMLElement', optional: false },
       ],
     },

@@ -174,9 +174,14 @@ describe('the feed', () => {
       `minWidth: 0` to happen at all.
     */
     expect(linesJson).toContain('"truncate":true,"flex":"1 1 auto","minWidth":"0"');
-    // And the marks, which are the wrappers rather than the text inside them.
     expect(linesJson).toContain('"whiteSpace":"nowrap"');
-    expect((linesJson.match(/"flexShrink":"0"/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    /*
+      And nothing on the marks. `we-tooltip` is `display: contents`, so the badge and the text are
+      themselves the flex items and their own refusal to shrink is what counts — `we-badge` already
+      declares it in the primitive. A `flexShrink` out here would be the workaround from when the
+      wrapper took a box, which is the thing that stopped being true.
+    */
+    expect(linesJson).not.toContain('"flexShrink"');
   });
 
   it('gives the typed mark a ground, so it does not read as part of the clock', () => {

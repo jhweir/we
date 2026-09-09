@@ -46,22 +46,18 @@ const rail: SchemaNode = railShell({
   // Whether somebody likes their rail pinned open is about their own window, so it is remembered
   // per device and never travels in a shared link.
   persistKey: 'shell.sidebarExpanded',
-  /*
-    The tooltip carries the box the rail sizes against, and the Column fills it.
-
-    A wrapper around a flex child takes over as the flex child, so `width` and `flex` have to move
-    out with it or the rail's header stops being 80px of fixed-height chrome. Everything about how
-    the logo sits *inside* that box stays where it was.
-  */
   header: {
+    // No box of its own — `we-tooltip` is `display: contents`, so the Column below is the flex
+    // child the rail sizes, exactly as it was before the tooltip was wrapped around it.
     type: 'we-tooltip',
-    props: { content: 'About WE', placement: 'right', width: COLLAPSED_WIDTH, height: '80px', flex: '0 0 auto' },
+    props: { content: 'About WE', placement: 'right' },
     children: [
       {
         type: 'Column',
         props: {
-          width: '100%',
-          height: '100%',
+          width: COLLAPSED_WIDTH,
+          height: '80px',
+          flex: '0 0 auto',
           ax: 'center',
           ay: 'center',
           cursor: 'pointer',

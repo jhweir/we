@@ -11,6 +11,7 @@ import type { Placement } from '@we/design-types';
 import { css, html, type PropertyValues } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
 
+import { warnAboutBoxlessLayoutProps } from '../shared/boxless';
 import { LayoutElement } from '../shared/design-system-element';
 import sharedStyles from '../shared/styles';
 
@@ -18,33 +19,27 @@ let tooltipIdCounter = 0;
 
 const CSS_STYLES = css`
   :host {
-    /* Inline-*flex*, not inline-block, and the difference is the whole of why wrapped content used
-       to sit too high.
+    /* The wrapper must not exist as a box — see the class doc.
 
-       An inline-block trigger is laid out in a line box, so it stands on the parent's text baseline
-       with room reserved beneath it for descenders — space belonging to a font, in a box that may
-       hold no text at all. Wrapping something whose height is its own (a row of avatars) in one
-       therefore made the host taller than its content and pinned that content to the top of it: in
-       a centred flex row the host centred, and the avatars rode high inside it, overflowing the
-       trigger's box at the top.
+       This was inline-flex, and every layout fault it caused was fixed by tuning the box rather
+       than by removing it: the host used to be inline-block, which stood on the parent's text
+       baseline and left room for descenders, so a row of avatars rode high inside it. Flex fixed
+       that symptom and left the cause, which is that a decorating wrapper was taking part in its
+       parent's layout at all.
 
-       Flex boxes have no line boxes and no strut, so the wrapper stops contributing height of its
-       own. The host stays inline-level, so a tooltip around a word in a sentence still flows. */
-    --we-tooltip-host-display: inline-flex;
-    /* The var must actually be consumed: without a display rule the host falls back to the
-       custom-element default (inline), which ignores explicit width/height — a trigger that
-       should fill its container (e.g. a full-height panel rail) collapses to content size. */
-    display: var(--we-tooltip-host-display, inline-flex);
-    position: relative;
+       A box here takes the grid track its child should have taken, becomes the flex item its child
+       should have been, absorbs stretch alignment, and counts once more in a gap. The flex-item
+       case is the one that kept surfacing: a we-badge declaring flex-shrink: 0 says nothing about
+       the box around it, so every tooltip in a tight row had to repeat the declaration on the
+       wrapper — which is a rule nobody can be expected to remember at 99 call sites. */
+    --we-tooltip-host-display: contents;
+    display: var(--we-tooltip-host-display, contents);
   }
 
+  /* Boxless for the same reason as the host: with display:contents above and a real box here, the
+     box has only moved down a level and the trigger span becomes the flex item instead. */
   [part='trigger'] {
-    display: flex;
-    align-items: center;
-    /* Follow an explicit host height so slotted triggers can use height: 100%.
-       With the default content-sized host this resolves to auto — no change. The host's default
-       stretch alignment already does this; the declaration stays for a trigger that opts out. */
-    height: 100%;
+    display: contents;
   }
 
   [part='tooltip'] {
@@ -131,17 +126,63 @@ export default class Tooltip extends LayoutElement {
   @property({ type: String, reflect: true }) placement: Placement = 'top';
 
   @query('[part="tooltip"]') tooltipEl!: HTMLElement;
-  @query('[part="trigger"]') triggerEl!: HTMLElement;
   @query('[part="arrow"]') arrowEl!: HTMLElement;
+
+  /**
+   * What the bubble is positioned against: the slotted child, not the wrapper.
+   *
+   * Neither the host nor `[part='trigger']` generates a box any more, and a boxless element has no
+   * rectangle to measure — `getBoundingClientRect` on one collapses to a zero-size box at the
+   * position of nothing, which would put every tooltip in the top-left corner. The child is the
+   * thing on screen, so the child is what the bubble points at. `we-draggable` reaches for the
+   * assigned element for the same reason one concept along, where it is focus rather than geometry
+   * that the missing box takes away.
+   *
+   * Falls back to the host, which still answers `getBoundingClientRect` through its children — good
+   * enough to keep an empty tooltip from throwing rather than something to rely on.
+   */
+  private get anchorEl(): HTMLElement {
+    const slot = this.renderRoot?.querySelector('slot:not([name])') as HTMLSlotElement | null;
+    const assigned = slot?.assignedElements({ flatten: true }) ?? [];
+    return (assigned.find((el): el is HTMLElement => el instanceof HTMLElement) ?? this) as HTMLElement;
+  }
 
   @state() private cleanup?: () => void;
 
   firstUpdated() {
-    this.addEventListener('mouseenter', this.show);
-    this.addEventListener('mouseleave', this.hide);
+    /*
+      `mouseover`/`mouseout`, not `mouseenter`/`mouseleave`, now that the host has no box.
+
+      Enter and leave do not bubble: they are dispatched along the ancestor chain the pointer
+      crossed, and whether a `display: contents` element counts as part of that chain is a corner
+      of the spec no consumer of this should have to bet on. Over and out bubble, so the host is on
+      the composed path by construction — the only cost is the containment check below, which is
+      the well-worn way of ignoring the crossings *between* a trigger's own descendants.
+
+      `focusin`/`focusout` are already the bubbling pair, which is why they are untouched.
+    */
+    this.addEventListener('mouseover', this._onOver);
+    this.addEventListener('mouseout', this._onOut);
     this.addEventListener('focusin', this.show);
     this.addEventListener('focusout', this.hide);
     this._warnAboutTitle();
+    warnAboutBoxlessLayoutProps(this, 'we-tooltip');
+  }
+
+  /** Entering from outside — a move within the trigger is not an entry. */
+  private _onOver = (event: MouseEvent) => {
+    if (this._within(event.relatedTarget)) return;
+    this.show();
+  };
+
+  /** Leaving for somewhere outside — a move between the trigger's own children is not a departure. */
+  private _onOut = (event: MouseEvent) => {
+    if (this._within(event.relatedTarget)) return;
+    this.hide();
+  };
+
+  private _within(node: EventTarget | null): boolean {
+    return node instanceof Node && this.contains(node);
   }
 
   /**
@@ -189,12 +230,12 @@ export default class Tooltip extends LayoutElement {
   }
 
   private async updatePosition() {
-    if (!this.triggerEl || !this.tooltipEl || !this.arrowEl) return;
+    if (!this.tooltipEl || !this.arrowEl) return;
 
     // Convert 'auto' to 'top' for Floating UI compatibility
     const floatingPlacement = this.placement.startsWith('auto') ? 'top' : (this.placement as FloatingPlacement);
 
-    const { x, y, placement, middlewareData } = await computePosition(this.triggerEl, this.tooltipEl, {
+    const { x, y, placement, middlewareData } = await computePosition(this.anchorEl, this.tooltipEl, {
       strategy: 'fixed',
       placement: floatingPlacement,
       middleware: [offset(10), flip(), shift({ padding: 8 }), arrow({ element: this.arrowEl })],
@@ -219,7 +260,7 @@ export default class Tooltip extends LayoutElement {
   }
 
   private openTooltip() {
-    if (!this.triggerEl || !this.tooltipEl) return;
+    if (!this.tooltipEl) return;
 
     // Promote to browser top layer so position:fixed resolves to the viewport
     // instead of an ancestor backdrop-filter containing block.
@@ -230,7 +271,7 @@ export default class Tooltip extends LayoutElement {
       } catch {}
     }
 
-    this.cleanup = autoUpdate(this.triggerEl, this.tooltipEl, () => this.updatePosition());
+    this.cleanup = autoUpdate(this.anchorEl, this.tooltipEl, () => this.updatePosition());
   }
 
   private closeTooltip() {

@@ -1752,13 +1752,10 @@ export const transcriptLines: SchemaNode = {
                             condition: { $: "utterance.source == 'typed'" },
                             then: {
                               type: 'we-tooltip',
-                              props: {
-                                content: 'Typed into the transcript, not spoken',
-                                placement: 'top',
-                                // The wrapper is the flex item, so this is where it has to be said —
-                                // `we-badge` refusing to shrink says nothing about the box around it.
-                                flexShrink: '0',
-                              },
+                              // No `flexShrink` here: the tooltip generates no box, so the badge
+                              // inside it is the flex item and its own refusal to shrink is what
+                              // counts. That is the whole point of the wrapper being boxless.
+                              props: { content: 'Typed into the transcript, not spoken', placement: 'top' },
                               children: [
                                 {
                                   /*
@@ -1811,7 +1808,7 @@ export const transcriptLines: SchemaNode = {
                             condition: { $: "utterance.source == 'corrected'" },
                             then: {
                               type: 'we-tooltip',
-                              props: { placement: 'top', flexShrink: '0' },
+                              props: { placement: 'top' },
                               children: [
                                 {
                                   type: 'we-text',
