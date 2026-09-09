@@ -187,6 +187,23 @@ describe('the feed', () => {
     expect(linesJson).not.toContain('"flexShrink"');
   });
 
+  it('lets go of the pointer on the way out of the editor, so the pencil does not flash', () => {
+    /*
+      Leaving the editor makes the row shorter — a field and two buttons become one line — so it
+      reflows out from under a pointer that was on Cancel. Without this the read view mounts with
+      `pointerOnRow` still true, the pencil fades in over 200ms, and the pointer is by then outside
+      the shrunken row so it fades straight back out.
+
+      Both exits, since the row reflows the same way whichever one is taken.
+    */
+    // Matched on the handler each belongs to, not by counting: a bare count is also satisfied by the
+    // row's own mouseleave, which writes the same token and would have let this pass with the fix
+    // removed from one of the two exits.
+    const both = '[{"$setLocal":"mending","value":false},{"$setLocal":"pointerOnRow","value":false}]';
+    expect(linesJson).toContain(`"onClick":${both}`);
+    expect(linesJson).toContain(`"onSuccess":${both}`);
+  });
+
   it('gives the typed mark a ground, so it does not read as part of the clock', () => {
     /*
       In `en-US` the time ends "AM" or "PM", and a bare "Aa" in the same faint grey right after it is

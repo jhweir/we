@@ -1555,7 +1555,9 @@ const extract: SchemaNode = {
  */
 export const transcriptLines: SchemaNode = {
   type: 'Column',
-  props: { gap: '300' },
+  // The gap is the only thing separating one utterance from the next now that a row carries no
+  // fill or padding of its own, so it does that job alone and is a step wider than it was.
+  props: { gap: '400' },
   children: [
     {
       type: '$if',
@@ -1994,7 +1996,12 @@ export const transcriptLines: SchemaNode = {
                                       // Closed on success only: a failed write leaves the words on
                                       // screen to try again with, rather than discarding them and
                                       // showing the line unchanged as though nothing was attempted.
-                                      onSuccess: [{ $setLocal: 'mending', value: false }],
+                                      // `pointerOnRow` for the reason Cancel sets it — the row
+                                      // reflows out from under the pointer either way out.
+                                      onSuccess: [
+                                        { $setLocal: 'mending', value: false },
+                                        { $setLocal: 'pointerOnRow', value: false },
+                                      ],
                                     },
                                   },
                                   children: ['Save'],
@@ -2008,7 +2015,25 @@ export const transcriptLines: SchemaNode = {
                                     // had left next to a button rather than the other half of a
                                     // pair.
                                     variant: 'secondary',
-                                    onClick: { $setLocal: 'mending', value: false },
+                                    /*
+                                      Both, and the second is what stops the pencil flashing.
+
+                                      Leaving the editor makes the row shorter — a field and two
+                                      buttons become one line of text — so it reflows out from under
+                                      a pointer that was on the Cancel button. The read view mounts
+                                      with `pointerOnRow` still true, so the pencil fades in, and the
+                                      pointer is then outside the shrunken row, so it fades straight
+                                      back out. Two hundred milliseconds each way, which is exactly
+                                      long enough to read as a glitch.
+
+                                      Saying the pointer has left is a small lie when it has not,
+                                      and it corrects itself on the next mouse move — where the
+                                      flash corrects itself by being wrong twice.
+                                    */
+                                    onClick: [
+                                      { $setLocal: 'mending', value: false },
+                                      { $setLocal: 'pointerOnRow', value: false },
+                                    ],
                                   },
                                   children: ['Cancel'],
                                 },
