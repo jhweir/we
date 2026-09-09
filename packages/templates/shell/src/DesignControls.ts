@@ -208,6 +208,27 @@ function nameDialog(opts: {
 
 // ── Templates ───────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Whether the layouts section is offered yet. Flip to `true` to ship it.
+ *
+ * Layouts, "Remember this arrangement…" and "Fork as a new template" are all built and none has
+ * been exercised. Three unproven entries at the top of the one menu people use to change template
+ * is a busy picker charging every reader for a feature nobody has tried.
+ *
+ * A flag at the composition level rather than a condition inside the section, because the two
+ * answer different questions. A condition asks "should this show *now*", and every honest answer
+ * to that is something a reader can reach: gating on `sessionStore.devTools` was the first
+ * attempt, and it is on in a development build, so it hid the section from everyone except the
+ * person who wanted it hidden. This asks "is it finished", which nothing at runtime should be able
+ * to change.
+ *
+ * Not deleted, because the blocker is testing and a deleted section cannot be tested. It stays
+ * referenced below, so TypeScript keeps it compiling and a rename cannot leave it behind — the
+ * trade being that the schema audits walk the composed tree and so no longer see it. Nothing it
+ * paints is on screen to be wrong, and flipping this puts it back under all of them.
+ */
+const LAYOUTS_READY = false;
+
 const templateRows = matching({ $: 'group.items' });
 
 /**
@@ -218,26 +239,14 @@ const templateRows = matching({ $: 'group.items' });
  * somebody closed has no titlebar to reach a menu from. Absent entirely until there is a layout to
  * show or something worth saving — an interface with no panels never sees it.
  *
- * ## Behind the developer switch, for now
- *
- * Layouts, "Remember this arrangement…" and "Fork as a new template" are all built and none of them
- * has been exercised. Three unproven entries at the top of the one menu people use to change
- * template is a busy picker charging every reader for a feature nobody has tried, so it waits
- * behind `sessionStore.devTools` until it has been.
- *
- * `devTools` rather than deleting the call: the section keeps being type-checked, validated and
- * walked by the audits, and it is reachable for the testing that is the actual blocker — it is on
- * in a development build, and Settings → Developer turns it off to see the picker as a reader will.
- * A commented-out call would rot instead, which is what happened to the widget this shell replaced.
- *
- * Take the `devTools` term out of the condition to ship it; nothing else here is conditional on it.
+ * Not currently placed — see {@link LAYOUTS_READY}.
  */
 function layoutsSection(): SchemaNode {
   const rows = { $: 'shellStore.layoutNames' };
   return {
     type: '$if',
     props: {
-      condition: { $: 'sessionStore.devTools && (count(shellStore.layoutNames) || shellStore.layoutDirty)' },
+      condition: { $: 'count(shellStore.layoutNames) || shellStore.layoutDirty' },
       then: {
         type: 'Column',
         props: { gap: '100' },
@@ -382,7 +391,7 @@ export function templatePicker(): SchemaNode {
         body: {
           type: 'Column',
           children: [
-            layoutsSection(),
+            ...(LAYOUTS_READY ? [layoutsSection()] : []),
             {
               type: '$each',
               props: { items: { $: 'templateStore.switcherGroups' }, as: 'group' },
