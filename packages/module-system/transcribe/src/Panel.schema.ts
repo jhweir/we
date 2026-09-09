@@ -1930,23 +1930,32 @@ export const pendingUtterance: SchemaNode = {
  * the moment it was written, among what was being said then. So it is a `TextBlock` in the same
  * collection, and `source` is what stops it passing as speech — see the field's own note.
  *
- * ## Why it is here and not in the panel's chrome
+ * ## Why it is the panel's chrome and not part of the feed
  *
- * Inside the scroll region, after the unsaved line, so it sits where the next thing to arrive will
- * appear and moves down with it. `pin: 'end'` then keeps the composer in view while somebody is at
- * the tail, which is where somebody typing is.
- *
- * Only on the live call. A past call is a record of a conversation that finished, and adding to its
- * timeline now would date a remark to a meeting it was not made in — the same reason
- * `pendingUtterance` gates itself.
+ * It used to sit *inside* the scroll region, after the unsaved line, so that it appeared where the
+ * next thing to arrive would and moved down with it. That reads well on a full transcript and badly
+ * on every other one: with two lines said, the box sits under the second of them halfway up an
+ * otherwise empty panel, and it moves every time anybody speaks. A place to write is a fixture of
+ * the surface rather than the last row of the document — so it is pinned below the feed, always at
+ * the foot of the panel, and the words scroll behind it.
  *
  * Named as a part, for `captureMeter`'s reason: an interface arranging the module's pieces itself
  * would otherwise have the transcript and no way to write into it.
  */
 export const transcriptComposer: SchemaNode = {
   type: '$if',
+  /*
+    Wherever a transcript is on screen, not only while one is being recorded.
+
+    This was gated on the live call, on the reasoning that adding to a finished meeting's timeline
+    would date a remark to a conversation it was not made in. That is exactly the claim `source`
+    exists to stop it making: a typed line says it was typed and carries its own `createdAt`, so
+    nothing about it pretends to have been said at the time. And the case is a real one — watching a
+    call back is when somebody notices what is worth writing down, where during it they are busy
+    talking.
+  */
   props: {
-    condition: { $: 'modules.transcribe.callId && !routeStore.params.call' },
+    condition: EXTRACTION_SUBJECT,
     then: {
       type: 'Row',
       props: { gap: '200', ay: 'end', width: '100%' },
@@ -1959,9 +1968,26 @@ export const transcriptComposer: SchemaNode = {
             rows: 1,
             flex: '1',
             minWidth: '0',
+            /*
+              One line to start, growing as somebody writes, capped before it eats the transcript.
+
+              `autoGrow` is also what makes this line up with the button: at rest it takes the same
+              control height `we-input` does, rather than whatever `rows` × line-height happens to
+              come to. See the prop's own note.
+            */
+            autoGrow: true,
+            maxRows: 6,
+            submitOnEnter: true,
             placeholder: 'Add a note to the transcript…',
             value: { $: 'local.comment' },
             onInput: { $setLocal: 'comment', value: { $: 'event.detail' } },
+            // Enter commits, and the primitive suppresses the newline that would otherwise follow —
+            // a schema can read a key event but has nothing that calls `preventDefault`.
+            'on:submit': {
+              $action: 'modules.transcribe.addComment',
+              args: [{ $: EXTRACTION_SUBJECT_EXPR }, { $: 'local.comment' }],
+              onSuccess: [{ $setLocal: 'comment', value: '' }],
+            },
           },
         },
         {
@@ -1969,12 +1995,11 @@ export const transcriptComposer: SchemaNode = {
           props: {
             size: 'sm',
             variant: 'secondary',
-            flexShrink: '0',
             title: 'Add this to the transcript',
             disabled: { $: '!trim(local.comment)' },
             onClick: {
               $action: 'modules.transcribe.addComment',
-              args: [{ $: 'local.comment' }],
+              args: [{ $: EXTRACTION_SUBJECT_EXPR }, { $: 'local.comment' }],
               // Cleared on success only — a failed write keeps what was typed rather than
               // swallowing it and leaving an empty box as the only report.
               onSuccess: [{ $setLocal: 'comment', value: '' }],
@@ -2023,7 +2048,6 @@ export const transcriptFeed: SchemaNode = {
           props: { id: 'transcribe.transcriptLines', subject: SUBJECT },
         },
         pendingUtterance,
-        transcriptComposer,
       ],
     },
   ],
@@ -2324,6 +2348,11 @@ export const panel: SchemaNode = {
         // One node, not two: the unsaved line lives inside the feed's scroll region, immediately
         // after the last saved row. See `transcriptFeed`.
         transcriptFeed,
+
+        // ── And a place to write into it ─────────────────────────────────────
+        // Outside the scroll area, so it holds the foot of the panel instead of following the last
+        // thing anybody said. See `transcriptComposer`.
+        transcriptComposer,
       ],
     }),
   },

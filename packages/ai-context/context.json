@@ -1823,6 +1823,24 @@
           "default": "'vertical'"
         },
         {
+          "name": "autoGrow",
+          "type": "boolean",
+          "optional": false,
+          "default": "false"
+        },
+        {
+          "name": "maxRows",
+          "type": "number",
+          "optional": false,
+          "default": "6"
+        },
+        {
+          "name": "submitOnEnter",
+          "type": "boolean",
+          "optional": false,
+          "default": "false"
+        },
+        {
           "name": "size",
           "type": "'xs' | 'sm' | 'md' | 'lg' | 'xl'",
           "optional": false,
@@ -1847,6 +1865,12 @@
           "type": "boolean",
           "optional": false,
           "default": "false"
+        },
+        {
+          "name": "relativeStyle",
+          "type": "Intl.RelativeTimeFormatStyle",
+          "optional": false,
+          "default": "'long'"
         },
         {
           "name": "locale",

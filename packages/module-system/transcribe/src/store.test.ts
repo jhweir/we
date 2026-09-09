@@ -1932,7 +1932,7 @@ describe('typing into a transcript', () => {
   it('writes a typed note into the same timeline, saying it was typed', async () => {
     const h = harness(inCall);
 
-    await h.store.addComment('  Sam is joining late  ');
+    await h.store.addComment('', '  Sam is joining late  ');
 
     const block = h.created.find((c) => c.entity === 'TextBlock');
     expect(block?.fields).toEqual({ text: 'Sam is joining late', source: 'typed' });
@@ -1944,7 +1944,7 @@ describe('typing into a transcript', () => {
   it('writes nothing for an empty note', async () => {
     const h = harness(inCall);
 
-    await h.store.addComment('   ');
+    await h.store.addComment('', '   ');
 
     expect(h.created.filter((c) => c.entity === 'TextBlock')).toEqual([]);
   });
@@ -1952,9 +1952,22 @@ describe('typing into a transcript', () => {
   it('has nowhere to put a note outside a call, and does not invent one', async () => {
     const h = harness([]);
 
-    await h.store.addComment('a thought');
+    await h.store.addComment('', 'a thought');
 
     expect(h.created.filter((c) => c.entity === 'TextBlock')).toEqual([]);
+  });
+
+  it('writes into the transcript named, so a past call can be annotated', async () => {
+    // The reason the collection is an argument: the composer sits under whichever transcript is on
+    // screen, and that is not always the one being recorded.
+    const h = harness([]);
+
+    await h.store.addComment('past-call', 'watched this back');
+
+    const block = h.created.find((c) => c.entity === 'TextBlock');
+    expect(block?.options?.parent).toEqual({ id: 'past-call', predicate: 'we://children' });
+    // And in the space on screen, not in whichever space a live call happens to be running in.
+    expect(block?.options?.dataset).toBeUndefined();
   });
 });
 

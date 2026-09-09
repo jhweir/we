@@ -174,7 +174,6 @@ export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
                   // Solid, as the recording badges are: a soft warning reads as decoration, and this
                   // is the one thing on the card that asks for a decision.
                   appearance: 'solid',
-                  flexShrink: '0',
                   title: 'Extraction proposed this; nobody has agreed to it yet',
                 },
                 children: ['suggested'],

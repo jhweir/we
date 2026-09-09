@@ -46,18 +46,23 @@ const styles = css`
   /* Provide icon sizing context for slotted we-icon children */
   :host([size='xs']) {
     --we-context-icon-size: var(--we-size-xxs);
+    --we-textarea-control-height: calc(var(--we-component-height-xs) + var(--we-theme-control-height-offset, 0px));
   }
   :host([size='sm']) {
     --we-context-icon-size: var(--we-size-xs);
+    --we-textarea-control-height: calc(var(--we-component-height-sm) + var(--we-theme-control-height-offset, 0px));
   }
   :host([size='md']) {
     --we-context-icon-size: var(--we-size-sm);
+    --we-textarea-control-height: calc(var(--we-component-height-md) + var(--we-theme-control-height-offset, 0px));
   }
   :host([size='lg']) {
     --we-context-icon-size: var(--we-size-md);
+    --we-textarea-control-height: calc(var(--we-component-height-lg) + var(--we-theme-control-height-offset, 0px));
   }
   :host([size='xl']) {
     --we-context-icon-size: var(--we-size-lg);
+    --we-textarea-control-height: calc(var(--we-component-height-xl) + var(--we-theme-control-height-offset, 0px));
   }
 
   [part='textarea'] {
@@ -74,14 +79,20 @@ const styles = css`
     min-width: 0;
     resize: vertical;
     /*
-      A floor of one control's height, not a fixed 80px.
+      A floor of one control's height, at THIS control's size.
 
-      80px is about three lines, so it silently overrode the rows attribute for any value below the
-      default: rows="1" rendered at three rows and looked like the prop was being ignored. The floor
-      is still worth having — a zero-row textarea is a hairline — but it belongs at one row, which
-      is the smallest thing anybody asks for.
+      80px was about three lines, so it silently overrode the rows attribute for any value below the
+      default: rows=1 rendered at three rows and looked like the prop was being ignored. The floor is
+      still worth having — a zero-row textarea is a hairline — but it belongs at one row.
+
+      It was then the md height whatever the size, which is the same bug one step smaller: a small
+      textarea stood a few pixels taller than the small input and button beside it, and no amount of
+      tuning at the call site could fix it, because the number came from a different size than the
+      row was built at. Following the size — through the same expression we-input uses, theme offset
+      included — is what makes a one-line box line up with the controls around it rather than nearly
+      line up.
     */
-    min-height: var(--we-component-height-md);
+    min-height: var(--we-textarea-control-height, var(--we-component-height-md));
   }
 
   [part='textarea']::placeholder {
@@ -118,6 +129,52 @@ export default class Textarea extends DesignSystemElement {
   @property({ type: Boolean, reflect: true }) required = false;
   @property({ type: Boolean, reflect: true }) readonly = false;
   @property({ type: String, reflect: true }) resize: 'none' | 'vertical' | 'horizontal' | 'both' = 'vertical';
+  /**
+   * Start at one control's height and grow with what is typed, up to {@link maxRows}.
+   *
+   * ## Why this is the primitive's job
+   *
+   * A composer that starts as one line beside a button is the commonest shape a textarea takes, and
+   * it is the one shape it cannot hold on its own: `we-input` sizes itself from
+   * `--we-component-height-*` while a textarea sizes itself from `rows` × line-height, so the two
+   * are measured by different mechanisms and never line up — not by tuning, and least of all under a
+   * theme that sets `control-height-offset`. Growing then needs the rendered height of the content,
+   * which is measurement, which is what a primitive owns and a template cannot express.
+   *
+   * With this on, the resting height is exactly the control height for the size, so the box lines up
+   * with the inputs and buttons beside it by construction rather than by matching numbers.
+   *
+   * `resize` is forced to `none` while it is on: a drag handle and an auto-sizer are two mechanisms
+   * arguing over one dimension, and the handle wins until the next keystroke undoes it.
+   */
+  @property({ type: Boolean, reflect: true }) autoGrow = false;
+  /**
+   * How far {@link autoGrow} may grow before the box scrolls instead.
+   *
+   * A cap rather than a preference. These live in docked panels, and an uncapped box means a long
+   * message pushes the thing it is about — a transcript, a conversation — off the screen; the
+   * composer would eat the surface it belongs to. Past this the text scrolls inside, which keeps
+   * both readable.
+   */
+  @property({ type: Number, reflect: true }) maxRows = 6;
+  /**
+   * Enter commits, Shift+Enter makes a new line — and Enter's own newline is suppressed.
+   *
+   * ## Why a prop rather than something a schema writes
+   *
+   * The suppression is the reason. A schema can read the event but has nothing that calls
+   * `preventDefault`, so the same rule written in a template sends the message *and* leaves a stray
+   * line break in the box. Only code can hold this.
+   *
+   * It is also design-system knowledge in the sense `templates/kit/CONVENTIONS.md` uses: which key
+   * commits a control, and what that must suppress, is the same kind of fact as which event carries
+   * a field's value — and the convention is that such a table does not get smuggled into the schema
+   * layer one call site at a time.
+   *
+   * Off by default, and every consumer keeps the general path: bind `onKeyDown` and do something
+   * else entirely. This is the shortcut for the common case, not a replacement for the case.
+   */
+  @property({ type: Boolean, reflect: true }) submitOnEnter = false;
   @property({ type: String, reflect: true }) size: ComponentSize = 'md';
   @property({ type: Object }) styles?: Record<string, string | number | undefined>;
 
@@ -140,6 +197,7 @@ export default class Textarea extends DesignSystemElement {
   handleInput(e: InputEvent) {
     e.stopPropagation();
     this.value = (e.target as HTMLTextAreaElement)?.value;
+    this.resize_();
     this.dispatchEvent(new CustomEvent('input', { detail: this.value, bubbles: true, composed: true }));
   }
 
@@ -157,6 +215,52 @@ export default class Textarea extends DesignSystemElement {
     this.dispatchEvent(new CustomEvent('blur', { bubbles: true, composed: true }));
   }
 
+  /**
+   * Commit on Enter, when asked to — and never on an empty box.
+   *
+   * The guard is here rather than in each consumer so none of them can forget it: a `submit`
+   * carrying nothing is not a message somebody meant to send, and every caller would otherwise
+   * repeat the same `trim()` beside the same disabled button.
+   *
+   * `Shift+Enter` falls through untouched, which is the newline. So does a keystroke while an IME
+   * is composing — `isComposing` is true mid-composition in Japanese, Chinese and Korean input, and
+   * Enter there confirms a candidate word rather than finishing a sentence. Sending on it would
+   * make the box unusable in those languages, which is the kind of thing that is invisible until
+   * somebody who needs it tries.
+   */
+  handleKeyDown(e: KeyboardEvent) {
+    if (!this.submitOnEnter || e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+    e.preventDefault();
+    if (!this.value.trim()) return;
+    this.dispatchEvent(new CustomEvent('submit', { detail: this.value, bubbles: true, composed: true }));
+  }
+
+  /**
+   * Fit the box to its content, between one control's height and {@link maxRows}.
+   *
+   * Measured from `scrollHeight` with the height released first: a textarea's `scrollHeight` never
+   * reports less than its current height, so reading it without resetting would let the box grow and
+   * never shrink back as somebody deletes what they wrote.
+   */
+  private resize_() {
+    const field = this.renderRoot.querySelector('textarea');
+    if (!field || !this.autoGrow) return;
+    field.style.height = 'auto';
+    const line = parseFloat(getComputedStyle(field).lineHeight) || 0;
+    const chrome = field.offsetHeight - field.clientHeight;
+    const cap = line * this.maxRows + chrome;
+    const wanted = field.scrollHeight + chrome;
+    field.style.height = `${Math.min(wanted, cap)}px`;
+    field.style.overflowY = wanted > cap ? 'auto' : 'hidden';
+  }
+
+  protected updated(changed: Map<string, unknown>) {
+    // Chained, not optional-chained: the base class writes the DS custom properties here, and
+    // `check-super-calls` fails the build for exactly the silent breakage skipping it would cause.
+    super.updated(changed);
+    if (this.autoGrow && (changed.has('value') || changed.has('autoGrow') || changed.has('maxRows'))) this.resize_();
+  }
+
   render() {
     return html`
       <div part="base" style=${styleMap(this.styles || {})}>
@@ -169,10 +273,14 @@ export default class Textarea extends DesignSystemElement {
           maxlength=${this.maxlength}
           minlength=${this.minlength}
           placeholder=${this.placeholder}
-          style=${styleMap({ resize: this.resize })}
+          style=${styleMap({
+            // An auto-sizer and a drag handle are two mechanisms for one dimension — see `autoGrow`.
+            resize: this.autoGrow ? 'none' : this.resize,
+          })}
           ?disabled=${this.disabled}
           ?readonly=${this.readonly}
           ?required=${this.required}
+          @keydown=${this.handleKeyDown}
           @input=${this.handleInput}
           @change=${this.handleChange}
           @focus=${this.handleFocus}

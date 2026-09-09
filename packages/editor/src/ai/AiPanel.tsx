@@ -174,22 +174,25 @@ export function AiPanel() {
 
       {/* Input area */}
       <Row ay="end" gap="200" p="400" borderTop={`1px solid ${tokenVar('color', 'ui-200')}`} flexShrink="0">
+        {/*
+          `autoGrow` + `submitOnEnter` rather than a hand-rolled key handler and a guessed
+          `maxHeight`. Both were written here first and are now the primitive's, which is also what
+          makes the box line up with the button beside it: at rest it takes the control height for
+          its size, instead of whatever one row of line-height happens to come to.
+        */}
         <we-textarea
           value={inputValue()}
           placeholder="Describe a change to the template..."
           disabled={session.isStreaming()}
+          size="sm"
           rows={1}
-          resize="none"
+          autoGrow
+          maxRows={6}
+          submitOnEnter
           flex="1"
+          minWidth="0"
           on:input={(e: CustomEvent) => setInputValue(e.detail)}
-          onKeyDown={(e: KeyboardEvent) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
-          maxHeight="160px"
-          overflowY="auto"
+          on:submit={handleSend}
         />
         <we-button size="sm" onClick={handleSend} disabled={session.isStreaming() || inputValue().trim() === ''}>
           <we-icon name="paper-plane-tilt" size="sm" />

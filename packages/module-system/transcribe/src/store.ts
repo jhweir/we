@@ -2318,21 +2318,34 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
      * Written into the **call's** space rather than the space on screen, for the reason every other
      * write here is: a call outlives the reader's navigation, and a comment landing in whichever
      * space somebody had wandered to would be a note about a meeting, filed somewhere else.
+     *
+     * `collection` is named by the caller because the composer is no longer only about the call
+     * being recorded: a transcript on screen is a transcript somebody can write into, and which one
+     * that is, is a question the panel has already answered for every other row it draws. Omitted,
+     * it falls back to the call in progress — the call's own record, which exists from its first
+     * second, since a comment does not need somebody to have spoken first and `collectionId` is
+     * null until they have.
      */
-    addComment: async (text: string) => {
+    addComment: async (collection: string, text: string) => {
       const words = String(text ?? '').trim();
       if (!words || !createEntity) return;
-      // The call's own record, which exists from its first second — a comment does not need
-      // somebody to have spoken first, and `collectionId` is null until they have.
-      const collection = targetCollection();
-      if (!collection) return;
-      const dataset = myCall()?.datasetUri ?? undefined;
+      const target = collection || targetCollection();
+      if (!target) return;
+      /*
+        The call's dataset only when the target IS the call in progress.
+
+        A live call in one space outlives a reader who walks to another, so `myCall().datasetUri`
+        answers for the meeting being recorded rather than for the transcript on screen. Naming it
+        unconditionally would send a comment about a past call in *this* space to whichever space
+        the live one is running in, where the record it names does not exist.
+      */
+      const dataset = target === targetCollection() ? (myCall()?.datasetUri ?? undefined) : undefined;
       await createEntity(
         'TextBlock',
         { text: words, source: TYPED },
-        { parent: { id: collection, predicate: CHILDREN_PREDICATE }, ...(dataset ? { dataset } : {}) },
+        { parent: { id: target, predicate: CHILDREN_PREDICATE }, ...(dataset ? { dataset } : {}) },
       );
-      await recordSelfParticipation(collection, dataset);
+      await recordSelfParticipation(target, dataset);
     },
     /**
      * Fix the words on a line of the transcript.

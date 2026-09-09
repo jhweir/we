@@ -663,6 +663,9 @@ export const contextData: ContextData = {
         { name: 'required', type: 'boolean', optional: false, default: 'false' },
         { name: 'readonly', type: 'boolean', optional: false, default: 'false' },
         { name: 'resize', type: "'none' | 'vertical' | 'horizontal' | 'both'", optional: false, default: "'vertical'" },
+        { name: 'autoGrow', type: 'boolean', optional: false, default: 'false' },
+        { name: 'maxRows', type: 'number', optional: false, default: '6' },
+        { name: 'submitOnEnter', type: 'boolean', optional: false, default: 'false' },
         { name: 'size', type: "'xs' | 'sm' | 'md' | 'lg' | 'xl'", optional: false, default: "'md'" },
       ],
     },
@@ -675,6 +678,7 @@ export const contextData: ContextData = {
       ownProps: [
         { name: 'value', type: 'string', optional: false, default: "''" },
         { name: 'relative', type: 'boolean', optional: false, default: 'false' },
+        { name: 'relativeStyle', type: 'Intl.RelativeTimeFormatStyle', optional: false, default: "'long'" },
         { name: 'locale', type: 'string', optional: false, default: "'en'" },
         { name: 'dateStyle', type: "Intl.DateTimeFormatOptions['dateStyle'] | null", optional: false, default: 'null' },
         { name: 'timeStyle', type: "Intl.DateTimeFormatOptions['timeStyle'] | null", optional: false, default: 'null' },
