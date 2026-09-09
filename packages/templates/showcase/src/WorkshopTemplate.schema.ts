@@ -715,9 +715,27 @@ const callsPanel: SchemaNode = {
                             flex: '1',
                             ax: 'start',
                             gap: '200',
-                            // The whole of choosing: the id goes in the address, and every surface
-                            // follows. Nothing is joined, claimed or written.
-                            onClick: openCall('call.id'),
+                            /*
+                              The whole of choosing: the id goes in the address, and every surface
+                              follows. Nothing is joined, claimed or written.
+
+                              Clicking the row you are already on lets go of it instead — the same
+                              navigation naming no call, which is what every other surface reads as
+                              "the one being recorded, if any". A selected row is the only control
+                              here with nothing to do on a second press, and a list you can only add
+                              to is one you have to leave to undo.
+
+                              `$if` in a handler position, which runs one side when the event fires
+                              rather than choosing at render time — the one place `$if` is a token
+                              rather than a node.
+                            */
+                            onClick: {
+                              $if: {
+                                condition: { $: `call.id == (${CALL_EXPR})` },
+                                then: openLiveCall,
+                                else: openCall('call.id'),
+                              },
+                            },
                           },
                           children: [
                             {
