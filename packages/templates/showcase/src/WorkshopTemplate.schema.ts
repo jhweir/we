@@ -482,6 +482,9 @@ const switcher: SchemaNode = {
  * Gated on `canCall`, which is "this space can hold a call at all" — a personal space cannot, and an
  * offer to start one there fails at the point of pressing.
  */
+/** A call is running somewhere in this space, whether or not this agent is in it. */
+const A_CALL_IS_RUNNING = 'modules.call.active || count(modules.call.liveCalls)';
+
 const startCall: SchemaNode = {
   type: '$if',
   props: {
@@ -492,13 +495,47 @@ const startCall: SchemaNode = {
         size: 'sm',
         gap: '200',
         variant: { $: "modules.call.active ? 'secondary' : 'primary'" },
-        onClick: [{ $action: 'modules.call.goToCall' }, openLiveCall],
+        /*
+          `goToCall` only where there is a call to go to.
+
+          It was the whole of this button, and `goToCall` has a branch that continues the call *in
+          the address* when nothing is running — which is exactly right for the module rail, where it
+          is how you pick up the meeting you are reading, and exactly wrong here. With a call
+          selected in the list below, pressing "New call" reopened the selected one.
+
+          The two other branches are still wanted, which is why this is a narrowing rather than a
+          swap to `startCall`. Somebody already in a call gets taken back to it; somebody who is not,
+          in a space where a call is running, joins that one rather than opening a second beside it.
+          Only the third case starts anything.
+
+          Branched in the handler rather than in the node, so one button is rendered either way and
+          the conditions read the store at the press instead of at the paint that happened to be
+          current when the panel opened.
+        */
+        onClick: [
+          {
+            $if: {
+              condition: { $: A_CALL_IS_RUNNING },
+              then: { $action: 'modules.call.goToCall' },
+              else: { $action: 'modules.call.startCall' },
+            },
+          },
+          openLiveCall,
+        ],
       },
       children: [
         { type: 'we-icon', props: { name: 'phone-call' } },
         {
           type: 'we-text',
-          children: [{ $: "modules.call.active ? 'Go to the call' : 'New call'" }],
+          /*
+            Three words for three acts, because the middle one used to be missing: with a call
+            running that this agent had not joined, the button said "New call" and joined it.
+          */
+          children: [
+            {
+              $: "modules.call.active ? 'Go to the call' : count(modules.call.liveCalls) ? 'Join the call' : 'New call'",
+            },
+          ],
         },
       ],
     },

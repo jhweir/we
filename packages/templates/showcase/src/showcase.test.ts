@@ -242,9 +242,28 @@ describe('the workshop template’s call selection', () => {
     // looking at: the transcript and the readout went on showing a finished meeting while a new one
     // was recorded beside them.
     const calls = JSON.stringify(workshop.meta?.panels?.find((panel) => panel.id === 'calls'));
-    const start = calls.slice(calls.indexOf('modules.call.goToCall'));
+    const start = calls.slice(calls.indexOf('modules.call.startCall'));
 
     expect(start).toContain("?call=${''}");
+  });
+
+  it('starts a call rather than reopening the one selected in the list', () => {
+    /*
+      The button was the whole of `goToCall`, which has a branch that continues the call *in the
+      address* when nothing is running. That is how the module rail picks up the meeting you are
+      reading, and it is the wrong reading of a button labelled "New call": with a call selected
+      below it, pressing it reopened the selected one.
+
+      Narrowed rather than swapped, because the other two branches are still wanted — back to your
+      own call, or into one already running here instead of opening a second beside it. Only the
+      third case starts anything, and only that case reaches `startCall`.
+    */
+    const calls = JSON.stringify(workshop.meta?.panels?.find((panel) => panel.id === 'calls'));
+
+    expect(calls).toContain('"condition":{"$":"modules.call.active || count(modules.call.liveCalls)"}');
+    expect(calls).toContain('"else":{"$action":"modules.call.startCall"}');
+    // And it says which of the three it is about to do. The middle one had no words of its own.
+    expect(calls).toContain("'Join the call'");
   });
 
   it('keeps a calendar where the archive of calls used to be', () => {
