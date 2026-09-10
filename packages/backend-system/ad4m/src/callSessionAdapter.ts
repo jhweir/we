@@ -23,6 +23,7 @@ import type { DatasetHandle } from '@we/backend-shared';
  */
 interface SessionCapableProxy {
   createSession(roomName: string, options?: { neighbourhoodUrl?: string; topology?: string }): Promise<unknown>;
+  sfuConfig?(neighbourhoodUrl: string): Promise<{ mode?: string }>;
 }
 
 /**
@@ -65,9 +66,28 @@ export function createCallSessionFactory(
       throw new Error('AD4M executor does not support Session — requires a build from feat/embedded-sfu');
     }
 
-    return await (nhProxy as unknown as SessionCapableProxy).createSession(callId, {
+    const capable = nhProxy as unknown as SessionCapableProxy;
+
+    // Read the moderator's topology choice from Social DNA.  Falls back to 'auto'
+    // when the config has not been set or the executor lacks support.
+    let topology = 'auto';
+    if (capable.sfuConfig) {
+      try {
+        const config = await capable.sfuConfig(neighbourhoodUrl);
+        if (config?.mode && config.mode !== 'mesh') {
+          topology = config.mode;
+        }
+        // 'mesh' in the config means "never use SFU" — pass 'mesh' explicitly
+        // so the Session resolver skips SFU discovery.
+        if (config?.mode === 'mesh') topology = 'mesh';
+      } catch {
+        // Non-fatal — fall back to auto topology resolution.
+      }
+    }
+
+    return await capable.createSession(callId, {
       neighbourhoodUrl,
-      topology: 'auto',
+      topology,
     });
   };
 }

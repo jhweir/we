@@ -187,6 +187,26 @@ export type CallDockEdge = 'left' | 'right' | 'top' | 'bottom';
 /** The call topology in use — mesh (peer-to-peer) or sfu (relay server). */
 export type CallTopology = 'mesh' | 'sfu';
 
+/** Topology modes a moderator can choose from. */
+export type CallConfigMode = 'mesh' | 'designated' | 'gateway' | 'cascaded';
+
+/** Per-neighbourhood call configuration — topology defaults stored on Social DNA. */
+export interface CallConfigState {
+  mode: CallConfigMode;
+  designatedPeer?: string;
+  fallback: CallConfigMode;
+  maxMeshParticipants: number;
+  sfuPeers: string[];
+  maxParticipantsPerNode?: number;
+  preferredSfuDid?: string;
+}
+
+/** An SFU-capable executor discovered via neighbourhood presence. */
+export interface CallSfuNodeState {
+  did: string;
+  bindAddress: string;
+}
+
 /**
  * Summary of relay (SFU) availability for the current call.
  *
@@ -342,6 +362,27 @@ export function createCallStore(deps: CallStoreDeps) {
   const [qualityPreference, setQualityPreferenceSignal] = signal<BackendQuality>('high');
   /** Whether the user explicitly chose a quality preference, disabling auto. */
   let qualityIsManual = false;
+
+  // ── Call configuration (SFU topology defaults) ──────────────────────
+  //
+  // Read from Social DNA via the host's `getCallConfig` port.  Loaded once
+  // when the dataset changes, refreshed after writes.  The settings UI
+  // binds to these signals; the adapter reads them at join time.
+
+  /** Per-neighbourhood SFU configuration — topology defaults set by a moderator.
+   *  Always non-null — defaults to pure mesh before the real config loads. */
+  const [callConfig, setCallConfig] = signal<CallConfigState>({
+    mode: 'mesh',
+    fallback: 'mesh',
+    maxMeshParticipants: 6,
+    sfuPeers: [],
+  });
+  /** Available SFU nodes discovered via presence scan. */
+  const [availableSfuNodes, setAvailableSfuNodes] = signal<CallSfuNodeState[]>([]);
+  /** Whether the backend supports call configuration at all. */
+  const [callConfigSupported, setCallConfigSupported] = signal(false);
+  /** Whether a config save operation runs right now. */
+  const [callConfigSaving, setCallConfigSaving] = signal(false);
 
   /**
    * Named, because it is the one problem that can resolve itself.
@@ -1110,6 +1151,42 @@ export function createCallStore(deps: CallStoreDeps) {
     if (hadIdentity && callId()) teardown();
   });
 
+  // ── Load call config when the dataset changes ─────────────────────────
+  //
+  // Fires on every navigation.  The read itself is cheap (one RPC round trip),
+  // and the result is used by the settings UI and by `join` to pick the right
+  // topology.  Absence of the port means "no SFU support" — the signals stay
+  // at their defaults and the settings section hides.
+  effect?.(() => {
+    // Touch the reactive accessor so the effect re-fires on navigation.
+    const ds = dataset?.();
+    const uri = datasetUri?.();
+
+    // Probe synchronously — avoids a wasted async round trip on personal spaces.
+    const supported = !!ds && !!uri && !!deps.callConfigSupported?.();
+    setCallConfigSupported(supported);
+
+    const meshDefault: CallConfigState = { mode: 'mesh', fallback: 'mesh', maxMeshParticipants: 6, sfuPeers: [] };
+    if (!supported) {
+      setCallConfig(meshDefault);
+      setAvailableSfuNodes([]);
+      return;
+    }
+
+    // Fire-and-forget the async reads.  Signal writes happen on completion;
+    // stale responses from a previous dataset are safe because the signals
+    // are overwritten next time this effect fires.
+    void deps
+      .getCallConfig?.()
+      .then((raw) => setCallConfig((raw as CallConfigState) ?? meshDefault))
+      .catch(() => setCallConfig(meshDefault));
+
+    void deps
+      .getAvailableSfuNodes?.()
+      .then((nodes) => setAvailableSfuNodes((nodes as CallSfuNodeState[]) ?? []))
+      .catch(() => setAvailableSfuNodes([]));
+  });
+
   /*
     Deleting the call's space ends the call.
 
@@ -1867,5 +1944,74 @@ export function createCallStore(deps: CallStoreDeps) {
         dataListeners.delete(cb);
       };
     },
+
+    // ── Call config (space-level topology defaults) ──────────────────────
+
+    /** Per-neighbourhood SFU config read from Social DNA, or null when unsupported / not loaded. */
+    callConfig,
+    /** SFU-capable executor nodes discovered in the neighbourhood. */
+    availableSfuNodes,
+    /** Whether the backend supports call configuration at all. */
+    callConfigSupported,
+    /** Whether a config save runs right now. */
+    callConfigSaving,
+
+    /**
+     * Write one field of the call config.  Round-trips through the adapter and
+     * refreshes the local signal on success.
+     */
+    setCallConfigField: async (field: string, value: unknown) => {
+      const current = callConfig();
+      if (!deps.setCallConfig) return;
+      const next = { ...current, [field]: value } as CallConfigState;
+      setCallConfigSaving(true);
+      try {
+        const ok = await deps.setCallConfig(next);
+        if (ok) setCallConfig(next);
+      } catch (error) {
+        console.error('call config: could not save', error);
+      } finally {
+        setCallConfigSaving(false);
+      }
+    },
+
+    /**
+     * Replace the entire call config.  Used when the settings form saves
+     * multiple fields at once.
+     */
+    saveCallConfig: async (config: CallConfigState) => {
+      if (!deps.setCallConfig) return;
+      setCallConfigSaving(true);
+      try {
+        const ok = await deps.setCallConfig(config);
+        if (ok) setCallConfig(config);
+      } catch (error) {
+        console.error('call config: could not save', error);
+      } finally {
+        setCallConfigSaving(false);
+      }
+    },
+
+    /** Re-scan the neighbourhood for SFU-capable executor nodes. */
+    refreshSfuNodes: async () => {
+      if (!deps.getAvailableSfuNodes) return;
+      try {
+        const nodes = await deps.getAvailableSfuNodes();
+        setAvailableSfuNodes((nodes as CallSfuNodeState[]) ?? []);
+      } catch {
+        setAvailableSfuNodes([]);
+      }
+    },
+
+    // ── Connection info (per-call, for the in-call panel) ───────────────
+
+    /** Summary of the current call's connection state — what the in-call panel reads. */
+    connectionInfo: () => ({
+      topology: topology(),
+      hasBackend: hasSessionBackend(),
+      participantCount: tiles().length,
+      meshLimitReached: topology() === 'mesh' && tiles().length > MESH_LIMIT,
+      configMode: callConfig().mode,
+    }),
   };
 }

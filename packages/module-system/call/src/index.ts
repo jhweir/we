@@ -1182,6 +1182,210 @@ const qualitySelector: SchemaNode = {
 };
 
 /**
+ * In-call settings popover — topology info and quality selection.
+ *
+ * Triggered by a gear icon in the call bar.  Shows the current topology as read-only info and
+ * offers a proper three-option quality selector (replacing the cycling button with a deliberate
+ * choice).  Participants and connection summary fill the rest.
+ *
+ * Uses `$localState` for open/close, same pattern as `moreMenu`.  The popover anchors to its
+ * trigger button, so it floats above the call bar without taking layout space.
+ */
+const callSettingsPopover: SchemaNode = {
+  type: '$if',
+  props: {
+    condition: { $: 'modules.call.active' },
+    then: {
+      type: 'Column',
+      $localState: { open: { type: 'boolean', initial: false } },
+      children: [
+        // Trigger button — gear icon
+        {
+          type: 'we-tooltip',
+          props: { title: 'Call settings', placement: 'bottom' },
+          children: [
+            {
+              type: 'we-button',
+              props: {
+                square: true,
+                variant: 'ghost',
+                onClick: { $setLocal: 'open', value: { $: '!local.open' } },
+              },
+              children: [{ type: 'we-icon', props: { name: 'settings', size: 'sm' } }],
+            },
+          ],
+        },
+        // Popover body
+        {
+          type: '$if',
+          props: {
+            condition: { $: 'local.open' },
+            then: {
+              type: 'Column',
+              props: {
+                position: 'absolute',
+                bottom: '60px',
+                right: '0',
+                width: '280px',
+                p: '400',
+                gap: '300',
+                bg: 'surface-raised',
+                r: '300',
+                border: '1px solid border',
+                boxShadow: 'var(--we-shadow-lg)',
+                zIndex: '100',
+              },
+              children: [
+                // ── Header ──
+                {
+                  type: 'Row',
+                  props: { width: '100%', ax: 'between', ay: 'center' },
+                  children: [
+                    { type: 'we-text', props: { variant: 'label' }, children: ['Call settings'] },
+                    {
+                      type: 'we-button',
+                      props: {
+                        square: true,
+                        size: 'xs',
+                        variant: 'ghost',
+                        onClick: { $setLocal: 'open', value: false },
+                      },
+                      children: [{ type: 'we-icon', props: { name: 'x', size: 'sm' } }],
+                    },
+                  ],
+                },
+
+                // ── Topology info ──
+                {
+                  type: 'Column',
+                  props: { gap: '100' },
+                  children: [
+                    { type: 'we-text', props: { variant: 'footnote', color: 'text-faint' }, children: ['Topology'] },
+                    {
+                      type: 'Row',
+                      props: { gap: '200', ay: 'center' },
+                      children: [
+                        {
+                          type: '$if',
+                          props: {
+                            condition: { $: "modules.call.topology == 'sfu'" },
+                            then: {
+                              type: 'we-icon',
+                              props: { name: 'broadcast', size: 'sm', color: 'var(--we-color-text-secondary)' },
+                            },
+                            else: {
+                              type: 'we-icon',
+                              props: { name: 'graph', size: 'sm', color: 'var(--we-color-text-tertiary)' },
+                            },
+                          },
+                        },
+                        {
+                          type: 'we-text',
+                          props: { variant: 'body' },
+                          children: [
+                            {
+                              $: "modules.call.topology == 'sfu' ? 'SFU relay' : 'Peer-to-peer mesh'",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+
+                { type: 'we-divider' },
+
+                // ── Quality preference ──
+                {
+                  type: 'Column',
+                  props: { gap: '200' },
+                  children: [
+                    {
+                      type: 'we-text',
+                      props: { variant: 'footnote', color: 'text-faint' },
+                      children: ['Quality preference'],
+                    },
+                    {
+                      type: 'Row',
+                      props: { gap: '200', width: '100%' },
+                      children: [
+                        {
+                          type: 'we-button',
+                          props: {
+                            size: 'sm',
+                            flex: '1',
+                            variant: expr`${{ $: 'modules.call.qualityPreference' }} == "high" ? "primary" : "ghost"`,
+                            onClick: { $action: 'modules.call.setQualityPreference', args: ['high'] },
+                          },
+                          children: ['High'],
+                        },
+                        {
+                          type: 'we-button',
+                          props: {
+                            size: 'sm',
+                            flex: '1',
+                            variant: expr`${{ $: 'modules.call.qualityPreference' }} == "medium" ? "primary" : "ghost"`,
+                            onClick: { $action: 'modules.call.setQualityPreference', args: ['medium'] },
+                          },
+                          children: ['Medium'],
+                        },
+                        {
+                          type: 'we-button',
+                          props: {
+                            size: 'sm',
+                            flex: '1',
+                            variant: expr`${{ $: 'modules.call.qualityPreference' }} == "low" ? "primary" : "ghost"`,
+                            onClick: { $action: 'modules.call.setQualityPreference', args: ['low'] },
+                          },
+                          children: ['Low'],
+                        },
+                      ],
+                    },
+                  ],
+                },
+
+                { type: 'we-divider' },
+
+                // ── Connection summary ──
+                {
+                  type: 'Column',
+                  props: { gap: '100' },
+                  children: [
+                    {
+                      type: 'we-text',
+                      props: { variant: 'footnote', color: 'text-faint' },
+                      children: ['Connection'],
+                    },
+                    {
+                      type: 'we-text',
+                      props: { variant: 'body' },
+                      children: [
+                        expr`${{ $: 'modules.call.tiles.length' }} + " participant" + (${{ $: 'modules.call.tiles.length' }} == 1 ? "" : "s")`,
+                      ],
+                    },
+                    {
+                      type: '$if',
+                      props: {
+                        condition: { $: 'modules.call.connectionInfo.meshLimitReached' },
+                        then: {
+                          type: 'we-text',
+                          props: { variant: 'footnote', color: 'warning' },
+                          children: ['Mesh participant limit reached — call quality may degrade.'],
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      ],
+    },
+  },
+};
+
+/**
  * The way back to a call happening somewhere else.
  *
  * Only mounted once you have navigated out of the call's space, which is the whole of when it means
@@ -1463,6 +1667,7 @@ const bar: SchemaNode = {
             { type: 'we-divider', props: { orientation: 'vertical', height: '26px' } },
             topologyIndicator,
             qualitySelector,
+            callSettingsPopover,
             participants,
             {
               type: 'we-tooltip',
