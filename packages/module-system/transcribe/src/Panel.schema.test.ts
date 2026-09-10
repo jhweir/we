@@ -774,6 +774,27 @@ describe('the extraction panel', () => {
     expect(json).toContain('Reads the whole conversation so far');
   });
 
+  it('keeps the controls off the chips ground, and names what the chips are', () => {
+    /*
+      The two controls spent a while as the top row of the sunken box holding the chips, and a
+      filled button on the same ground as a row of outlined ones reads as one set of toggles —
+      the confusion that had Extract looking like a fourth chip when it lived in the row itself.
+
+      Out of the box, the chips are a row of unexplained words under a heading that only says
+      "Extraction", so three words name them. Not `sectionLabel`, which is this panel's uppercase
+      treatment for a whole region: a scroll area of proposals is a section, a control row is not.
+    */
+    const controls = json.indexOf('Auto extract: on');
+    const label = json.indexOf('Things to extract:');
+    const chips = json.indexOf('transcribe.extractionTargets');
+
+    expect(controls).toBeLessThan(label);
+    expect(label).toBeLessThan(chips);
+    // The ground belongs to the chips alone now — the controls are above it, not inside it.
+    expect(json.indexOf('"bg":"surface-sunken"')).toBeGreaterThan(controls);
+    expect(json).not.toContain('THINGS TO EXTRACT');
+  });
+
   it('shows nothing to press outside a call, rather than a well of disabled controls', () => {
     /*
       It was an auto switch that could not be pressed, an Extract that could not run, and a chip row

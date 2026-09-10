@@ -1506,12 +1506,16 @@ const extractedRows: SchemaNode = {
   standing decision the whole call shares. Two red buttons in one panel would say one thing about
   two different things.
 
-  ## In the well, not the header
+  ## Not in the header, and not in the well either
 
-  Both controls sat in the header's aside for a day. Two labelled buttons beside a title and a
-  glyph is more than a `sm` dock is wide, and the title gave way first. They are the top row of
-  the sunken box now, so that box reads as one thing — the pass: switch it, run it, what it looks
-  for, what the last one did — and the header is a name and a glyph again.
+  Both sat in the header's aside for a day. Two labelled buttons beside a title and a glyph is more
+  than a `sm` dock is wide, and the title gave way first.
+
+  They then spent a while as the top row of the sunken box holding the chips, which was worse in a
+  quieter way: a filled button and a row of outlined ones on one ground read as a single set of
+  toggles, which is the confusion that had Extract looking like a fourth chip back when it lived at
+  the end of the chip row itself. They are their own row above that box now — plainly the controls,
+  with the box plainly the thing they operate on.
 */
 const extractionControls: SchemaNode = {
   type: 'Row',
@@ -1649,15 +1653,29 @@ const extractionControls: SchemaNode = {
  * itself, at the end of the chip row, where an outlined button beside outlined chips read as one
  * more chip. The prose went two places — the panel's help glyph, read on demand, and the button's
  * own tooltip — and the button went beside the switch that decides the automatic pass, so the two
- * ways of starting one sit together, as the well's top row. Under them the chips, and under those
- * what the last pass did.
+ * ways of starting one sit together.
+ *
+ * What is left is three bands in the order somebody uses them: the controls, then what the last
+ * press did, then what a press looks for — three words and a row of chips on a ground of their own.
  */
 const extract: SchemaNode = {
   type: 'Column',
-  props: { gap: '200', bg: 'surface-sunken', r: '300', p: '200' },
+  props: { gap: '300' },
   children: [
+    /*
+      What starts a pass, then what the last one did, then what a pass looks for.
+
+      The two controls used to sit *inside* the sunken box with the chips, which put a filled button
+      and a row of outlined ones on one ground and made the whole thing read as a single set of
+      toggles — the same confusion that had Extract looking like a fourth chip when it lived at the
+      end of that row. Out of the box they are plainly the controls, and the box is plainly what they
+      operate on.
+
+      The status lines follow the buttons rather than the chips, because they report what a press
+      did: a spinner while it runs, a count when it lands, the reason a standing pass is not running,
+      and the alert when one failed.
+    */
     extractionControls,
-    { type: '$part', props: { id: 'transcribe.extractionTargets' } },
     {
       type: '$if',
       props: {
@@ -1749,6 +1767,35 @@ const extract: SchemaNode = {
           children: [{ $: 'modules.transcribe.extractError' }],
         },
       },
+    },
+    {
+      type: 'Column',
+      props: { gap: '200' },
+      children: [
+        {
+          /*
+            Three words naming the row under them, and no more than that.
+
+            A lead-in lived here once and was removed: it was a whole sentence with two forms, one
+            for a call and one for the space's default, and it read as prose in a box whose job is
+            two controls. What was wrong with it was the length and the branching, not the idea —
+            with the controls moved out, the chips are a row of unexplained words under a heading
+            that says "Extraction", and something has to say what pressing one changes.
+
+            Deliberately not `sectionLabel`, which is the uppercase treatment this panel gives a
+            whole region — a scroll area of proposals is a section, a control row is not, and two
+            capitalised labels of different weights would be the drift that fragment exists to stop.
+          */
+          type: 'we-text',
+          props: { variant: 'footnote', color: 'text-muted' },
+          children: ['Things to extract:'],
+        },
+        {
+          type: 'Column',
+          props: { bg: 'surface-sunken', r: '300', p: '200' },
+          children: [{ type: '$part', props: { id: 'transcribe.extractionTargets' } }],
+        },
+      ],
     },
   ],
 };
