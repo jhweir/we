@@ -16,7 +16,7 @@
  * should move to.
  */
 import { emptyState, panelShell, sectionLabel } from '@we/schema-kit';
-import { type SchemaNode } from '@we/schema-shared';
+import { type SchemaNode, type SchemaProp } from '@we/schema-shared';
 import { expr } from '@we/schema-shared';
 
 import { CARET_SIZE, codePane, extractionActivity } from './ExtractionStatus.schema';
@@ -453,14 +453,6 @@ export const coverage: SchemaNode = {
 /** What the card knows about the model it is a suggestion of — see `recordStore.displays`. */
 const DISPLAY = 'recordStore.displays[proposal.entity]';
 
-/** The value of whichever property plays a role on this model, or empty when none does. */
-const roleValue = (role: 'title' | 'summary') => ({
-  $: `find(proposal.fields, { name: ${DISPLAY}.${role} }).value`,
-});
-
-/** What was proposed for the field this row is about, as text. */
-const FIELD_VALUE = 'find(proposal.fields, { name: field.name }).value';
-
 /**
  * The glyph that stands in for a field's caption, or empty when nothing sensible does.
  *
@@ -489,15 +481,46 @@ const FIELD_ICON =
  * governs another; the declaration says nothing about the pair, and the midnight test needs nothing
  * from it. An event genuinely at midnight loses its time, which is rare and costs a reader nothing.
  */
-const timestamp = (withTime: boolean): SchemaNode => ({
+const timestamp = (withTime: boolean, value: string): SchemaNode => ({
   type: 'we-timestamp',
   props: {
-    value: { $: FIELD_VALUE },
+    value: { $: value },
     dateStyle: 'medium',
     ...(withTime ? { timeStyle: 'short' } : {}),
     fontSize: '100',
   },
 });
+
+/**
+ * How a card reads one property off the row it is drawn for.
+ *
+ * The two lists this panel shows are the same cards over different shapes. A *suggestion* is an
+ * overlay the backend has not committed — its values arrive as a list of `{ name, value }` pairs,
+ * because nothing has been written yet and there is no record to read. An *extracted record* is an
+ * ordinary record with ordinary properties.
+ *
+ * So the card is written against this pair rather than against either, which is what lets one
+ * definition draw both. Everything else on a card — the kind, the title, which fields count as
+ * detail — comes from `recordStore.displays`, and that is the same lookup for both.
+ */
+interface CardShape {
+  /** The display descriptor for this row's model. */
+  display: string;
+  /** Given an expression naming a property, the expression reading its value. */
+  value: (name: string) => string;
+}
+
+/** A suggestion: values in a `fields` list, since no record exists to read them off yet. */
+const PROPOSAL_SHAPE: CardShape = {
+  display: DISPLAY,
+  value: (name) => `find(proposal.fields, { name: ${name} }).value`,
+};
+
+/** An extracted record: ordinary properties, indexed by whichever name the declaration gives. */
+const RECORD_SHAPE: CardShape = {
+  display: 'recordStore.displays[target]',
+  value: (name) => `item[${name}]`,
+};
 
 /**
  * One field of the model, as the card shows it.
@@ -510,10 +533,10 @@ const timestamp = (withTime: boolean): SchemaNode => ({
  * `detail` role only. The title and the summary are drawn large above, and a field repeated under
  * its own heading reads as a mistake.
  */
-const proposalDetail: SchemaNode = {
+const detailRows = (shape: CardShape): SchemaNode => ({
   type: '$each',
   props: {
-    items: { $: `${DISPLAY}.fields.filter(f, f.role == 'detail' && find(proposal.fields, { name: f.name }).value)` },
+    items: { $: `${shape.display}.fields.filter(f, f.role == 'detail' && ${shape.value('f.name')})` },
     as: 'field',
   },
   children: [
@@ -570,9 +593,9 @@ const proposalDetail: SchemaNode = {
             then: {
               type: '$if',
               props: {
-                condition: { $: `endsWith(${FIELD_VALUE}, 'T00:00')` },
-                then: timestamp(false),
-                else: timestamp(true),
+                condition: { $: `endsWith(${shape.value('field.name')}, 'T00:00')` },
+                then: timestamp(false, shape.value('field.name')),
+                else: timestamp(true, shape.value('field.name')),
               },
             },
             else: {
@@ -590,7 +613,7 @@ const proposalDetail: SchemaNode = {
                     item: {
                       $query: {
                         entity: { $: 'field.target' },
-                        where: { id: { $: FIELD_VALUE } },
+                        where: { id: { $: shape.value('field.name') } },
                         limit: 1,
                       },
                     },
@@ -607,7 +630,7 @@ const proposalDetail: SchemaNode = {
                 else: {
                   type: 'we-text',
                   props: { variant: 'footnote', truncate: true },
-                  children: [{ $: FIELD_VALUE }],
+                  children: [{ $: shape.value('field.name') }],
                 },
               },
             },
@@ -616,7 +639,90 @@ const proposalDetail: SchemaNode = {
       ],
     },
   ],
-};
+});
+
+/**
+ * What kind of thing a card is about, in the model's own icon and word.
+ *
+ * Absent where the model is unknown — an executor predating `subjectClassesOf` classifies nothing,
+ * and a suggestion it could not name falls back to its flat summary rather than to a blank line.
+ */
+const cardKind = (shape: CardShape): SchemaNode => ({
+  type: '$if',
+  props: {
+    condition: { $: `${shape.display}.label` },
+    then: {
+      type: 'Row',
+      props: { gap: '100', ay: 'center', minWidth: '0' },
+      children: [
+        {
+          type: '$if',
+          props: {
+            condition: { $: `${shape.display}.icon` },
+            /*
+              `sm`, a step up from the caption beside it.
+
+              At `xs` it matched the uppercase footnote it sits with, so the pair read as one run of
+              small grey furniture. The glyph is the fastest way to tell a task card from an event
+              card in a grid of them, which makes it the half of that pair worth seeing first.
+            */
+            then: {
+              type: 'we-icon',
+              props: { size: 'sm', name: { $: `${shape.display}.icon` }, color: 'text-muted' },
+            },
+          },
+        },
+        {
+          type: 'we-text',
+          props: { variant: 'footnote', color: 'text-muted', uppercase: true, truncate: true },
+          children: [{ $: `${shape.display}.label` }],
+        },
+      ],
+    },
+  },
+});
+
+/**
+ * The headline and the line under it, drawn from whichever properties play those roles.
+ *
+ * `label` rather than `footnote`, which is one step up the scale: everything on this card was the
+ * same size once, so the bold on the headline was the only thing marking it as one — and bold at the
+ * size of its own metadata reads as emphasis inside a paragraph rather than as a title above one.
+ *
+ * `fallback` is for a row whose model is unknown, which only a suggestion can be. An extracted
+ * record is queried *by* its entity, so there is always a declaration to ask.
+ */
+const cardTitle = (shape: CardShape, fallback?: SchemaProp): SchemaNode => ({
+  type: 'Column',
+  props: { gap: '100' },
+  children: [
+    {
+      type: '$if',
+      props: {
+        condition: { $: `${shape.display}.title` },
+        then: {
+          type: 'we-text',
+          props: { variant: 'label', fontWeight: '600' },
+          children: [{ $: shape.value(`${shape.display}.title`) }],
+        },
+        // The fallback plays the same role, so it takes the same size — bold is what it lacks, not
+        // prominence.
+        ...(fallback ? { else: { type: 'we-text', props: { variant: 'label' }, children: [fallback] } } : {}),
+      },
+    },
+    {
+      type: '$if',
+      props: {
+        condition: { $: `${shape.display}.summary && ${shape.value(`${shape.display}.summary`)}` },
+        then: {
+          type: 'we-text',
+          props: { variant: 'footnote', color: 'text-muted' },
+          children: [{ $: shape.value(`${shape.display}.summary`) }],
+        },
+      },
+    },
+  ],
+});
 
 /**
  * The model's own fields, as controls over the store's draft.
@@ -778,28 +884,22 @@ const proposals: SchemaNode = {
             sectionLabel({
               label: 'Awaiting your call',
               /*
-                The status glyph, once, where the count is.
+                The count, and nothing beside it.
 
-                It was on every card — see the grid below for why it left. Here it does the job the
-                cards were each doing badly: one mark beside the number, so the section reads as
-                something wanting attention without eight triangles saying so in turn.
+                A warning glyph sat here for a commit, moved up from the cards where there had been
+                one apiece. One was better than eight, and none is better still: the heading already
+                says "Awaiting your call", which is the whole meaning, and a triangle beside those
+                words puts an alarm on a queue that is an ordinary part of using the panel.
 
                 `solid` rather than the default `soft`. A soft badge is a tint, and a tint of the
                 warning hue against a panel is dark enough that the number inside it stopped being
-                the thing you noticed. Solid puts the count on the status at full strength, which is
-                what a count somebody is meant to act on should look like.
+                the thing you noticed. It is also now the only thing carrying the tone, which is the
+                other reason it has to be the strong version.
               */
               aside: {
-                type: 'Row',
-                props: { ay: 'center', gap: '100' },
-                children: [
-                  { type: 'we-icon', props: { name: 'warning', size: 'xs', color: 'warning' } },
-                  {
-                    type: 'we-badge',
-                    props: { size: 'xs', variant: 'warning', appearance: 'solid' },
-                    children: [{ $: `count(${PROPOSALS})` }],
-                  },
-                ],
+                type: 'we-badge',
+                props: { size: 'xs', variant: 'warning', appearance: 'solid' },
+                children: [{ $: `count(${PROPOSALS})` }],
               },
             }),
             {
@@ -825,11 +925,10 @@ const proposals: SchemaNode = {
 
                             A *grid* of them is the case the rule was not written for. Eight cards
                             with eight identical warning triangles says one thing eight times, and
-                            the triangles crowd the title they sit beside. The redundancy has moved
-                            up to the heading, where there is one of it: "Awaiting your call" is a
-                            text label, and the icon and count beside it carry the status without
-                            colour doing it alone. So no card is relying on its edge colour to be
-                            understood — the section above them has already said what they are.
+                            the triangles crowd the title they sit beside. Nothing is left relying on
+                            colour alone either way: the heading above says "Awaiting your call" in
+                            words, which is the whole meaning of the edge, and every card on screen
+                            sits under it.
 
                             The edge itself is `we-alert`'s `accent` appearance written out: a
                             surface, ordinary text, and a three-pixel rule in the status at full
@@ -876,44 +975,7 @@ const proposals: SchemaNode = {
                                     {
                                       type: 'Row',
                                       props: { flex: '1', minWidth: '0', ay: 'center', gap: '100' },
-                                      children: [
-                                        {
-                                          type: '$if',
-                                          props: {
-                                            condition: { $: `${DISPLAY}.label` },
-                                            then: {
-                                              type: 'Row',
-                                              props: { gap: '100', ay: 'center', minWidth: '0' },
-                                              children: [
-                                                {
-                                                  type: '$if',
-                                                  props: {
-                                                    condition: { $: `${DISPLAY}.icon` },
-                                                    then: {
-                                                      type: 'we-icon',
-                                                      props: {
-                                                        size: 'xs',
-                                                        name: { $: `${DISPLAY}.icon` },
-                                                        color: 'text-muted',
-                                                      },
-                                                    },
-                                                  },
-                                                },
-                                                {
-                                                  type: 'we-text',
-                                                  props: {
-                                                    variant: 'footnote',
-                                                    color: 'text-muted',
-                                                    uppercase: true,
-                                                    truncate: true,
-                                                  },
-                                                  children: [{ $: `${DISPLAY}.label` }],
-                                                },
-                                              ],
-                                            },
-                                          },
-                                        },
-                                      ],
+                                      children: [cardKind(PROPOSAL_SHAPE)],
                                     },
                                     /*
                                       Offered only where an edit could actually be written back: the
@@ -985,56 +1047,15 @@ const proposals: SchemaNode = {
                                   props: {
                                     condition: { $: 'modules.transcribe.editingProposal == proposal.id' },
                                     then: { type: 'Column', props: { gap: '200' }, children: [proposalEditor] },
-                                    else: {
-                                      type: 'Column',
-                                      props: { gap: '100' },
-                                      children: [
-                                        /*
+                                    /*
                                       The model's title property, drawn as one — the whole reason this
                                       stopped being a run-on line of `field: value` pairs.
 
                                       Falls back to the flat summary where there is no model to ask,
-                                      which is the one case a card cannot do better than the old one.
+                                      which is the one case a card cannot do better than the old one,
+                                      and the one case only a suggestion can be in.
                                     */
-                                        {
-                                          type: '$if',
-                                          props: {
-                                            condition: { $: `${DISPLAY}.title` },
-                                            /*
-                                              `label` rather than `footnote`, which is one step up
-                                              the scale. Everything on this card was the same size,
-                                              so the bold on the headline was the only thing marking
-                                              it as one — and bold at the size of its own metadata
-                                              reads as emphasis inside a paragraph rather than as a
-                                              title above one.
-                                            */
-                                            then: {
-                                              type: 'we-text',
-                                              props: { variant: 'label', fontWeight: '600' },
-                                              children: [roleValue('title')],
-                                            },
-                                            // The fallback plays the same role, so it takes the
-                                            // same size — bold is what it lacks, not prominence.
-                                            else: {
-                                              type: 'we-text',
-                                              props: { variant: 'label' },
-                                              children: [{ $: 'proposal.summary' }],
-                                            },
-                                          },
-                                        },
-                                        {
-                                          type: '$if',
-                                          props: {
-                                            condition: { $: `${DISPLAY}.summary && ${roleValue('summary').$}` },
-                                            then: {
-                                              type: 'we-text',
-                                              props: { variant: 'footnote', color: 'text-muted' },
-                                              children: [roleValue('summary')],
-                                            },
-                                          },
-                                        },
-                                      ],
-                                    },
+                                    else: cardTitle(PROPOSAL_SHAPE, { $: 'proposal.summary' }),
                                   },
                                 },
                                 {
@@ -1066,7 +1087,7 @@ const proposals: SchemaNode = {
                                             condition: {
                                               $: `${DISPLAY}.label && modules.transcribe.editingProposal != proposal.id`,
                                             },
-                                            then: proposalDetail,
+                                            then: detailRows(PROPOSAL_SHAPE),
                                           },
                                         },
                                       ],
@@ -1753,29 +1774,72 @@ const extractionHistory: SchemaNode = {
 };
 
 /**
- * What the passes wrote, for the call on screen.
+ * What the passes wrote, for the call on screen — one list, drawn as the suggestions above are.
  *
- * One live subscription per target, rather than one query over everything: a record has a type and
- * `$query` takes one entity name, so a list of mixed kinds is a list of queries. `entity` as an
- * expression is what lets this show a model the community defined this morning — the cost is that
- * the validator cannot check a name it only sees at runtime, and a name that has not resolved yet
- * reads as "not ready" rather than as an error, which is the right way round while a route settles.
+ * ## One list, not one per kind
  *
- * The *call's* list of targets, not the space's — those differ the moment somebody narrows a call.
- * Every entity in it, whether or not it is still ticked: a model switched off half way through a
- * meeting must not take what it already found off the list.
+ * It grouped by model, with a heading per kind. That came from the shape of the data rather than
+ * from anything a reader wanted: a record has a type and `$query` takes one entity name, so a list
+ * of mixed kinds is a list of queries, and the groups were those queries showing through. What
+ * somebody reviewing a call wants is what the call produced, and each card already says what kind
+ * it is.
  *
- * Drawn from `recordStore.displays`, so a shape a community adopted has an icon and a title here
- * without anything being written for it, and a model with neither renders as a plain row rather
- * than as a gap.
+ * The `$each` over targets stays, because it has to — it is still one subscription per kind. What
+ * went is the per-group heading and the space between groups, so the cards run together into a
+ * single grid. The one thing this cannot do is interleave: cards come out grouped by kind in the
+ * order the targets are listed, because a schema cannot merge a list of queries whose length it
+ * does not know, let alone sort across them. Nothing on screen claims otherwise.
+ *
+ * ## The same card as a suggestion
+ *
+ * Same kind row, same headline, same detail fields, from the same builders — see `CardShape` for
+ * how one definition draws two different shapes of row. What differs is the edge, which is
+ * `success` here against the suggestions' `warning`, and the absence of an answer: these are
+ * already agreed to, so there is nothing to keep or discard.
+ *
+ * No pencil either. Editing a suggestion is part of answering it — the store holds a draft that
+ * Keep commits — and a record on this list has already been written, so changing one is an ordinary
+ * record edit that belongs where records are edited rather than in a read-back of a call.
  */
+const extractedCard: SchemaNode = {
+  type: 'Column',
+  props: {
+    bg: 'surface',
+    color: 'text',
+    // `we-alert`'s `accent` edge, in the role that says this one is settled.
+    borderLeft: '3px solid success',
+    r: '300',
+    px: '300',
+    py: '300',
+    gap: '200',
+    width: '100%',
+  },
+  children: [
+    cardKind(RECORD_SHAPE),
+    cardTitle(RECORD_SHAPE),
+    {
+      type: '$if',
+      props: { condition: { $: `${RECORD_SHAPE.display}.label` }, then: detailRows(RECORD_SHAPE) },
+    },
+  ],
+};
+
 const extractedRows: SchemaNode = {
   type: '$each',
   props: { items: { $: `${EXTRACTION_TARGET_ENTITIES}` }, as: 'target' },
   children: [
     {
+      /*
+        `display: contents`, so the groups are not boxes.
+
+        Each kind still needs its own node to hang a subscription and a page counter off, and a real
+        box there would make the grid lay out one column per *kind* rather than one per card — three
+        tasks and one event as two columns of the wrong widths. Taking the wrapper out of layout lets
+        every card be a direct item of the grid above, which is what makes a list of queries look
+        like one list.
+      */
       type: 'Column',
-      props: { gap: '200' },
+      props: { styles: { display: 'contents' } },
       /*
         How many of this kind to fetch, and it grows.
 
@@ -1787,8 +1851,7 @@ const extractedRows: SchemaNode = {
         inside `$each` is created per row, so each group counts its own — which is what lets the
         button below know whether *this* kind has more, by asking whether the last fetch came back
         full. One shared counter could not: `local.found` belongs to the group, so a control outside
-        every group has nothing to test and can only ever offer itself unconditionally, which is
-        what it did.
+        every group has nothing to test and can only ever offer itself unconditionally.
 
         Still no total. Each kind is its own subscription and a schema cannot sum a list of queries
         whose length it does not know, so "24 of 47" is unavailable however much a reader wants it.
@@ -1803,30 +1866,6 @@ const extractedRows: SchemaNode = {
         },
       },
       children: [
-        /*
-          One heading per kind, and the group disappears with its rows.
-
-          There was a single "Extracted" over all of them, and it could not be hidden when there was
-          nothing to show: each kind is its own subscription, and a schema cannot sum a list of
-          queries whose length it does not know — so no node above the groups can ask "did any of
-          them find anything". Only the group itself can, about itself.
-
-          Per-kind headings answer that and are better besides. A task and an event were told apart
-          by a small icon in an otherwise undifferentiated list; now the list says what it is, in the
-          model's own name, so a shape a community defined this morning is titled without anything
-          being written for it.
-
-          `count(local.found)` rather than `local.foundLoaded`, because this is the state a call
-          spends most of its life in: the first frame of an empty subscription and a genuinely empty
-          one should both show nothing, and there is no sentence here to be wrong for a moment.
-        */
-        {
-          type: '$if',
-          props: {
-            condition: { $: 'count(local.found)' },
-            then: sectionLabel({ label: { $: 'recordStore.displays[target].label' } }),
-          },
-        },
         {
           /*
             What the passes *wrote*, which is not the same as what they produced.
@@ -1845,29 +1884,7 @@ const extractedRows: SchemaNode = {
             items: { $: 'local.found.filter(r, !(r.id in modules.transcribe.pendingIds))' },
             as: 'item',
           },
-          children: [
-            {
-              type: 'Row',
-              props: { gap: '200', ay: 'center', bg: 'surface-sunken', r: '300', px: '300', py: '200' },
-              children: [
-                {
-                  type: '$if',
-                  props: {
-                    condition: { $: 'recordStore.displays[target].icon' },
-                    then: {
-                      type: 'we-icon',
-                      props: { name: { $: 'recordStore.displays[target].icon' }, color: 'accent-text' },
-                    },
-                  },
-                },
-                {
-                  type: 'we-text',
-                  props: { variant: 'footnote', flex: '1', truncate: true },
-                  children: [{ $: 'item[recordStore.displays[target].title]' }],
-                },
-              ],
-            },
-          ],
+          children: [extractedCard],
         },
         /*
           Offered only where the last fetch came back full.
@@ -1875,21 +1892,12 @@ const extractedRows: SchemaNode = {
           A page short of the limit is the end of that kind, so a button there would show nothing and
           teach people it does nothing. Full is not proof there is more — a kind with exactly 24
           records offers one press that reveals none — but that is the one case a query can be wrong
-          about without over-fetching, and it is far better than the button being wrong every time,
-          which is what an unconditional one was.
+          about without over-fetching, and it is far better than the button being wrong every time.
 
-          ## Inside the Column, which is where its state is
-
-          It was a sibling of it — a second child of the `$each` — so both names it reads were
-          declared one node below where it read them. `local.found` and `local.shown` were therefore
-          undefined, `count(undefined) >= undefined` is false, and the button has never once
-          rendered; had it rendered, its `$setLocal` would have warned and no-opped for the same
-          reason. Silent on both counts, which is why per-kind paging looked implemented and was not.
-
-          Nothing reported it because the validator only checks local reads once *something* in the
-          tree declares a local — an empty scope is knowable, an absent one is not — and this panel
-          declared none above the row. Hoisting the Extract now button's own query to the panel root
-          gave the walk a scope to check against, and this fell out of it.
+          Inside the node that declares `shown` and `found`, which it was not: it sat beside it as a
+          second child of the `$each`, so both names it reads were one node out of scope,
+          `count(undefined) >= undefined` was false, and it never rendered once. Silent, which is why
+          per-kind paging looked implemented and was not.
         */
         {
           type: '$if',
@@ -2049,6 +2057,9 @@ const extractNowControl: SchemaNode = {
         size: 'sm',
         variant: 'secondary',
         gap: '100',
+        // Its own alignment, so it needs no wrapper row to stop it stretching across the well —
+        // and a wrapper that stayed behind when the button did not would cost a gap for nothing.
+        alignSelf: 'start',
         // Disabled rather than hidden once the panel is showing the section: the reason is
         // "nothing has been said yet", which resolves on its own and is worth waiting for.
         // `count(local.spoken)` is the honest half — see the query on the panel root. `canExtract`
@@ -2264,14 +2275,11 @@ const extract: SchemaNode = {
           decides whether passes happen at all. Splitting them is what stops them reading as a
           matched pair, and the standing decision is the one that belongs in the header.
 
-          Left-aligned in its own row rather than stretched, so it stays a button rather than
-          becoming a bar across the panel.
+          No wrapper row around it, which is not tidiness. `extractNowControl` renders nothing
+          outside a live call, and an empty `Row` is still a flex item — so the well went on paying a
+          whole gap for a control that was not there. The button aligns itself instead.
         */
-        {
-          type: 'Row',
-          props: { ay: 'center', ax: 'start' },
-          children: [extractNowControl],
-        },
+        extractNowControl,
       ],
     },
   ],
@@ -3441,7 +3449,7 @@ export const extractionPanel: SchemaNode = {
               the backend refused it as invalid SPARQL and the panel opened on a toast. Outside a
               call there is no record to hang passes off, so there is nothing to read.
             */
-              { type: '$if', props: { condition: EXTRACTION_SUBJECT, then: extractionHistory } },
+              extractionHistory,
               /*
               What the passes actually wrote, for the call on screen.
 
@@ -3460,38 +3468,56 @@ export const extractionPanel: SchemaNode = {
                 props: {
                   condition: EXTRACTION_SUBJECT,
                   /*
-                  No name over the results any more — each kind carries its own.
+                  One name over the results, and it stays while they scroll.
 
-                  There was one "Extracted" heading here, and it could not be hidden when there was
-                  nothing under it: the rows are one subscription per kind, so nothing above them can
-                  ask whether any of them found anything. It has moved inside the groups, where the
-                  question is answerable, and a call with nothing extracted now shows no heading at
-                  all rather than a title over an empty box. See `extractedRows`.
+                  It went briefly, replaced by a heading per kind, because a single "Extracted" here
+                  cannot hide itself when there is nothing under it — the rows are one subscription
+                  per kind, so nothing above them can ask whether any of them found anything. Per-kind
+                  headings could answer that about themselves, and made the results read as several
+                  lists when they are one thing: what this call produced.
 
-                  The headings went into the scroll region with their rows as a result, which is a
-                  real cost: a long list scrolls its own titles away. It is the right trade here
-                  because the alternative is a permanent heading that is wrong more often than it is
-                  useful, and each group's title is only ever a screen from its rows.
+                  So the name is back, in the treatment every other region in this panel wears, and
+                  the residual is a heading over an empty grid on a call that has targets and no
+                  results. That is the honest cost of the constraint, and it is the smaller one — a
+                  reader who has just pressed Extract wants to see where the answer will appear.
+
+                  Gated on there being anything to look for at all, which is the one part of
+                  emptiness a node above the groups *can* see: a call with no models ticked can have
+                  extracted nothing, and that is the state every call starts in.
                 */
                   then: {
-                    type: 'Column',
-                    props: { gap: '200', flex: '1', minHeight: '0' },
-                    children: [
-                      {
-                        type: 'we-scroll-area',
-                        props: { flex: '1', minHeight: '0' },
-                        /*
-                          A Column inside the scroll region, purely to space the kinds apart.
+                    type: '$if',
+                    props: {
+                      condition: { $: `count(${EXTRACTION_TARGET_ENTITIES})` },
+                      then: {
+                        type: 'Column',
+                        props: { gap: '200', flex: '1', minHeight: '0' },
+                        children: [
+                          sectionLabel({ label: 'Extracted' }),
+                          {
+                            type: 'we-scroll-area',
+                            props: { flex: '1', minHeight: '0' },
+                            /*
+                              One grid for every kind, which is what makes a list of queries look
+                              like one list.
 
-                          `$each` renders its groups as plain siblings, so without a flex parent
-                          carrying a gap they butt together — which was right while they shared one
-                          heading and read as a single list, and wrong now each carries its own name.
-                          The same figure the panel puts between its own sections, since that is what
-                          these have become.
-                        */
-                        children: [{ type: 'Column', props: { gap: '400' }, children: [extractedRows] }],
+                              Each target is still its own subscription and its own node — it has to
+                              be — but those nodes are `display: contents`, so every card is a direct
+                              item of this grid rather than each kind being a column of its own. Same
+                              measurements as the suggestions above, so the two lists are visibly the
+                              same kind of thing with different edges.
+                            */
+                            children: [
+                              {
+                                type: 'Grid',
+                                props: { minChildWidth: '240px', gap: '200', width: '100%' },
+                                children: [extractedRows],
+                              },
+                            ],
+                          },
+                        ],
                       },
-                    ],
+                    },
                   },
                   /*
                       The shared placeholder, so this panel and the transcript's read as one pair.

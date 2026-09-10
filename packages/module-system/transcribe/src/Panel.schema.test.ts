@@ -840,21 +840,25 @@ describe('the extraction panel', () => {
     expect(json).toContain('"we-badge","props":{"size":"xs","variant":"warning","appearance":"solid"}');
   });
 
-  it('marks the section wanting attention once, not once per card', () => {
+  it('says what a card is in words and an edge, not in a glyph per card', () => {
     /*
       Every card was a `we-alert`, which always draws a status glyph — deliberately, since its own
       note points at WCAG 1.4.1 and a lone alert needs colour not to be the only thing carrying its
       meaning. A grid of them is the case that rule was not written for: eight identical triangles
       say one thing eight times and crowd the titles they sit beside.
 
-      So the redundancy moved up to the heading, where there is one of it, and the cards keep the
-      edge without the glyph. Nothing is left relying on colour alone — "Awaiting your call" is a
-      text label, and the icon and count sit beside it.
+      Nothing is left relying on colour alone, which is what the rule actually asks. Each section
+      says in words what its cards are — "Awaiting your call", "Extracted" — and every card on
+      screen sits under one of those headings.
     */
-    expect(json).toContain('{"type":"we-icon","props":{"name":"warning","size":"xs","color":"warning"}}');
+    // The card's own former shape. `we-alert` still draws the two genuine alerts in this panel — a
+    // failed pass and a watch that cannot run — which is what it is for.
     expect(json).not.toContain('"we-alert","props":{"variant":"warning","appearance":"accent"');
-    // The edge the alert drew, written out: the status at full strength rather than its tint.
+    expect(json).not.toContain('"name":"warning"');
+    // The edge the alert drew, written out, in the role each list means: one still awaiting an
+    // answer, one already settled.
     expect(json).toContain('"borderLeft":"3px solid warning"');
+    expect(json).toContain('"borderLeft":"3px solid success"');
   });
 
   it('edits a moment with a calendar rather than a raw ISO string', () => {
@@ -1023,15 +1027,9 @@ describe('the extraction panel', () => {
     const heading = (label: string) =>
       JSON.stringify({ ...SECTION_LABEL_PROPS, flex: '1' }) + `,"children":["${label}"]`;
 
-    for (const label of ['Things to extract', 'Logs', 'Awaiting your call']) {
+    for (const label of ['Things to extract', 'Logs', 'Awaiting your call', 'Extracted']) {
       expect(json).toContain(heading(label));
     }
-    // The results' heading is now one per kind, named from the model rather than written here — so
-    // it is asserted as the same treatment applied to an expression instead of to a literal.
-    expect(json).toContain(
-      JSON.stringify({ ...SECTION_LABEL_PROPS, flex: '1' }) +
-        ',"children":[{"$":"recordStore.displays[target].label"}]',
-    );
     expect(json).not.toContain('Things to extract:');
   });
 
@@ -1053,8 +1051,14 @@ describe('the extraction panel', () => {
     expect(historyGate).toBeGreaterThan(-1);
     expect(json.indexOf('"Logs"')).toBeGreaterThan(historyGate);
 
-    // The per-kind heading sits behind that kind's own count, so an empty group draws nothing.
-    expect(json).toContain('"condition":{"$":"count(local.found)"},"then":{"type":"Row"');
+    /*
+      The results are the case that cannot. One subscription per kind means nothing above the groups
+      can ask whether any of them found anything; what a node up there *can* see is whether there is
+      anything to look for at all, which is the state every call starts in. So the section is gated
+      on that, and the residual — targets ticked, nothing found yet — is a heading over an empty
+      grid. Asserted so the narrower gate is not later mistaken for the full one.
+    */
+    expect(json).toContain('"condition":{"$":"count(modules.transcribe.extractionFor[');
   });
 
   it('shows nothing to press outside a call, rather than a well of disabled controls', () => {
