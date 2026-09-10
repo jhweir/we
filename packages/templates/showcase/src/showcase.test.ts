@@ -264,19 +264,27 @@ describe('the workshop template’s call selection', () => {
     expect(JSON.stringify(region)).toContain('"condition":{"$":"routeStore.params.call ? routeStore.params.call');
   });
 
-  it('offers a new call from the corner too, except while in one', () => {
+  it('offers a new call from the corner only when the corner names no call', () => {
     /*
-      A region that swapped the button for the pill would have a hole, and it is a bug we had already
-      fixed once: reading a finished call is exactly when somebody wants to start a fresh one, and
-      swapping would mean deselecting first to reach the button.
+      One thing at a time. Both were present for a commit, on the argument that reading a finished
+      call is exactly when somebody wants a fresh one and a corner that swapped would make that state
+      need a detour. The premise was wrong: the calls panel keeps its own start button, and clicking
+      the selected row there deselects it and brings this one straight back — so the detour is a
+      click somebody is already making, and what it buys is a corner that does not crowd the name of
+      the call beside it.
 
-      The single state that quietens it is being in a call, where a second is refused anyway and the
-      pill's own control already says "go to the call".
+      `!CALL` subsumes "not in a call": being in one sets the record `CALL` falls back to.
     */
     const region = JSON.stringify(((workshop as SchemaNode).children as SchemaNode[])[0]);
 
-    expect(region).toContain('"condition":{"$":"!modules.call.active"}');
+    expect(region).toContain(
+      '"condition":{"$":"!(routeStore.params.call ? routeStore.params.call : modules.call.callRecordId)"}',
+    );
     expect(region).toContain('modules.call.startCall');
+    // And the panel's own start button is what makes that trade affordable, so it stays.
+    expect(JSON.stringify(workshop.meta?.panels?.find((panel) => panel.id === 'calls'))).toContain(
+      'modules.call.startCall',
+    );
   });
 
   it('gives the left edge to the call, not to the offer of another', () => {

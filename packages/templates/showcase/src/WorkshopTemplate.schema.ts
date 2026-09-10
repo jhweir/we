@@ -623,14 +623,20 @@ const callChrome: SchemaNode = {
     callPill,
     {
       /*
-        Quiet only while this agent is in a call.
+        Only where the pill is not — so the corner holds one thing at a time.
 
-        Every other state has something for it to say — start one, or join the one running here that
-        nobody has joined from this machine — and the three-way label says which. In a call it would
-        be a second "go to the call" beside the pill's own, about the same call.
+        This began as the opposite: both present, on the argument that reading a finished call is
+        exactly when somebody wants to start a fresh one, and a corner that swapped would make that
+        state need a detour. The argument was sound and its premise was not — the calls panel keeps
+        its own start button, and clicking the selected row there deselects it and brings this one
+        straight back. So the detour is a click somebody is already making, and what it buys is a
+        corner that says one thing rather than a button crowding the name of the call beside it.
+
+        `!CALL` rather than `!active`, and it subsumes it: being in a call sets the record `CALL`
+        falls back to, so the pill is there and this is not.
       */
       type: '$if',
-      props: { condition: { $: '!modules.call.active' }, then: startCallButton('md') },
+      props: { condition: { $: `!(${CALL_EXPR})` }, then: startCallButton('md') },
     },
   ],
 };
