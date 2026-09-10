@@ -67,7 +67,6 @@
 import { defineModule, type ModuleStoreDeps } from '@we/module-shared';
 
 import { CALL_CONTROLS_ANCHOR, callControl } from './CallControl.schema';
-import { extractionControl } from './ExtractionStatus.schema';
 import {
   captureMeter,
   captureStatus,
@@ -84,7 +83,7 @@ import {
 import { createTranscribeStore } from './store';
 
 export { CALL_CONTROLS_ANCHOR, callControl } from './CallControl.schema';
-export { extractionActivity, extractionControl } from './ExtractionStatus.schema';
+export { extractionActivity } from './ExtractionStatus.schema';
 export {
   captureMeter,
   captureStatus,
@@ -183,17 +182,19 @@ export const transcribeModule = defineModule({
 
   slots: [
     // Into the call module's own bar. It declares the anchor; we never name the module.
-    { anchor: CALL_CONTROLS_ANCHOR, node: callControl, order: 10 },
     /*
-      And the way into extraction, beside it.
+      Only the record button. The bar is for what a person does to themselves right now — mute,
+      camera, transcribe-me — and this is the one control of that kind this module has.
 
-      This was a readout on a second anchor under the bar — a sentence rather than a control, there
-      because a pass takes minutes and extraction had nowhere of its own to report from. It has a
-      panel now, so what belongs in a row of controls is a control: it opens that panel, and it
-      spins while a pass is running, which is the whole of what the strip said in an object that
-      cannot grow. The call module's `call-status` anchor has nothing left to hold.
+      Extraction had a square here too, in three lives: a readout on a second anchor under the
+      bar, then a way into the panel, then the switch for automatic extraction with a spinner while
+      a pass ran. Each was a fair answer to "how does somebody see a pass is running without opening
+      anything", and each put a group decision beside a personal one in a row that reads as one set
+      of controls. The rail answers the visibility question now — see `busyWhen` on the launcher
+      below — and the switch lives in the extraction panel, which has room to say whose decision it
+      is. The call module's `call-status` anchor has nothing left to hold.
     */
-    { anchor: CALL_CONTROLS_ANCHOR, node: extractionControl, order: 20 },
+    { anchor: CALL_CONTROLS_ANCHOR, node: callControl, order: 10 },
   ],
 
   /*
@@ -317,6 +318,9 @@ export const transcribeModule = defineModule({
       label: 'Extraction',
       action: 'toggleExtractionPanel',
       activeWhen: 'extractionOpen',
+      // Spins while any peer's pass runs — the glance the call bar's square used to give, in the
+      // place that outlives the call and opens the panel that explains it.
+      busyWhen: 'passRunning',
     },
   ],
 

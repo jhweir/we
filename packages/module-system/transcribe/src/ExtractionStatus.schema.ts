@@ -539,8 +539,7 @@ const settledSection: SchemaNode = {
 /**
  * The disclosures a pass carries, and the state that opens them.
  *
- * Split out from the chrome node because the two now live in different places — see
- * {@link extractionActivity} and {@link extractionControl} below.
+ * Split out from the chrome node it used to live in — see {@link extractionActivity} below.
  */
 const activityLocalState = {
   /**
@@ -591,9 +590,12 @@ const activityLocalState = {
  * the glance stays in the chrome as one line.
  *
  * The original argument for the chrome — that a pass outlives the panel that started it, and that
- * the four people who did *not* start it are the ones most likely to want the readout — is what
- * {@link extractionControl} still satisfies. It says who and how long, for everybody, without
- * needing the panel open.
+ * the four people who did *not* start it are the ones most likely to want the readout — is now
+ * answered by the module rail: the Extraction launcher declares `busyWhen`, so it spins while any
+ * peer's pass runs, for everybody, without the panel open. The square this module used to add to
+ * the call bar for the same purpose doubled as the switch for automatic extraction — a group
+ * decision, beside a personal one that looked identical — and the bar only exists during a call,
+ * which is the one time nobody needs to be told to open the panel.
  */
 export const extractionActivity: SchemaNode = {
   type: '$if',
@@ -646,85 +648,6 @@ export const extractionActivity: SchemaNode = {
               children: ['Prompts stay on each person’s machine — share them in space settings.'],
             },
           },
-        },
-      ],
-    },
-  },
-};
-
-/**
- * Read this call as it happens, or stop — the extraction counterpart of the record button.
- *
- * ## Why a verb and not a way in
- *
- * It opened the extraction panel first, which the rail already does, so the bar carried a second
- * button for something a person could already reach. The record button beside it is not a way in
- * either: it *starts and stops the thing*, and opening the panel is a side effect of switching it
- * on. That is the pairing the bar wants — one control for capturing the conversation, one for
- * reading it — and the rail keeps the panels.
- *
- * ## The three states are the record button's three states
- *
- * Off is `ghost`, matching the call's own mute and camera buttons so the row reads as one set of
- * controls. On but idle is `secondary` — the watch is registered and waiting for something to be
- * said. A pass actually in flight is `danger`, and it is the same argument recording makes: a state
- * that arrives on its own, spending somebody's tokens, has to be legible without being looked for,
- * and the loudest thing in the bar is the way out of it.
- *
- * ## What it changes is everyone's
- *
- * The button beside it is this agent's microphone; this is the whole call's. A standing watch is one
- * registration the neighbourhood shares, so it cannot be a private preference — which makes two
- * near-identical squares with different blast radii, and the tooltip is the only place that can say
- * so. It says so.
- *
- * Absent where there is no call to decide about, rather than disabled: `canChooseTargets` asks about
- * the same record, and a control explaining why it cannot work belongs in the panel, which has room
- * for a sentence.
- */
-export const extractionControl: SchemaNode = {
-  type: '$if',
-  props: {
-    /*
-      The live call's answer, named as such.
-
-      Extraction is asked per call now — a panel can be about one somebody opened from a link — so
-      the store answers by record id. This control is in the *call bar*, which only ever exists
-      during a call, so the record it means is always `callId`.
-    */
-    condition: { $: 'modules.transcribe.extractionFor[modules.transcribe.callId].canChoose' },
-    then: {
-      type: 'we-tooltip',
-      props: {
-        content: {
-          $: "modules.transcribe.autoExtract ? 'Stop reading this call for everyone in it' : 'Read this call as it happens, for everyone in it'",
-        },
-        placement: 'bottom',
-      },
-      children: [
-        {
-          type: 'we-button',
-          props: {
-            // No `size`, and `square`, for `callControl`'s reasons: a contributed button is only one
-            // of the bar's controls while it is the same shape as the rest of them.
-            square: true,
-            variant: {
-              $: "interpretationStore.runningCount ? 'danger' : modules.transcribe.autoExtract ? 'secondary' : 'ghost'",
-            },
-            onClick: { $action: 'modules.transcribe.toggleAutoExtract' },
-          },
-          children: [
-            {
-              // A spinner while a pass is in flight, so "on" and "working right now" are told apart
-              // in the control rather than by a second object appearing beside it.
-              type: '$if',
-              props: {
-                condition: { $: 'interpretationStore.runningCount' },
-                then: { type: 'we-spinner', props: { size: 'xs' } },
-                else: { type: 'we-icon', props: { name: 'sparkle' } },
-              },
-            },
-          ],
         },
       ],
     },

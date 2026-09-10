@@ -17,6 +17,8 @@ import { extractionActivity } from './ExtractionStatus.schema';
 import { transcribeModule } from './index';
 import {
   captureMeter,
+  captureStatus,
+  coverage,
   EXTRACTION_SUBJECT_EXPR,
   extractionPanel,
   extractionTargets,
@@ -106,6 +108,98 @@ describe('a transcript with nothing in it', () => {
     expect(linesJson).not.toContain('local.utterancesLoaded &&');
   });
 
+  it('shows the placeholder where there is no record to wait for, not only where one answered empty', () => {
+    /*
+      The two situations a newcomer is most likely to be in — no call, and a call nobody has spoken
+      in — left the panel blank. `when` refuses the query without a subject and a query never asked
+      never reports itself loaded, so the one gate that existed was false in exactly those states.
+      The bare subject token is the outer gate now, and it has to stay bare: substitution is
+      whole-token, so a compound one would go on reading the live collection inside a panel about a
+      past call.
+    */
+    const gate = linesJson.indexOf('"condition":{"$":"modules.transcribe.collectionId"}');
+    expect(gate).toBeGreaterThan(-1);
+    expect(gate).toBeLessThan(linesJson.indexOf('"condition":{"$":"local.utterancesLoaded"}'));
+  });
+
+  it('says what to do next, which is different in each of the six situations', () => {
+    /*
+      "Nothing has been said here yet" is true in five of them and useless on its own. The panel is
+      the only thing that knows which, and the no-call case used to be an italic caption in
+      `captureStatus` — above the feed rather than in it, so the same emptiness looked like two
+      different things depending on whether an address named a call.
+    */
+    expect(linesJson).toContain('Continue the call to begin transcribing.');
+    expect(linesJson).toContain('Join a call to transcribe what is said.');
+    expect(linesJson).toContain('Press record to transcribe what is said.');
+    // Gone from the status notes, which are about what this node *cannot* do.
+    expect(JSON.stringify(captureStatus)).not.toContain('press record');
+  });
+
+  it('changes the sentence by remounting it, so continuing a call fades rather than snaps', () => {
+    /*
+      Kept as one node with a six-branch expression, the text swapped in place with no transition —
+      the one moment in this panel that still read as a jump, since switching between calls already
+      fades because the branch it lives in unmounts. Split on the live test, continuing does too.
+    */
+    const gate = linesJson.indexOf(`"condition":{"$":"${VIEWING_LIVE_EXPR}"}`);
+    expect(gate).toBeGreaterThan(-1);
+    expect(linesJson.slice(gate)).toContain('"enterTransition":{"type":"fade"');
+  });
+
+  it('fades out over less time than the microphone section takes to leave', () => {
+    /*
+      The ordering the whole thing rests on. The renderer keeps an outgoing branch mounted for the
+      length of its exit, so a sentence fading here is on screen while the section above it is
+      going — and that section vanishing pulled it up the panel mid-fade. Making this exit instant
+      did not help: the opacity change lands a frame or two after the condition, so the sentence was
+      still painted for the collapse.
+
+      So the section holds its box for longer than this takes, and the order becomes: sentence
+      finishes, height goes, new sentence arrives where it will stay. Asserted as the comparison
+      rather than as two numbers, because it is the relationship that matters.
+    */
+    const exitOf = (json: string, from: number) => {
+      const at = json.indexOf('"exitTransition":{"type":"fade","duration":', from);
+      return at === -1 ? -1 : Number(json.slice(at).match(/"duration":(\d+)/)?.[1]);
+    };
+    const gate = linesJson.indexOf(`"condition":{"$":"${VIEWING_LIVE_EXPR}"}`);
+    const placeholder = exitOf(linesJson, gate);
+    const section = exitOf(JSON.stringify(captureMeter), 0);
+
+    expect(placeholder).toBeGreaterThan(0);
+    expect(section).toBeGreaterThan(placeholder);
+  });
+
+  it('fades the microphone section out rather than collapsing it, and does so at every level', () => {
+    /*
+      A fade holds the box while it goes transparent; a reveal would collapse the height, which is
+      the thing being avoided. All three carry it — the section's own fade holds nothing if its
+      children have already unmounted from inside it.
+    */
+    for (const part of [captureMeter, coverage]) {
+      expect(JSON.stringify(part)).toContain('"exitTransition":{"type":"fade","duration":300}');
+      expect(JSON.stringify(part)).not.toContain('"type":"reveal"');
+    }
+    // And the box around them, which has to outlast its contents or it cuts their fades short.
+    const section = panelJson.indexOf(`(${VIEWING_LIVE_EXPR}) && (modules.transcribe.enabled`);
+    expect(panelJson.slice(section)).toContain('"exitTransition":{"type":"fade","duration":300}');
+  });
+
+  it('promises a pick-up only where one is on offer', () => {
+    /*
+      Another call already running is the state where nothing — not this panel's button, not the
+      rail — will continue the one on screen, because doing so would re-point every peer's
+      transcript. A clause telling somebody to continue a meeting that nothing will continue is
+      worse than no clause, so it is tested before the two that make the offer.
+    */
+    const refuses = linesJson.indexOf('!(modules.call.canCall && !modules.call.active)');
+    expect(refuses).toBeGreaterThan(-1);
+    expect(refuses).toBeLessThan(linesJson.indexOf('Continue the call to begin transcribing.'));
+    // And the same verb the button uses, decided by the same expression.
+    expect(linesJson).toContain('Join the call to begin transcribing.');
+  });
+
   it('asks only about the call on screen, however slowly its id arrives', () => {
     /*
       The hazard the hoist introduced and `when` closes: an operand that has not resolved is pruned
@@ -123,7 +217,8 @@ describe('what belongs to the live microphone only', () => {
     const live = '{"$":"!routeStore.params.call || routeStore.params.call == modules.transcribe.callId"}';
     const meter = panelJson.indexOf('"Microphone"');
     const coverage = panelJson.indexOf('"Coverage"');
-    const status = panelJson.indexOf('Starting\u2026');
+    // Any of the status notes will do as the marker; this is the first of them.
+    const status = panelJson.indexOf('Nothing to listen to');
 
     // All three inside one gate rather than three of their own: they answer one question between
     // them, and that question is not asked at all of a meeting somebody is reading back.
@@ -132,6 +227,103 @@ describe('what belongs to the live microphone only', () => {
     expect(coverage).toBeGreaterThan(meter);
     expect(status).toBeGreaterThan(coverage);
     expect(panelJson.lastIndexOf(live, status)).toBe(gate);
+  });
+
+  it('draws no box for the microphone section while it has nothing to put in it', () => {
+    /*
+      A `Column` with nothing in it is still a flex item, so an empty one costs its parent a whole
+      gap. All three of its children are dark for the second between joining a call and the
+      microphone coming up, so continuing pushed the transcript down by twelve pixels of nothing,
+      and then down again as the meter arrived.
+
+      Both terms answer in the frame a call is torn down in, which is the point — see below.
+    */
+    expect(panelJson).toContain(
+      `(${VIEWING_LIVE_EXPR}) && (modules.transcribe.enabled || modules.transcribe.available)`,
+    );
+  });
+
+  it('gates that box on signals, not on a status written a round trip late', () => {
+    /*
+      It was `available || status != 'idle'`. `status` is set at the tail of `stop`, after a flush
+      that writes buffered text to the backend — so leaving a call split across two repaints: audio
+      went, coverage left, recording stopped, the meter left, and the box stayed up holding an empty
+      gap until the flush resolved, then collapsed under a placeholder that had already settled.
+
+      `enabled` and `available` are plain signals, so the section leaves with everything else.
+    */
+    const gate = panelJson.indexOf(`(${VIEWING_LIVE_EXPR}) && (modules.transcribe.enabled`);
+
+    expect(gate).toBeGreaterThan(-1);
+    expect(panelJson).not.toContain("modules.transcribe.status != 'idle'");
+  });
+
+  it('waits for a microphone before reporting coverage, so a gap that closes itself is never drawn', () => {
+    /*
+      Joining is a second in which all of this is true and wrong: you are in the call and your own
+      microphone is not up, so it read "0 of 1 transcribing" in warning orange with the line under
+      it about only those microphones reaching the record. Both resolved before anybody could read
+      them, and the line arriving and then leaving moved everything below it twice.
+
+      `available` separates the two states that look alike: no audio is a session still coming up
+      and nothing to report; audio with no recording is somebody's decision, which is exactly when
+      a gap is worth stating. A delayed fade was tried first and was worse — `$animate` keeps its
+      child mounted and a fade only touches opacity, so the readout held its full height while
+      invisible and the panel opened a hole before filling it in.
+    */
+    const readout = JSON.stringify(coverage);
+
+    expect(readout).toContain('count(modules.transcribe.callAgents) && modules.transcribe.available');
+    expect(readout).not.toContain('$animate');
+  });
+
+  it('states the gap in the count alone, with no sentence under it', () => {
+    /*
+      There was a second line while the count was short: "Only what those microphones hear reaches
+      this record." Wrong as well as wordy — this panel has a composer, and a typed line is in the
+      record without any microphone hearing it, so the sentence overstated the gap in a panel that
+      offers the very thing it forgot.
+
+      The colour is the warning. It turns from success to warning when somebody is not being
+      transcribed, and a sentence explaining a number is the kind of chrome people stop reading
+      before the day it matters.
+    */
+    const readout = JSON.stringify(coverage);
+
+    expect(readout).not.toContain('microphones hear');
+    expect(readout).toContain("modules.transcribe.partialCoverage ? 'warning-text' : 'success-text'");
+  });
+
+  it('never animates the height of the microphone section, in either direction', () => {
+    /*
+      The invariant the whole arrangement rests on. A fade changes only opacity, so the box is held
+      throughout; a `reveal` animates the height, which is the thing that must not move while
+      anything else on screen is mid-transition. The meter carried one for a day, to soften pushing
+      the readout down — and the two wait on the same fact now, so there was nothing to push.
+    */
+    const section = panelJson.indexOf(`(${VIEWING_LIVE_EXPR}) && (modules.transcribe.enabled`);
+
+    for (const json of [JSON.stringify(captureMeter), JSON.stringify(coverage), panelJson.slice(section)]) {
+      expect(json).toContain('"enterTransition":{"type":"fade","duration":300}');
+      expect(json).not.toContain('"type":"reveal"');
+    }
+  });
+
+  it('says nothing about starting up, in the meter or beside it', () => {
+    /*
+      A spinner and "Starting…" appeared under the meter for the few hundred milliseconds an audio
+      graph takes to open, then vanished — a whole line arriving and leaving under a meter that had
+      just arrived itself. Folding it into the meter's own label cost no layout but still changed a
+      word nobody could read into another one.
+
+      "quiet" is already true while a stream comes up: the bar is at zero because nothing has been
+      heard, which is what it means a second later too. One stable word beats a narrated setup.
+    */
+    const meter = JSON.stringify(captureMeter);
+
+    expect(meter).toContain("modules.transcribe.speaking ? 'hearing you' : 'quiet'");
+    expect(meter).not.toContain('starting');
+    expect(JSON.stringify(captureStatus)).not.toContain('we-spinner');
   });
 
   it('gates the unsaved line itself, rather than leaving that to whoever places it', () => {
@@ -145,21 +337,70 @@ describe('what belongs to the live microphone only', () => {
     );
   });
 
-  it('offers recording on the live call and continuing on a past one, never both', () => {
-    // Continuing is `continueCall` on the record already on screen, then `resume` so the recorder
-    // adopts it without waiting for a presence round trip.
-    expect(panelJson).toContain('modules.transcribe.toggle');
-    expect(panelJson).toContain('modules.call.continueCall');
-    expect(panelJson).toContain('modules.transcribe.resume');
+  it('leaves the record button out where it could not work, rather than showing a dead one', () => {
+    /*
+      It was a `disabled`, true in exactly one situation: outside a call, where there is no audio.
+      So the control sat greyed out in the header of every panel opened outside a call — the state a
+      newcomer opens it in — beside a placeholder already explaining that a call is what is missing.
+
+      `enabled ||` is what keeps the way *out* of recording: a stream dropping mid-call must not
+      take the stop button with it and leave this agent recording with nothing on screen to say so.
+    */
+    expect(panelJson).toContain('modules.transcribe.enabled || modules.transcribe.available');
+    expect(panelJson).not.toContain('!modules.transcribe.enabled && !modules.transcribe.available');
   });
 
-  it('stops the address naming the call it has just picked back up', () => {
+  it('offers recording on the live call and a way back into a past one, never both', () => {
     /*
-      The recorder has adopted this record, so it is the live call now — a parameter still pinning
-      to it would say the opposite for the rest of the meeting, and every surface reading the
-      subject would go on treating a live call as a past one.
+      The header's one control follows which call is on screen. A past call's is the only offer it
+      has: an empty transcript can say "continue this" in its placeholder, but one with rows shows
+      rows, so without this the calls somebody most wants to resume were the ones nothing offered to.
     */
-    expect(panelJson).toContain('{"$action":"routeStore.setParam","args":["call",null]}');
+    expect(panelJson).toContain('modules.transcribe.toggle');
+    expect(panelJson).toContain('modules.call.continueCall');
+    // The three-action chain it replaced. Adoption happens on its own, and the live test compares
+    // the address to what is recorded rather than asking whether an address exists.
+    expect(panelJson).not.toContain('modules.transcribe.resume');
+    expect(panelJson).not.toContain('{"$action":"routeStore.setParam","args":["call",null]}');
+  });
+
+  it('keeps the pick-up out of the live view, where there may be no call to pick up', () => {
+    /*
+      The record button's audio check was folded into the same condition, which reads correctly and
+      is wrong: the `else` then means two things at once — a call being read back, *and* a live view
+      with no microphone. So the panel offered to continue a call with no call on screen, and the
+      press did nothing, since the record it names is the empty address.
+
+      Asserted as the condition that actually guards the offer rather than as a string in the tree,
+      because the failure was a true condition in the wrong place.
+    */
+    const guards: (string | undefined)[] = [];
+    const walk = (node: unknown): void => {
+      if (Array.isArray(node)) return node.forEach(walk);
+      if (!node || typeof node !== 'object') return;
+      const fields = node as Record<string, unknown>;
+      const props = fields.props as Record<string, unknown> | undefined;
+      if (fields.type === '$if' && props?.else && JSON.stringify(props.else).includes('modules.call.continueCall')) {
+        guards.push((props.condition as { $?: string } | undefined)?.$);
+      }
+      Object.values(fields).forEach(walk);
+    };
+    walk(panel);
+
+    expect(guards).toEqual([VIEWING_LIVE_EXPR]);
+  });
+
+  it('refuses to offer a pick-up that would tear down a call in progress', () => {
+    // The call store's own rule: continuing while another call runs re-points every peer's
+    // transcript at the old record. The rail refuses for the same reason, so this cannot differ.
+    expect(panelJson).toContain('modules.call.canCall && !modules.call.active');
+  });
+
+  it('says join rather than continue where somebody is already in the call', () => {
+    // The press is identical either way — `continueCall` derives the call from its record, so
+    // arriving at one somebody is in *is* joining them. The word is the only thing that differs.
+    expect(panelJson).toContain('modules.call.liveCalls.exists(c, c.recordId == routeStore.params.call)');
+    expect(panelJson).toContain("? 'Join' : 'Continue'");
   });
 });
 
@@ -303,7 +544,14 @@ describe('the feed', () => {
       that argued it.
     */
     expect(linesJson).toContain('{"type":"we-badge","props":{"size":"xs","variant":"neutral"}');
-    expect(linesJson).toContain('text-aa');
+    /*
+      A keyboard rather than the letterform it used to be. Everything on this row is text, so what
+      the mark is about is how the line *arrived* — and the panel's own record button now spends
+      `text-aa` on transcription, as the call bar always did. One surface cannot give that glyph two
+      meanings a few rows apart.
+    */
+    expect(linesJson).toContain('keyboard');
+    expect(linesJson).not.toContain('text-aa');
   });
 
   it('says a corrected line was edited in words, not behind a hover', () => {
@@ -340,7 +588,54 @@ describe('the recording indicator', () => {
     */
     expect(panelJson).not.toContain('danger-text');
     expect(JSON.stringify(captureMeter)).not.toContain('danger-text');
-    expect(panelJson).toContain("modules.transcribe.listening ? 'danger' : ''");
+  });
+
+  it('carries all three recording states in the button, so nothing else has to', () => {
+    /*
+      There was a solid red REC chip beside this. Between them they made one point twice, and the
+      split was forced: the button had two variants, so it could not look different while actually
+      capturing and the chip was added to cover the third state. The call bar's copy has carried all
+      three for a while — off quiet, armed `secondary`, capturing `danger`, on the reasoning that a
+      state which arrives on its own must be legible without being looked for.
+    */
+    expect(panelJson).toContain(
+      "modules.transcribe.listening ? 'danger' : modules.transcribe.enabled ? 'secondary' : 'ghost'",
+    );
+    expect(panelJson).not.toContain('"children":["REC"]');
+  });
+
+  it('says what it is in a word, and lets the button own the colour', () => {
+    /*
+      Icon-only, this asked a newcomer to know that a mark means transcription — and the panel had
+      answered that once already with a REC chip that has since gone. The header has room, which the
+      Continue button beside it proves, so the word carries the state and the tooltip carries the
+      act. No `label` prop with them: the accessible name is the visible word rather than a second
+      string that has to be kept containing it.
+
+      The icon's own red is gone. Red is the button's now, so a colour here would be red on red,
+      which is the second of the two bugs the call bar's note says were fixed there and left standing
+      on this copy.
+    */
+    expect(panelJson).toContain("modules.transcribe.enabled ? 'Transcribing' : 'Transcribe'");
+    expect(panelJson).toContain('{"type":"we-icon","props":{"name":"record"}}');
+    expect(panelJson).not.toContain("modules.transcribe.listening ? 'danger' : ''");
+    expect(panelJson).not.toContain("'Stop transcribing' : 'Start transcribing'\"},\"variant\"");
+  });
+
+  it('waits for the microphone, so the word on it never turns over in front of you', () => {
+    /*
+      This asked `callId` for a day, so that it appeared the instant a call was joined rather than a
+      second later with the meter. The cost was a label that changed itself: recording starts only
+      once there is a stream, so the button read "Transcribe" and then became "Transcribing".
+
+      There is no third option. The state genuinely changes in that second, so a label reporting the
+      state must change with it, and one reporting it early is guessing — auto-join can still be
+      refused by `recordCalls`, and a device that never opens would leave "Transcribing" standing
+      over nothing recorded with no diagnostic on screen. Waiting is the version with neither a
+      changing word nor a false one.
+    */
+    expect(panelJson).toContain('modules.transcribe.enabled || modules.transcribe.available');
+    expect(panelJson).not.toContain('modules.transcribe.enabled || modules.transcribe.callId');
   });
 });
 
@@ -395,7 +690,23 @@ describe('the extraction panel', () => {
     // A meeting somebody opened from a link is not happening. Everything else here follows the call
     // on screen; this one cannot.
     const live = '{"$":"!routeStore.params.call || routeStore.params.call == modules.transcribe.callId"}';
-    expect(json.indexOf(live)).toBeLessThan(json.indexOf('As it happens'));
+    expect(json.indexOf(live)).toBeLessThan(json.indexOf('Auto extract: on'));
+  });
+
+  it('says what the two header controls do, and for whom', () => {
+    /*
+      The auto control was a `we-switch` whose `label` is only an aria-label — an unlabelled toggle
+      beside a button reading "Extract", with nothing on screen to say which did what. Both name
+      themselves now, and the auto one says it is everybody's, since the record button one panel
+      over looks the same and is only this agent's microphone.
+    */
+    expect(json).not.toContain('"we-switch"');
+    expect(json).toContain('Auto extract: on');
+    expect(json).toContain('Auto extract: off');
+    expect(json).toContain('for everyone in it');
+    expect(json).toContain('Extract now');
+    // Accent, not red: red is the transcript's word for a live microphone.
+    expect(json).toContain(`modules.transcribe.autoExtract ? 'primary' : 'ghost'`);
   });
 
   it('says the node has no model, rather than that nothing has been said', () => {
@@ -414,6 +725,23 @@ describe('the extraction panel', () => {
     // the records were one query per target away from the surface already being looked at.
     expect(json).toContain('"anchorId":{"$":"' + EXTRACTION_SUBJECT_EXPR + '"}');
     expect(json).toContain('recordStore.displays[target].title');
+  });
+
+  it('explains itself behind the glyph, not in the body', () => {
+    /*
+      The box above the chips held three lines of prose — a bold "Extract" under a panel already
+      called Extraction, a lead-in above the chips, a footnote under the button — every one of them
+      true, read once, and thereafter furniture in a docked panel with no room to spare. What they
+      said is in the header's help now, which is read on demand.
+    */
+    expect(json).not.toContain('Look through what was said for');
+    expect(json).not.toContain('press Extract to sweep');
+    expect(json).not.toContain('"children":["Extract"]');
+    expect(json).toContain('"label":"How this works"');
+    expect(json).toContain('before a model was switched on');
+    // The button keeps a phrase of its own: how it differs from the automatic pass is what somebody
+    // hovering it is asking.
+    expect(json).toContain('Reads the whole conversation so far');
   });
 
   it('scrolls the results and nothing above them', () => {
@@ -497,6 +825,163 @@ describe('the panel’s reads reach the store', () => {
 
     expect(run(forSubject, roots)).toBe(true);
     expect(run(forLive, roots)).toBe(false);
+  });
+
+  /**
+   * The empty transcript's sentence, evaluated rather than matched.
+   *
+   * Six branches deciding one line, and their *order* is what makes them exclusive — a string
+   * search can see every sentence is present and say nothing about which one a reader would get.
+   * These are the six situations, written as the store would answer them.
+   */
+  describe('what an empty transcript says', () => {
+    /**
+     * The two sentences, dug out of the tree rather than restated.
+     *
+     * Two because they are two branches of a `$if` on whether the call on screen is the one being
+     * recorded — which is what makes continuing a call fade one out and the other in, rather than
+     * swapping the text in place. `messageFor` below does what the renderer does: answers that
+     * condition against the situation, then reads the branch it selects.
+     */
+    const messages = (() => {
+      const found: string[] = [];
+      const walk = (node: unknown): void => {
+        if (Array.isArray(node)) return node.forEach(walk);
+        if (!node || typeof node !== 'object') return;
+        const fields = node as Record<string, unknown>;
+        const first = Array.isArray(fields.children) ? (fields.children[0] as { $?: string } | undefined) : undefined;
+        // Both branches carry this sentence, and nothing else in the tree does — which is what
+        // makes it the marker rather than a word like "transcribe" that the rows use too.
+        if (fields.type === 'we-text' && first?.$?.includes('Nothing has been said here yet')) found.push(first.$);
+        Object.values(fields).forEach(walk);
+      };
+      walk(transcriptLines);
+      // Deduped: the placeholder is referenced from both arms of the gate above it — one waits for
+      // the query to answer, the other has no record to wait for — so every sentence is found twice.
+      return [...new Set(found)];
+    })();
+
+    /** A transcribe store and a call store, answering the six things this sentence asks them. */
+    const situation = (over: {
+      address?: string;
+      recording?: string;
+      enabled?: boolean;
+      /** Whether this agent's microphone is up. False through the second after joining a call. */
+      micUp?: boolean;
+      inACall?: boolean;
+      liveRecords?: string[];
+      callModule?: boolean;
+    }) => ({
+      modules: namespace((id) =>
+        id === 'transcribe'
+          ? namespace((member) =>
+              member === 'callId'
+                ? markReactive(() => over.recording ?? '')
+                : member === 'enabled'
+                  ? markReactive(() => over.enabled === true)
+                  : member === 'available'
+                    ? markReactive(() => over.micUp === true)
+                    : undefined,
+            )
+          : id === 'call' && over.callModule !== false
+            ? namespace((member) =>
+                member === 'canCall'
+                  ? markReactive(() => true)
+                  : member === 'active'
+                    ? markReactive(() => over.inACall === true)
+                    : member === 'liveCalls'
+                      ? markReactive(() => (over.liveRecords ?? []).map((recordId) => ({ recordId })))
+                      : undefined,
+              )
+            : undefined,
+      ),
+      routeStore: namespace((member) =>
+        member === 'params' ? markReactive(() => ({ call: over.address ?? '' })) : undefined,
+      ),
+    });
+
+    /** What a reader would see: the branch the live test selects, evaluated in that situation. */
+    const messageFor = (roots: Record<string, unknown>) => {
+      const live = run(VIEWING_LIVE_EXPR, roots);
+      const [forLive, forPast] = messages;
+
+      expect(messages).toHaveLength(2);
+      return run(live ? forLive : forPast, roots);
+    };
+
+    it('offers the way in where there is no call at all', () => {
+      // Joining is the only step named, because it is usually the only one: `recordCalls` defaults
+      // on, so transcription starts with the call. "Press record" belongs to the one state it is
+      // true in, which is the next case down.
+      expect(messageFor(situation({}))).toBe('Join a call to transcribe what is said.');
+    });
+
+    it('offers the record button where this agent is in a call and not using it', () => {
+      expect(messageFor(situation({ recording: 'rec-live', micUp: true }))).toBe(
+        'Nothing has been said here yet. Press record to transcribe what is said.',
+      );
+    });
+
+    it('says nothing about pressing record while the microphone is still coming up', () => {
+      /*
+        The second between joining a call and the audio graph opening. Recording starts on its own
+        there, so the advice is wrong — and it was on screen just long enough to change the sentence
+        twice on the way to the one it keeps. Landing on that sentence early is what makes the join
+        one transition instead of three.
+      */
+      expect(messageFor(situation({ address: 'rec-old', recording: 'rec-old' }))).toBe(
+        'Nothing has been said here yet.',
+      );
+    });
+
+    it('says only that it is waiting once recording is on', () => {
+      expect(messageFor(situation({ recording: 'rec-live', micUp: true, enabled: true }))).toBe(
+        'Nothing has been said here yet.',
+      );
+    });
+
+    it('offers to pick up a call nobody is in', () => {
+      expect(messageFor(situation({ address: 'rec-old' }))).toBe(
+        'Nothing has been said here yet. Continue the call to begin transcribing.',
+      );
+    });
+
+    it('offers to join one somebody is in, which is a different act with the same press', () => {
+      expect(messageFor(situation({ address: 'rec-old', liveRecords: ['rec-old'] }))).toBe(
+        'Nothing has been said here yet. Join the call to begin transcribing.',
+      );
+    });
+
+    it('promises nothing while another call is running, because nothing would honour it', () => {
+      // Continuing then would re-point every peer's transcript at the old record, so the panel's
+      // button is gone and the rail refuses too. A clause nothing will act on is worse than none.
+      expect(messageFor(situation({ address: 'rec-old', recording: 'rec-other', inACall: true }))).toBe(
+        'Nothing has been said here yet.',
+      );
+    });
+
+    it('does not offer to join a call while it is fading out of one', () => {
+      /*
+        A branch being faded out is still live. Leaving a continued call empties `callId` while the
+        address still names the record, so the live branch re-rendered on its way out and offered to
+        join a call — the opposite of what the incoming branch was about to say — for the length of
+        the exit.
+
+        Evaluated against the live branch directly rather than through `messageFor`, because the
+        situation is one where that branch has already lost: this is what it says while it leaves.
+      */
+      const [forLive] = messages;
+
+      expect(run(forLive, situation({ address: 'rec-old' }))).toBe('Nothing has been said here yet.');
+      // And the sentence is still reachable where it is true: no address, and nothing recording.
+      expect(run(forLive, situation({}))).toBe('Join a call to transcribe what is said.');
+    });
+
+    it('promises nothing in a deployment with no call module', () => {
+      // `modules.call` resolves to nothing rather than failing, which is the whole reason this
+      // module may name another one at all.
+      expect(messageFor(situation({ address: 'rec-old', callModule: false }))).toBe('Nothing has been said here yet.');
+    });
   });
 });
 

@@ -67,6 +67,33 @@ const SUBJECT = { $: SUBJECT_EXPR };
 const VIEWING_LIVE = { $: VIEWING_LIVE_EXPR };
 
 /**
+ * Whether this agent could pick the call on screen up.
+ *
+ * Two terms, and each is a different kind of refusal. `canCall` is absent — and so falsy — in a
+ * deployment without the call module, which is what lets this module name another one at all: the
+ * offer is simply not made rather than resolving to an action nothing implements.
+ *
+ * `!active` is the safety gate, and it is the call store's own rule rather than a preference.
+ * Continuing a past call while another is running tears the live one down and re-points every peer's
+ * transcript at the old record, since peers adopt an announced record over their own. The rail
+ * refuses for the same reason, in the same words, at `goToCall`.
+ */
+const CAN_PICK_UP = 'modules.call.canCall && !modules.call.active';
+
+/**
+ * Whether somebody is in the call on screen right now.
+ *
+ * The difference between joining a conversation and restarting one, and the only thing separating
+ * two presses that are otherwise identical: `continueCall` derives the call's id from its record, so
+ * arriving at one somebody is already in *is* joining them. What changes is the word for it, and a
+ * button offering to "continue" a meeting three people are sitting in is describing the wrong act.
+ *
+ * Read off the call module's own roster of what is running here rather than from presence directly,
+ * which this module has no view of beyond its own entry.
+ */
+const CALL_ON_SCREEN_LIVE = 'modules.call.liveCalls.exists(c, c.recordId == routeStore.params.call)';
+
+/**
  * Which call the *extraction* surface is about.
  *
  * The same shape as `SUBJECT_EXPR`, and a different fallback for a reason worth writing down.
@@ -155,13 +182,46 @@ function note(status: string, icon: string, text: string, action?: SchemaNode): 
  * which is a property of the session and not of any call record — pointing it at another call
  * would be pointing a live meter at something that is not being measured.
  */
+/**
+ * How everything about the microphone arrives and leaves: a fade, and deliberately never a reveal.
+ *
+ * A fade changes only opacity, so the element holds its box throughout — which is the whole point in
+ * both directions. Reveal animates the height instead, and the height is the thing that must not
+ * move while anything else is on screen changing.
+ *
+ * ## Leaving
+ *
+ * Leaving a call takes the meter, the coverage readout and the section around them away at once, and
+ * the placeholder underneath is mid-fade at that moment: the renderer keeps an outgoing branch
+ * mounted for the length of its exit, so the sentence was still painted when the space above it
+ * vanished, and slid up the panel while transparent. This is longer than the placeholder's own exit,
+ * so the order is the sentence finishing, then the height going, with nothing visible left to move.
+ *
+ * ## Arriving
+ *
+ * The same string, for symmetry and for a real reason. Without an explicit `enterTransition` the
+ * renderer sets opacity straight to 1 in the effect, with no painted start value to interpolate
+ * from — so whether anything actually faded depended on whether this box had been shown before,
+ * which is not a difference anybody chose. Declared, it always fades.
+ *
+ * Nothing about the reflow changes either way: the box claims its space the moment it renders,
+ * transparent or not, so what this decides is only whether the contents appear or resolve.
+ *
+ * All three levels carry it. The section's own fade holds nothing if the meter and the readout have
+ * already unmounted from inside it, and those two answer to different facts — the readout to a
+ * microphone existing, the meter to recording — so each has to hold its own height.
+ */
+const MIC_FADE = { type: 'fade', duration: 300 };
+
 export const captureMeter: SchemaNode = {
   type: '$if',
   props: {
     condition: { $: 'modules.transcribe.enabled' },
+    enterTransition: MIC_FADE,
+    exitTransition: MIC_FADE,
     then: {
       type: 'Column',
-      props: { gap: '150' },
+      props: { gap: '100' },
       children: [
         {
           type: 'Row',
@@ -173,7 +233,17 @@ export const captureMeter: SchemaNode = {
               children: ['Microphone'],
             },
             {
-              // Says which side of the threshold we are on, for anyone who cannot read the bar.
+              /*
+                Says which side of the threshold we are on, for anyone who cannot read the bar.
+
+                Two words, and no third for the moment the audio graph is opening. That moment had a
+                row of its own once — a spinner and "Starting…" under the meter, which moved
+                everything below it as it came and went — and then, briefly, this label, which was
+                cheaper but still a word nobody could read changing to another. "quiet" is already
+                true while a stream is coming up: the bar is at zero because nothing has been heard
+                yet, which is the same thing it means a second later. A meter that says one stable
+                thing is worth more than one that narrates its own setup.
+              */
               type: 'we-text',
               props: {
                 variant: 'footnote',
@@ -263,47 +333,59 @@ export const captureMeter: SchemaNode = {
 export const coverage: SchemaNode = {
   type: '$if',
   props: {
-    condition: { $: 'count(modules.transcribe.callAgents)' },
+    /*
+      Somebody to count, **and** a microphone to count them against.
+
+      Joining a call is a second in which every part of this is true and wrong: you are in the call,
+      your own microphone is not up yet, so it read "0 of 1 transcribing" in warning orange with the
+      line below about only those microphones reaching the record. Both resolved before anybody
+      could read them, and the line arriving and then leaving moved everything under it twice.
+
+      A delayed fade was tried first and made it worse. `$animate` keeps its child mounted and a
+      fade only touches opacity, so the readout reserved its full height while invisible: the panel
+      opened a hole, sat on it, and then filled it in. Nothing about *when it is drawn* can fix a
+      readout that should not be there at all.
+
+      `available` is the honest test, because it separates the two states that look alike. No audio
+      means the session is still coming up, and there is nothing to report yet. Audio with no
+      recording is a decision — somebody pressed stop, or auto-join is off — and that is exactly
+      when a coverage gap is worth stating. So this is dark through the join and lit the moment the
+      microphone exists, which is the same moment the meter above it appears.
+
+      ## The count, and nothing under it
+
+      There was a second line while the count was short: "Only what those microphones hear reaches
+      this record." It was wrong as well as wordy. This panel has a composer, and a typed line is in
+      the record without any microphone hearing it — so the sentence overstated the gap it was
+      warning about, in a panel that offers the very thing it forgot.
+
+      The count already carries the warning. It turns from `success-text` to `warning-text` when
+      somebody is not being transcribed, which is the whole signal; a sentence appearing underneath
+      to explain a number is the kind of chrome people stop reading before the day it matters. That
+      argument was already in the note it replaced, one level up.
+    */
+    condition: { $: 'count(modules.transcribe.callAgents) && modules.transcribe.available' },
+    // Holds its height in both directions — see `MIC_FADE`. Its own `available` empties before the
+    // section's condition does, so without this the box above the transcript loses this much of its
+    // height early, while the placeholder below is still fading.
+    enterTransition: MIC_FADE,
+    exitTransition: MIC_FADE,
     then: {
-      type: 'Column',
-      props: { gap: '150' },
+      type: 'Row',
+      props: { ax: 'between', ay: 'center', gap: '300' },
       children: [
+        { type: 'we-text', props: { variant: 'footnote', color: 'text-muted' }, children: ['Coverage'] },
         {
-          type: 'Row',
-          props: { ax: 'between', ay: 'center', gap: '300' },
+          type: 'we-text',
+          props: {
+            variant: 'footnote',
+            color: { $: "modules.transcribe.partialCoverage ? 'warning-text' : 'success-text'" },
+          },
           children: [
-            { type: 'we-text', props: { variant: 'footnote', color: 'text-muted' }, children: ['Coverage'] },
             {
-              type: 'we-text',
-              props: {
-                variant: 'footnote',
-                color: { $: "modules.transcribe.partialCoverage ? 'warning-text' : 'success-text'" },
-              },
-              children: [
-                {
-                  $: '`${count(modules.transcribe.transcribers)} of ${count(modules.transcribe.callAgents)} transcribing`',
-                },
-              ],
+              $: '`${count(modules.transcribe.transcribers)} of ${count(modules.transcribe.callAgents)} transcribing`',
             },
           ],
-        },
-        {
-          /*
-            What the gap means, in the words somebody would need to act on it.
-
-            Only when there is a gap — the whole-coverage case is already fully said by the count, and
-            a permanent second line explaining a number that is currently fine is the kind of chrome
-            people stop reading before the day it matters.
-          */
-          type: '$if',
-          props: {
-            condition: { $: 'modules.transcribe.partialCoverage' },
-            then: {
-              type: 'we-text',
-              props: { variant: 'footnote', color: 'text-faint' },
-              children: ['Only what those microphones hear reaches this record.'],
-            },
-          },
         },
       ],
     },
@@ -389,7 +471,7 @@ const proposalDetail: SchemaNode = {
   children: [
     {
       type: 'Row',
-      props: { gap: '150', ay: 'center', wrap: true },
+      props: { gap: '100', ay: 'center', wrap: true },
       children: [
         {
           /*
@@ -881,8 +963,16 @@ const proposals: SchemaNode = {
  * registration the whole neighbourhood shares, so per-agent lists would have peers overwriting each
  * other's in a loop. It does not touch the space's own default, which is a community setting with
  * its own screen. And it applies to what is said from *here on*, because a watch keeps a
- * processed-turn cursor — which is why the note under the Extract button says pressing it is how the
- * rest of the conversation gets swept.
+ * processed-turn cursor — which is why the panel's help says pressing Extract is how the rest of
+ * the conversation gets swept, and the button's own tooltip says it reads the whole thing.
+ *
+ * ## No lead-in
+ *
+ * This opened with a sentence — "Look through what was said for:" in a call, "This space's calls
+ * look for:" outside one — telling apart two lists that look identical. It was the third line of
+ * prose in a box whose job is two controls, and the distinction it drew is already drawn: outside a
+ * call the chips are disabled and a link to the space's default appears under them. What a chip
+ * *is* went into the panel's help, which is read once and then costs nothing.
  *
  * ## Why this is named
  *
@@ -895,44 +985,20 @@ export const extractionTargets: SchemaNode = {
   props: { gap: '200' },
   children: [
     /*
-      What this press will look for — the models, not a fixed sentence.
+      Not a failure, and phrased as the one thing a person can act on.
 
-      It read "Find the tasks and events in what was said", which was true while those
-      two classes were compiled into this module and is a lie in a space that defined
-      its own. The chips below both say what will be looked for and let this agent
-      narrow it; the sentence would have to be rewritten every time a community adopts
-      a model, so it becomes a lead-in instead.
+      Every other reason extraction is unavailable is about this node — no model
+      configured, an executor that cannot interpret — and none of them can be fixed
+      from here. This one can: it is a decision the community has not made yet, and
+      the place to make it is the space's own models.
+
+      The only sentence left above the chips, and only where there are no chips to show.
     */
     {
       type: '$if',
       props: {
-        condition: { $: `count(${forSubject('targets').$})` },
-        /*
-          Which list this is, said out loud, because it is two lists.
-
-          Outside a call there is no conversation to narrow, so what is shown is the space's own
-          default — the one every call here starts from. Inside one it is that call's list. They look
-          identical and a press on them means very different things, so the heading is the only thing
-          that can tell them apart.
-        */
+        condition: { $: `!count(${forSubject('targets').$})` },
         then: {
-          type: 'we-text',
-          props: { variant: 'footnote', color: 'text-muted' },
-          children: [
-            {
-              $: `${forSubject('canChoose').$} ? 'Look through what was said for:' : "This space's calls look for:"`,
-            },
-          ],
-        },
-        /*
-          Not a failure, and phrased as the one thing a person can act on.
-
-          Every other reason extraction is unavailable is about this node — no model
-          configured, an executor that cannot interpret — and none of them can be fixed
-          from here. This one can: it is a decision the community has not made yet, and
-          the place to make it is the space's own models.
-        */
-        else: {
           type: 'we-text',
           props: { variant: 'footnote', color: 'text-muted' },
           children: ['No models are set up for AI extraction here. A space chooses its own in its settings.'],
@@ -1000,8 +1066,8 @@ export const extractionTargets: SchemaNode = {
       holding different lists would each remove-then-add over the other's in a loop.
 
       Changing it applies from here on, because a watch keeps a processed-turn cursor —
-      the note under the button says so, since the answer for the rest of the
-      conversation is the button itself.
+      the panel's help says so, since the answer for the rest of the conversation is the
+      button itself.
     */
     {
       type: 'Row',
@@ -1362,6 +1428,147 @@ const extractedRows: SchemaNode = {
   ],
 };
 
+/*
+  The two ways a pass starts: the switch for the automatic one, and the button for a one-shot.
+
+  Whether this conversation is read as it happens is a *call's* switch.
+
+  The space has a standing answer and an administrator sets it; this is the people in the room
+  deciding about the room. On the live call only: a meeting somebody opened from a link is not
+  happening, so "as it happens" has nothing to be about, and the switch would be asking about a
+  conversation that finished. Everything else here follows the call on screen; this one thing
+  cannot.
+
+  ## A button that says its state, not a switch
+
+  It was a `we-switch` whose `label` is an aria-label, so on screen it was an unlabelled toggle
+  beside an "Extract" button, and nobody could say which of the two did what. A button carries
+  its own words. `primary` when on rather than `danger`: red is this interface's word for "your
+  microphone is live", a personal state that is its own off switch, and auto extraction is a
+  standing decision the whole call shares. Two red buttons in one panel would say one thing about
+  two different things.
+
+  ## In the well, not the header
+
+  Both controls sat in the header's aside for a day. Two labelled buttons beside a title and a
+  glyph is more than a `sm` dock is wide, and the title gave way first. They are the top row of
+  the sunken box now, so that box reads as one thing — the pass: switch it, run it, what it looks
+  for, what the last one did — and the header is a name and a glyph again.
+*/
+const extractionControls: SchemaNode = {
+  type: 'Row',
+  props: { ay: 'center', gap: '200', wrap: true },
+  children: [
+    {
+      type: '$if',
+      props: {
+        condition: VIEWING_LIVE,
+        then: {
+          type: 'we-tooltip',
+          props: {
+            placement: 'bottom',
+            /*
+                Whose decision it is, said where the press is — the record button beside the
+                transcript is this agent's microphone, and this looks the same and is everybody's.
+                Outside a call there is no record to write the decision against, and the button
+                explains that rather than greying out in silence, which is what the switch did.
+              */
+            content: {
+              $:
+                "!modules.transcribe.extractionFor[modules.transcribe.callId].canChoose ? 'Join a call to decide for it' : " +
+                "modules.transcribe.autoExtract ? 'Stop extracting as the call goes, for everyone in it' : " +
+                "'Extract as the call goes, for everyone in it'",
+            },
+          },
+          children: [
+            {
+              type: 'we-button',
+              props: {
+                size: 'sm',
+                gap: '100',
+                variant: { $: "modules.transcribe.autoExtract ? 'primary' : 'ghost'" },
+                // The live call's answer, and the same record `autoExtract` reads.
+                disabled: { $: '!modules.transcribe.extractionFor[modules.transcribe.callId].canChoose' },
+                onClick: { $action: 'modules.transcribe.toggleAutoExtract' },
+              },
+              children: [
+                { type: 'we-icon', props: { name: 'lightning' } },
+                { $: "modules.transcribe.autoExtract ? 'Auto extract: on' : 'Auto extract: off'" },
+              ],
+            },
+          ],
+        },
+      },
+    },
+    /*
+        The one-shot pass, beside the switch for the automatic one.
+
+        It sat at the end of the chip row, an outlined button beside outlined chips, and read as one
+        more thing to toggle. Up here the two ways of starting a pass are next to each other, and the
+        well below is only what a pass looks for and what the last one did. Not inside the `$if`:
+        the switch is about the live call, but a pass can be run over any call on screen.
+
+        Quieter while the automatic pass is on: it is then the backfill and the recovery, not the
+        way a pass usually starts, and the eye should land on the control that matters in this state.
+        `secondary` while auto is off, where a press is the only way anything gets read.
+      */
+    {
+      type: 'we-tooltip',
+      /*
+          The one thing about mid-call changes that is not guessable, in the place it is asked.
+
+          A standing watch keeps a processed-turn cursor, so a model switched on part-way through is
+          applied to what is said next and not to what was said before it. The one-shot pass carries
+          no cursor — it hands the executor the whole transcript — so pressing Extract is the
+          backfill, and the executor's dedup means what was already found returns as updates rather
+          than as second copies. A phrase here, and the longer form in the panel's help.
+        */
+      props: {
+        placement: 'bottom',
+        /*
+            Why it cannot be pressed, when it cannot — this used to say the same thing enabled or
+            not, and a fresh call sits disabled until the first utterance lands, which read as broken
+            beside a continued call that was enabled from the first second. The model gate is the
+            panel's own `$if`, so the two reasons left are no targets and no words.
+          */
+        content: {
+          $:
+            `!count(${forSubject('targets').$}) ? 'Nothing is being looked for' : ` +
+            `!${forSubject('canExtract').$} ? 'Nothing has been said yet' : ` +
+            "'Reads the whole conversation so far'",
+        },
+      },
+      children: [
+        {
+          type: 'we-button',
+          props: {
+            size: 'sm',
+            variant: { $: "modules.transcribe.autoExtract ? 'ghost' : 'secondary'" },
+            gap: '100',
+            // Disabled rather than hidden once the panel is showing the section: the reason is
+            // "nothing has been said yet", which resolves on its own and is worth waiting for.
+            disabled: { $: `!${forSubject('canExtract').$} || modules.transcribe.extractStatus == 'running'` },
+            /*
+                The call on screen, not "the call I am in".
+
+                `extractCollection` takes the record, which is what makes this work on one somebody
+                opened from a link; `extract` can only ever mean the live one. The guard above asks
+                about the same record, which it did not when a template owned this — the button was
+                hidden by a `canExtract` about the live call while the action behind it would have
+                worked on the one being shown.
+              */
+            onClick: { $action: 'modules.transcribe.extractCollection', args: [EXTRACTION_SUBJECT] },
+          },
+          children: [
+            { type: 'we-icon', props: { name: 'sparkle' } },
+            { $: "modules.transcribe.extractStatus == 'running' ? 'Reading…' : 'Extract now'" },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
 /**
  * Turning what was heard into tasks and events.
  *
@@ -1376,68 +1583,23 @@ const extractedRows: SchemaNode = {
  * question twice. That nesting is also what used to hide a running pass and a decision waiting on
  * somebody from a node that could not start one, which is precisely the node whose passes came from
  * a peer.
+ *
+ * ## The chips, and what the last press did
+ *
+ * The box opened with "Extract" in bold, in a panel titled "Extraction"; a lead-in above the chips;
+ * a footnote under the button about what a mid-call change does and does not cover; and the button
+ * itself, at the end of the chip row, where an outlined button beside outlined chips read as one
+ * more chip. The prose went two places — the panel's help glyph, read on demand, and the button's
+ * own tooltip — and the button went beside the switch that decides the automatic pass, so the two
+ * ways of starting one sit together, as the well's top row. Under them the chips, and under those
+ * what the last pass did.
  */
 const extract: SchemaNode = {
   type: 'Column',
-  props: { gap: '200', bg: 'surface-sunken', r: '300', p: '300' },
+  props: { gap: '200', bg: 'surface-sunken', r: '300', p: '200' },
   children: [
-    {
-      type: 'Row',
-      props: { ax: 'between', ay: 'center', gap: '300' },
-      children: [
-        {
-          type: 'Column',
-          props: { gap: '050' },
-          children: [
-            { type: 'we-text', props: { variant: 'footnote', fontWeight: '600' }, children: ['Extract'] },
-            { type: '$part', props: { id: 'transcribe.extractionTargets' } },
-          ],
-        },
-        {
-          type: 'we-button',
-          props: {
-            size: 'sm',
-            variant: 'secondary',
-            // Disabled rather than hidden once the panel is showing the section: the reason is
-            // "nothing has been said yet", which resolves on its own and is worth waiting for.
-            disabled: { $: `!${forSubject('canExtract').$} || modules.transcribe.extractStatus == 'running'` },
-            /*
-                  The call on screen, not "the call I am in".
-
-                  `extractCollection` takes the record, which is what makes this work on one somebody
-                  opened from a link; `extract` can only ever mean the live one. The guard above asks
-                  about the same record, which it did not when a template owned this — the button was
-                  hidden by a `canExtract` about the live call while the action behind it would have
-                  worked on the one being shown.
-                */
-            onClick: { $action: 'modules.transcribe.extractCollection', args: [EXTRACTION_SUBJECT] },
-          },
-          children: [{ $: "modules.transcribe.extractStatus == 'running' ? 'Reading…' : 'Extract'" }],
-        },
-      ],
-    },
-    /*
-          The one thing about mid-call changes that is not guessable.
-
-          A standing watch keeps a processed-turn cursor, so a model switched on part-way through is
-          applied to what is said next and not to what was said before it. The one-shot pass carries
-          no cursor — it hands the executor the whole transcript — so pressing Extract is the
-          backfill, and the executor's dedup means what was already found returns as updates rather
-          than as second copies.
-
-          Shown only where it applies: a call nobody has changed the list for has nothing to backfill.
-        */
-    {
-      type: '$if',
-      props: {
-        condition: { $: `count(${forSubject('targets').$})` },
-        then: {
-          type: 'we-text',
-          props: { variant: 'footnote', color: 'text-faint' },
-          children: ['A model switched on mid-call applies from here — press Extract to sweep what was said before.'],
-        },
-      },
-    },
+    extractionControls,
+    { type: '$part', props: { id: 'transcribe.extractionTargets' } },
     {
       type: '$if',
       props: {
@@ -1566,6 +1728,113 @@ const extract: SchemaNode = {
  * interface put the line in the right place *and* omit it on the wrong call, which is exactly what
  * the workshop template does.
  */
+/**
+ * What the feed shows when it holds nothing — one placeholder, six situations.
+ *
+ * There were two of these and they did not look alike. A call with no words in it got this
+ * treatment: an icon and a centred line. No call at all got an italic sentence in `captureStatus`,
+ * which renders *above* the feed rather than in it — so the same emptiness was a tidy placeholder
+ * or a stray caption under the meter depending on whether an address happened to name a call. One
+ * shape now, in the one place the reader is looking.
+ *
+ * ## Split on the same line the rest of the panel is split on
+ *
+ * "Nothing has been said here yet" is true in five of the six and useless on its own: what a person
+ * does next is different in each, and the panel is the only thing that knows which. The six sort
+ * cleanly into the two the whole panel already sorts by — a call being read back, and the live one —
+ * so they are two branches of three rather than one chain of six.
+ *
+ * That split is structural rather than tidiness. A `$if` **remounts** when its condition flips, so
+ * continuing a call fades the old sentence out and the new one in, the way switching between calls
+ * already does. Kept as one node the text swapped in place, mid-sentence, with no transition — the
+ * one moment in this panel that still read as a jump. Nothing about the branches themselves changed.
+ *
+ * Reading a call back:
+ *
+ * - **Nothing can pick it up.** Another call is already running, or there is no call module. Say
+ *   only what is true: a clause telling somebody to continue a meeting, with nothing on screen or in
+ *   the rail willing to do it, is worse than no clause.
+ * - **Somebody is in it.** Then the act is joining them, not restarting it, and the button beside
+ *   this says the same word.
+ * - **Nobody is in it.** The offer is to pick it up.
+ *
+ * The live view:
+ *
+ * - **No call at all.** Nothing to record and nothing to read: the whole sentence is the way in.
+ *   Joining is the only step it names, because it is usually the only one — `recordCalls` defaults
+ *   on, so transcription starts with the call and nobody presses anything.
+ * - **In a call, with a microphone, not recording.** The one state where a button on this panel
+ *   changes the answer. `available` is what keeps it out of the second between joining a call and
+ *   the microphone coming up: recording is about to start on its own there, so telling somebody to
+ *   press record is both wrong and unreadable — it was on screen just long enough to change the
+ *   sentence twice. The same test coverage uses, for the same reason.
+ * - **In a call, recording.** Nothing to add — the panel is waiting for somebody to speak, and
+ *   saying so twice would be furniture.
+ *
+ * ## Neither sentence mentions the subject
+ *
+ * Whole-token substitution rewrites `{ $: 'modules.transcribe.collectionId' }` where a `$part`
+ * points this at another call, and leaves an expression that merely *mentions* it alone — so a
+ * sentence built around the subject would go on describing the live call inside a panel about a past
+ * one. `VIEWING_LIVE_EXPR` reads the address for that reason, and `callId` is a fact about this
+ * agent's own session either way.
+ */
+const noUtterances: SchemaNode = {
+  type: '$if',
+  props: {
+    condition: VIEWING_LIVE,
+    /*
+      Fades out in place, then fades back in.
+
+      `emptyState` holds its own placeholder back for a moment before fading it in, which is what
+      makes switching calls read as a settle rather than a flicker. Mounting through this gets the
+      same treatment on the transitions that had none.
+
+      **In place** is the load-bearing half, and it is not this node's doing. The renderer keeps an
+      outgoing branch mounted for the length of its exit, so a sentence fading here is on screen
+      while the microphone section above it is going — and that section vanishing pulled it up the
+      panel mid-fade. Making the exit instant did not fix it either: the opacity change lands a frame
+      or two after the condition, so the sentence was still painted for the collapse.
+
+      What fixes it is above: the section fades and keeps its box for longer than this takes. So the
+      order is the sentence finishing, then the height going, then the new sentence arriving where it
+      will stay — and this exit is deliberately the **shorter** of the two.
+    */
+    enterTransition: { type: 'fade', duration: 200 },
+    exitTransition: { type: 'fade', duration: 150 },
+    then: emptyState({
+      icon: 'chat-dots',
+      label: 'transcript',
+      /*
+        "No call at all" is both halves, not just the one this branch could take for granted.
+
+        Inside the live view an address naming a call means it is the call being recorded, so
+        `!callId` alone reads as "no call" and is right — until the moment somebody leaves. A branch
+        being faded out is still live: `callId` empties, this re-renders, and the panel offered to
+        join a call for the length of the exit before the past-call branch took over saying the
+        opposite. Naming both halves makes the sentence true on its own terms rather than on its
+        neighbour's, which is what a node that outlives its own condition needs.
+      */
+      message: {
+        $:
+          `!routeStore.params.call && !modules.transcribe.callId ? 'Join a call to transcribe what is said.' : ` +
+          `!modules.transcribe.enabled && modules.transcribe.available ? 'Nothing has been said here yet. Press record to transcribe what is said.' : ` +
+          `'Nothing has been said here yet.'`,
+      },
+    }),
+    else: emptyState({
+      icon: 'chat-dots',
+      label: 'transcript',
+      message: {
+        $:
+          `!(${CAN_PICK_UP}) ? 'Nothing has been said here yet.' : ` +
+          `${CALL_ON_SCREEN_LIVE} ? 'Nothing has been said here yet. Join the call to begin transcribing.' : ` +
+          `'Nothing has been said here yet. Continue the call to begin transcribing.'`,
+      },
+    }),
+  },
+};
+
 export const transcriptLines: SchemaNode = {
   type: 'Column',
   // The gap is the only thing separating one utterance from the next now that a row carries no
@@ -1826,10 +2095,23 @@ export const transcriptLines: SchemaNode = {
                                   */
                                   type: 'we-badge',
                                   props: { size: 'xs', variant: 'neutral' },
-                                  // Between the badge's own xxs (12px) and xs (16px). The badge's
-                                  // height is fixed per size, so a larger glyph fills it rather
-                                  // than stretching it.
-                                  children: [{ type: 'we-icon', props: { name: 'text-aa', size: '14px' } }],
+                                  /*
+                                    A keyboard, because this marks *how the line arrived* rather than
+                                    that it is text — everything on this row is text.
+
+                                    It was `text-aa`, which is the glyph the record button in this
+                                    panel's own header now uses for transcription, as the call bar
+                                    always did. One surface cannot spend the same letterform on "this
+                                    module makes text" at the top and "somebody typed this" a few
+                                    rows down, so the more literal mark takes this one. It also stays
+                                    clear of "(edited)", which is the other provenance signal on
+                                    these rows.
+
+                                    Sized between the badge's own xxs (12px) and xs (16px). The
+                                    badge's height is fixed per size, so a larger glyph fills it
+                                    rather than stretching it.
+                                  */
+                                  children: [{ type: 'we-icon', props: { name: 'keyboard', size: '14px' } }],
                                 },
                               ],
                             },
@@ -2076,40 +2358,39 @@ export const transcriptLines: SchemaNode = {
           ],
         },
         /*
-          A call somebody opened and nobody has said anything in yet.
+          Nothing to show, and why — see `noUtterances` for the sentence.
 
-          Gated on the query having *answered*, not merely on the count: a list backed by a query is
-          empty on its first frame, so an unqualified else asserts "nothing here" about a transcript
-          that is still arriving — which on a long one is the wrong sentence for as long as it takes
-          to fetch.
+          Two gates rather than one, because "is there a transcript record" and "has it answered"
+          become true at different moments and only the second is worth waiting for.
+
+          **A record on screen** is gated on the query having *answered*, not merely on the count: a
+          list backed by a query is empty on its first frame, so an unqualified else asserts
+          "nothing here" about a transcript that is still arriving — which on a long one is the
+          wrong sentence for as long as it takes to fetch.
+
+          **No record** is synchronous and needs no such wait, and this is where the missing state
+          was: `when` refuses the query without a subject, and a query never asked never reports
+          itself loaded, so gating on `utterancesLoaded` alone left the panel blank in the two
+          situations a newcomer is most likely to be in — no call, and a call nobody has spoken in.
+
+          The outer condition is the bare subject token and has to stay bare. Substitution is
+          whole-token, so it is rewritten wherever a `$part` points this at another call, where an
+          expression merely *mentioning* it would be left alone — which is exactly how the inner
+          gate came to read the live collection inside a panel about a past one.
 
           "yet" is right even on a call that finished. A past transcript is not closed: the composer
-          below this writes into whichever one is on screen, so a meeting nobody spoke in is still
-          somewhere a note can be left.
+          writes into whichever one is on screen, so a meeting nobody spoke in is still somewhere a
+          note can be left.
         */
         else: {
           type: '$if',
           props: {
-            /*
-              `utterancesLoaded` alone — naming the subject here is what stopped this appearing.
-
-              Substitution is whole-token: `{ $: 'modules.transcribe.collectionId' }` is rewritten
-              wherever a `$part` points this at another call, and an expression that merely
-              *mentions* it inside a longer sentence is left alone, deliberately — a partial rewrite
-              of somebody else's sentence produces ones nobody wrote. So this compound condition
-              went on reading the *live* collection, which is null on a past call, and the
-              placeholder never showed on exactly the transcripts it was written for.
-
-              Nothing is lost by dropping the term. `when` already refuses the query without a
-              subject, and a query never asked never reports itself loaded — so "no call at all"
-              stays silent through the same flag that keeps a loading one silent.
-            */
-            condition: { $: 'local.utterancesLoaded' },
-            then: emptyState({
-              icon: 'chat-dots',
-              label: 'transcript',
-              message: 'Nothing has been said here yet.',
-            }),
+            condition: { $: 'modules.transcribe.collectionId' },
+            then: {
+              type: '$if',
+              props: { condition: { $: 'local.utterancesLoaded' }, then: noUtterances },
+            },
+            else: noUtterances,
           },
         },
       },
@@ -2143,42 +2424,27 @@ export const captureStatus: SchemaNode = {
   type: 'Column',
   props: { gap: '400' },
   children: [
-    {
-      type: '$if',
-      props: {
-        condition: { $: "modules.transcribe.status == 'starting'" },
-        then: {
-          type: 'Row',
-          props: { gap: '200', ay: 'center' },
-          children: [
-            { type: 'we-spinner', props: { size: 'sm' } },
-            { type: 'we-text', props: { variant: 'footnote', color: 'text-muted' }, children: ['Starting…'] },
-          ],
-        },
-      },
-    },
-    {
-      // The panel opened, nothing recorded yet, nothing wrong. Without this the box is empty and
-      // reads as broken rather than as waiting.
-      //
-      // Gated on there being no *record*, not on a session buffer being empty. The buffer was
-      // session-local, so re-opening the panel on a call that had already been transcribed
-      // offered to start recording as though nothing had ever been said. A collection is created
-      // on the first utterance, so its absence is exactly "nothing has been said here".
-      type: '$if',
-      props: {
-        condition: { $: '!modules.transcribe.enabled && !modules.transcribe.collectionId' },
-        then: {
-          type: 'we-text',
-          props: { variant: 'footnote', color: 'text-muted', italic: true },
-          children: [
-            {
-              $: "modules.transcribe.available ? 'Press record to transcribe what is said into text blocks in this space.' : 'Join a call and press record to transcribe what is said.'",
-            },
-          ],
-        },
-      },
-    },
+    /*
+      Starting up is no longer a row of its own.
+
+      A spinner and the word "Starting…" appeared here for the few hundred milliseconds an audio
+      graph takes to open, and then vanished — a whole line arriving and leaving under a meter that
+      had just arrived itself, which moved everything below it twice for something nobody had time
+      to read. It says the same thing in the meter's own right-hand label now, where it costs no
+      layout: the bar is up, and it has nothing to measure yet.
+    */
+    /*
+      "Nothing is wrong, nothing has happened yet" is no longer said here.
+
+      It was an italic line meaning one of two things — press record, or join a call and then press
+      record — and it sat above the feed while the feed said nothing at all, so the same emptiness
+      was a caption under the meter in one situation and a centred placeholder in another. The feed
+      answers both now, in the place the reader is already looking: see `noUtterances`.
+
+      What is left below is this part's actual subject, which is every reason the module *cannot*
+      produce text. Those are not states a transcript can report by being empty — a node with no
+      speech-to-text looks exactly like a conversation nobody has started.
+    */
     note('no-audio', 'microphone-slash', 'Nothing to listen to. Start or join a call and this will follow it.'),
     note('no-backend', 'plugs', 'This backend cannot transcribe — no speech-to-text is reachable from here.'),
     note(
@@ -2461,31 +2727,17 @@ export const transcriptFeed: SchemaNode = {
 export const extractionPanel: SchemaNode = panelShell({
   title: 'Extraction',
   /*
-    Whether this conversation is read as it happens, and it is a *call's* switch.
+    How the whole thing works, once, behind a glyph.
 
-    The space has a standing answer and an administrator sets it; this is the people in the room
-    deciding about the room. On the live call only: a meeting somebody opened from a link is not
-    happening, so "as it happens" has nothing to be about, and the switch would be asking about a
-    conversation that finished. Everything else here follows the call on screen; this one thing
-    cannot.
+    This is where the body's three lines of explanation went — see `extract`. The four facts a
+    newcomer cannot guess, in the order they meet them: that a model writes records, that the chips
+    choose which and from when, that Extract is the backfill, and that what arrives is a suggestion.
   */
-  aside: {
-    type: '$if',
-    props: {
-      condition: VIEWING_LIVE,
-      then: {
-        type: 'we-switch',
-        props: {
-          size: 'sm',
-          label: 'As it happens',
-          checked: { $: 'modules.transcribe.autoExtract' },
-          // The live call's answer, and the same record `autoExtract` reads.
-          disabled: { $: '!modules.transcribe.extractionFor[modules.transcribe.callId].canChoose' },
-          onChange: { $action: 'modules.transcribe.toggleAutoExtract' },
-        },
-      },
-    },
-  },
+  help:
+    'A model reads the transcript and writes what it finds as records. Auto extract reads the call ' +
+    'as it goes, for everyone in it; the chips choose what it looks for, from now on. Extract now ' +
+    'reads the whole conversation so far, including anything said before a model was switched on. ' +
+    'What it finds appears below as suggestions to accept or dismiss.',
   children: [
     {
       type: '$if',
@@ -2617,104 +2869,217 @@ export const panel: SchemaNode = {
         move between calls is a heading that has to be re-read to learn nothing.
       */
       title: 'Transcript',
+      /*
+        The same glyph the extraction panel carries, with the three facts about a transcript that
+        nothing on screen says: whose machine hears whom, why every line has a name, and that a
+        finished call reads back into the same surface. See `docs/architecture/transcripts.md`.
+      */
+      help:
+        "What is said on the call is written down here, by whoever says it: each person's " +
+        'microphone is transcribed on their own machine and the lines join into one shared record. ' +
+        'Press record to transcribe yourself. A finished call is read back here, and can be picked ' +
+        'up again.',
+      /*
+        One control, not a control and a badge saying the same thing.
+
+        There was a solid red REC chip beside the button here, and between them they made one point
+        twice: the chip appeared while capturing, and the button's icon turned red at the same
+        moment. That split happened because this button only ever had two variants, so it had no way
+        to look different while actually capturing and the chip was added to cover the third state.
+
+        The call bar's copy of this button already carries all three — off, armed, capturing — in the
+        button itself, and its note says why: a state that arrives on its own has to be legible
+        without being looked for, and the loudest thing in the row should be the way out of the thing
+        nobody switched on. Taking that rule here is what makes the chip redundant rather than
+        merely duplicated.
+
+        Nothing loses a signal. The chip showed only while capturing, and capturing means armed, so
+        the button is on screen wherever the chip was.
+      */
       aside: {
         type: 'Row',
         props: { gap: '200', ay: 'center' },
         children: [
           {
-            type: '$if',
-            props: {
-              condition: { $: `modules.transcribe.listening && (${VIEWING_LIVE_EXPR})` },
-              // `solid`: this is the news, not an annotation on it. Soft would paint the dark
-              // tint and a pale label, which reads as a note about recording rather than as
-              // the fact that it is happening.
-              then: {
-                type: 'we-badge',
-                props: { variant: 'danger', appearance: 'solid', size: 'xs' },
-                children: ['REC'],
-              },
-            },
-          },
-          {
             /*
-              Recording is about the call you are *in*, so the control is only offered there.
-
-              On a call being looked back at the honest offer is to pick it back up: `continueCall`
-              starts a call on the record already on screen, `resume` points the recorder at it
-              without waiting for a presence round trip, and the address stops naming it — the
-              recorder has just adopted this record, so it is the live call now, and a parameter
-              still pinning to it would say the opposite for the rest of the meeting.
-
-              This is the one place this module names another. It is a `$if` on
-              `modules.call.canCall`, which is absent — and so falsy — in a deployment without the
-              call module, so the offer simply is not made rather than failing.
+              Recording is about the call you are *in*, so the control is only offered there. A call
+              being looked back at gets the way back into it instead — see the `else`.
             */
             type: '$if',
             props: {
+              /*
+                One question, and the audio one is asked *inside* it rather than beside it.
+
+                These were one condition — live, and there is something to record — which reads
+                correctly and is wrong, because the `else` then means two things at once: a call
+                being read back, *and* a live view with no microphone. So the panel offered to
+                continue a call with no call on screen, and the press did nothing, since the record
+                it names is the empty address.
+
+                Nested, each branch keeps one meaning: the live view offers recording or nothing,
+                and only a call being looked back at reaches the offer to pick it up.
+              */
               condition: VIEWING_LIVE,
               then: {
-                type: 'we-tooltip',
-                props: { content: { $: "modules.transcribe.enabled ? 'Stop transcribing' : 'Start transcribing'" } },
-                children: [
-                  {
-                    // The panel's own record control. The call bar is the natural place for it
-                    // during a call, but the panel has to be self-sufficient: it opens outside a
-                    // call too, and a template may place neither the bar nor the rail.
-                    type: 'we-button',
+                /*
+                  Absent where it could not work, rather than present and dead.
+
+                  This was a `disabled` on the button, true in exactly one situation: outside a
+                  call, where there is no audio to record. So the control sat greyed out in the
+                  header of every panel opened outside a call — the state a newcomer opens it in —
+                  saying nothing about why, next to a placeholder already explaining that a call is
+                  what is missing.
+
+                  ## And it waits for the microphone, having tried not to
+
+                  This asked `callId` for a day, so that it appeared the instant a call was joined
+                  rather than a second later with the level meter. The cost was a label that turned
+                  over in front of you: recording only starts once there is a stream to record, so
+                  the button read "Transcribe" and then became "Transcribing" on its own.
+
+                  There is no third option. The state genuinely changes in that second, so a label
+                  that reports the state must change with it, and one that reports it early is
+                  guessing — auto-join can still be refused by `recordCalls`, and a device that never
+                  opens would leave the word "Transcribing" standing over nothing recorded, with no
+                  diagnostic on screen, which is a far worse failure than waiting.
+
+                  So it arrives with the meter and the coverage readout, already saying the settled
+                  thing. That is one arrival for the whole panel rather than a control that appears
+                  early to change its mind.
+
+                  `enabled ||` stays, so the way *out* of recording never vanishes: a stream that
+                  drops mid-call would otherwise take the stop button with it and leave this agent
+                  recording with nothing on screen to say so.
+                */
+                type: '$if',
+                props: {
+                  condition: { $: 'modules.transcribe.enabled || modules.transcribe.available' },
+                  then: {
+                    type: 'we-tooltip',
                     props: {
-                      label: { $: "modules.transcribe.enabled ? 'Stop transcribing' : 'Start transcribing'" },
-                      variant: { $: "modules.transcribe.enabled ? 'secondary' : 'ghost'" },
-                      size: 'sm',
-                      disabled: { $: '!modules.transcribe.enabled && !modules.transcribe.available' },
-                      onClick: { $action: 'modules.transcribe.toggle' },
+                      content: { $: "modules.transcribe.enabled ? 'Stop transcribing' : 'Start transcribing'" },
                     },
                     children: [
                       {
-                        type: 'we-icon',
+                        // The panel's own record control. The call bar is the natural place for it
+                        // during a call, but the panel has to be self-sufficient: it opens outside a
+                        // call too, and a template may place neither the bar nor the rail.
+                        type: 'we-button',
                         props: {
-                          name: 'record',
                           /*
-                        Not `weight: 'fill'` while listening, and not `danger-text` — the two bugs
-                        `CallControl.schema.ts` documents fixing on the call bar's own record
-                        button, still here on the panel's.
+                            Three states, the call bar's own — and the third is why the REC chip
+                            beside this is gone.
 
-                        Only the `regular` weight of any icon is bundled, so every other weight is
-                        a CDN fetch; this one fired at the moment recording started, which on an
-                        offline machine made the icon vanish as you pressed it. And `danger-text`
-                        is a foreground measured for reading against a page — `danger-700`, which
-                        inverts to a pale pink in a dark theme. A record dot is a mark, so it wants
-                        the fill.
-                      */
-                          color: { $: "modules.transcribe.listening ? 'danger' : ''" },
+                            Off is `ghost`. Armed but not yet producing, the seconds while a model
+                            loads, is `secondary`. Actually capturing is `danger`, and that is the
+                            change recording-by-default requires: a state somebody chose can afford
+                            to be quiet, while one that arrives on its own has to be legible without
+                            being looked for. It is also the off switch, so the loudest thing here is
+                            the way out of the thing nobody switched on.
+                          */
+                          variant: {
+                            $: "modules.transcribe.listening ? 'danger' : modules.transcribe.enabled ? 'secondary' : 'ghost'",
+                          },
+                          size: 'sm',
+                          gap: '200',
+                          onClick: { $action: 'modules.transcribe.toggle' },
                         },
+                        /*
+                          A glyph and a word, the shape the Continue button beside it already has.
+
+                          Icon-only, this asked a newcomer to know that a mark means transcription,
+                          and the panel had answered that once already with a REC chip that has since
+                          gone. The header has room — Continue proves it — so the button says what it
+                          is instead.
+
+                          The word carries the state and the tooltip carries the act, which is the
+                          division a toggle wants: "Transcribing" is what is happening, and hovering
+                          or focusing says pressing stops it. No `label` prop with them, so the
+                          accessible name is the visible word rather than a second string that has to
+                          be kept containing it.
+                        */
+                        children: [
+                          {
+                            /*
+                              The record dot, and it can be one here because the word beside it says
+                              which kind of recording.
+
+                              The call bar spends a letterform on this instead, and its note gives
+                              the reason: in a row of icon-only squares next to a microphone mute, a
+                              dot reads as a second, redder mute. That is a fact about *that* row.
+                              Here the button is labelled, so the universal capturing mark is the
+                              clearer of the two and cannot be mistaken for anything.
+
+                              No colour of its own. Red is the button's, so one here would be red on
+                              red — the second of the two bugs the bar's note says were fixed there
+                              and left standing on this copy.
+                            */
+                            type: 'we-icon',
+                            props: { name: 'record' },
+                          },
+                          {
+                            type: 'we-text',
+                            props: { variant: 'footnote' },
+                            children: [{ $: "modules.transcribe.enabled ? 'Transcribing' : 'Transcribe'" }],
+                          },
+                        ],
                       },
                     ],
                   },
-                ],
+                },
               },
+              /*
+                The way back into a call being read back.
+
+                This was here, then gone, and the reason it is back is not the one it left over.
+                It went because the rail continues the call on screen and a second copy of that
+                action is duplication — true, and it leaves nothing on screen saying so. The
+                placeholder in an empty transcript could say it; a call that *has* a transcript
+                shows rows instead, so the offer had no way to appear at all on exactly the calls
+                somebody is most likely to want to resume.
+
+                Much smaller than the one that left. It chained three actions — continue, tell the
+                recorder to adopt the record, clear the address — and the last two are obsolete: a
+                continued record is adopted on its own, and `VIEWING_LIVE` compares the address to
+                what is being recorded rather than asking whether an address exists. One action, on
+                one record.
+
+                `secondary` rather than the `ghost` it was, because being found is the whole point:
+                a ghost button in a corner is the least discoverable thing in the panel, and this is
+                the only offer a past call has.
+              */
               else: {
                 type: '$if',
                 props: {
-                  condition: { $: 'modules.call.canCall && !modules.call.active' },
+                  condition: { $: CAN_PICK_UP },
                   then: {
                     type: 'we-tooltip',
-                    props: { content: 'Start a call on this record and carry on transcribing into it' },
+                    props: {
+                      content: {
+                        $:
+                          `${CALL_ON_SCREEN_LIVE} ? 'Join this call and transcribe into it' : ` +
+                          "'Start a call on this record and carry on transcribing into it'",
+                      },
+                    },
                     children: [
                       {
                         type: 'we-button',
                         props: {
-                          variant: 'ghost',
+                          variant: 'secondary',
                           size: 'sm',
                           gap: '200',
-                          onClick: [
-                            { $action: 'modules.call.continueCall', args: [{ $: 'routeStore.params.call' }] },
-                            { $action: 'modules.transcribe.resume', args: [{ $: 'routeStore.params.call' }] },
-                            { $action: 'routeStore.setParam', args: ['call', null] },
-                          ],
+                          onClick: { $action: 'modules.call.continueCall', args: [{ $: 'routeStore.params.call' }] },
                         },
                         children: [
                           { type: 'we-icon', props: { name: 'phone-call' } },
-                          { type: 'we-text', props: { variant: 'footnote' }, children: ['Continue'] },
+                          {
+                            type: 'we-text',
+                            props: { variant: 'footnote' },
+                            // Joining a conversation somebody is in is not restarting one that
+                            // ended, and the press is identical either way — so the word is the
+                            // only thing that can tell them apart. See `CALL_ON_SCREEN_LIVE`.
+                            children: [{ $: `${CALL_ON_SCREEN_LIVE} ? 'Join' : 'Continue'` }],
+                          },
                         ],
                       },
                     ],
@@ -2732,11 +3097,47 @@ export const panel: SchemaNode = {
           One `$if` around the three of them rather than three conditions: they answer one question
           between them — is it hearing me, is it hearing everyone else, and why is nothing happening
           — and that question is not asked at all of a meeting somebody is reading back.
+
+          ## And only while one of them has an answer
+
+          A `Column` with nothing in it is still a flex item, so an empty one costs its parent a
+          whole `gap` — twelve pixels of nothing between the header and the transcript. All three
+          children are dark for the second between joining a call and the microphone coming up, so
+          continuing a call pushed everything below this down by a gap, and then down again as the
+          meter arrived. The box was invisible and the movement was not.
+
+          The second term is the question the three of them share: is this agent recording, or is
+          there a microphone to record. Every note below is reachable under one of those — a backend
+          that cannot transcribe and a missing model are both learned by *trying*, which needs audio,
+          and "nothing to listen to" is a stream vanishing from under a recording that is still on.
+
+          ## Why it is not `status`
+
+          It was `available || status != 'idle'`, which reads better and leaves the panel jumping
+          around after a call ends. `status` is set at the *tail* of `stop`, after a flush that
+          writes buffered text to the backend — so it lands a network round trip late, while
+          `enabled` and `available` are signals that answer in the same frame the call is torn down
+          in.
+
+          That split the teardown across two repaints: the audio went, coverage left, recording
+          stopped, the meter left — and this box stayed up holding an empty gap until the flush
+          resolved, then collapsed under a placeholder that had already settled. Both terms here are
+          synchronous, so the whole section leaves in one frame with everything else.
+
+          Fading it out instead would have hidden the symptom by holding the gap on purpose for the
+          length of the fade. Nothing needs to animate once it all leaves together.
         */
         {
           type: '$if',
           props: {
-            condition: VIEWING_LIVE,
+            condition: {
+              $: `(${VIEWING_LIVE_EXPR}) && (modules.transcribe.enabled || modules.transcribe.available)`,
+            },
+            // The section arrives and leaves the way its contents do, and must outlast them on the
+            // way out: unmounting on time would cut their fades short and drop the height anyway.
+            // See `MIC_FADE`.
+            enterTransition: MIC_FADE,
+            exitTransition: MIC_FADE,
             then: {
               type: 'Column',
               props: { gap: '300' },
