@@ -1641,7 +1641,7 @@ const extractionControls: SchemaNode = {
           $:
             `!count(${forSubject('targets').$}) ? 'No models are set up here' : ` +
             `!${forSubject('targets').$}.exists(t, t.selected) ? 'Nothing is selected to extract' : ` +
-            `!${forSubject('canExtract').$} ? 'Nothing has been said yet' : ` +
+            "!count(local.spoken) ? 'Nothing has been said yet' : " +
             "'Reads the whole conversation so far'",
         },
       },
@@ -1654,7 +1654,13 @@ const extractionControls: SchemaNode = {
             gap: '100',
             // Disabled rather than hidden once the panel is showing the section: the reason is
             // "nothing has been said yet", which resolves on its own and is worth waiting for.
-            disabled: { $: `!${forSubject('canExtract').$} || modules.transcribe.extractStatus == 'running'` },
+            // `count(local.spoken)` is the honest half — see the query on `extract`. `canExtract`
+            // stays for what it still answers alone: a model on this node, and something ticked.
+            disabled: {
+              $:
+                `!count(local.spoken) || !${forSubject('canExtract').$} || ` +
+                "modules.transcribe.extractStatus == 'running'",
+            },
             /*
                 The call on screen, not "the call I am in".
 
@@ -1706,6 +1712,33 @@ const extractionControls: SchemaNode = {
 const extract: SchemaNode = {
   type: 'Column',
   props: { gap: '300' },
+  /*
+    Has anybody actually said anything into this record.
+
+    The store cannot answer it. `canExtract` asks `hasTranscript`, which infers words from *adoption*
+    — the live call's record counts as empty until this agent's transcriber takes it up — and that
+    inference stopped being true the moment continuing a call adopted its record straight away.
+    Continue a conversation nobody spoke in and Extract went live over nothing. The store cannot do
+    better alone either: peers write into the shared record without telling it, so "is there anything
+    in here" is a question for the graph rather than for this session.
+
+    One row is the whole answer, so `limit: 1` — this is a count against zero and never a list. Named
+    `spoken` rather than `utterances` because the transcript's own part already has a query by that
+    name; they never share a scope, and two `local.utterances` in one module is a trap for whoever
+    moves one of them.
+
+    `when` for the reason every scoped query here carries it: an unresolved anchor is *pruned* rather
+    than sent, and pruning widens, so without it a subject that has not arrived asks for every
+    TextBlock in the space.
+  */
+  $queries: {
+    spoken: {
+      entity: 'TextBlock',
+      scope: { anchor: 'CollectionBlock', via: 'children', anchorId: EXTRACTION_SUBJECT },
+      limit: 1,
+      when: EXTRACTION_SUBJECT,
+    },
+  },
   children: [
     /*
       What starts a pass, then what the last one did, then what a pass looks for.

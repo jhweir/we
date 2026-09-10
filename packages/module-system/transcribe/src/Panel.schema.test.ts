@@ -785,11 +785,30 @@ describe('the extraction panel', () => {
     const order = ['No models are set up here', 'Nothing is selected to extract', 'Nothing has been said yet'];
 
     expect(json).toContain(`!${targets}.exists(t, t.selected) ? 'Nothing is selected to extract'`);
+    expect(json).toContain("!count(local.spoken) ? 'Nothing has been said yet'");
     // Tested in the order they rule each other out: a space with no models has nothing to tick, and
     // a call with nothing ticked cannot be fixed by waiting for somebody to speak.
     for (let i = 1; i < order.length; i += 1) {
       expect(json.indexOf(order[i - 1])).toBeLessThan(json.indexOf(order[i]));
     }
+  });
+
+  it('asks the record whether anybody has spoken, rather than trusting adoption', () => {
+    /*
+      `canExtract` reads `hasTranscript`, which infers words from *adoption* — and that inference
+      stopped being true the moment continuing a call adopted its record straight away. Continue a
+      conversation nobody spoke in and Extract went live over nothing.
+
+      The store cannot do better alone: peers write into the shared record without telling it, so
+      "is there anything in here" is a question for the graph. One row answers it.
+    */
+    expect(json).toContain('"spoken":{"entity":"TextBlock"');
+    // Scoped to the call on screen, through the relation its utterances hang off.
+    expect(json).toContain(`"via":"children","anchorId":{"$":"${EXTRACTION_SUBJECT_EXPR}"}`);
+    expect(json).toContain('!count(local.spoken) || !');
+    // `when`, for the reason every scoped query here carries it: an unresolved anchor is pruned
+    // rather than sent, and pruning widens to every TextBlock in the space.
+    expect(json).toContain(`"limit":1,"when":{"$":"${EXTRACTION_SUBJECT_EXPR}"}`);
   });
 
   it('offers a way to lengthen the list of things it can extract', () => {
