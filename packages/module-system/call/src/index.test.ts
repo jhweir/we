@@ -191,3 +191,59 @@ describe('the compact bar', () => {
     expect(tierGates(slot)).toEqual([]);
   });
 });
+
+/**
+ * The way back into a call somebody is reading.
+ *
+ * Published as a part rather than drawn by a panel, and the reason is a category error that showed
+ * up as an asymmetry: it lived in the transcript panel's header, while two panels sit side by side
+ * about the same call and only one of them offered the way into it. Picking a call back up is about
+ * the call, so it belongs against the call's name, and it survives both panels being closed.
+ *
+ * These are the three rules that came with it from the panel. They are asserted here now because
+ * this is where the node is, and the panel's own suite asserts the button has not grown back there.
+ */
+describe('picking a call back up', () => {
+  const part = () => callModule.schemas?.continueCallButton;
+  const json = () => JSON.stringify(part());
+
+  it('is published for an interface to place', () => {
+    // A template cannot be reached into: the pill that draws a call's name is the Workshop shell's
+    // own chrome and has no anchor. A named part is how a module offers chrome somebody else places.
+    expect(part()).toBeDefined();
+  });
+
+  it('refuses to offer a pick-up that would tear down a call in progress', () => {
+    // The call store's own rule, not a preference: continuing while another call runs re-points
+    // every peer's transcript at the old record, since peers adopt an announced record over their
+    // own. `goToCall` refuses for the same reason, so these cannot differ.
+    expect(json()).toContain('modules.call.canCall && !modules.call.active');
+  });
+
+  it('offers nothing when the address names no call', () => {
+    // The state a live call with no `?call=` is in. Without this term the button would appear on
+    // the running call offering to continue an empty address, and the press would do nothing.
+    expect(json()).toContain('routeStore.params.call');
+  });
+
+  it('says join rather than pick up where somebody is already in the call', () => {
+    // The press is identical either way — `continueCall` derives the call from its record, so
+    // arriving at one somebody is in *is* joining them. The word is the only thing that differs.
+    expect(json()).toContain('modules.call.liveCalls.exists(c, c.recordId == routeStore.params.call)');
+    expect(json()).toContain("'Join this call'");
+  });
+
+  it('names itself for a screen reader, having no visible word to do it', () => {
+    // Icon-only, so the accessible name has to be said rather than inherited from a label. The same
+    // expression as the tooltip, so the two cannot drift into describing different acts.
+    const button = walk(part()).find((node) => node.type === 'we-button');
+    const label = (button?.props as { label?: { $?: string } } | undefined)?.label?.$;
+    const tooltip = walk(part()).find((node) => node.type === 'we-tooltip');
+    expect(label).toBeDefined();
+    expect(label).toBe((tooltip?.props as { content?: { $?: string } } | undefined)?.content?.$);
+  });
+
+  it('acts on the call in the address', () => {
+    expect(json()).toContain('{"$action":"modules.call.continueCall","args":[{"$":"routeStore.params.call"}]}');
+  });
+});

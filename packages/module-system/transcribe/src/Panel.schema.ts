@@ -3605,60 +3605,18 @@ export const panel: SchemaNode = {
                 },
               },
               /*
-                The way back into a call being read back.
+                No `else`, and the way back into a past call is why there used to be one.
 
-                This was here, then gone, and the reason it is back is not the one it left over.
-                It went because the rail continues the call on screen and a second copy of that
-                action is duplication — true, and it leaves nothing on screen saying so. The
-                placeholder in an empty transcript could say it; a call that *has* a transcript
-                shows rows instead, so the offer had no way to appear at all on exactly the calls
-                somebody is most likely to want to resume.
+                A Continue button lived here — went once because the rail does the same thing, came
+                back because the rail is the least discoverable control in the app — and it was in
+                the wrong panel the whole time. Two panels sit side by side about one call and only
+                this one offered the way into it; a panel's header control is for the thing that
+                panel *is*, and picking a call back up is about the call.
 
-                Much smaller than the one that left. It chained three actions — continue, tell the
-                recorder to adopt the record, clear the address — and the last two are obsolete: a
-                continued record is adopted on its own, and `VIEWING_LIVE` compares the address to
-                what is being recorded rather than asking whether an address exists. One action, on
-                one record.
-
-                `secondary` rather than the `ghost` it was, because being found is the whole point:
-                a ghost button in a corner is the least discoverable thing in the panel, and this is
-                the only offer a past call has.
+                It is `call.continueCallButton` now, published by the module whose action it is and
+                placed against the call's own name, where it is on screen whether or not either
+                panel is. What is left here is Transcribe, which is what this panel does.
               */
-              else: {
-                type: '$if',
-                props: {
-                  condition: { $: CAN_PICK_UP },
-                  then: {
-                    type: 'we-tooltip',
-                    props: {
-                      content: {
-                        $:
-                          `${CALL_ON_SCREEN_LIVE} ? 'Join this call and transcribe into it' : ` +
-                          "'Start a call on this record and carry on transcribing into it'",
-                      },
-                    },
-                    children: [
-                      {
-                        type: 'we-button',
-                        props: {
-                          variant: 'secondary',
-                          size: 'sm',
-                          gap: '200',
-                          onClick: { $action: 'modules.call.continueCall', args: [{ $: 'routeStore.params.call' }] },
-                        },
-                        children: [
-                          { type: 'we-icon', props: { name: 'phone-call' } },
-                          // Joining a conversation somebody is in is not restarting one that ended,
-                          // and the press is identical either way — so the word is the only thing
-                          // that can tell them apart. See `CALL_ON_SCREEN_LIVE`. Unwrapped, for the
-                          // reason the Transcribe button beside it is.
-                          { $: `${CALL_ON_SCREEN_LIVE} ? 'Join' : 'Continue'` },
-                        ],
-                      },
-                    ],
-                  },
-                },
-              },
             },
           },
         ],

@@ -287,6 +287,23 @@ const callPill: SchemaNode = {
         descriptionDraft: { type: 'string', initial: '' },
       },
       children: [
+        /*
+          The way back into the call, before its name.
+
+          It was the transcript panel's, and being there was a category error that read as an
+          asymmetry: two panels sit side by side about this call and only one offered the way into
+          it. Picking a call back up is about the *call*, so it belongs against the call's name — and
+          here it survives both panels being closed, which the panel copy could not.
+
+          At the start rather than at the end because it is the one thing on this pill that is an
+          offer. The pencil and the roster describe the meeting; this changes what you are doing, and
+          a control the eye reaches first is the one to lead with.
+
+          A part rather than a button written out here: the gate, the wording and the refusal while
+          another call runs are the call module's to own, and every other interface that draws a call
+          name gets them with one line. It renders nothing where the call module is off.
+        */
+        { type: '$part', props: { id: 'call.continueCallButton' } },
         {
           type: 'we-text',
           // The name of the thing every other surface is about, so it reads as a heading rather

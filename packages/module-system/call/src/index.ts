@@ -1484,6 +1484,85 @@ const anchoredCallButton: SchemaNode = {
   children: [{ type: 'we-icon', props: { name: 'phone-call' } }],
 };
 
+/**
+ * Which call a "pick this back up" offer is about: the one named in the address.
+ *
+ * Not the live call's record, which is the other thing a surface showing a call might mean. The two
+ * differ exactly when this button matters — you are looking at a finished meeting — and continuing
+ * anything while a call runs is refused below, so the address is the only reading that is ever
+ * actionable.
+ */
+const CALL_IN_ADDRESS = 'routeStore.params.call';
+
+/**
+ * Whether somebody is in the call being looked at right now.
+ *
+ * The difference between joining a conversation and restarting one, and the only thing separating
+ * two presses that are otherwise identical: `continueCall` derives the call's id from its record, so
+ * arriving at one somebody is already in *is* joining them. What changes is the word for it, and an
+ * offer to "pick up" a meeting three people are sitting in describes the wrong act.
+ */
+const CALL_IN_ADDRESS_IS_LIVE = `modules.call.liveCalls.exists(c, c.recordId == ${CALL_IN_ADDRESS})`;
+
+/** One sentence, used as both the tooltip and the accessible name so the two cannot drift. */
+const CONTINUE_LABEL = `${CALL_IN_ADDRESS_IS_LIVE} ? 'Join this call' : 'Pick this call back up'`;
+
+/**
+ * The way back into a call somebody is reading.
+ *
+ * ## Why the call module owns it rather than a panel
+ *
+ * It lived in the transcript panel's header, and being there was a category error that showed up as
+ * an asymmetry: two panels sit side by side about the same call, and only one of them offered the
+ * way into it. A panel's header control is for the thing that panel *is* about — Transcribe belongs
+ * beside "Transcript" — and picking a call back up is about the call.
+ *
+ * So it is published here, as a part, and whatever draws a call's name places it. That also means it
+ * survives both panels being closed, which the panel copy could not: closing the transcript took the
+ * only visible way back with it and left the module rail, which nobody finds.
+ *
+ * ## No subject
+ *
+ * Deliberately, where `transcriptFeed` has one. Substitution is whole-token, and two of the three
+ * expressions here mention the record inside a longer sentence — the liveness test and the gate — so
+ * a `subject` would rewrite the action and leave the wording and the guard talking about the
+ * address. Half a rewritten sentence is worse than none, and this button has one honest meaning
+ * anyway: pick up the call you are looking at.
+ *
+ * ## The gate
+ *
+ * `canCall` is the space being able to hold a call at all. `!active` is the safety rule rather than
+ * a preference — continuing a past call while another runs tears the live one down and re-points
+ * every peer's transcript at the old record, since peers adopt an announced record over their own.
+ * `goToCall` refuses for the same reason, in the same words. And an address naming no call has
+ * nothing to offer, which is the state a live call with no `?call=` is in.
+ */
+const continueCallButton: SchemaNode = {
+  type: '$if',
+  props: {
+    condition: { $: `modules.call.canCall && !modules.call.active && ${CALL_IN_ADDRESS}` },
+    then: {
+      type: 'we-tooltip',
+      props: { content: { $: CONTINUE_LABEL } },
+      children: [
+        {
+          type: 'we-button',
+          props: {
+            variant: 'ghost',
+            size: 'sm',
+            square: true,
+            // Icon-only, so the accessible name has to be said: there is no visible word to serve as
+            // one. The same expression as the tooltip, for the reason `CONTINUE_LABEL` exists.
+            label: { $: CONTINUE_LABEL },
+            onClick: { $action: 'modules.call.continueCall', args: [{ $: CALL_IN_ADDRESS }] },
+          },
+          children: [{ type: 'we-icon', props: { name: 'phone-call' } }],
+        },
+      ],
+    },
+  },
+};
+
 /** A bare "start a call here" trigger, for templates that want one in their own chrome. */
 const startCallButton: SchemaNode = {
   type: 'we-button',
@@ -1504,7 +1583,7 @@ export const callModule = defineModule({
   // No `backends`: signalling goes through the ephemeral port, so this runs on anything that
   // implements one. No `frameworks`: every piece of UI here is a fragment.
 
-  schemas: { anchoredCallButton, startCallButton, tile },
+  schemas: { anchoredCallButton, continueCallButton, startCallButton, tile },
 
   // What the transcriber listens to. Declared rather than wired: this module knows it has a
   // microphone open, and only the host knows who else might want to hear it.

@@ -381,57 +381,31 @@ describe('what belongs to the live microphone only', () => {
     expect(panelJson).not.toContain('!modules.transcribe.enabled && !modules.transcribe.available');
   });
 
-  it('offers recording on the live call and a way back into a past one, never both', () => {
+  it('offers recording, and leaves picking a call back up to the call module', () => {
     /*
-      The header's one control follows which call is on screen. A past call's is the only offer it
-      has: an empty transcript can say "continue this" in its placeholder, but one with rows shows
-      rows, so without this the calls somebody most wants to resume were the ones nothing offered to.
+      The header's one control is now only ever about transcribing, which is what the panel is.
+
+      A Continue button lived here and was in the wrong panel: two panels sit side by side about one
+      call and only this one offered the way into it. It is `call.continueCallButton` now, placed
+      against the call's own name — so this asserts the *absence*, since a copy reappearing here is
+      the regression, and `packages/module-system/call/src/index.test.ts` asserts the behaviour.
     */
     expect(panelJson).toContain('modules.transcribe.toggle');
-    expect(panelJson).toContain('modules.call.continueCall');
-    // The three-action chain it replaced. Adoption happens on its own, and the live test compares
-    // the address to what is recorded rather than asking whether an address exists.
+    expect(panelJson).not.toContain('modules.call.continueCall');
+    // The three-action chain it replaced, still gone. Adoption happens on its own now.
     expect(panelJson).not.toContain('modules.transcribe.resume');
     expect(panelJson).not.toContain('{"$action":"routeStore.setParam","args":["call",null]}');
   });
 
-  it('keeps the pick-up out of the live view, where there may be no call to pick up', () => {
+  it('still says in words what a past call can be picked back up', () => {
     /*
-      The record button's audio check was folded into the same condition, which reads correctly and
-      is wrong: the `else` then means two things at once — a call being read back, *and* a live view
-      with no microphone. So the panel offered to continue a call with no call on screen, and the
-      press did nothing, since the record it names is the empty address.
-
-      Asserted as the condition that actually guards the offer rather than as a string in the tree,
-      because the failure was a true condition in the wrong place.
+      The button left; the sentence did not, and it matters more now that the offer is not directly
+      above it. An empty transcript on a finished call is the one surface with room to explain the
+      act, and the wording still tells join and continue apart for the reason the button's label did.
     */
-    const guards: (string | undefined)[] = [];
-    const walk = (node: unknown): void => {
-      if (Array.isArray(node)) return node.forEach(walk);
-      if (!node || typeof node !== 'object') return;
-      const fields = node as Record<string, unknown>;
-      const props = fields.props as Record<string, unknown> | undefined;
-      if (fields.type === '$if' && props?.else && JSON.stringify(props.else).includes('modules.call.continueCall')) {
-        guards.push((props.condition as { $?: string } | undefined)?.$);
-      }
-      Object.values(fields).forEach(walk);
-    };
-    walk(panel);
-
-    expect(guards).toEqual([VIEWING_LIVE_EXPR]);
-  });
-
-  it('refuses to offer a pick-up that would tear down a call in progress', () => {
-    // The call store's own rule: continuing while another call runs re-points every peer's
-    // transcript at the old record. The rail refuses for the same reason, so this cannot differ.
-    expect(panelJson).toContain('modules.call.canCall && !modules.call.active');
-  });
-
-  it('says join rather than continue where somebody is already in the call', () => {
-    // The press is identical either way — `continueCall` derives the call from its record, so
-    // arriving at one somebody is in *is* joining them. The word is the only thing that differs.
-    expect(panelJson).toContain('modules.call.liveCalls.exists(c, c.recordId == routeStore.params.call)');
-    expect(panelJson).toContain("? 'Join' : 'Continue'");
+    expect(linesJson).toContain('Continue the call to begin transcribing.');
+    expect(linesJson).toContain('Join the call to begin transcribing.');
+    expect(linesJson).toContain('modules.call.canCall && !modules.call.active');
   });
 });
 
