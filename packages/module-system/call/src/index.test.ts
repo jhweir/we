@@ -213,23 +213,47 @@ describe('picking a call back up', () => {
     expect(part()).toBeDefined();
   });
 
-  it('refuses to offer a pick-up that would tear down a call in progress', () => {
-    // The call store's own rule, not a preference: continuing while another call runs re-points
-    // every peer's transcript at the old record, since peers adopt an announced record over their
-    // own. `goToCall` refuses for the same reason, so these cannot differ.
-    expect(json()).toContain('modules.call.canCall && !modules.call.active');
+  it('refuses a pick-up that would tear down a call in progress, rather than hiding', () => {
+    /*
+      The call store's own rule, not a preference: continuing while another call runs re-points every
+      peer's transcript at the old record, since peers adopt an announced record over their own.
+      `goToCall` refuses for the same reason, so these cannot differ.
+
+      Disabled with a reason rather than absent. The gate used to include `!active`, which made this
+      the only thing on the pill that came and went — and it went at the moment the pill had most to
+      say, since a live call is usually shown with no `?call=` at all.
+    */
+    expect(json()).toContain('"disabled":{"$":"modules.call.active && !(');
+    expect(json()).toContain("'Leave your current call to pick this one up'");
+    expect(json()).not.toContain('modules.call.canCall && !modules.call.active');
   });
 
-  it('offers nothing when the address names no call', () => {
-    // The state a live call with no `?call=` is in. Without this term the button would appear on
-    // the running call offering to continue an empty address, and the press would do nothing.
-    expect(json()).toContain('routeStore.params.call');
+  it('stays put while a call runs, and follows the call on screen', () => {
+    /*
+      The address alone was the bug: `?call=` is how somebody opens a meeting that has *finished*, so
+      a surface showing a live call usually has none, and reading it alone blanked the control for
+      the whole of every call. The fallback is the one every other surface about a call uses.
+    */
+    expect(json()).toContain('routeStore.params.call ? routeStore.params.call : modules.call.callRecordId');
+  });
+
+  it('marks the call you are in red, the way the calls list marks its live row', () => {
+    /*
+      The fill role rather than the foreground one, for the reason the list gives: a live-call marker
+      is a signal rather than a sentence, and the derived foreground goes pale in a dark theme.
+
+      Against the record rather than `active`, which is true of any call — with one call running and
+      another being read, `active` says yes about the wrong one.
+    */
+    expect(json()).toContain('modules.call.callRecordId && modules.call.callRecordId ==');
+    expect(json()).toContain("? 'danger' : ''");
+    expect(json()).toContain("'Go to the call'");
   });
 
   it('says join rather than pick up where somebody is already in the call', () => {
     // The press is identical either way — `continueCall` derives the call from its record, so
     // arriving at one somebody is in *is* joining them. The word is the only thing that differs.
-    expect(json()).toContain('modules.call.liveCalls.exists(c, c.recordId == routeStore.params.call)');
+    expect(json()).toContain('modules.call.liveCalls.exists(c, c.recordId ==');
     expect(json()).toContain("'Join this call'");
   });
 
@@ -243,7 +267,15 @@ describe('picking a call back up', () => {
     expect(label).toBe((tooltip?.props as { content?: { $?: string } } | undefined)?.content?.$);
   });
 
-  it('acts on the call in the address', () => {
-    expect(json()).toContain('{"$action":"modules.call.continueCall","args":[{"$":"routeStore.params.call"}]}');
+  it('branches when it is pressed rather than when it paints', () => {
+    /*
+      A handler array resolves lazily, so the press reads the store as it is then — which is the
+      whole point of a button that survives a call starting and ending underneath it. Choosing at
+      render time would bake in whichever state the pill first drew in.
+    */
+    const onClick = (walk(part()).find((n) => n.type === 'we-button')?.props as { onClick?: unknown })?.onClick;
+    expect(Array.isArray(onClick)).toBe(true);
+    expect(JSON.stringify(onClick)).toContain('modules.call.goToCall');
+    expect(JSON.stringify(onClick)).toContain('modules.call.continueCall');
   });
 });
