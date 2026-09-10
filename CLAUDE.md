@@ -2117,6 +2117,7 @@ CollectionBlock extends WeNode:
   - gathers: HasOne [we://gathers]
   - board: HasOne → CollectionBlock [we://board]
   - extractionPasses: HasMany → ExtractionPass [we://extraction_pass_record]
+  - extracted: HasMany [we://extracted]
 
 DividerBlock extends WeNode:
   Fields:

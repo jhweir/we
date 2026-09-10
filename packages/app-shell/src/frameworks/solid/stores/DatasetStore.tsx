@@ -31,6 +31,20 @@ import { useSessionStore } from './SessionStore';
 /** Where a pass hangs off the collection it read — `CollectionBlock.extractionPasses`. */
 const EXTRACTION_PASS_PREDICATE = 'we://extraction_pass_record';
 
+/**
+ * The relation saying a record came out of reading a collection — `CollectionBlock.extracted`.
+ *
+ * Written beside containment rather than instead of it. `children` is ownership, and the call's
+ * board gathers through it, so a record that stopped being a child would vanish from the board it
+ * exists to appear on. This is the other fact about the same record: a model proposed it from the
+ * conversation, rather than somebody typing it there.
+ *
+ * Named here because it is WE's vocabulary. The interpretation port takes the predicate as an
+ * argument for the same reason it takes `parent` as one — a backend that hard-coded it would be
+ * deciding what a relation in somebody else's graph is called.
+ */
+const EXTRACTED_PREDICATE = 'we://extracted';
+
 export type { EntityManifestEntry, EntityManifestProperty } from '@we/backend-shared';
 
 /**
@@ -410,6 +424,7 @@ export function DatasetStoreProvider(props: ParentProps) {
           const result = await port.interpret(dataset.handle, turns, {
             classes,
             parent: { id: collectionId, predicate },
+            provenance: { id: collectionId, predicate: EXTRACTED_PREDICATE },
           });
           await recordPass(dataset.handle, collectionId, {
             // Nothing to look for is not a failure and not a quiet meeting — it is a call whose
@@ -519,6 +534,7 @@ export function DatasetStoreProvider(props: ParentProps) {
           watchId: watchIdFor(collectionId),
           classes,
           parent: { id: collectionId, predicate },
+          provenance: { id: collectionId, predicate: EXTRACTED_PREDICATE },
         });
       },
 

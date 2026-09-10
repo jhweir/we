@@ -116,8 +116,23 @@ const EXTRACTION_SUBJECT = { $: EXTRACTION_SUBJECT_EXPR };
  */
 const PROPOSALS = `modules.transcribe.proposalsFor[${EXTRACTION_SUBJECT_EXPR}]`;
 
-/** The entity names this call may have extracted, ticked or not — what the results list groups by. */
-const EXTRACTION_TARGET_ENTITIES = `modules.transcribe.extractionFor[${EXTRACTION_SUBJECT_EXPR}].targets.map(t, t.entity)`;
+/**
+ * Everything the passes wrote here, newest first — one subscription, whatever the types.
+ *
+ * Read through `CollectionBlock.extracted` rather than through `children`, which is the difference
+ * between a question the graph can answer and one it cannot. `children` holds the transcript too and
+ * an untyped include carries no class constraint, so "what did this call produce" through it means
+ * fetching every utterance and sorting them out afterwards. The provenance link *is* the answer, so
+ * an include over it comes back as exactly the records a model wrote, each hydrated as its own class.
+ *
+ * The staged suggestions are dropped here rather than by the query: whether a record is still
+ * awaiting a decision is not a property of it, and there is nothing in the graph to ask. The list of
+ * pending ids is in hand and is a handful.
+ */
+const EXTRACTED_ROWS = 'first(local.extractedFrom).extracted.filter(r, !(r.id in modules.transcribe.pendingIds))';
+
+/** How many of them, for the badge beside the heading. The list is small by construction. */
+const EXTRACTED_COUNT = `count(${EXTRACTED_ROWS})`;
 
 /** What the store says can be extracted from that call — see `extractionFor` on the store. */
 const forSubject = (field: 'targets' | 'canChoose' | 'canExtract') => ({
@@ -544,7 +559,18 @@ const PROPOSAL_SHAPE: CardShape = {
  * test — hence the branch rather than one expression for both.
  */
 const RECORD_SHAPE: CardShape = {
-  display: 'recordStore.displays[target]',
+  /*
+    Keyed on the class the row turned out to be, not on a name the list was built from.
+
+    A polymorphic read stamps every member with its concrete entity under `__subjectClass` — the
+    wire contract for exactly this, so a consumer can pick a display per row rather than assuming
+    one. It replaces the old `target`, which existed because the list was one query per model and
+    each group therefore knew its own type in advance. One list has no such name.
+
+    Not `item.type`: `CollectionBlock` has a real `type` property of its own, so that spelling means
+    something else on half the rows a call can hold.
+  */
+  display: 'recordStore.displays[item.__subjectClass]',
   value: (name) => `item[${name}]`,
   present: (field) => `(${field}.many ? count(item[${field}.name]) : item[${field}.name])`,
 };
@@ -1853,104 +1879,34 @@ const extractedCard: SchemaNode = {
 
 const extractedRows: SchemaNode = {
   type: '$each',
-  props: { items: { $: `${EXTRACTION_TARGET_ENTITIES}` }, as: 'target' },
-  children: [
-    {
-      /*
-        `display: contents`, so the groups are not boxes.
+  props: {
+    /*
+      One list, from one subscription, because the link says which records these are.
 
-        Each kind still needs its own node to hang a subscription and a page counter off, and a real
-        box there would make the grid lay out one column per *kind* rather than one per card — three
-        tasks and one event as two columns of the wrong widths. Taking the wrapper out of layout lets
-        every card be a direct item of the grid above, which is what makes a list of queries look
-        like one list.
-      */
-      type: 'Column',
-      props: { styles: { display: 'contents' } },
-      /*
-        How many of this kind to fetch, and it grows.
+      This was an `$each` over the call's target models with a query apiece, and the grouping that
+      produced was the queries showing through rather than anything a reader wanted. It could not be
+      otherwise: a query names one entity, an untyped `include` carries no class constraint, and the
+      call's children are mostly transcript — so "everything this call produced" was unaskable and
+      the panel asked "all the tasks, then all the events" instead.
 
-        A `limit` is a *fetch* bound, not a display one, so removing it and capping in the scroll
-        region would pay for every record to show a few — and the scrollbar would then promise rows
-        nobody had asked for. Raising it on a press is the schema's own paging idiom.
+      `CollectionBlock.extracted` makes it askable. A pass writes that link beside the containment
+      one, so the relation *is* the answer, and an include over it comes back polymorphically: every
+      record the passes wrote, whatever its type, hydrated as the class it actually is. One round
+      trip, no utterances in the payload, and a community shape extracted this morning arrives
+      without being named anywhere.
 
-        Per kind, because that is the only place the answer is readable. `$localState` on a node
-        inside `$each` is created per row, so each group counts its own — which is what lets the
-        button below know whether *this* kind has more, by asking whether the last fetch came back
-        full. One shared counter could not: `local.found` belongs to the group, so a control outside
-        every group has nothing to test and can only ever offer itself unconditionally.
+      Which also buys the two things the grouped version could not have. The rows sort by when they
+      were made rather than by which model they happen to be, and there is a number to put beside
+      the heading — see `EXTRACTED_COUNT`.
 
-        Still no total. Each kind is its own subscription and a schema cannot sum a list of queries
-        whose length it does not know, so "24 of 47" is unavailable however much a reader wants it.
-      */
-      $localState: { shown: { type: 'number', initial: 24 } },
-      $queries: {
-        found: {
-          entity: { $: 'target' },
-          scope: { anchor: 'CollectionBlock', via: 'children', anchorId: EXTRACTION_SUBJECT },
-          order: { createdAt: 'desc' },
-          limit: { $: 'local.shown' },
-        },
-      },
-      children: [
-        {
-          /*
-            What the passes *wrote*, which is not the same as what they produced.
-
-            A staged `create` is a fully written record — the engine writes real values whenever no
-            human owns them and keeps the overlay only as provenance — so it answers this query like
-            any other, and every suggestion appeared twice: once above as a decision, and again here
-            among the settled results, indistinguishable from something already agreed to.
-
-            Filtered rather than excluded by the query, because "is this still awaiting a decision"
-            is not a property of the record and there is nothing in the graph to ask it about. The
-            list of pending ids is right here, and it is a handful.
-          */
-          type: '$each',
-          props: {
-            items: { $: 'local.found.filter(r, !(r.id in modules.transcribe.pendingIds))' },
-            as: 'item',
-          },
-          children: [extractedCard],
-        },
-        /*
-          Offered only where the last fetch came back full.
-
-          A page short of the limit is the end of that kind, so a button there would show nothing and
-          teach people it does nothing. Full is not proof there is more — a kind with exactly 24
-          records offers one press that reveals none — but that is the one case a query can be wrong
-          about without over-fetching, and it is far better than the button being wrong every time.
-
-          Inside the node that declares `shown` and `found`, which it was not: it sat beside it as a
-          second child of the `$each`, so both names it reads were one node out of scope,
-          `count(undefined) >= undefined` was false, and it never rendered once. Silent, which is why
-          per-kind paging looked implemented and was not.
-        */
-        {
-          type: '$if',
-          props: {
-            condition: { $: 'count(local.found) >= local.shown' },
-            then: {
-              type: 'we-button',
-              props: {
-                variant: 'ghost',
-                size: 'sm',
-                width: '100%',
-                onClick: { $setLocal: 'shown', value: { $: 'local.shown + 24' } },
-              },
-              children: [
-                {
-                  type: 'we-text',
-                  props: { variant: 'footnote', color: 'text-muted' },
-                  children: [{ $: '`More ${lower(recordStore.displays[target].label)}`' }],
-                },
-              ],
-            },
-          },
-        },
-      ],
-    },
-  ],
+      Staged suggestions are filtered rather than excluded by the query, for the reason they always
+      were: "is this still awaiting a decision" is not a property of the record and there is nothing
+      in the graph to ask it about. The list of pending ids is right here, and it is a handful.
+    */
+    items: { $: EXTRACTED_ROWS },
+    as: 'item',
+  },
+  children: [extractedCard],
 };
 
 /*
@@ -3513,38 +3469,81 @@ export const extractionPanel: SchemaNode = {
                   extracted nothing, and that is the state every call starts in.
                 */
                   then: {
-                    type: '$if',
-                    props: {
-                      condition: { $: `count(${EXTRACTION_TARGET_ENTITIES})` },
-                      then: {
-                        type: 'Column',
-                        props: { gap: '200', flex: '1', minHeight: '0' },
-                        children: [
-                          sectionLabel({ label: 'Extracted' }),
-                          {
-                            type: 'we-scroll-area',
-                            props: { flex: '1', minHeight: '0' },
-                            /*
-                              One grid for every kind, which is what makes a list of queries look
-                              like one list.
+                    type: 'Column',
+                    props: { gap: '200', flex: '1', minHeight: '0' },
+                    /*
+                      One query for the whole section, and it is what makes the section knowable.
 
-                              Each target is still its own subscription and its own node — it has to
-                              be — but those nodes are `display: contents`, so every card is a direct
-                              item of this grid rather than each kind being a column of its own. Same
-                              measurements as the suggestions above, so the two lists are visibly the
-                              same kind of thing with different edges.
-                            */
+                      The call record, with its `extracted` relation hydrated. Everything the heading
+                      and the grid need comes off that one row: the count for the badge, and the
+                      records themselves, already ordered by the backend. Before the relation existed
+                      this was a query per model, which is why the section could neither be counted
+                      nor sorted and why it hid itself behind "are there any targets" instead of "is
+                      there anything here".
+
+                      `order` inside the include rather than a sort in the schema, because the
+                      expression library has none — and it belongs on the backend anyway, which is
+                      the only place the whole set exists at once.
+
+                      No limit. What a pass wrote is small by construction, which is exactly what the
+                      relation buys: through `children` an unbounded read would have meant the whole
+                      transcript, and the per-model paging that replaced it existed to bound a query
+                      that could not say what it wanted.
+                    */
+                    $queries: {
+                      extractedFrom: {
+                        entity: 'CollectionBlock',
+                        where: { id: EXTRACTION_SUBJECT },
+                        limit: 1,
+                        include: { extracted: { order: { createdAt: 'desc' } } },
+                        when: EXTRACTION_SUBJECT,
+                      },
+                    },
+                    children: [
+                      {
+                        type: '$if',
+                        props: {
+                          /*
+                            The section hides itself when it holds nothing, which it could not do
+                            before: with a query per model, nothing above the groups could ask
+                            whether any of them had found anything, so it fell back to gating on
+                            whether the call had any models ticked. One list has one count.
+                          */
+                          condition: { $: EXTRACTED_COUNT },
+                          then: {
+                            type: 'Column',
+                            props: { gap: '200', flex: '1', minHeight: '0' },
                             children: [
+                              sectionLabel({
+                                label: 'Extracted',
+                                /*
+                                  The same count the suggestions above carry, in the role that says
+                                  these are settled rather than waiting. `solid` for the reason that
+                                  one is: a tint of the hue against a panel leaves the number
+                                  competing with its own background.
+                                */
+                                aside: {
+                                  type: 'we-badge',
+                                  props: { size: 'xs', variant: 'success', appearance: 'solid' },
+                                  children: [{ $: EXTRACTED_COUNT }],
+                                },
+                              }),
                               {
-                                type: 'Grid',
-                                props: { minChildWidth: '240px', gap: '200', width: '100%' },
-                                children: [extractedRows],
+                                type: 'we-scroll-area',
+                                props: { flex: '1', minHeight: '0' },
+                                children: [
+                                  {
+                                    type: 'Grid',
+                                    props: { minChildWidth: '240px', gap: '200', width: '100%' },
+                                    children: [extractedRows],
+                                  },
+                                ],
                               },
                             ],
                           },
-                        ],
+                        },
                       },
-                    },
+                    ],
                   },
                   /*
                       The shared placeholder, so this panel and the transcript's read as one pair.

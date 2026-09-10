@@ -727,9 +727,28 @@ describe('the extraction panel', () => {
 
   it('shows what the passes wrote, rather than counting them and pointing elsewhere', () => {
     // It ended at "N records written. Open the graph to see them." — a count and an errand, while
-    // the records were one query per target away from the surface already being looked at.
+    // the records were a query away from the surface already being looked at.
     expect(json).toContain('"anchorId":{"$":"' + EXTRACTION_SUBJECT_EXPR + '"}');
-    expect(json).toContain('recordStore.displays[target].title');
+    expect(json).toContain('recordStore.displays[item.__subjectClass].title');
+  });
+
+  it('reads what a call produced through the provenance link, in one subscription', () => {
+    /*
+      The question "what did this call produce" is unaskable through `children`: it holds the
+      transcript too, an untyped include carries no class constraint, and a query names one entity —
+      so the panel asked "all the tasks, then all the events" and got the grouping that produced.
+
+      `CollectionBlock.extracted` is written beside containment by every pass, so the relation is the
+      answer. An include over it comes back polymorphically, which is why the rows can be ordered by
+      when they were made rather than by which model they happen to be, and why there is a number to
+      put beside the heading at all.
+    */
+    expect(json).toContain('"include":{"extracted":{"order":{"createdAt":"desc"}}}');
+    expect(json).toContain('first(local.extractedFrom).extracted.filter(r, !(r.id in modules.transcribe.pendingIds))');
+    // Keyed on the class each row turned out to be. Not `item.type`, which is a real property on a
+    // CollectionBlock and so means something else on some of the rows a call can hold.
+    expect(json).toContain('recordStore.displays[item.__subjectClass]');
+    expect(json).not.toContain('recordStore.displays[target]');
   });
 
   it('explains itself behind the glyph, not in the body', () => {
@@ -1000,22 +1019,18 @@ describe('the extraction panel', () => {
     expect(header).not.toContain('modules.transcribe.extractCollection');
   });
 
-  it('keeps the "More" button inside the state it pages', () => {
+  it('needs no paging control, because it no longer asks an unbounded question', () => {
     /*
-      It was a sibling of the Column declaring `shown` and `found` rather than a child of it, so
-      both names it reads were one node out of scope: `count(undefined) >= undefined` is false, and
-      the button never rendered once. Had it rendered, its `$setLocal` would have warned and
-      no-opped for the same reason — silent on both counts, which is why per-kind paging looked
-      implemented and was not.
+      There was a "More" per model, and it never worked: it sat beside the node declaring `shown` and
+      `found` rather than inside it, so both names it read were one node out of scope and the button
+      never rendered once.
 
-      Structural rather than a string search, because the bug was *where* the node sat and every
-      string in it was already correct.
+      It is gone rather than fixed in place. It existed to bound a query that could not say what it
+      wanted — through `children` an unbounded read means the whole transcript — and the provenance
+      link asks for exactly the records a pass wrote, which is small by construction.
     */
-    const owner = findNode(extractionPanel, (n) => declares(n.$localState, 'shown'));
-    expect(owner).toBeDefined();
-    // The reads and the write both live under the node that declares them.
-    expect(JSON.stringify(owner)).toContain('count(local.found) >= local.shown');
-    expect(JSON.stringify(owner)).toContain('"$setLocal":"shown"');
+    expect(findNode(extractionPanel, (n) => declares(n.$localState, 'shown'))).toBeUndefined();
+    expect(json).not.toContain('local.found');
   });
 
   it('declares the spoken query where the button reading it sits', () => {
@@ -1068,13 +1083,17 @@ describe('the extraction panel', () => {
     expect(json.indexOf('"Logs"')).toBeGreaterThan(historyGate);
 
     /*
-      The results are the case that cannot. One subscription per kind means nothing above the groups
-      can ask whether any of them found anything; what a node up there *can* see is whether there is
-      anything to look for at all, which is the state every call starts in. So the section is gated
-      on that, and the residual — targets ticked, nothing found yet — is a heading over an empty
-      grid. Asserted so the narrower gate is not later mistaken for the full one.
+      The results used to be the case that could not. One subscription per kind meant nothing above
+      the groups could ask whether any of them had found anything, so the section fell back to gating
+      on whether the call had any models ticked and showed a heading over an empty grid whenever it
+      had targets and no results.
+
+      Reading through the provenance link gives one list and therefore one count, so it hides itself
+      on exactly the right question.
     */
-    expect(json).toContain('"condition":{"$":"count(modules.transcribe.extractionFor[');
+    expect(json).toContain(
+      '"condition":{"$":"count(first(local.extractedFrom).extracted.filter(r, !(r.id in modules.transcribe.pendingIds)))"}',
+    );
   });
 
   it('shows nothing to press outside a call, rather than a well of disabled controls', () => {

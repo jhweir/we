@@ -1582,6 +1582,7 @@ export const contextData: ContextData = {
           predicate: 'we://extraction_pass_record',
           target: 'ExtractionPass',
         },
+        { name: 'extracted', kind: 'HasMany', predicate: 'we://extracted' },
       ],
     },
     {
