@@ -1360,6 +1360,29 @@ describe('the history of what was read', () => {
     expect(json).toContain('pass.error');
   });
 
+  it('says what a pass found in the words the chips use', () => {
+    /*
+      "Things", not "records" — a record is what the graph stores, and the list above these rows is
+      already headed "Things to extract". "No records" also read as a failure to write rather than
+      as a pass that looked and found nothing, which is an ordinary outcome and the one this line
+      reports most often.
+    */
+    expect(json).toContain("plural(pass.recordCount, 'thing', 'things')} found");
+    expect(json).toContain("'Nothing found'");
+    expect(json).not.toContain("plural(pass.recordCount, 'record', 'records')");
+  });
+
+  it('indents the stored exchange, which a query cannot do on its own', () => {
+    /*
+      The record holds the prompt and the response verbatim, which is right for a record and
+      unreadable as a pane: both are one unbroken line, so the editor came out a one-line trough
+      with a horizontal scrollbar. The live feed indents in its store; a query has no store in the
+      way, so the host lends the function the expression library deliberately lacks.
+    */
+    expect(json).toContain('formatJson({ text: pass.prompt })');
+    expect(json).toContain('formatJson({ text: pass.response })');
+  });
+
   it('says which passes somebody fired by hand', () => {
     /*
       A one-shot pass and a watched one are the same act with the same result, which is why they are

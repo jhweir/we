@@ -3019,5 +3019,11 @@ export const contextData: ContextData = {
       example:
         'arrangedBoard({ board: first(local.board), columns: local.columns, records: local.pool, states: spaceStore.taskStates }).columns',
     },
+    {
+      name: 'formatJson',
+      params: ['options'],
+      doc: 'A JSON string indented for reading, or the text unchanged when it will not parse — which is the case worth showing rather than swallowing. Options: text. For displaying a stored blob (an extraction pass’s prompt and response); a schema has no JSON.stringify of its own.',
+      example: 'formatJson({ text: pass.prompt })',
+    },
   ],
 };

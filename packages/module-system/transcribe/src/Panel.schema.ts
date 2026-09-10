@@ -1463,7 +1463,19 @@ const historyRow: SchemaNode = {
       props: { variant: 'footnote', flex: '1', minWidth: '0', truncate: true, textAlign: 'left' },
       children: [
         {
-          $: "pass.outcome == 'failed' ? pass.error : pass.outcome == 'skipped' ? 'Nothing was being looked for' : `${pass.recordCount ? pass.recordCount : 'No'} ${plural(pass.recordCount, 'record', 'records')}`",
+          /*
+            "Things", not "records".
+
+            A record is what the graph stores; a thing is what the reader asked to be found, and the
+            chips above are already labelled "Things to extract". "No records" also read as a
+            failure to write rather than as a pass that looked and found nothing — which is an
+            ordinary outcome and the one this line is most often reporting.
+          */
+          $:
+            "pass.outcome == 'failed' ? pass.error : " +
+            "pass.outcome == 'skipped' ? 'Nothing was being looked for' : " +
+            "pass.recordCount ? `${pass.recordCount} ${plural(pass.recordCount, 'thing', 'things')} found` : " +
+            "'Nothing found'",
         },
       ],
     },
@@ -1521,17 +1533,26 @@ const historyPassDetail: SchemaNode = {
     then: {
       type: 'Column',
       props: { gap: '300', width: '100%', pt: '200', pl: '400' },
+      /*
+        Indented here, where the live feed indents in its store.
+
+        The record holds what the model was asked and answered verbatim, which is right for a record
+        and unreadable as a pane: both arrive as one unbroken line, so the editor came out a
+        one-line trough with a horizontal scrollbar rather than a document. `codePane`'s own option
+        says "the already-indented text, from the store" — and a query has no store in the way, so
+        the host lends the function a schema cannot have. See `formatJson` in app-shell's sources.
+      */
       children: [
         codePane({
           label: 'Prompt',
-          value: { $: 'pass.prompt' },
+          value: { $: 'formatJson({ text: pass.prompt })' },
           field: 'openHistoryPrompts',
           isOpen: { $: 'pass.id in local.openHistoryPrompts' },
           key: { $: 'pass.id' },
         }),
         codePane({
           label: 'Response',
-          value: { $: 'pass.response' },
+          value: { $: 'formatJson({ text: pass.response })' },
           field: 'closedHistoryResponses',
           isOpen: { $: '!(pass.id in local.closedHistoryResponses)' },
           key: { $: 'pass.id' },

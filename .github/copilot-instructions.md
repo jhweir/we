@@ -475,6 +475,7 @@ registers (listed last). Wrong-typed input answers with the empty value of its k
     monthLabel(options?) — The month a calendar is showing, as "August 2026" in the viewer’s language. Same options as calendarMonth.  e.g. monthLabel({ offset: local.monthOffset })
     yearLabel(options?) — The year a calendar is showing, on its own. Same options as calendarMonth.  e.g. yearLabel({ offset: local.monthOffset })
     arrangedBoard(options) — A board worked out from its three subscriptions — { ready, gathers, columns, contents, unplaced, unplacedStates, available, total }. columns are the caller’s own column records in the board’s order; contents[columnId] is { label, icon, color, lane, arranged, unarranged, count }; unplaced is work no column here shows. Options: board (the record with children hydrated), columns (its kind: "column" children), records (everything in scope), states (spaceStore.taskStates).  e.g. arrangedBoard({ board: first(local.board), columns: local.columns, records: local.pool, states: spaceStore.taskStates }).columns
+    formatJson(options) — A JSON string indented for reading, or the text unchanged when it will not parse — which is the case worth showing rather than swallowing. Options: text. For displaying a stored blob (an extraction pass’s prompt and response); a schema has no JSON.stringify of its own.  e.g. formatJson({ text: pass.prompt })
 
 The where-object — one grammar shared by filter(), find(), and $query's where. Keys are field names;
 values may be expressions (in an expression) or tokens (in a $query):
