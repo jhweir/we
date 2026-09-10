@@ -89,6 +89,21 @@ export interface PropertySchema {
   options?: (string | number)[];
 
   /**
+   * Names a vocabulary the **community** owns, for which {@link options} is only the floor.
+   *
+   * A task's status is the case this exists for. `options` there is `todo`/`doing`/`done`, and that
+   * list is deliberately not what a space may have defined: it steers an extraction model, which
+   * cannot be asked to guess words it has never been shown. But a space that has named "Blocked" can
+   * hold a task in it — nothing enforces `options`, and the declaration says so — and a picker built
+   * from `options` alone then cannot offer the state the record is already in.
+   *
+   * So the two facts are separated. `options` stays the model's floor, and this says whose list the
+   * *real* one is, for a host that can resolve it. A host that cannot falls back to `options`, which
+   * is what every consumer did before this existed.
+   */
+  vocabulary?: string;
+
+  /**
    * Which control a derived form should offer, where the scalar type does not say.
    *
    * The sibling of `options`, and here for the same reason: a form generated from a manifest can

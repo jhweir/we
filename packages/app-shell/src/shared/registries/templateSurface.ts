@@ -673,6 +673,9 @@ export const TEMPLATE_SURFACE: Record<string, Record<string, Classification>> = 
     // in the tier every template can reach, beside `spaceStore.createPost`.
     creatableEntities: state('content'),
     displays: state('content'),
+    // SpaceStore fills this on the way past, with the lists a community owns — see `vocabulary` on
+    // a property declaration. Wiring between two stores, never something a template names.
+    provideVocabularies: WIRING,
     recordDraft: state('content'),
     recordDraftDirty: state('content'),
     recordErrors: state('content'),

@@ -31,6 +31,7 @@ import { PLACEMENT_UNSET } from '@we/graph-expanders';
 import { Accessor, batch, createContext, createMemo, createSignal, ParentProps, useContext } from 'solid-js';
 
 import { routeWrite } from '../../../shared/edgeRoute';
+import { hostSlot } from '../../../shared/hostSlot';
 import { dropAllPending, dropPending, holdPending, type PendingWrites } from '../../../shared/shapes/pendingWrites';
 import { displayFor, modelLabel, type RecordDisplay } from '../../../shared/shapes/recordDisplay';
 import {
@@ -125,6 +126,15 @@ export interface RecordStore {
    * which is the whole point — a content type that is manifest + fragments needs no component.
    */
   displays: Accessor<Record<string, RecordDisplay>>;
+  /**
+   * SpaceStore supplies the lists a *community* owns, for a property whose declaration names one —
+   * see `vocabulary` on a property, and `offeredTaskStates`.
+   *
+   * Injected rather than read, for the reason `provideAutoInterpretGate` is: the answer lives on
+   * records in the space, and SpaceStore mounts below this one. Unset, every display falls back to
+   * the declaration's own `options`, which is what they all did before this existed.
+   */
+  provideVocabularies: (resolve: (vocabulary: string) => string[] | undefined) => () => void;
   /** Validation errors from the last save attempt. */
   recordErrors: Accessor<string[]>;
   savingRecord: Accessor<boolean>;
@@ -408,6 +418,8 @@ export function RecordStoreProvider(props: ParentProps) {
     ];
   });
 
+  const vocabularies = hostSlot<(vocabulary: string) => string[] | undefined>();
+
   const displays = createMemo<Record<string, RecordDisplay>>(() => {
     const out: Record<string, RecordDisplay> = {};
     for (const entity of displayableEntities()) {
@@ -419,6 +431,7 @@ export function RecordStoreProvider(props: ParentProps) {
         icon: found.icon,
         schema: found.schema,
         authorable: found.authorable,
+        vocabularyFor: (vocabulary) => vocabularies.get()?.(vocabulary),
       });
     }
     return out;
@@ -1038,6 +1051,7 @@ export function RecordStoreProvider(props: ParentProps) {
     recordDraft,
     recordDraftDirty,
     displays,
+    provideVocabularies: vocabularies.provide,
     recordErrors,
     savingRecord,
     lastCreatedId,

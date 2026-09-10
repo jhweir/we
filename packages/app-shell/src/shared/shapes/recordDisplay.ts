@@ -170,12 +170,40 @@ export interface DisplaySource {
   schema: EntitySchema;
   /** True for a model this space defined: every property is worth showing. */
   authorable: boolean;
+  /**
+   * The real list for a property whose vocabulary the community owns — see `vocabulary` on a
+   * property declaration.
+   *
+   * A task's status is the case: its declared `options` are the three defaults an extraction model
+   * is shown, and a space that has named "Blocked" can hold a task in a state that list does not
+   * contain. Built from `options` alone, every picker in the app then refuses to offer the state the
+   * record is already in.
+   *
+   * Optional, and answering `undefined` falls back to the declaration — which is what this did
+   * before it existed, and what a caller with no view of a space still gets.
+   */
+  vocabularyFor?: (vocabulary: string) => string[] | undefined;
 }
 
 export function displayFor(source: DisplaySource): RecordDisplay {
   const { schema } = source;
   const names = fieldNames(schema, source.authorable);
   const properties = schema.properties;
+
+  /**
+   * What this property is allowed to hold: the community's list where it owns one, else the
+   * declaration's.
+   *
+   * Empty is treated as absent, not as "nothing is allowed" — a space that has defined no states of
+   * its own resolves to the defaults, and a resolver that has not loaded yet must not narrow a
+   * picker to nothing on the way past.
+   */
+  const optionsFor = (name: string): string[] => {
+    const property = properties[name];
+    const owned = property.vocabulary ? source.vocabularyFor?.(property.vocabulary) : undefined;
+    if (owned?.length) return owned.map(String);
+    return (property.options ?? []).map(String);
+  };
 
   const declared = schema.display ?? {};
   const pick = (hint: string | undefined, test: (name: string) => boolean): string => {
@@ -200,7 +228,7 @@ export function displayFor(source: DisplaySource): RecordDisplay {
     role: name === title ? 'title' : name === summary ? 'summary' : name === media ? 'media' : 'detail',
     // Stringified: a declaration may close a numeric set, and every consumer of this is a control
     // or a label, both of which deal in strings.
-    options: (properties[name].options ?? []).map(String),
+    options: optionsFor(name),
     target: '',
     many: false,
   }));

@@ -82,6 +82,7 @@ import { AccountStoreProvider } from '../src/frameworks/solid/stores/AccountStor
 import { AppStoreProvider } from '../src/frameworks/solid/stores/AppStore';
 import { type DatasetStore, DatasetStoreProvider, useDatasetStore } from '../src/frameworks/solid/stores/DatasetStore';
 import { ProfileStoreProvider } from '../src/frameworks/solid/stores/ProfileStore';
+import { RecordStoreProvider } from '../src/frameworks/solid/stores/RecordStore';
 import { type SessionStore, SessionStoreProvider, useSessionStore } from '../src/frameworks/solid/stores/SessionStore';
 import { ShapeStoreProvider } from '../src/frameworks/solid/stores/ShapeStore';
 import { ShellStoreProvider } from '../src/frameworks/solid/stores/ShellStore';
@@ -114,16 +115,20 @@ function mountShell(): Stores {
             {/* SpaceStore reads the extraction candidates off ShapeStore and hands the wizard back
                 an enroller, so the two mount in the order the real StoreProvider uses. */}
             <ShapeStoreProvider>
-              <ProfileStoreProvider>
-                {/* SpaceStore hands the installed-module set down to AppStore, so it must mount
+              {/* SpaceStore hands the record layer the vocabularies this community owns — a task's
+                  own states — so the two mount in the order the real StoreProvider uses. */}
+              <RecordStoreProvider>
+                <ProfileStoreProvider>
+                  {/* SpaceStore hands the installed-module set down to AppStore, so it must mount
                   inside one — the same nesting the real StoreProvider uses. */}
-                <AppStoreProvider>
-                  <SpaceStoreProvider>
-                    <BootController />
-                    <Capture />
-                  </SpaceStoreProvider>
-                </AppStoreProvider>
-              </ProfileStoreProvider>
+                  <AppStoreProvider>
+                    <SpaceStoreProvider>
+                      <BootController />
+                      <Capture />
+                    </SpaceStoreProvider>
+                  </AppStoreProvider>
+                </ProfileStoreProvider>
+              </RecordStoreProvider>
             </ShapeStoreProvider>
           </DatasetStoreProvider>
         </SessionStoreProvider>

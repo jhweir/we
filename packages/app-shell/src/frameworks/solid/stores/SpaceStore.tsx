@@ -93,6 +93,7 @@ import {
 import { useAppStore } from './AppStore';
 import { type AppDataset, canonicalSpaceId, useDatasetStore } from './DatasetStore';
 import { useProfileStore } from './ProfileStore';
+import { useRecordStore } from './RecordStore';
 import { useRouteStore } from './RouteStore';
 import { useSessionStore } from './SessionStore';
 import { useShapeStore } from './ShapeStore';
@@ -841,6 +842,7 @@ export function SpaceStoreProvider(props: ParentProps) {
   const session = useSessionStore();
   const datasetStore = useDatasetStore();
   const shapeStore = useShapeStore();
+  const recordStore = useRecordStore();
   const profileStore = useProfileStore();
   const routeStore = useRouteStore();
   const templateStore = useTemplateStore();
@@ -2493,6 +2495,29 @@ export function SpaceStoreProvider(props: ParentProps) {
 
   /** The states a person should be offered — the same list, without the withdrawn ones. */
   const offeredTaskStates = createMemo<TaskStateView[]>(() => taskStates().filter((s) => !s.retired));
+
+  /*
+    Hand the record layer the vocabularies this community owns.
+
+    A property whose declaration names a `vocabulary` has an `options` list that is only a floor —
+    `TaskBlock.status` declares the three defaults because an extraction model has to be shown words
+    it can use, and nothing enforces them, so a space that has named "Blocked" holds tasks in a state
+    that list does not contain. Every picker built from the declaration then refused to offer the
+    state the record was already in, which is how an extracted task could arrive as "blocked" and be
+    uneditable without silently becoming "todo".
+
+    Slugs, because a slug is what `TaskBlock.status` stores and what the declaration's own options
+    are. Withdrawn states are left out for the reason `offeredTaskStates` exists: a picker should not
+    offer a state the community has stopped using, even though work already sitting in one keeps it.
+
+    Injected rather than read, for the reason `provideAutoInterpretGate` is: this lives on records in
+    the space, and RecordStore mounts above this one.
+  */
+  onCleanup(
+    recordStore.provideVocabularies((vocabulary) =>
+      vocabulary === 'taskState' ? offeredTaskStates().map((state) => state.slug) : undefined,
+    ),
+  );
 
   /**
    * Tell extraction which states this space actually uses.
