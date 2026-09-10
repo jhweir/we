@@ -1006,27 +1006,38 @@ describe('the extraction panel', () => {
     const heading = (label: string) =>
       JSON.stringify({ ...SECTION_LABEL_PROPS, flex: '1' }) + `,"children":["${label}"]`;
 
-    for (const label of ['Things to extract', 'Extracted', 'Awaiting your call']) {
+    for (const label of ['Things to extract', 'Logs', 'Awaiting your call']) {
       expect(json).toContain(heading(label));
     }
+    // The results' heading is now one per kind, named from the model rather than written here — so
+    // it is asserted as the same treatment applied to an expression instead of to a literal.
+    expect(json).toContain(
+      JSON.stringify({ ...SECTION_LABEL_PROPS, flex: '1' }) +
+        ',"children":[{"$":"recordStore.displays[target].label"}]',
+    );
     expect(json).not.toContain('Things to extract:');
   });
 
-  it('keeps the results heading out of the region that scrolls', () => {
+  it('hides a section rather than heading an empty one', () => {
     /*
-      The header, the controls and the chips hold still while the results grow — that is what the
-      scroll region is for — and a heading that scrolled away with its own list would be the one
-      part of the panel that could not be looked up.
+      Both readouts spend most of a call's life empty — nobody has read it yet — so a heading with
+      nothing under it was the *usual* state rather than the exceptional one, twice over.
 
-      Inside the call gate rather than above it, so the placeholder standing in for all of this
-      outside a call is not sitting under a heading for a list nobody has.
+      The readings are gated on their own count, and the query answering it is declared a level up:
+      a section that unmounts itself cannot own the query that decides whether it should, or it
+      would stop asking and never come back.
+
+      The results could not be gated the same way. Each kind is its own subscription and a schema
+      cannot sum a list of queries whose length it does not know, so nothing above the groups can
+      ask whether any of them found anything — which is why the heading moved into the group, where
+      the question is answerable about one kind at a time.
     */
-    const heading = json.indexOf('"Extracted"');
-    const scroller = json.indexOf('"we-scroll-area"', heading);
-    const gate = json.lastIndexOf(`"condition":{"$":"${EXTRACTION_SUBJECT_EXPR}"}`, heading);
+    const historyGate = json.indexOf('"condition":{"$":"count(local.passes)"}');
+    expect(historyGate).toBeGreaterThan(-1);
+    expect(json.indexOf('"Logs"')).toBeGreaterThan(historyGate);
 
-    expect(gate).toBeGreaterThan(-1);
-    expect(heading).toBeLessThan(scroller);
+    // The per-kind heading sits behind that kind's own count, so an empty group draws nothing.
+    expect(json).toContain('"condition":{"$":"count(local.found)"},"then":{"type":"Row"');
   });
 
   it('shows nothing to press outside a call, rather than a well of disabled controls', () => {

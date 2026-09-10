@@ -15,7 +15,7 @@
  * rendering. The other three modules still declare their fragments inline; this is the shape they
  * should move to.
  */
-import { emptyNote, emptyState, panelShell, sectionLabel } from '@we/schema-kit';
+import { emptyState, panelShell, sectionLabel } from '@we/schema-kit';
 import { type SchemaNode } from '@we/schema-shared';
 import { expr } from '@we/schema-shared';
 
@@ -1558,11 +1558,26 @@ const historyPassDetail: SchemaNode = {
  * every few minutes for an hour is sixty rows nobody wants open.
  */
 const extractionHistory: SchemaNode = {
-  type: 'Column',
-  props: { gap: '200', width: '100%' },
-  $localState: {
-    historyOpen: { type: 'boolean', initial: false },
+  type: '$if',
+  props: {
     /*
+      No readings, no section — not a heading over a sentence saying so.
+
+      It had a placeholder ("No extraction runs yet on this call.") for one commit, which is the
+      honest thing to show for a list that is *usually* full and happens to be empty. This one is
+      the opposite: every call starts with no readings, so the common state was a heading and an
+      apology, twice over with the results below doing the same.
+
+      `local.passes` comes from the panel body, not from here — a section that unmounts itself
+      cannot own the query that decides whether it should. See the `$queries` there.
+    */
+    condition: { $: 'count(local.passes)' },
+    then: {
+      type: 'Column',
+      props: { gap: '200', width: '100%' },
+      $localState: {
+        historyOpen: { type: 'boolean', initial: false },
+        /*
       Which stored passes are open, and which halves of each.
 
       Sets of ids rather than a boolean apiece, for the reason any per-row state coming from data
@@ -1570,48 +1585,20 @@ const extractionHistory: SchemaNode = {
       responses are tracked as the *closed* ones so a row opens showing the answer, which mirrors the
       live bar exactly — the two lists are the same log and should not disagree about defaults.
     */
-    openHistoryPasses: { type: 'array', initial: [] },
-    openHistoryPrompts: { type: 'array', initial: [] },
-    closedHistoryResponses: { type: 'array', initial: [] },
-  },
-  $queries: {
-    passes: {
-      entity: 'ExtractionPass',
-      scope: { anchor: 'CollectionBlock', via: 'extractionPasses', anchorId: EXTRACTION_SUBJECT },
-      order: { createdAt: 'desc' },
-      limit: 50,
-    },
-  },
-  children: [
-    /*
-      A name over the readings, in the treatment every other region here wears.
-
-      Without it the collapsed "4 readings of this call" was a bare line between the chips and the
-      results, belonging to neither — and on a call nobody had read yet there was nothing at all,
-      so the log had no presence until it had content. A heading gives it one, which is what makes
-      the empty case sayable.
-    */
-    sectionLabel({ label: 'Logs' }),
-    {
-      type: '$if',
-      props: {
-        condition: { $: 'count(local.passes)' },
+        openHistoryPasses: { type: 'array', initial: [] },
+        openHistoryPrompts: { type: 'array', initial: [] },
+        closedHistoryResponses: { type: 'array', initial: [] },
+      },
+      children: [
         /*
-          Loaded and empty, not "not asked yet".
+          A name over the readings, in the treatment every other region here wears.
 
-          `passesLoaded` is what `$queries` gives every entry for exactly this: the first frame of a
-          subscription is empty and fills a moment later, so a placeholder gated on the count alone
-          asserts "never read" about every call for as long as the query takes. Nothing at all until
-          the backend has answered, then the sentence.
+          Without it the collapsed "4 readings of this call" was a bare line between the chips and
+          the results, belonging to neither. Inside the gate above rather than over it, so a call
+          nobody has read shows no heading rather than a heading with nothing under it.
         */
-        else: {
-          type: '$if',
-          props: {
-            condition: { $: 'local.passesLoaded' },
-            then: emptyNote('No extraction runs yet on this call.'),
-          },
-        },
-        then: {
+        sectionLabel({ label: 'Logs' }),
+        {
           type: 'Column',
           props: { gap: '200', width: '100%' },
           children: [
@@ -1699,9 +1686,9 @@ const extractionHistory: SchemaNode = {
             },
           ],
         },
-      },
+      ],
     },
-  ],
+  },
 };
 
 /**
@@ -1755,6 +1742,30 @@ const extractedRows: SchemaNode = {
         },
       },
       children: [
+        /*
+          One heading per kind, and the group disappears with its rows.
+
+          There was a single "Extracted" over all of them, and it could not be hidden when there was
+          nothing to show: each kind is its own subscription, and a schema cannot sum a list of
+          queries whose length it does not know — so no node above the groups can ask "did any of
+          them find anything". Only the group itself can, about itself.
+
+          Per-kind headings answer that and are better besides. A task and an event were told apart
+          by a small icon in an otherwise undifferentiated list; now the list says what it is, in the
+          model's own name, so a shape a community defined this morning is titled without anything
+          being written for it.
+
+          `count(local.found)` rather than `local.foundLoaded`, because this is the state a call
+          spends most of its life in: the first frame of an empty subscription and a genuinely empty
+          one should both show nothing, and there is no sentence here to be wrong for a moment.
+        */
+        {
+          type: '$if',
+          props: {
+            condition: { $: 'count(local.found)' },
+            then: sectionLabel({ label: { $: 'recordStore.displays[target].label' } }),
+          },
+        },
         {
           /*
             What the passes *wrote*, which is not the same as what they produced.
@@ -3294,7 +3305,37 @@ export const extractionPanel: SchemaNode = {
           condition: { $: 'modules.transcribe.extractable' },
           then: {
             type: 'Column',
-            props: { width: '100%', flex: '1', minHeight: '0', gap: '300' },
+            /*
+              A wider gap than the blocks inside each section use.
+
+              At `300` every band sat the same distance from its neighbour as a heading sat from the
+              rows under it, so five sections read as one long column of similar things. `400` between
+              sections against `200` inside them is what makes a heading look attached to what it
+              names rather than floating between two lists.
+            */
+            props: { width: '100%', flex: '1', minHeight: '0', gap: '400' },
+            /*
+              The readings, declared here rather than on the section that draws them.
+
+              A `$queries` entry only answers while the node declaring it is mounted, so a section
+              that hides itself when it has nothing cannot also own the query that decides whether it
+              has anything — it would unmount, stop asking, and never come back. Hoisted one level,
+              the query runs whenever the panel is open and the section is a plain `$if` over the
+              result, which renders no node at all when there is nothing to show.
+
+              `when` is what the section's own `$if` used to provide: an unresolved anchor is pruned
+              rather than sent, and pruning widens, so without it a call-less panel would ask for
+              every ExtractionPass in the space.
+            */
+            $queries: {
+              passes: {
+                entity: 'ExtractionPass',
+                scope: { anchor: 'CollectionBlock', via: 'extractionPasses', anchorId: EXTRACTION_SUBJECT },
+                order: { createdAt: 'desc' },
+                limit: 50,
+                when: EXTRACTION_SUBJECT,
+              },
+            },
             children: [
               /*
               The controls, the chips and whatever the last pass did — only where there is a call.
@@ -3358,25 +3399,36 @@ export const extractionPanel: SchemaNode = {
                 props: {
                   condition: EXTRACTION_SUBJECT,
                   /*
-                  A name over the results, and it stays while they scroll.
+                  No name over the results any more — each kind carries its own.
 
-                  Outside the scroll region rather than in it, for the reason the region exists: the
-                  header, the controls and the chips hold still while this grows, and a heading that
-                  scrolled away with its own list would be the one part of the panel that could not
-                  be looked up.
+                  There was one "Extracted" heading here, and it could not be hidden when there was
+                  nothing under it: the rows are one subscription per kind, so nothing above them can
+                  ask whether any of them found anything. It has moved inside the groups, where the
+                  question is answerable, and a call with nothing extracted now shows no heading at
+                  all rather than a title over an empty box. See `extractedRows`.
 
-                  Inside the call gate rather than above it, so the placeholder that stands in for
-                  all of this outside a call is not sitting under a heading for a list nobody has.
+                  The headings went into the scroll region with their rows as a result, which is a
+                  real cost: a long list scrolls its own titles away. It is the right trade here
+                  because the alternative is a permanent heading that is wrong more often than it is
+                  useful, and each group's title is only ever a screen from its rows.
                 */
                   then: {
                     type: 'Column',
                     props: { gap: '200', flex: '1', minHeight: '0' },
                     children: [
-                      sectionLabel({ label: 'Extracted' }),
                       {
                         type: 'we-scroll-area',
                         props: { flex: '1', minHeight: '0' },
-                        children: [extractedRows],
+                        /*
+                          A Column inside the scroll region, purely to space the kinds apart.
+
+                          `$each` renders its groups as plain siblings, so without a flex parent
+                          carrying a gap they butt together — which was right while they shared one
+                          heading and read as a single list, and wrong now each carries its own name.
+                          The same figure the panel puts between its own sections, since that is what
+                          these have become.
+                        */
+                        children: [{ type: 'Column', props: { gap: '400' }, children: [extractedRows] }],
                       },
                     ],
                   },
