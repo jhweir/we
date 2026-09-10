@@ -1300,6 +1300,34 @@ describe('the history of what was read', () => {
     expect(json).toContain('pass.error');
   });
 
+  it('says which passes somebody fired by hand', () => {
+    /*
+      A one-shot pass and a watched one are the same act with the same result, which is why they are
+      one list now rather than a durable log beside an ephemeral bar. The only difference worth
+      seeing is why it happened, so the row carries a glyph for it — and nothing at all when the
+      record predates the field, since an absent property is absent rather than defaulted and
+      guessing would put a claim on screen that was never stored.
+    */
+    expect(json).toContain('"condition":{"$":"pass.trigger"}');
+    expect(json).toContain("pass.trigger == 'auto' ? 'lightning' : 'cursor-click'");
+  });
+
+  it('opens a stored pass onto the exchange, the way the live bar does', () => {
+    // The point of storing the prompt and response is that they outlive the bar. Same two panes,
+    // same defaults — prompt closed, response open — so a pass read while it ran and the same pass
+    // read a week later are the same thing.
+    expect(json).toContain('"code":{"$":"pass.prompt"}');
+    expect(json).toContain('"code":{"$":"pass.response"}');
+    expect(json).toContain('"$toggleLocalIn":"openHistoryPasses"');
+    expect(json).toContain('!(pass.id in local.closedHistoryResponses)');
+  });
+
+  it('offers the disclosure only where there is an exchange under it', () => {
+    // A record written before the fields existed carries neither half, and a press answered with an
+    // empty box is worse than a row that never looked pressable.
+    expect(json).toContain('"condition":{"$":"pass.prompt || pass.response"}');
+  });
+
   it('keeps the live feed to the live call, where its rows belong', () => {
     // The store's rows carry no call id, so on a past call they described the wrong conversation.
     expect(JSON.stringify(extractionActivity)).toContain(

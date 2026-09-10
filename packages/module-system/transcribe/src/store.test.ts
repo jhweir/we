@@ -25,7 +25,10 @@ const THEM = 'did:key:them';
 interface Created {
   entity: string;
   fields: Record<string, unknown>;
-  options?: { parent?: { id: string; predicate: string } };
+  // `dataset` is here so a test can assert its ABSENCE — a write that names one goes to whichever
+  // space the call is running in rather than the one on screen, and the point of several of these
+  // tests is that it does not.
+  options?: { parent?: { id: string; predicate: string }; dataset?: unknown };
 }
 
 interface Linked {

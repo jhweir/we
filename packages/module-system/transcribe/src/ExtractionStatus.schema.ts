@@ -55,7 +55,7 @@ const GLYPH_SIZE = 'sm';
  * thing to look at rather than as a hint about where the row goes. 16px is the size the prompt's
  * own caret already used and looked right at, so the three carets in the bar now agree.
  */
-const CARET_SIZE = 'xs';
+export const CARET_SIZE = 'xs';
 
 /**
  * A spinner while it runs, the outcome's own glyph once it stops.
@@ -208,7 +208,7 @@ function paneLabel(label: string): SchemaNode {
  * The label is the control. It is already the heading, and a separate button beside it would be a
  * second thing to aim at for one behaviour.
  */
-function codePane(options: {
+export function codePane(options: {
   label: string;
   /** The already-indented text, from the store — a schema has no `JSON.stringify`. */
   value: SchemaProp;
@@ -216,6 +216,16 @@ function codePane(options: {
   isOpen: SchemaNode | Record<string, unknown>;
   /** The `$localState` array field this pane's toggle writes into. */
   field: string;
+  /**
+   * What identifies the row this pane belongs to, in the `$localState` set.
+   *
+   * The live bar keys on `pass.passId`, the processor id its rows are built around. The durable
+   * history renders `ExtractionPass` *records*, which have an ordinary record id and no passId at
+   * all — so the key is a parameter rather than the constant it started as. Both halves of the
+   * exchange are then read and displayed the same way whichever list they are in, which is the
+   * whole point of the manual and automatic passes now being stored alike.
+   */
+  key?: SchemaProp;
 }): SchemaNode {
   return {
     type: '$if',
@@ -230,7 +240,7 @@ function codePane(options: {
             props: {
               variant: 'bare',
               width: '100%',
-              onClick: { $toggleLocalIn: options.field, value: { $: 'pass.passId' } },
+              onClick: { $toggleLocalIn: options.field, value: options.key ?? { $: 'pass.passId' } },
             },
             children: [
               {

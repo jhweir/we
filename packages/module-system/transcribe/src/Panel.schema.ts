@@ -19,7 +19,7 @@ import { emptyState, panelShell, sectionLabel } from '@we/schema-kit';
 import { type SchemaNode } from '@we/schema-shared';
 import { expr } from '@we/schema-shared';
 
-import { extractionActivity } from './ExtractionStatus.schema';
+import { CARET_SIZE, codePane, extractionActivity } from './ExtractionStatus.schema';
 import { SUBJECT_EXPR as SHARED_SUBJECT_EXPR, VIEWING_LIVE_EXPR } from './subject';
 
 /**
@@ -1380,6 +1380,168 @@ export const extractionTargets: SchemaNode = {
 };
 
 /**
+ * Whether this stored pass has an exchange worth opening.
+ *
+ * Both halves are written for every pass now, so in practice this is true for anything run since —
+ * but a record written before the fields existed carries neither, and an absent property is absent
+ * rather than defaulted. So the row asks rather than assuming, and one written last week stays a
+ * plain line instead of a disclosure that opens onto nothing.
+ */
+const HISTORY_OPENABLE = 'pass.prompt || pass.response';
+
+/**
+ * Whose finger was on it — the one difference between the two kinds of pass that is worth seeing.
+ *
+ * A one-shot pass and an automatic one are the same act with the same result, which is why they are
+ * now one list rather than a durable log beside an ephemeral bar. What still differs is why it
+ * happened: somebody pressed Extract now, or the call was being watched. Reading a log of sixty
+ * readings, that is the question — "did I do this, or did it just happen?"
+ *
+ * A glyph rather than a word, because the row already carries an outcome, a name, a count and a
+ * time, and a fifth string would not be read. Nothing at all for a record predating the field: an
+ * unmarked row is honestly silent, where guessing a default would put a claim on screen that was
+ * never stored.
+ */
+const passTriggerMark: SchemaNode = {
+  type: '$if',
+  props: {
+    condition: { $: 'pass.trigger' },
+    then: {
+      type: 'we-icon',
+      props: {
+        size: 'xs',
+        color: 'text-faint',
+        name: { $: "pass.trigger == 'auto' ? 'lightning' : 'cursor-click'" },
+      },
+    },
+  },
+};
+
+/**
+ * One stored pass, as a line.
+ *
+ * Written once and mounted in two places — inside a disclosure button when there is an exchange
+ * under it, bare when there is not. Duplicating it for those two cases is how the two drifted the
+ * last time something was added to a row.
+ */
+const historyRow: SchemaNode = {
+  type: 'Row',
+  props: { gap: '200', ay: 'center', width: '100%' },
+  children: [
+    /*
+      The outcome as a mark, not as a tick on everything.
+
+      The template's own version of this list drew a green check on every settled row because it
+      never read the outcome — so a pass that failed and one that wrote nine records looked
+      identical, which is the whole reason a failure is worth storing.
+    */
+    {
+      type: 'we-icon',
+      props: {
+        size: 'sm',
+        name: {
+          $: "pass.outcome == 'failed' ? 'warning' : pass.outcome == 'skipped' ? 'minus-circle' : 'check-circle'",
+        },
+        color: {
+          $: "pass.outcome == 'failed' ? 'danger-text' : pass.outcome == 'done' ? 'success-text' : 'text-muted'",
+        },
+      },
+    },
+    {
+      type: '$agent',
+      props: { did: { $: 'pass.author' }, as: 'runner' },
+      children: [
+        {
+          type: 'we-avatar',
+          props: { size: 'xs', image: { $: 'runner.avatar' }, hash: { $: 'runner.did' } },
+        },
+      ],
+    },
+    passTriggerMark,
+    {
+      type: 'we-text',
+      props: { variant: 'footnote', flex: '1', minWidth: '0', truncate: true, textAlign: 'left' },
+      children: [
+        {
+          $: "pass.outcome == 'failed' ? pass.error : pass.outcome == 'skipped' ? 'Nothing was being looked for' : `${pass.recordCount ? pass.recordCount : 'No'} ${plural(pass.recordCount, 'record', 'records')}`",
+        },
+      ],
+    },
+    {
+      type: 'we-timestamp',
+      props: {
+        value: { $: 'pass.createdAt' },
+        relative: true,
+        /*
+          Relative here and not on a transcript row, because these *are* the feed of unrelated items
+          relative time is for: passes run minutes or days apart and "how recent is this one" is the
+          whole question.
+
+          Abbreviated for the transcript row's reason — it sits at the end of a line already holding
+          an outcome that can be a whole error message.
+        */
+        relativeStyle: 'narrow',
+        fontSize: '200',
+        color: 'text-faint',
+      },
+    },
+    {
+      type: '$if',
+      props: {
+        condition: { $: HISTORY_OPENABLE },
+        then: {
+          type: 'we-icon',
+          props: {
+            size: CARET_SIZE,
+            color: 'text-muted',
+            name: { $: "pass.id in local.openHistoryPasses ? 'caret-up' : 'caret-down'" },
+          },
+        },
+      },
+    },
+  ],
+};
+
+/**
+ * What a stored pass shows when opened — the same two panes the live bar shows.
+ *
+ * Deliberately the same component and the same defaults: prompt closed, response open. A pass read
+ * while it ran and the same pass read a week later are the same thing, and the reason this exists
+ * at all is that they used to be told apart by which surface happened to be on screen.
+ *
+ * `$if` rather than `$animate`, for the live bar's reason — each pane is a CodeMirror instance, and
+ * keeping fifty alive for a log nobody has opened costs far more than a scroll position is worth.
+ */
+const historyPassDetail: SchemaNode = {
+  type: '$if',
+  props: {
+    condition: { $: 'pass.id in local.openHistoryPasses' },
+    enterTransition: { type: 'reveal', duration: 200 },
+    exitTransition: { type: 'reveal', duration: 160 },
+    then: {
+      type: 'Column',
+      props: { gap: '300', width: '100%', pt: '200', pl: '400' },
+      children: [
+        codePane({
+          label: 'Prompt',
+          value: { $: 'pass.prompt' },
+          field: 'openHistoryPrompts',
+          isOpen: { $: 'pass.id in local.openHistoryPrompts' },
+          key: { $: 'pass.id' },
+        }),
+        codePane({
+          label: 'Response',
+          value: { $: 'pass.response' },
+          field: 'closedHistoryResponses',
+          isOpen: { $: '!(pass.id in local.closedHistoryResponses)' },
+          key: { $: 'pass.id' },
+        }),
+      ],
+    },
+  },
+};
+
+/**
  * What has been read on this call, written down rather than remembered.
  *
  * The counterpart of `extractionActivity`, which is a live subscription: it starts empty, fills from
@@ -1398,7 +1560,20 @@ export const extractionTargets: SchemaNode = {
 const extractionHistory: SchemaNode = {
   type: 'Column',
   props: { gap: '200', width: '100%' },
-  $localState: { historyOpen: { type: 'boolean', initial: false } },
+  $localState: {
+    historyOpen: { type: 'boolean', initial: false },
+    /*
+      Which stored passes are open, and which halves of each.
+
+      Sets of ids rather than a boolean apiece, for the reason any per-row state coming from data
+      needs them: the rows are a query, so there is no name a `$localState` field could take. The
+      responses are tracked as the *closed* ones so a row opens showing the answer, which mirrors the
+      live bar exactly — the two lists are the same log and should not disagree about defaults.
+    */
+    openHistoryPasses: { type: 'array', initial: [] },
+    openHistoryPrompts: { type: 'array', initial: [] },
+    closedHistoryResponses: { type: 'array', initial: [] },
+  },
   $queries: {
     passes: {
       entity: 'ExtractionPass',
@@ -1461,66 +1636,35 @@ const extractionHistory: SchemaNode = {
                       props: { items: { $: 'local.passes' }, as: 'pass' },
                       children: [
                         {
-                          type: 'Row',
-                          props: { gap: '200', ay: 'center', width: '100%' },
+                          type: 'Column',
+                          props: { gap: '100', width: '100%' },
                           children: [
                             /*
-                              The outcome as a mark, not as a tick on everything.
+                              Clickable only where there is something under it.
 
-                              The template's own version of this list drew a green check on every
-                              settled row because it never read the outcome — so a pass that failed
-                              and one that wrote nine records looked identical, which is the whole
-                              reason a failure is worth storing.
+                              A bare button is the appearance-free clickable, so an openable row and
+                              a plain one look identical and differ only in the caret — which is the
+                              affordance. Wrapping every row in a button regardless would offer a
+                              press to a record written before the exchange was stored, and answer it
+                              with an empty box.
                             */
                             {
-                              type: 'we-icon',
+                              type: '$if',
                               props: {
-                                size: 'sm',
-                                name: {
-                                  $: "pass.outcome == 'failed' ? 'warning' : pass.outcome == 'skipped' ? 'minus-circle' : 'check-circle'",
+                                condition: { $: HISTORY_OPENABLE },
+                                then: {
+                                  type: 'we-button',
+                                  props: {
+                                    variant: 'bare',
+                                    width: '100%',
+                                    onClick: { $toggleLocalIn: 'openHistoryPasses', value: { $: 'pass.id' } },
+                                  },
+                                  children: [historyRow],
                                 },
-                                color: {
-                                  $: "pass.outcome == 'failed' ? 'danger-text' : pass.outcome == 'done' ? 'success-text' : 'text-muted'",
-                                },
+                                else: historyRow,
                               },
                             },
-                            {
-                              type: '$agent',
-                              props: { did: { $: 'pass.author' }, as: 'runner' },
-                              children: [
-                                {
-                                  type: 'we-avatar',
-                                  props: { size: 'xs', image: { $: 'runner.avatar' }, hash: { $: 'runner.did' } },
-                                },
-                              ],
-                            },
-                            {
-                              type: 'we-text',
-                              props: { variant: 'footnote', flex: '1', truncate: true },
-                              children: [
-                                {
-                                  $: "pass.outcome == 'failed' ? pass.error : pass.outcome == 'skipped' ? 'Nothing was being looked for' : `${pass.recordCount ? pass.recordCount : 'No'} ${plural(pass.recordCount, 'record', 'records')}`",
-                                },
-                              ],
-                            },
-                            {
-                              type: 'we-timestamp',
-                              props: {
-                                value: { $: 'pass.createdAt' },
-                                relative: true,
-                                /*
-                                  Relative here and not on a transcript row, because these *are* the
-                                  feed of unrelated items relative time is for: passes run minutes or
-                                  days apart and "how recent is this one" is the whole question.
-
-                                  Abbreviated for the transcript row's reason — it sits at the end of
-                                  a line already holding an outcome that can be a whole error message.
-                                */
-                                relativeStyle: 'narrow',
-                                fontSize: '200',
-                                color: 'text-faint',
-                              },
-                            },
+                            historyPassDetail,
                           ],
                         },
                       ],
