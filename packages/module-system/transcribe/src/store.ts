@@ -470,15 +470,6 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
    * would spin against each other for the length of the call.
    */
   const [autoJoinFailed, setAutoJoinFailed] = signal(false);
-  /**
-   * A record this agent has been asked to continue, held until there is a call to continue it in.
-   *
-   * Deferred rather than applied on the spot because the two halves of "continue this call" cannot
-   * be sequenced from a schema: joining is fire-and-forget — `joinCall` returns nothing, so an
-   * `onSuccess` never fires — and it publishes the call activity several awaits deep. Pinning
-   * immediately would therefore land before there was any call to pin to, and be dropped.
-   */
-  const [pendingResume, setPendingResume] = signal<string>('');
 
   let context: AudioContext | null = null;
   let node: AudioWorkletNode | null = null;
@@ -514,6 +505,7 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     anchorNodeId: string | null;
     recordId: string | null;
     datasetUri: string | null;
+    continued: boolean;
   } | null {
     const me = selfId?.() ?? null;
     if (!me || !presence) return null;
@@ -536,6 +528,9 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
       // Published by the call module from the moment the call starts — see `recordCallId`. This is
       // what replaced electing a creator among the transcribers.
       recordId: (mine.activity as { record?: string }).record ?? null,
+      // Published by the call module when the call was picked back up on a record that already
+      // existed — see `continuedRecord` there. What lets the record be adopted before anybody speaks.
+      continued: (mine.activity as { continued?: boolean }).continued === true,
     };
   }
 
@@ -594,8 +589,8 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
    * `collection` used to be load-bearing: it was how peers found the record one of them had created,
    * and adopting an announced one was the alternative to creating a second. The call's own activity
    * now carries the record from the moment it starts, so this is no longer how anybody finds it — it
-   * remains because `resume` writes a *different* record than the call names, and a peer has to be
-   * able to see that somebody continued an old transcript.
+   * remains because a continued call's record is adopted before anybody has spoken into it, and a
+   * peer has to be able to see that somebody is writing into an old transcript.
    */
   function announce(callId: string, recording: boolean, collection?: string | null): void {
     const claim = collection ?? collectionId();
@@ -1405,6 +1400,14 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
   let watchedClasses = '';
 
   /**
+   * Whether automatic extraction was on when the watch was last decided — the third half of the key
+   * below, and the one that was missing. Without it a call that started with the watch registered
+   * short-circuited every later run, so switching automatic extraction off mid-call never reached
+   * the unwatch and the watch kept spending a model call per pass.
+   */
+  let watchedAuto = true;
+
+  /**
    * Whether this community has automatic extraction on.
    *
    * Feature-tested like every other interpretation call — the host publishes a forwarding wrapper
@@ -1424,7 +1427,8 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
           .map((t) => t.entity)
           .join(',')
       : '';
-    if (watched === next && watchedClasses === key) return;
+    const auto = next ? autoEnabled(next) : true;
+    if (watched === next && watchedClasses === key && watchedAuto === auto) return;
     const previous = watched;
     /*
       A class-set change re-registers the *same* collection, so the teardown below has to run for it.
@@ -1440,6 +1444,7 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     const reregistering = previous !== null && previous === next;
     watched = next;
     watchedClasses = next ? key : '';
+    watchedAuto = auto;
 
     /*
       Two independent attempts, and that separation is the whole point.
@@ -1470,13 +1475,24 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
       }
     }
 
-    if (next && !autoEnabled(next)) {
+    if (next && !auto) {
       // Not a failure and not a capability — a decision, stated as one. The host would refuse the
       // registration anyway; saying it here is what makes the sentence on screen the true one, and
       // what stops a pointless call to a backend that is going to throw. The unwatch above has
       // already run, so switching the setting off mid-call stops the watch rather than leaving it
       // spending an LLM call per pass for a community that just said stop.
       setWatchProblem('Automatic extraction is off for this call.');
+      /*
+        Nothing is registered, so nothing is remembered as watched.
+
+        This left `watched` set, and the short-circuit at the top of this function keys on it — so
+        the effect that re-runs on the setting changing got here and returned on its first line,
+        both directions. Switched back on, no watch was ever registered and this sentence stayed on
+        screen for the rest of the call; started on and switched off, the unwatch never ran and the
+        watch kept spending a model call per pass on a community that had just said stop.
+      */
+      watched = null;
+      watchedClasses = '';
       return;
     }
 
@@ -1550,14 +1566,28 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     void syncWatch(live);
   });
 
+  /**
+   * Adopt a continued call's record straight away.
+   *
+   * A fresh call's record is empty until somebody speaks, so it is adopted on the first flush and
+   * `canExtract` says no until then — correct, since a pass over nothing spends a model call to find
+   * nothing. A *continued* call is the opposite case: its record already holds last time's words,
+   * and the same rule left Extract disabled and the panel empty until this agent said something. The
+   * transcript panel's own Continue button worked around it with a `resume` action chained after
+   * `continueCall`; the rail's path into the same call could not, so the two disagreed about
+   * whether the call had a transcript.
+   *
+   * The call module says which case this is, on the activity it already publishes the record in —
+   * `continued` — so nothing here names it and no query is needed, and `resume` is gone. Guarded
+   * on the record itself, so a republish of the same activity does not adopt twice.
+   */
   effect?.(() => {
-    const wanted = pendingResume();
     const call = myCall();
-    if (!wanted || !call) return;
-    setPendingResume('');
-    useCollection(wanted);
+    if (!call?.continued || !call.recordId) return;
+    if (collectionId() === call.recordId) return;
+    useCollection(call.recordId);
     collectionCallId = call.id;
-    announce(call.id, enabled(), wanted);
+    announce(call.id, enabled(), call.recordId);
   });
 
   effect?.(() => {
@@ -1579,6 +1609,24 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
    * Leaving a call clears it too, by way of the same transition through no-call. That is right even
    * for a space-wide call, whose id is derived from the space and so is the same id every time:
    * "not now" is about the conversation happening, not about the room it happens in.
+   *
+   * ## And leaving switches recording off
+   *
+   * The microphone being recorded was the call's, so there is nothing left to record. Nothing said
+   * so before: the only effect that cleared `enabled` wanted *no dataset and no call*, which is the
+   * boot frame and a logged-out agent, and inside a space the dataset is always there. So leaving a
+   * call left this agent flagged as recording for the rest of the session.
+   *
+   * Three things followed from that one stale flag, all of them reported as separate bugs. The
+   * level meter is drawn on `enabled`, so it stayed on screen with no call. The record button reads
+   * `enabled || available`, so it offered to *stop* transcribing a call that had ended. And the
+   * audio effect below reports `on && !audio` as `no-audio`, which parked the status at "Nothing to
+   * listen to" — invisible while a past call was on screen, since the status notes are hidden
+   * there, and revealed the instant somebody continued that call, as a flash before the microphone
+   * arrived.
+   *
+   * Setting it here rather than teaching those three to ask a second question: they are each
+   * reading `enabled` correctly, and what was wrong is that `enabled` was.
    */
   let decidedForCall: string | null = null;
   effect?.(() => {
@@ -1588,6 +1636,9 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     setOptedOut(false);
     setAutoJoined(false);
     setAutoJoinFailed(false);
+    // The audio effect does the teardown: it reads `enabled`, so this re-runs it, and it lands on
+    // `idle` rather than the `no-audio` it would otherwise have reported.
+    if (!current) setEnabled(false);
   });
 
   /**
@@ -1698,10 +1749,6 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
       setEnabled(false);
       setAutoJoined(false);
       if (context) void stop();
-      // A Continue that never reached a call goes with the space it was pressed in. Held, it would
-      // wait indefinitely and then attach that space's old transcript to whatever call happened to
-      // start next — the request is only meaningful for the join it was pressed to accompany.
-      setPendingResume('');
     }
   });
 
@@ -1724,7 +1771,6 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     setEnabled(false);
     setAutoJoined(false);
     if (context) void stop();
-    setPendingResume('');
   });
 
   return {
@@ -1989,6 +2035,17 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
      */
     autoExtract: () => autoEnabled(collectionId() ?? myCall()?.recordId ?? undefined),
     /**
+     * Whether any pass is running right now, this node's or a peer's — what the rail's Extraction
+     * launcher spins on, via `busyWhen`.
+     *
+     * Read off the host's activity feed rather than `extractStatus`, which only knows about the
+     * one-shot pass this agent pressed for. The four people in five who did not start a pass are the
+     * ones this exists for, and their node is not the one running it. Feature-tested for the reason
+     * the settled-count effect above is: the forwarding wrapper is always present, the feed is not.
+     */
+    passRunning: () =>
+      typeof interpretation?.activity === 'function' ? interpretation.activity().some((pass) => pass.running) : false,
+    /**
      * Turn it on or off for **this call**, for everyone in it.
      *
      * A group decision beside the call, like `toggleExtractionTarget` — the standing watch is one
@@ -2114,8 +2171,8 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
 
       There was a strip under the call bar reporting a running pass, and this held room for it — so
       while a pass ran, everything on screen moved up to clear a band. The strip is gone: what it
-      reported lives in the extraction panel, and what is left in the bar is `extractionControl`, one
-      square button in the bar's own row, which the call module already accounts for.
+      reported lives in the extraction panel, and what is left in the bar is the record button, one
+      square in the bar's own row, which the call module already accounts for.
 
       The reservation outlived it, so the content still moved for a strip that was not there. Left
       out entirely rather than returned as zeroes, because a module with no fixed chrome should not
@@ -2172,16 +2229,6 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
       const call = myCall();
       if (call) announce(call.id, next);
     },
-    /**
-     * Continue an existing call's transcript rather than starting a new one.
-     *
-     * Takes the record's own id, not a call id: the call id a space-wide call publishes is derived
-     * from the space and never changes, so it identifies the *place* calls happen rather than any
-     * one of them, and could not tell this morning's meeting from this afternoon's.
-     *
-     * Applied when there is a call to apply it to — see the effect that consumes it.
-     */
-    resume: (collection: string) => setPendingResume(collection ?? ''),
     /*
       There is no `dismissInvite` any more, and nothing replaced it.
 

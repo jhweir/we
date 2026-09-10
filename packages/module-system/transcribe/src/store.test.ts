@@ -211,9 +211,9 @@ describe('the call record', () => {
   });
 
   it('announces which record it is writing into', async () => {
-    // No longer how peers find the record — the call says that — but `resume` writes a *different*
-    // one than the call names, so a peer has to be able to see that somebody continued an old
-    // transcript.
+    // No longer how peers find the record — the call says that — but a continued call's record is
+    // adopted before anybody speaks, so a peer has to be able to see that somebody is writing into
+    // an old transcript.
     const h = harness(inCall);
     await h.say('first words');
 
@@ -324,45 +324,54 @@ describe('when the call ends', () => {
  * leaves no way back into one that ended by accident.
  */
 describe('continuing a call', () => {
-  it('writes into the record it was handed rather than creating one', async () => {
-    const h = harness([peer(ME, { type: 'call', id: CALL, record: RECORD })]);
-    h.store.resume('the-old-record');
-    // The pin lands on the effect that watches for a call, the way it would after joining one.
-    h.setPeers([peer(ME, { type: 'call', id: CALL, record: RECORD })]);
+  /*
+    The call module says the record was picked back up — `continued` on the activity it already
+    publishes the record in — and that is the whole of what this needs. It used to be told by a
+    `resume` action the transcript panel's Continue button chained after `continueCall`, which the
+    rail's path into the same call could not do, so Extract sat disabled on one path and not the
+    other until somebody spoke.
+  */
+  const continued = peer(ME, { type: 'call', id: 'call:the-old-record', record: 'the-old-record', continued: true });
+  /** Enough of the host's half for `canExtract` to be answerable: a model, and something to look for. */
+  const interpretation = { available: () => true, targets: () => [{ entity: 'TaskBlock', selected: true }] };
+
+  it('adopts the record before anybody has spoken', () => {
+    const h = harness([continued], { interpretation });
+
+    expect(h.store.collectionId()).toBe('the-old-record');
+    // The point of adopting early: the record already holds a transcript, so a pass over it is
+    // worth offering from the first second rather than after this agent's first utterance.
+    expect(liveExtraction(h.store).canExtract).toBe(true);
+  });
+
+  it('writes into the record it picked up rather than creating one', async () => {
+    const h = harness([continued]);
     await h.say('picking this back up');
 
     expect(h.created.filter((c) => c.entity === 'CollectionBlock')).toHaveLength(0);
     expect(h.created[0].options?.parent).toEqual({ id: 'the-old-record', predicate: 'we://children' });
   });
 
-  it('announces the record it resumed, so the rest of the call converges on it too', async () => {
-    // One agent pressing Continue has to be enough: everybody else adopts an announced record in
+  it('announces the record it adopted, so the rest of the call converges on it too', () => {
+    // One agent picking the call up has to be enough: everybody else adopts an announced record in
     // preference to creating one, which is what pulls the whole call back onto the old transcript.
-    const h = harness([peer(ME, { type: 'call', id: CALL, record: RECORD })]);
-    h.store.resume('the-old-record');
-    h.setPeers([peer(ME, { type: 'call', id: CALL, record: RECORD })]);
+    const h = harness([continued]);
 
     expect(h.published).toContainEqual({
       type: TRANSCRIBE_ACTIVITY,
-      id: CALL,
+      id: 'call:the-old-record',
       recording: false,
       collection: 'the-old-record',
     });
   });
 
-  it('holds the request until there is a call to apply it to', async () => {
-    // Joining is fire-and-forget and publishes the call activity several awaits deep, so a pin that
-    // insisted on a call being there already would land before one was and be dropped.
-    const h = harness([peer(ME)]);
-    h.store.resume('the-old-record');
-    await h.say('too early');
-    expect(h.created).toHaveLength(0);
+  it('leaves a started call alone until somebody speaks', () => {
+    // The other case, and the reason adoption is not simply "the call has a record": a record the
+    // call just made is empty, and a pass over it spends a model call to find nothing.
+    const h = harness([peer(ME, { type: 'call', id: CALL, record: RECORD })], { interpretation });
 
-    h.setPeers([peer(ME, { type: 'call', id: CALL, record: RECORD })]);
-    await h.say('now then');
-
-    expect(h.created.filter((c) => c.entity === 'CollectionBlock')).toHaveLength(0);
-    expect(h.created[0].options?.parent?.id).toBe('the-old-record');
+    expect(h.store.collectionId()).toBeNull();
+    expect(liveExtraction(h.store).canExtract).toBe(false);
   });
 });
 
@@ -650,6 +659,56 @@ describe('stopping', () => {
   });
 });
 
+/**
+ * Leaving a call ends this agent's recording, and nothing used to say so.
+ *
+ * The only effect that cleared `enabled` wanted *no dataset and no call*, which is the boot frame
+ * and a logged-out agent. Inside a space the dataset is always there, so leaving a call left the
+ * flag set for the rest of the session — and three surfaces read it and were each right to.
+ */
+describe('leaving a call', () => {
+  const inThatCall = [peer(ME, { type: 'call', id: CALL, record: RECORD })];
+
+  it('switches recording off, so nothing goes on claiming to record', async () => {
+    const h = harness(inThatCall);
+    h.store.toggle();
+    expect(h.store.enabled()).toBe(true);
+
+    h.setPeers([]);
+    await Promise.resolve();
+
+    // The level meter is drawn on this, and the panel's record button offers to *stop* on it — so
+    // stale, it put a live meter and a stop button over a call that had ended.
+    expect(h.store.enabled()).toBe(false);
+  });
+
+  it('rests at idle rather than parking on "nothing to listen to"', async () => {
+    /*
+      The audio effect reports `enabled && no audio` as `no-audio`, which is honest while a call is
+      running and a microphone has gone away, and wrong once the call is over. Parked there it was
+      invisible behind a past call — the status notes are hidden on one — and flashed into view the
+      moment somebody continued that call, until the microphone arrived.
+    */
+    const h = harness(inThatCall);
+    h.store.toggle();
+
+    h.setPeers([]);
+    await Promise.resolve();
+
+    expect(h.store.status()).toBe('idle');
+  });
+
+  it('leaves a call still running alone', async () => {
+    // The reset is about *this* transition, not about every re-run of the effect that carries it.
+    const h = harness(inThatCall);
+    h.store.toggle();
+
+    await h.settle();
+
+    expect(h.store.enabled()).toBe(true);
+  });
+});
+
 describe('a backend that cannot transcribe', () => {
   /**
    * `'no-backend'` was dead code. The host always supplies a forwarding wrapper for the
@@ -811,6 +870,37 @@ describe('extraction', () => {
       // The same collection the one-shot path would read: `canExtract` gates on there being one,
       // and both go through `collectionId`.
       expect(liveExtraction(h.store).canExtract).toBe(true);
+    });
+
+    it('registers the watch when automatic extraction is switched back on', async () => {
+      /*
+        The reported bug: "Automatic extraction is off for this call. Press Extract instead." stayed
+        on screen whatever the switch said, once it had been toggled. The effect re-ran on the
+        setting, but `syncWatch` remembered the call as watched on the branch that registers
+        nothing, and its short-circuit sent every later run straight back out.
+      */
+      const i = interpreter();
+      const auto: Record<string, boolean> = {};
+      const autoEnabled = (collection?: string) => (collection ? (auto[collection] ?? true) : true);
+      const h = harness(inCall, { interpretation: { ...i.port, autoEnabled } });
+      auto[RECORD] = false;
+      await h.say('nothing to watch for yet');
+
+      expect(i.watches).toEqual([]);
+      expect(h.store.watchProblem()).toBe('Automatic extraction is off for this call.');
+
+      auto[RECORD] = true;
+      await h.settle();
+
+      expect(i.watches).toEqual([RECORD]);
+      expect(h.store.watchProblem()).toBe('');
+
+      // And the other direction: off again has to stop it, not leave it spending a pass per batch.
+      auto[RECORD] = false;
+      await h.settle();
+
+      expect(i.watches).toEqual([RECORD, `-${RECORD}`]);
+      expect(h.store.watchProblem()).toBe('Automatic extraction is off for this call.');
     });
 
     it('stops the watch when the call ends', async () => {
