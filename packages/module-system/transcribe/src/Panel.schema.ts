@@ -373,7 +373,7 @@ export const captureMeter: SchemaNode = {
  * Here rather than only on the finished record because here it is still actionable. The calls list
  * pairs the faces with an utterance count for the same reason, but it says so afterwards, when the
  * only remaining response is to distrust what you are reading. This says it while the meeting is
- * happening and somebody can still press record.
+ * happening and somebody can still press Transcribe.
  *
  * Modelled on the meter above it — a label, and the state on the right — so the panel reads as one
  * set of readouts rather than a meter and then a warning. It states the count either way and only
@@ -1824,7 +1824,7 @@ const extract: SchemaNode = {
  * - **In a call, with a microphone, not recording.** The one state where a button on this panel
  *   changes the answer. `available` is what keeps it out of the second between joining a call and
  *   the microphone coming up: recording is about to start on its own there, so telling somebody to
- *   press record is both wrong and unreadable — it was on screen just long enough to change the
+ *   press Transcribe is both wrong and unreadable — it was on screen just long enough to change the
  *   sentence twice. The same test coverage uses, for the same reason.
  * - **In a call, recording.** Nothing to add — the panel is waiting for somebody to speak, and
  *   saying so twice would be furniture.
@@ -1876,7 +1876,7 @@ const noUtterances: SchemaNode = {
       message: {
         $:
           `!routeStore.params.call && !modules.transcribe.callId ? 'Join a call to transcribe what is said.' : ` +
-          `!modules.transcribe.enabled && modules.transcribe.available ? 'Nothing has been said here yet. Press record to transcribe what is said.' : ` +
+          `!modules.transcribe.enabled && modules.transcribe.available ? 'Nothing has been said here yet. Press Transcribe to write down what is said.' : ` +
           `'Nothing has been said here yet.'`,
       },
     }),
@@ -2935,8 +2935,8 @@ export const panel: SchemaNode = {
       help:
         "What is said on the call is written down here, by whoever says it: each person's " +
         'microphone is transcribed on their own machine and the lines join into one shared record. ' +
-        'Press record to transcribe yourself. A finished call is read back here, and can be picked ' +
-        'up again.',
+        'Press Transcribe to add your own voice to it. A finished call is read back here, and can ' +
+        'be picked up again.',
       /*
         One control, not a control and a badge saying the same thing.
 

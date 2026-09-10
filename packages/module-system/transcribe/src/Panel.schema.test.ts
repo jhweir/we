@@ -131,7 +131,9 @@ describe('a transcript with nothing in it', () => {
     */
     expect(linesJson).toContain('Continue the call to begin transcribing.');
     expect(linesJson).toContain('Join a call to transcribe what is said.');
-    expect(linesJson).toContain('Press record to transcribe what is said.');
+    // Named for the button it points at: it reads "Transcribe" now, not "record".
+    expect(linesJson).toContain('Press Transcribe to write down what is said.');
+    expect(linesJson).not.toContain('Press record');
     // Gone from the status notes, which are about what this node *cannot* do.
     expect(JSON.stringify(captureStatus)).not.toContain('press record');
   });
@@ -946,7 +948,7 @@ describe('the panel’s reads reach the store', () => {
 
     it('offers the record button where this agent is in a call and not using it', () => {
       expect(messageFor(situation({ recording: 'rec-live', micUp: true }))).toBe(
-        'Nothing has been said here yet. Press record to transcribe what is said.',
+        'Nothing has been said here yet. Press Transcribe to write down what is said.',
       );
     });
 
