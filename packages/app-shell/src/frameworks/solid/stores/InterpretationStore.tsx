@@ -22,7 +22,7 @@
  * formatting, so "0:42" and "Extracted 3 tasks" are unreachable from a template — the same reason
  * `runtimeStore.aiModels` carries `statusText` and `themeStore` builds its own view models.
  */
-import { detailWithheld } from '@shared/interpretation/activityView';
+import { detailWithheld, watchPassRecord } from '@shared/interpretation/activityView';
 import { provideModuleHostServices } from '@shared/registries/moduleHostServices';
 import { useDatasetStore } from '@solid/stores/DatasetStore';
 import { useProfileStore } from '@solid/stores/ProfileStore';
@@ -288,6 +288,35 @@ export function InterpretationStoreProvider(props: ParentProps) {
     const unwatch = local.onChange(sync);
 
     /*
+      Write down a watched pass as it settles, so the history holds both kinds.
+
+      What makes a row worth writing is `watchPassRecord`, next to the other rule about this feed
+      that was worth deciding away from a store. What is here is the two things only a store can do:
+      find the merged row, and make the write happen once.
+
+      The **merged** row, because the exchange and the outcome arrive on different events —
+      `llmRequestSent` carries the prompt, `processed` carries the ids, and several steps separate
+      them. Reading the settling event alone stored every watched pass with an empty prompt and
+      response, which is the one thing this was added to keep. `mine` narrows the lookup because a
+      peer's row can carry the same pass id and is kept under its own key.
+
+      `written` is the guard that makes it once: a settled row goes on receiving updates.
+    */
+    const written = new Set<string>();
+    const record = (activity: InterpretationActivity) => {
+      if (!isSettled(activity.phase) || written.has(activity.passId)) return;
+      const merged = local.rows().find((row) => row.passId === activity.passId && row.mine) ?? activity;
+      const fields = watchPassRecord({ ...merged, settled: isSettled(merged.phase) });
+      if (!fields) return;
+      written.add(activity.passId);
+      void datasetStore.recordWatchPass(fields).catch((error) => {
+        // The pass happened either way; a lost note about it is a gap in a list, not a failure
+        // worth interrupting anybody over. `recordPass` logs its own reason.
+        console.warn('[interpretation] could not write down a watched pass', error);
+      });
+    };
+
+    /*
       Ask for the model exchange here and decide later whether to forward it.
 
       The backend's `detail` is a subscription-time choice and the events carry the payload over a
@@ -298,7 +327,14 @@ export function InterpretationStoreProvider(props: ParentProps) {
     */
     let stop: (() => void) | undefined;
     void ports.interpretation
-      .observe?.(handle, (activity) => local.publish(activity), { detail: true })
+      .observe?.(
+        handle,
+        (activity) => {
+          local.publish(activity);
+          record(activity);
+        },
+        { detail: true },
+      )
       .then((off) => {
         stop = off;
       })

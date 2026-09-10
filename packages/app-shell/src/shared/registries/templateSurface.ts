@@ -361,6 +361,13 @@ export const TEMPLATE_SURFACE: Record<string, Record<string, Classification>> = 
     provideAutoInterpretGate: WIRING,
     provideExtractionCandidates: WIRING,
     provideCallExtraction: WIRING,
+    /*
+      Written by InterpretationStore when a watched (automatic) pass settles, so an automatic pass
+      leaves the same durable record a one-shot one does. Store-to-store wiring: the caller is the
+      only thing that knows a pass has settled, and a template writing extraction history would be
+      forging somebody else's run.
+    */
+    recordWatchPass: WIRING,
     onDatasetRemoved: WIRING,
     initSystemDatasets: WIRING,
     loadDatasets: WIRING,

@@ -128,6 +128,27 @@ export interface DatasetStore {
   loadDatasets: () => Promise<void>;
   subscribeToChanges: () => void;
   getDatasetOrder: () => string[];
+  /**
+   * Write down a pass the *standing watch* ran, once it has settled.
+   *
+   * The manual path writes its own, on the way back from a run that returned it everything. A
+   * watched pass has no such moment: it happens inside the executor and is only ever reported, so
+   * the record has to be written by whoever is watching the report — and that is
+   * InterpretationStore, which is the one place subscribed to it.
+   *
+   * Here rather than there because this is where an `ExtractionPass` is written and where a call's
+   * target list is resolved, and neither is worth a second copy. Called only for this agent's own
+   * passes: every peer sees the same event, and a row per peer would be a history of who was
+   * watching rather than of what ran.
+   */
+  recordWatchPass: (pass: {
+    collection: string;
+    outcome: string;
+    recordCount: number;
+    error?: string;
+    prompt?: string;
+    response?: string;
+  }) => Promise<void>;
   /** SpaceStore supplies "does this space want calls interpreted automatically". Unset reads off. */
   provideAutoInterpretGate: (gate: () => boolean) => () => void;
   /**
@@ -250,7 +271,16 @@ export function DatasetStoreProvider(props: ParentProps) {
   async function recordPass(
     handle: DatasetProxy,
     collectionId: string,
-    pass: { outcome: string; recordCount: number; targets: string[]; error?: string },
+    pass: {
+      outcome: string;
+      recordCount: number;
+      targets: string[];
+      error?: string;
+      /** What started it. Defaults to a press, which is what the only writer used to be. */
+      trigger?: 'manual' | 'auto';
+      prompt?: string;
+      response?: string;
+    },
   ): Promise<void> {
     try {
       await ExtractionPass.create(
@@ -260,6 +290,9 @@ export function DatasetStoreProvider(props: ParentProps) {
           recordCount: pass.recordCount,
           targets: JSON.stringify(pass.targets),
           error: pass.error ?? '',
+          trigger: pass.trigger ?? 'manual',
+          prompt: pass.prompt ?? '',
+          response: pass.response ?? '',
         } as never,
         { parent: { id: collectionId, predicate: EXTRACTION_PASS_PREDICATE } } as never,
       );
@@ -385,6 +418,10 @@ export function DatasetStoreProvider(props: ParentProps) {
             outcome: classes.length === 0 ? 'skipped' : 'done',
             recordCount: result.ids.length,
             targets: classes,
+            // Handed back by the run rather than found on the progress feed afterwards, so one
+            // write holds the whole pass — see `prompt` on the result.
+            prompt: result.prompt,
+            response: result.response,
           });
           return result;
         } catch (error) {
@@ -980,6 +1017,21 @@ export function DatasetStoreProvider(props: ParentProps) {
     loadDatasets,
     subscribeToChanges,
     getDatasetOrder,
+    recordWatchPass: async (pass) => {
+      const dataset = currentDataset();
+      if (!dataset || !pass.collection) return;
+      await recordPass(dataset.handle, pass.collection, {
+        outcome: pass.outcome,
+        recordCount: pass.recordCount,
+        // Resolved here rather than carried on the event: what a call looks for is three layers of
+        // host state, and the executor is told class URIs rather than the model names this stores.
+        targets: targetsForCollection(pass.collection),
+        error: pass.error,
+        trigger: 'auto',
+        prompt: pass.prompt,
+        response: pass.response,
+      });
+    },
     provideAutoInterpretGate: autoInterpretGate.provide,
     provideExtractionCandidates: extractionCandidatesGate.provide,
     provideCallExtraction: callExtraction.provide,
