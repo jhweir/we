@@ -389,6 +389,9 @@ export interface ExtractionPassRecord extends RecordInstance {
   recordCount: number;
   targets: string;
   error: string;
+  trigger: string;
+  prompt: string;
+  response: string;
 }
 
 export interface TypeStyleRecord extends RecordInstance {

@@ -521,6 +521,45 @@ export function createAd4mInterpretationPort(selfId?: () => string | undefined):
   */
   const watchParents = new Map<string, { id: string; predicate: string }>();
 
+  /**
+   * The collection a *one-shot* pass is reading, while it reads it.
+   *
+   * `watchParents` answers the same question for a standing watch and cannot answer it here: a
+   * one-shot registers no processor, so its events arrive under an observation id nothing else has
+   * ever seen. Filled when the run starts and dropped when it ends, because unlike a watch there is
+   * no later event to need it — and a map that only grew would hold a row per press for the life of
+   * the session.
+   */
+  const oneShotParents = new Map<string, string>();
+
+  /**
+   * What the model was asked and answered, for a one-shot still running.
+   *
+   * The events carrying it arrive on the observation stream while `runInterpretation` is still
+   * awaiting, so the run itself never sees them — it gets a list of ids and nothing about how they
+   * were arrived at. Held here for the length of the pass and handed back with the result, which is
+   * what lets a caller write the whole pass down in one go rather than finding the row again later.
+   *
+   * Alongside `oneShotParents` rather than folded into it, because they are filled by different
+   * things: one by the caller starting a run, the other by the executor part-way through it.
+   */
+  const oneShotExchange = new Map<string, { prompt?: string; response?: string }>();
+
+  /**
+   * Where a pass came from, for a consumer keeping a history — see `collection` on the activity row.
+   *
+   * Two lookups because there are two ways a pass starts, and the id it reports itself under differs
+   * accordingly: a watched call's processor id, or the observation id minted for a single press.
+   * Neither map knows about a pass on somebody else's node, which is right — a client with nothing
+   * to write the row against should say nothing rather than guess a collection.
+   */
+  const passOrigin = (processorId: string): { collection?: string; trigger?: 'manual' | 'auto' } => {
+    const oneShot = oneShotParents.get(processorId);
+    if (oneShot) return { collection: oneShot, trigger: 'manual' };
+    const watched = watchParents.get(processorId);
+    return watched ? { collection: watched.id, trigger: 'auto' } : {};
+  };
+
   /*
     What the executor turned out to support, once anything has actually asked it.
 
@@ -645,6 +684,22 @@ export function createAd4mInterpretationPort(selfId?: () => string | undefined):
         detail: event.detail,
       });
 
+      /*
+        Keep a one-shot's exchange where the run that started it can reach it.
+
+        Outside the `phase` gate below, because the two steps carrying the exchange have no phase of
+        their own — they are progress within a running pass rather than a change of state — so the
+        gate would drop exactly the events this needs. Keyed on the observation id, which is the
+        pass id the run minted, so nothing here touches a watch's passes.
+      */
+      const exchangeId = passIdOf(event);
+      if (oneShotParents.has(exchangeId) && (event.llmInput || event.llmOutput)) {
+        const held = oneShotExchange.get(exchangeId) ?? {};
+        if (event.llmInput) held.prompt = event.llmInput;
+        if (event.llmOutput) held.response = event.llmOutput;
+        oneShotExchange.set(exchangeId, held);
+      }
+
       const phase = phaseOf(event.step);
       if (phase) {
         const passId = passIdOf(event);
@@ -662,6 +717,16 @@ export function createAd4mInterpretationPort(selfId?: () => string | undefined):
           at: Date.now(),
           ids: event.step === 'processed' ? (event.bases ?? []) : undefined,
           detail: event.detail,
+          /*
+            What this pass read, and what started it — the two facts a durable history needs and the
+            only two only this side can supply.
+
+            `watchParents` is the map the parenting below already relies on, so a watched call has
+            its collection here; a one-shot registers no watch and is answered by `oneShotParents`,
+            which the run itself fills in. Absent for a pass this client did not start and is not
+            watching, which is the honest answer — there is nothing to write it against.
+          */
+          ...passOrigin(event.processorId),
           /*
             Only the field this event actually carries.
 
@@ -784,47 +849,72 @@ export function createAd4mInterpretationPort(selfId?: () => string | undefined):
       const observed = runtimeSupportsObservation(dataset);
       if (observed) await attachListener(perspective);
       const passId = `one-shot/${crypto.randomUUID()}`;
+      // What this pass is reading, for as long as it reads it — see `oneShotParents`. A press with
+      // no parent has no call to be about, which is a caller doing something other than reading a
+      // conversation, and it writes no history.
+      if (request.parent) oneShotParents.set(passId, request.parent.id);
 
       /*
-        The backstop for a node the probe never got to ask.
+        Forget this pass however it ends.
 
-        `checkAvailability` runs when the dataset changes, but a session can reach here first — the
-        probe is one round trip and somebody can press Extract during it — and a node can in
-        principle be swapped underneath a live connection. Catching it here means the answer is
-        learned from whichever call gets there first, and the message a person sees is the one
-        written for it rather than `Unknown type: perspective.runInterpretation`.
+        `try/finally` rather than a delete beside the return, because a press has four other exits —
+        a runtime that turns out not to interpret, an abort, a failed parenting write, and whatever
+        `interpretationOverlays` may throw — and every one of them used to leave the pass's parent
+        and its whole prompt in a map for the life of the session. The exchange is read inside the
+        block, so the return value is assembled before this runs.
       */
-      let ids: string[];
       try {
-        ids = await runObserved(
-          perspective,
-          withTime(turns),
-          basePrefix,
-          request.classes,
-          observed ? passId : undefined,
-        );
-      } catch (error) {
-        if (!isMissingHandler(error)) throw error;
-        executorSupports = false;
-        throw new Error(UNSUPPORTED);
-      }
-      if (ctl?.signal?.aborted) return { turns: turns.length, ids: [], proposed: [] };
+        /*
+          The backstop for a node the probe never got to ask.
 
-      // Parent *after* the pass, because the engine has no notion of one. Sequential rather than
-      // Promise.all: these are writes to one perspective, and a burst of concurrent link adds buys
-      // nothing over a handful of items.
-      if (request.parent && ids.length) {
-        for (const id of ids) {
-          await perspective.add(
-            new Link({ source: request.parent.id, predicate: request.parent.predicate, target: id }),
+          `checkAvailability` runs when the dataset changes, but a session can reach here first — the
+          probe is one round trip and somebody can press Extract during it — and a node can in
+          principle be swapped underneath a live connection. Catching it here means the answer is
+          learned from whichever call gets there first, and the message a person sees is the one
+          written for it rather than `Unknown type: perspective.runInterpretation`.
+        */
+        let ids: string[];
+        try {
+          ids = await runObserved(
+            perspective,
+            withTime(turns),
+            basePrefix,
+            request.classes,
+            observed ? passId : undefined,
           );
+        } catch (error) {
+          if (!isMissingHandler(error)) throw error;
+          executorSupports = false;
+          throw new Error(UNSUPPORTED);
         }
-      }
+        if (ctl?.signal?.aborted) return { turns: turns.length, ids: [], proposed: [] };
 
-      // Which of these are staged rather than committed. Read back rather than inferred: the
-      // divergence gate decides per property, and only the executor knows what it did.
-      const staged = new Set((await perspective.interpretationOverlays()).map((o) => o.base));
-      return { turns: turns.length, ids, proposed: ids.filter((id) => staged.has(id)) };
+        // Parent *after* the pass, because the engine has no notion of one. Sequential rather than
+        // Promise.all: these are writes to one perspective, and a burst of concurrent link adds buys
+        // nothing over a handful of items.
+        if (request.parent && ids.length) {
+          for (const id of ids) {
+            await perspective.add(
+              new Link({ source: request.parent.id, predicate: request.parent.predicate, target: id }),
+            );
+          }
+        }
+
+        // Which of these are staged rather than committed. Read back rather than inferred: the
+        // divergence gate decides per property, and only the executor knows what it did.
+        const staged = new Set((await perspective.interpretationOverlays()).map((o) => o.base));
+        // Read before the `finally` below drops it — see `oneShotExchange`.
+        const exchange = oneShotExchange.get(passId) ?? {};
+        return {
+          turns: turns.length,
+          ids,
+          proposed: ids.filter((id) => staged.has(id)),
+          ...exchange,
+        };
+      } finally {
+        oneShotParents.delete(passId);
+        oneShotExchange.delete(passId);
+      }
     },
 
     async observe(

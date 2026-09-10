@@ -110,6 +110,20 @@ export interface InterpretationResult {
    * Always a subset of `ids`; empty from a backend with no provenance gate.
    */
   proposed: string[];
+  /**
+   * What the model was asked and what it answered, where the backend reported them.
+   *
+   * Returned rather than left to the progress feed, because a caller writing the pass down has the
+   * facts about it — how many turns, what it was looking for, whether it threw — at the moment this
+   * resolves, and the exchange arrives on a different channel with its own timing. Handing it back
+   * here is what lets one write hold the whole pass rather than a row that has to be found again
+   * and amended.
+   *
+   * Absent on a runtime that cannot report progress, which is the same runtime whose live readout
+   * shows nothing either.
+   */
+  prompt?: string;
+  response?: string;
 }
 
 /**
