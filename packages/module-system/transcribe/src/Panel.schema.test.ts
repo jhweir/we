@@ -774,6 +774,26 @@ describe('the extraction panel', () => {
     expect(json).toContain('Reads the whole conversation so far');
   });
 
+  it('offers a way to lengthen the list of things it can extract', () => {
+    /*
+      What a call can extract is whatever this space has models for, and the panel could only ever
+      say so: the chips were a closed list with no visible route to a longer one, and the only
+      mention of where that list comes from was a link that appeared solely where the chips could
+      not be pressed. So "why is the thing I want not here" was two screens away with nothing
+      pointing at it.
+
+      It opens the space's vocabulary rather than doing anything itself — adding a model is a
+      decision about the community, with its own screen, and a panel about one call is the wrong
+      place to make it.
+    */
+    const chips = JSON.stringify(extractionTargets);
+
+    expect(chips).toContain('{"$action":"shellStore.openSpaceSettings","args":["vocabulary"]}');
+    expect(chips).toContain('"name":"plus"');
+    // Inside the wrapping row with the chips, so it reflows with them and follows the last one.
+    expect(chips.indexOf('"name":"plus"')).toBeGreaterThan(chips.indexOf('target.label'));
+  });
+
   it('keeps Extract now at one weight, whatever the automatic pass is doing', () => {
     /*
       It dropped to `ghost` while automatic extraction was on, on the reasoning that a press is then

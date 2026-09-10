@@ -294,6 +294,7 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     dataset,
     presence,
     selfId,
+    notify,
     onDispose,
   } = deps;
 
@@ -1408,6 +1409,13 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
   let watchedAuto = true;
 
   /**
+   * The collection this agent has already been told has nothing selected to extract — see the toast
+   * in `syncWatch`. `syncWatch` re-runs on every change to the target list, and somebody unticking
+   * the last chip should hear about it once rather than on every press afterwards.
+   */
+  let warnedEmpty: string | null = null;
+
+  /**
    * Whether this community has automatic extraction on.
    *
    * Feature-tested like every other interpretation call — the host publishes a forwarding wrapper
@@ -1476,12 +1484,19 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     }
 
     if (next && !auto) {
-      // Not a failure and not a capability — a decision, stated as one. The host would refuse the
-      // registration anyway; saying it here is what makes the sentence on screen the true one, and
-      // what stops a pointless call to a backend that is going to throw. The unwatch above has
-      // already run, so switching the setting off mid-call stops the watch rather than leaving it
-      // spending an LLM call per pass for a community that just said stop.
-      setWatchProblem('Automatic extraction is off for this call.');
+      /*
+        Nothing said, because nothing is wrong.
+
+        This set "Automatic extraction is off for this call." and the panel printed it under the
+        controls — a sentence restating the switch immediately above it, permanently, for everyone
+        who had deliberately turned it off. `watchProblem` is for the cases somebody cannot see and
+        cannot fix from here; a setting they just changed is neither.
+
+        The early return stays, and does the work: the host would refuse the registration anyway, and
+        the unwatch above has already run, so switching off mid-call stops the watch rather than
+        leaving it spending a model call per pass for a community that just said stop.
+      */
+      setWatchProblem('');
       /*
         Nothing is registered, so nothing is remembered as watched.
 
@@ -1520,10 +1535,23 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
         console.warn('[transcribe] could not watch this call for auto-extraction', error);
       }
     } else if (next && !key) {
-      // Not a failure, and worth saying in its own words: the node can watch perfectly well and
-      // this space has declared nothing for it to look for. The fix is in the space's own models,
-      // which is somewhere a person can go — unlike every other reason a watch does not run.
-      setWatchProblem('This space has no models marked for AI extraction.');
+      /*
+        Said once, out loud, rather than printed under the controls for the rest of the call.
+
+        The node can watch perfectly well and nothing has been marked for it to look for, so this is
+        worth mentioning — but it was a permanent sentence describing a state the chips above it
+        already show, which is the definition of clutter. A toast says it at the moment it starts to
+        matter and then gets out of the way.
+
+        Keyed on the collection so it is once per call and not once per re-registration: `syncWatch`
+        re-runs whenever the target list changes, and somebody unticking the last chip should be told
+        once, not on every press after it.
+      */
+      if (warnedEmpty !== next) {
+        warnedEmpty = next;
+        notify?.('warning', 'No models selected for extraction');
+      }
+      setWatchProblem('');
       console.info('[transcribe] no extraction targets in this space — nothing to watch for');
     } else if (next) {
       setWatchProblem('This host cannot run a standing extraction watch.');

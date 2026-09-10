@@ -1195,6 +1195,41 @@ export const extractionTargets: SchemaNode = {
             },
           ],
         },
+        /*
+          The way to add a kind of thing, at the end of the row of kinds.
+
+          What a call can extract is whatever this space has models for, and until now the panel
+          could only ever say so — the chips were a closed list with no visible route to a longer
+          one, and the only mention of where that list comes from was a link that appeared solely
+          where the chips could not be pressed. So the answer to "why is the thing I want not here"
+          was two screens away and nothing pointed at it.
+
+          Inside the same wrapping row rather than beside it, so it reflows with the chips and sits
+          after the last one at any width. Square and outlined: it is one more thing in a row of
+          outlined things, and the one that is not a toggle.
+
+          It opens the space's vocabulary rather than doing anything itself. Adding a model is a
+          decision about the community, with its own screen and its own wizard, and a panel about
+          one call is the wrong place to make it — but exactly the right place to be reminded it can
+          be made.
+        */
+        {
+          type: 'we-tooltip',
+          props: { content: "Add a kind of thing to extract, in this space's vocabulary" },
+          children: [
+            {
+              type: 'we-button',
+              props: {
+                size: 'xs',
+                variant: 'outline',
+                square: true,
+                label: "Add a kind of thing to extract, in this space's vocabulary",
+                onClick: { $action: 'shellStore.openSpaceSettings', args: ['vocabulary'] },
+              },
+              children: [{ type: 'we-icon', props: { name: 'plus' } }],
+            },
+          ],
+        },
       ],
     },
   ],

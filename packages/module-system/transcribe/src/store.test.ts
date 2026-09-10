@@ -44,6 +44,8 @@ function harness(peers: Peer[] = [], extraDeps: Record<string, unknown> = {}) {
   const linked: Linked[] = [];
   const published: Activity[] = [];
   const cleared: string[] = [];
+  /** What the module asked the host to say out loud — see `notify` on the contract. */
+  const notified: { tone: string; message: string }[] = [];
   let nextId = 1;
   const effects: Array<() => void> = [];
 
@@ -68,6 +70,7 @@ function harness(peers: Peer[] = [], extraDeps: Record<string, unknown> = {}) {
      * only hands it to an `AudioContext`, which these tests never reach.
      */
     audioInput: () => ({}) as MediaStream,
+    notify: (tone: string, message: string) => notified.push({ tone, message }),
     presence: {
       peers: () => peers,
       setActivity: (activity) => published.push(activity),
@@ -89,6 +92,7 @@ function harness(peers: Peer[] = [], extraDeps: Record<string, unknown> = {}) {
     linked,
     published,
     cleared,
+    notified,
     setPeers: (next: Peer[]) => {
       peers = next;
       for (const fn of effects) fn();
@@ -887,20 +891,24 @@ describe('extraction', () => {
       await h.say('nothing to watch for yet');
 
       expect(i.watches).toEqual([]);
-      expect(h.store.watchProblem()).toBe('Automatic extraction is off for this call.');
 
       auto[RECORD] = true;
       await h.settle();
 
       expect(i.watches).toEqual([RECORD]);
-      expect(h.store.watchProblem()).toBe('');
 
       // And the other direction: off again has to stop it, not leave it spending a pass per batch.
       auto[RECORD] = false;
       await h.settle();
 
       expect(i.watches).toEqual([RECORD, `-${RECORD}`]);
-      expect(h.store.watchProblem()).toBe('Automatic extraction is off for this call.');
+      /*
+        And says nothing about it either way. This reported "Automatic extraction is off for this
+        call." under the controls, which is a sentence restating the switch directly above it,
+        permanently, for everybody who had deliberately turned it off. `watchProblem` is for what
+        somebody can neither see nor fix from here.
+      */
+      expect(h.store.watchProblem()).toBe('');
     });
 
     it('stops the watch when the call ends', async () => {
@@ -1067,9 +1075,11 @@ describe('extraction', () => {
       expect(liveExtraction(h.store).targets).toEqual([]);
       expect(liveExtraction(h.store).canExtract).toBe(false);
       // Registering a watch with an empty class list is refused by the executor, and the reason is
-      // one a person can act on — so it is reported rather than attempted.
+      // one a person can act on — so it is said rather than attempted. Said *once*, out loud: it
+      // used to be a permanent sentence under the controls describing what the chips already show.
       expect(i.watches).toEqual([]);
-      expect(h.store.watchProblem()).toContain('no models marked for AI extraction');
+      expect(h.store.watchProblem()).toBe('');
+      expect(h.notified).toEqual([{ tone: 'warning', message: 'No models selected for extraction' }]);
     });
 
     /*
