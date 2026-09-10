@@ -774,6 +774,34 @@ describe('the extraction panel', () => {
     expect(json).toContain('Reads the whole conversation so far');
   });
 
+  it('shows nothing to press outside a call, rather than a well of disabled controls', () => {
+    /*
+      It was an auto switch that could not be pressed, an Extract that could not run, and a chip row
+      showing the space's default list greyed out — each correctly disabled and none of them
+      actionable, which is a panel explaining what it *would* offer rather than what it does.
+
+      The same gate everything else here already carries: proposals, the history and the results
+      below all ask for a call first.
+    */
+    const well = json.indexOf('"bg":"surface-sunken"');
+    expect(well).toBeGreaterThan(-1);
+    expect(json.lastIndexOf(`"condition":{"$":"${EXTRACTION_SUBJECT_EXPR}"}`, well)).toBeGreaterThan(-1);
+  });
+
+  it('uses the same placeholder as the transcript panel, in the same words', () => {
+    /*
+      Both were hand-written columns with `footnote` text, a step smaller than the shared fragment
+      draws — two panels side by side in one dock saying the same kind of thing in two sizes. The
+      fragment also brings the delayed fade, which stops a placeholder asserting emptiness on the
+      frame before a query answers.
+    */
+    expect(json).toContain('Join a call to start extracting things.');
+    expect(json).not.toContain('Start a call.');
+    // `emptyState`'s own shape: the larger padding, no `variant` on the sentence, and the delay.
+    expect(json).toContain('"p":"600"');
+    expect(json).toContain('"delay":400');
+  });
+
   it('scrolls the results and nothing above them', () => {
     // `panelShell` clips, so without this an open history plus a 240px code pane is cut off by the
     // dock box. The header, the chips and the activity stay put; the list moves.

@@ -2816,7 +2816,23 @@ export const extractionPanel: SchemaNode = panelShell({
           type: 'Column',
           props: { width: '100%', flex: '1', minHeight: '0', gap: '300' },
           children: [
-            extract,
+            /*
+              The controls, the chips and whatever the last pass did — only where there is a call.
+
+              Outside one this was a well of dead furniture: an auto switch that could not be
+              pressed, an Extract that could not run, and a chip row showing the space's default
+              list greyed out. Every one of them was correctly disabled and none of them could be
+              acted on, which is a panel explaining what it *would* offer rather than what it does.
+
+              The same gate everything else here already carries — proposals, the history and the
+              results below all ask for a call first — so the panel now says one thing outside a
+              call and shows its controls the moment there is a conversation to point them at.
+
+              What goes with it is the "Change the default" link, which only ever appeared where the
+              chips could not be pressed. The space's own models are two clicks away in settings,
+              which is where that link went.
+            */
+            { type: '$if', props: { condition: EXTRACTION_SUBJECT, then: extract } },
             proposals,
             /*
               What the passes did, in full.
@@ -2866,36 +2882,35 @@ export const extractionPanel: SchemaNode = panelShell({
                   props: {
                     condition: EXTRACTION_SUBJECT,
                     then: extractedRows,
-                    else: {
-                      type: 'Column',
-                      props: { ax: 'center', ay: 'center', gap: '200', p: '500', width: '100%' },
-                      children: [
-                        { type: 'we-icon', props: { name: 'sparkle', size: 'lg', color: 'text-faint' } },
-                        {
-                          type: 'we-text',
-                          props: { variant: 'footnote', color: 'text-faint', textAlign: 'center' },
-                          children: ['Start a call. What the conversation produces appears here.'],
-                        },
-                      ],
-                    },
+                    /*
+                      The shared placeholder, so this panel and the transcript's read as one pair.
+
+                      It was a hand-written column with `footnote` text, which is a step smaller
+                      than `emptyState` draws — two panels side by side in the same dock, saying
+                      the same kind of thing in two sizes. Going through the fragment also brings
+                      its delayed fade, which is what stops a placeholder asserting emptiness on
+                      the frame before a query answers.
+
+                      "Join a call" rather than "Start a call": joining is the act either way, and
+                      it is the word the transcript's own placeholder uses one panel over.
+                    */
+                    else: emptyState({
+                      icon: 'sparkle',
+                      label: 'extraction',
+                      message: 'Join a call to start extracting things.',
+                    }),
                   },
                 },
               ],
             },
           ],
         },
-        else: {
-          type: 'Column',
-          props: { ax: 'center', ay: 'center', gap: '200', p: '500', width: '100%', flex: '1' },
-          children: [
-            { type: 'we-icon', props: { name: 'plugs', size: 'lg', color: 'text-faint' } },
-            {
-              type: 'we-text',
-              props: { variant: 'footnote', color: 'text-faint', textAlign: 'center' },
-              children: ['This node has no model configured, so nothing can be extracted from a call.'],
-            },
-          ],
-        },
+        // The same fragment, for the same reason — see the placeholder above.
+        else: emptyState({
+          icon: 'plugs',
+          label: 'extraction',
+          message: 'This node has no model configured, so nothing can be extracted from a call.',
+        }),
       },
     },
   ],
