@@ -508,18 +508,45 @@ interface CardShape {
   display: string;
   /** Given an expression naming a property, the expression reading its value. */
   value: (name: string) => string;
+  /**
+   * Whether this row has anything to show for a field — `field` is the expression naming it.
+   *
+   * Separate from `value` because "empty" is not the same question for the two shapes, and getting
+   * it wrong is visible: a card listed Comments, Signals, Participants, Calls and Mentions under
+   * every extracted task, each with a caption and nothing after it.
+   */
+  present: (field: string) => string;
 }
 
-/** A suggestion: values in a `fields` list, since no record exists to read them off yet. */
+/**
+ * A suggestion: values in a `fields` list, since no record exists to read them off yet.
+ *
+ * A field the pass did not propose is simply absent from the list, so a plain truthiness test is the
+ * whole of emptiness here — which is why this card never had the problem the record one did.
+ */
 const PROPOSAL_SHAPE: CardShape = {
   display: DISPLAY,
   value: (name) => `find(proposal.fields, { name: ${name} }).value`,
+  present: (field) => `find(proposal.fields, { name: ${field}.name }).value`,
 };
 
-/** An extracted record: ordinary properties, indexed by whichever name the declaration gives. */
+/**
+ * An extracted record: ordinary properties, indexed by whichever name the declaration gives.
+ *
+ * Emptiness needs the `many` flag. Every declared relation becomes a detail field, and a record
+ * carries its to-many relations as *lists* — an empty one is an empty array, which is truthy, so a
+ * plain truthiness test kept every one of them. That is where "Comments / Signals / Participants /
+ * Calls / Mentions" came from on a task that had none of any: `WeNode` declares all five, so every
+ * model in the space inherits them, and a card built from the declaration showed all five captions
+ * over nothing.
+ *
+ * `count` answers for a list and gives 0 for anything else, so it cannot stand in for the scalar
+ * test — hence the branch rather than one expression for both.
+ */
 const RECORD_SHAPE: CardShape = {
   display: 'recordStore.displays[target]',
   value: (name) => `item[${name}]`,
+  present: (field) => `(${field}.many ? count(item[${field}.name]) : item[${field}.name])`,
 };
 
 /**
@@ -536,7 +563,7 @@ const RECORD_SHAPE: CardShape = {
 const detailRows = (shape: CardShape): SchemaNode => ({
   type: '$each',
   props: {
-    items: { $: `${shape.display}.fields.filter(f, f.role == 'detail' && ${shape.value('f.name')})` },
+    items: { $: `${shape.display}.fields.filter(f, f.role == 'detail' && ${shape.present('f')})` },
     as: 'field',
   },
   children: [

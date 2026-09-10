@@ -840,6 +840,22 @@ describe('the extraction panel', () => {
     expect(json).toContain('"we-badge","props":{"size":"xs","variant":"warning","appearance":"solid"}');
   });
 
+  it('lists only the fields a record actually has something in', () => {
+    /*
+      Every declared relation becomes a detail field, and `WeNode` declares five — comments,
+      signals, participants, calls, mentions — which every model in the space inherits. A record
+      carries a to-many relation as a list, and an empty list is truthy, so a plain truthiness test
+      kept all five: an extracted task listed five captions with nothing after any of them.
+
+      `count` answers for a list and gives 0 for anything else, so it cannot stand in for the scalar
+      test either. The `many` flag is what picks between them.
+    */
+    expect(json).toContain('f.many ? count(item[f.name]) : item[f.name]');
+    // The suggestion card keeps the plain test, and should: a field the pass did not propose is
+    // absent from its list rather than present and empty, so there is no list to count.
+    expect(json).toContain("f.role == 'detail' && find(proposal.fields, { name: f.name }).value");
+  });
+
   it('says what a card is in words and an edge, not in a glyph per card', () => {
     /*
       Every card was a `we-alert`, which always draws a status glyph — deliberately, since its own
