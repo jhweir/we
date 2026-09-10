@@ -509,6 +509,7 @@ describe('going to the call', () => {
     };
     let created = 0;
     let onScreen: string | null = null;
+    const activities: Record<string, unknown>[] = [];
 
     const store = createCallStore({
       signal,
@@ -517,7 +518,11 @@ describe('going to the call', () => {
       datasetUri: () => uri,
       selfId: () => 'did:test:me',
       ephemeral: () => scope,
-      presence: { peers: () => [], setActivity: () => {}, clearActivity: () => {} },
+      presence: {
+        peers: () => [],
+        setActivity: (activity: Record<string, unknown>) => activities.push(activity),
+        clearActivity: () => {},
+      },
       datasets: { get: () => undefined, open: (target: string) => opened.push(target) },
       onDispose: () => {},
       createEntity: async () => `rec-${++created}`,
@@ -528,6 +533,8 @@ describe('going to the call', () => {
     return {
       store,
       opened,
+      /** The call activity as peers — and the transcriber — see it. */
+      activities,
       /** What the address names, as the host would report it. */
       showing(recordId: string | null) {
         onScreen = recordId;
@@ -576,6 +583,30 @@ describe('going to the call', () => {
       await Promise.resolve();
 
       expect(first.store.callId()).toBe(second.store.callId());
+    });
+
+    it('says on its activity that the record was picked back up', async () => {
+      /*
+        What the transcriber reads to adopt the record before anybody speaks. A started call's record
+        is empty and is adopted on the first utterance; a continued one already holds a transcript,
+        and without this the two ways into the same call disagreed about whether it had one.
+      */
+      const { store, activities } = railable();
+
+      store.continueCall('rec-from-last-week');
+      await Promise.resolve();
+
+      expect(activities.at(-1)).toMatchObject({ type: 'call', record: 'rec-from-last-week', continued: true });
+    });
+
+    it('never says so about a record it just made', async () => {
+      const { store, activities } = railable();
+
+      store.goToCall();
+      await Promise.resolve();
+
+      expect(activities.at(-1)).toMatchObject({ type: 'call', record: 'rec-1' });
+      expect(activities.at(-1)).not.toHaveProperty('continued');
     });
 
     it('does nothing without a record, rather than starting a call', async () => {
