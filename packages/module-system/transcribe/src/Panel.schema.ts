@@ -1570,9 +1570,11 @@ const extractionControls: SchemaNode = {
         well below is only what a pass looks for and what the last one did. Not inside the `$if`:
         the switch is about the live call, but a pass can be run over any call on screen.
 
-        Quieter while the automatic pass is on: it is then the backfill and the recovery, not the
-        way a pass usually starts, and the eye should land on the control that matters in this state.
-        `secondary` while auto is off, where a press is the only way anything gets read.
+        `secondary` in every state. It dropped to `ghost` while the automatic pass was on, on the
+        reasoning that a press is then the backfill rather than the usual way a pass starts — but
+        this is the only control in the panel that *does* anything on a press, and a button that
+        fades because a setting elsewhere is on reads as unavailable rather than as unnecessary.
+        The state it reports is the pass it started, which the status lines under it already say.
       */
     {
       type: 'we-tooltip',
@@ -1605,7 +1607,7 @@ const extractionControls: SchemaNode = {
           type: 'we-button',
           props: {
             size: 'sm',
-            variant: { $: "modules.transcribe.autoExtract ? 'ghost' : 'secondary'" },
+            variant: 'secondary',
             gap: '100',
             // Disabled rather than hidden once the panel is showing the section: the reason is
             // "nothing has been said yet", which resolves on its own and is worth waiting for.

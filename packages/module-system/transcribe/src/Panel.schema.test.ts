@@ -774,6 +774,18 @@ describe('the extraction panel', () => {
     expect(json).toContain('Reads the whole conversation so far');
   });
 
+  it('keeps Extract now at one weight, whatever the automatic pass is doing', () => {
+    /*
+      It dropped to `ghost` while automatic extraction was on, on the reasoning that a press is then
+      the backfill rather than the usual way a pass starts. But this is the only control in the panel
+      that does anything on a press, and a button that fades because a setting elsewhere is on reads
+      as unavailable rather than as unnecessary.
+    */
+    expect(json).not.toContain("modules.transcribe.autoExtract ? 'ghost' : 'secondary'");
+    // The auto button still carries its own state in its variant — that one is a toggle.
+    expect(json).toContain("modules.transcribe.autoExtract ? 'primary' : 'ghost'");
+  });
+
   it('keeps the controls off the chips ground, and names what the chips are', () => {
     /*
       The two controls spent a while as the top row of the sunken box holding the chips, and a
