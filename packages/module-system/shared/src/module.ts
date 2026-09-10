@@ -981,6 +981,21 @@ export interface ModuleStoreDeps {
    * own default rather than assume the key is there.
    */
   settings?: () => Record<string, boolean | string | number>;
+
+  /**
+   * Say something to the person using the app, outside this module's own surfaces.
+   *
+   * A module had no way to speak at all: everything it wanted to report had to become a store member
+   * and then be rendered by a panel somebody might not have open. That is right for a *state* — a
+   * pass running, a coverage gap — and wrong for the moment a thing fails to start, which is over
+   * before the panel is looked at and clutters it forever afterwards.
+   *
+   * Deliberately narrow. Three tones and a sentence, with no title, no action and no dismissal
+   * handle, because a module that could put a button in front of somebody is a module that can
+   * interrupt them — and what a host's notifications look like, and whether it has any, is the
+   * host's to decide. Absent means nobody is listening, which is the same as every other port here.
+   */
+  notify?: (tone: 'success' | 'warning' | 'error', message: string) => void;
 }
 
 /**

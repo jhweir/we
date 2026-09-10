@@ -88,6 +88,8 @@ export interface ModuleHostServices {
    * dataset's models. Separate from `interpretation` because the port takes turns and only the host
    * can produce them — see `shared/interpretation/transcriptTurns.ts`.
    */
+  /** Where a module's `notify` lands — a toast, in this host. */
+  notify?: (tone: 'success' | 'warning' | 'error', message: string) => void;
   interpretCollection?: (collectionId: string) => Promise<InterpretationResult>;
   /**
    * The suggestions staged on one collection's contents, published by the same store as
@@ -270,6 +272,10 @@ export function createModuleStoreDeps(framework: {
     callOnScreen: () => services.callOnScreen?.() ?? null,
     datasetRefKey: () => services.datasetRefKey?.() ?? '',
     selfId: () => services.selfId?.() ?? null,
+
+    // Forwarded rather than captured, like every accessor here: a module that takes `deps.notify` at
+    // construction still reaches the host's own once one is provided.
+    notify: (tone, message) => services.notify?.(tone, message),
 
     // A stable function that forwards, so a module capturing `deps.ephemeral` at construction still
     // reaches the real port once one exists.
