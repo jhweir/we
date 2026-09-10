@@ -775,6 +775,63 @@ describe('the extraction panel', () => {
     expect(json).toContain('Reads the whole conversation so far');
   });
 
+  it('answers a suggestion with the same pair of marks the board uses', () => {
+    /*
+      Two surfaces answering one decision should not look like two decisions, so these are the
+      board's own circles: outlined, round, the glyph in the success or danger role, filling with
+      that role's surface under the pointer. Words are not needed on them *because* they are the
+      board's glyphs and the tooltips carry the words — and a green/red pair is the classic thing to
+      fail on, so the mark is what carries the meaning for anyone who cannot separate them.
+    */
+    for (const [tone, glyph] of [
+      ['success', 'check'],
+      ['danger', 'x'],
+    ]) {
+      expect(json).toContain(`"r":"full","label":"${tone === 'success' ? 'Keep' : 'Discard'} this"`);
+      expect(json).toContain(`"color":"${tone}-text","hoverProps":{"bg":"${tone}-surface"`);
+      expect(json).toContain(`{"type":"we-icon","props":{"name":"${glyph}","weight":"bold"}}`);
+    }
+    // The words are gone from the buttons themselves.
+    expect(json).not.toContain('},"Keep"]');
+    expect(json).not.toContain('},"Discard"]');
+  });
+
+  it('puts the answer beside the card’s own details rather than under them', () => {
+    /*
+      The detail rows sat above a full-width row of buttons, so every card spent a line on controls
+      that fit beside what was already there — in a docked panel showing several at once, that is
+      the difference between reading three and reading five.
+
+      `ay: 'end'` because the details wrap to as many lines as they need and the answer belongs at
+      the foot of the card however tall the left-hand side turns out to be.
+    */
+    expect(json).toContain('"ax":"between","ay":"end"');
+    // And the details are hidden while the editor is open, since those fields are the same values.
+    expect(json).toContain('modules.transcribe.editingProposal != proposal.id');
+  });
+
+  it('moves editing out of the answer pair, into the card’s corner', () => {
+    /*
+      Edit was a third button in the row of answers, which made a binary question look like a
+      three-way choice however neutrally it was painted. It is not an answer — it is what you do
+      before answering — so it sits apart, as a mark, with the words behind a tooltip.
+    */
+    const pencil = json.indexOf('"name":"pencil-simple"');
+    const keep = json.indexOf('"label":"Keep this"');
+
+    expect(pencil).toBeLessThan(keep);
+    expect(json).toContain('"content":"Edit before keeping"');
+    expect(json).toContain('"content":"Stop editing"');
+    expect(json).not.toContain('"Edit"]');
+    expect(json).not.toContain('"Cancel"]');
+  });
+
+  it('draws a suggestion’s headline a size above its own metadata', () => {
+    // Everything on the card was `footnote`, so bold was the only thing marking the headline — and
+    // bold at the size of the metadata under it reads as emphasis in a paragraph, not a title.
+    expect(json).toContain('{"variant":"label","fontWeight":"600"}');
+  });
+
   it('gives the actual reason Extract now cannot be pressed', () => {
     /*
       `canExtract` folds three reasons into one boolean — no models in the space, nothing ticked on

@@ -798,40 +798,125 @@ const proposals: SchemaNode = {
                               card falls back to the flat summary below rather than to a blank box.
                             */
                                 {
-                                  type: '$if',
-                                  props: {
-                                    condition: { $: `${DISPLAY}.label` },
-                                    then: {
+                                  /*
+                                    What kind of thing this is, and the way into changing it.
+
+                                    Edit used to be a third button in the row of answers at the
+                                    bottom, which made a binary question look like a three-way
+                                    choice however neutrally it was painted. It is not an answer —
+                                    it is what you do *before* answering — so it sits apart from the
+                                    pair, in the corner, as a mark rather than a word.
+
+                                    The label keeps the space either way, so the control stays in the
+                                    corner on a card whose entity the backend could not name.
+                                  */
+                                  type: 'Row',
+                                  props: { ax: 'between', ay: 'center', gap: '200', width: '100%' },
+                                  children: [
+                                    {
                                       type: 'Row',
-                                      props: { gap: '100', ay: 'center' },
+                                      props: { flex: '1', minWidth: '0', ay: 'center', gap: '100' },
                                       children: [
                                         {
                                           type: '$if',
                                           props: {
-                                            condition: { $: `${DISPLAY}.icon` },
+                                            condition: { $: `${DISPLAY}.label` },
                                             then: {
-                                              type: 'we-icon',
-                                              props: {
-                                                size: 'xs',
-                                                name: { $: `${DISPLAY}.icon` },
-                                                color: 'text-muted',
-                                              },
+                                              type: 'Row',
+                                              props: { gap: '100', ay: 'center', minWidth: '0' },
+                                              children: [
+                                                {
+                                                  type: '$if',
+                                                  props: {
+                                                    condition: { $: `${DISPLAY}.icon` },
+                                                    then: {
+                                                      type: 'we-icon',
+                                                      props: {
+                                                        size: 'xs',
+                                                        name: { $: `${DISPLAY}.icon` },
+                                                        color: 'text-muted',
+                                                      },
+                                                    },
+                                                  },
+                                                },
+                                                {
+                                                  type: 'we-text',
+                                                  props: {
+                                                    variant: 'footnote',
+                                                    color: 'text-muted',
+                                                    uppercase: true,
+                                                    truncate: true,
+                                                  },
+                                                  children: [{ $: `${DISPLAY}.label` }],
+                                                },
+                                              ],
                                             },
                                           },
                                         },
-                                        {
-                                          type: 'we-text',
-                                          props: {
-                                            variant: 'footnote',
-                                            color: 'text-muted',
-                                            uppercase: true,
-                                            truncate: true,
-                                          },
-                                          children: [{ $: `${DISPLAY}.label` }],
-                                        },
                                       ],
                                     },
-                                  },
+                                    /*
+                                      Offered only where an edit could actually be written back: the
+                                      host has to lend a record-update surface and the backend has to
+                                      have said which model this is. Without either, Keep would take
+                                      the typing and silently drop it.
+
+                                      A pencil going into it and a cross coming back out, each with
+                                      the words behind a tooltip — a glyph alone in a corner is only
+                                      obvious to somebody who already knows what it does.
+                                    */
+                                    {
+                                      type: '$if',
+                                      props: {
+                                        condition: {
+                                          $: 'modules.transcribe.canEditProposals && proposal.entity',
+                                        },
+                                        then: {
+                                          type: '$if',
+                                          props: {
+                                            condition: { $: 'modules.transcribe.editingProposal == proposal.id' },
+                                            then: {
+                                              type: 'we-tooltip',
+                                              props: { content: 'Stop editing' },
+                                              children: [
+                                                {
+                                                  type: 'we-button',
+                                                  props: {
+                                                    variant: 'ghost',
+                                                    size: 'xs',
+                                                    square: true,
+                                                    label: 'Stop editing',
+                                                    onClick: { $action: 'modules.transcribe.cancelProposalEdit' },
+                                                  },
+                                                  children: [{ type: 'we-icon', props: { name: 'x' } }],
+                                                },
+                                              ],
+                                            },
+                                            else: {
+                                              type: 'we-tooltip',
+                                              props: { content: 'Edit before keeping' },
+                                              children: [
+                                                {
+                                                  type: 'we-button',
+                                                  props: {
+                                                    variant: 'ghost',
+                                                    size: 'xs',
+                                                    square: true,
+                                                    label: 'Edit before keeping',
+                                                    onClick: {
+                                                      $action: 'modules.transcribe.editProposal',
+                                                      args: [{ $: 'proposal.id' }],
+                                                    },
+                                                  },
+                                                  children: [{ type: 'we-icon', props: { name: 'pencil-simple' } }],
+                                                },
+                                              ],
+                                            },
+                                          },
+                                        },
+                                      },
+                                    },
+                                  ],
                                 },
                                 {
                                   // Editing, or reading. The controls replace the card's body rather than
@@ -855,14 +940,24 @@ const proposals: SchemaNode = {
                                           type: '$if',
                                           props: {
                                             condition: { $: `${DISPLAY}.title` },
+                                            /*
+                                              `label` rather than `footnote`, which is one step up
+                                              the scale. Everything on this card was the same size,
+                                              so the bold on the headline was the only thing marking
+                                              it as one — and bold at the size of its own metadata
+                                              reads as emphasis inside a paragraph rather than as a
+                                              title above one.
+                                            */
                                             then: {
                                               type: 'we-text',
-                                              props: { variant: 'footnote', fontWeight: '600' },
+                                              props: { variant: 'label', fontWeight: '600' },
                                               children: [roleValue('title')],
                                             },
+                                            // The fallback plays the same role, so it takes the
+                                            // same size — bold is what it lacks, not prominence.
                                             else: {
                                               type: 'we-text',
-                                              props: { variant: 'footnote' },
+                                              props: { variant: 'label' },
                                               children: [{ $: 'proposal.summary' }],
                                             },
                                           },
@@ -878,101 +973,107 @@ const proposals: SchemaNode = {
                                             },
                                           },
                                         },
-                                        {
-                                          type: '$if',
-                                          props: { condition: { $: `${DISPLAY}.label` }, then: proposalDetail },
-                                        },
                                       ],
                                     },
                                   },
                                 },
                                 {
-                                  type: 'Row',
-                                  props: { gap: '200', ay: 'center', wrap: true },
-                                  children: [
-                                    /*
-                                      A yes and a no, coloured and marked as such — and the same
-                                      gestures the board offers on the card itself, so the two
-                                      surfaces answering one decision do not look like two decisions.
+                                  /*
+                                    The card's last line: what it says about itself, and the answer.
 
-                                      `success` and `danger` rather than `secondary` and `ghost`: the
-                                      question is binary, and a pair where only one half is coloured
-                                      reads as one action and one way out of it. The icons are the
-                                      board's own `check` and `x`, and they are not decoration — a
-                                      green/red pair is the classic thing to fail on, so the glyph is
-                                      what carries the meaning for anyone who cannot separate them.
-                                    */
+                                    The detail rows used to sit above a full-width row of buttons, so
+                                    every card spent a line on controls that fit beside what was
+                                    already there — in a docked panel showing several at once, that
+                                    is the difference between reading three and reading five.
+
+                                    `ay: 'end'` rather than centre: the details wrap to as many lines
+                                    as they need, and the answer belongs at the foot of the card
+                                    however tall the left-hand side turns out to be.
+                                  */
+                                  type: 'Row',
+                                  props: { gap: '200', ax: 'between', ay: 'end', width: '100%' },
+                                  children: [
                                     {
-                                      type: 'we-button',
-                                      props: {
-                                        size: 'xs',
-                                        variant: 'success',
-                                        gap: '100',
-                                        onClick: {
-                                          $action: 'modules.transcribe.acceptProposal',
-                                          args: [{ $: 'proposal.id' }],
+                                      type: 'Column',
+                                      props: { flex: '1', minWidth: '0', gap: '100' },
+                                      children: [
+                                        {
+                                          // Not while the editor is open: those fields are the same
+                                          // values, and showing both would be the card arguing with
+                                          // itself about what the suggestion says.
+                                          type: '$if',
+                                          props: {
+                                            condition: {
+                                              $: `${DISPLAY}.label && modules.transcribe.editingProposal != proposal.id`,
+                                            },
+                                            then: proposalDetail,
+                                          },
                                         },
-                                      },
-                                      children: [{ type: 'we-icon', props: { name: 'check' } }, 'Keep'],
-                                    },
-                                    {
-                                      type: 'we-button',
-                                      props: {
-                                        size: 'xs',
-                                        variant: 'danger',
-                                        gap: '100',
-                                        onClick: {
-                                          $action: 'modules.transcribe.rejectProposal',
-                                          args: [{ $: 'proposal.id' }],
-                                        },
-                                      },
-                                      children: [{ type: 'we-icon', props: { name: 'x' } }, 'Discard'],
+                                      ],
                                     },
                                     {
                                       /*
-                                    Offered only where an edit could actually be written back: the
-                                    host has to lend a record-update surface and the backend has to
-                                    have said which model this is. Without either, Keep would take
-                                    the typing and silently drop it.
-                                  */
-                                      type: '$if',
-                                      props: {
-                                        condition: {
-                                          $: 'modules.transcribe.canEditProposals && proposal.entity',
-                                        },
-                                        then: {
-                                          type: '$if',
-                                          props: {
-                                            condition: { $: 'modules.transcribe.editingProposal == proposal.id' },
-                                            then: {
+                                        A yes and a no, drawn the way the board draws the same pair on
+                                        the card itself — a raised circle, the glyph in the success or
+                                        danger role, filling with that role's surface under the
+                                        pointer. Two surfaces answering one decision should not look
+                                        like two decisions.
+
+                                        Glyphs without words, which they can be here because they are
+                                        the board's glyphs and the tooltips carry the words. A
+                                        green/red pair is the classic thing to fail on, so the mark is
+                                        what carries the meaning for anyone who cannot separate them.
+                                      */
+                                      type: 'Row',
+                                      props: { gap: '100', ay: 'center', flexShrink: '0' },
+                                      children: [
+                                        {
+                                          type: 'we-tooltip',
+                                          props: { content: 'Keep this' },
+                                          children: [
+                                            {
                                               type: 'we-button',
                                               props: {
+                                                variant: 'outline',
                                                 size: 'xs',
-                                                variant: 'ghost',
-                                                gap: '100',
-                                                onClick: { $action: 'modules.transcribe.cancelProposalEdit' },
-                                              },
-                                              children: [{ type: 'we-icon', props: { name: 'x' } }, 'Cancel'],
-                                            },
-                                            else: {
-                                              type: 'we-button',
-                                              props: {
-                                                size: 'xs',
-                                                variant: 'ghost',
-                                                gap: '100',
+                                                square: true,
+                                                r: 'full',
+                                                label: 'Keep this',
+                                                color: 'success-text',
+                                                hoverProps: { bg: 'success-surface', borderColor: 'success-text' },
                                                 onClick: {
-                                                  $action: 'modules.transcribe.editProposal',
+                                                  $action: 'modules.transcribe.acceptProposal',
                                                   args: [{ $: 'proposal.id' }],
                                                 },
                                               },
-                                              // Neutral on purpose: editing is neither answer to the
-                                              // question, and a third coloured button would make the
-                                              // yes/no pair a three-way choice.
-                                              children: [{ type: 'we-icon', props: { name: 'pencil-simple' } }, 'Edit'],
+                                              children: [{ type: 'we-icon', props: { name: 'check', weight: 'bold' } }],
                                             },
-                                          },
+                                          ],
                                         },
-                                      },
+                                        {
+                                          type: 'we-tooltip',
+                                          props: { content: 'Discard this' },
+                                          children: [
+                                            {
+                                              type: 'we-button',
+                                              props: {
+                                                variant: 'outline',
+                                                size: 'xs',
+                                                square: true,
+                                                r: 'full',
+                                                label: 'Discard this',
+                                                color: 'danger-text',
+                                                hoverProps: { bg: 'danger-surface', borderColor: 'danger-text' },
+                                                onClick: {
+                                                  $action: 'modules.transcribe.rejectProposal',
+                                                  args: [{ $: 'proposal.id' }],
+                                                },
+                                              },
+                                              children: [{ type: 'we-icon', props: { name: 'x', weight: 'bold' } }],
+                                            },
+                                          ],
+                                        },
+                                      ],
                                     },
                                   ],
                                 },
