@@ -243,21 +243,17 @@ const callPill: SchemaNode = {
     then: {
       type: 'Row',
       props: {
-        position: 'fixed',
-        top: '300',
-        /*
-          Beside the content, not over the sidebar.
-
-          `--we-chrome-left` is the shell's published answer for exactly this: the sidebar's width
-          plus whatever any left-hand dock has taken. Chrome that worked it out from the ingredients
-          got it wrong in one arrangement or another every time, which is why the shell computes it
-          once — the switcher beside this reads the same number through `--we-chrome-center-x`, which
-          is a subtraction over it.
-        */
-        left: 'calc(var(--we-chrome-left, 0px) + var(--we-space-300))',
-        zIndex: 'sticky',
         gap: '200',
         ay: 'center',
+        /*
+          Yields to the button beside it rather than pushing it off the edge.
+
+          The pill has a title of unknown length and the button does not, so when the region runs out
+          of room the honest thing to give up is a few characters of a name that is already truncated
+          at 360px. `minWidth: '0'` is the half that is easy to forget: without it a flex item is
+          never asked to be narrower than its content, so the truncation never happens.
+        */
+        minWidth: '0',
         p: '200',
         /*
           The extra inset is on the trailing edge now, not the leading one.
@@ -494,6 +490,8 @@ const startCall: SchemaNode = {
       props: {
         size: 'sm',
         gap: '200',
+        // Its words are fixed, so it is the wrong half of the pair to shorten — see `callPill`.
+        flexShrink: '0',
         variant: { $: "modules.call.active ? 'secondary' : 'primary'" },
         /*
           `goToCall` only where there is a call to go to.
@@ -540,6 +538,70 @@ const startCall: SchemaNode = {
       ],
     },
   },
+};
+
+/**
+ * The corner that is about the conversation, and it is always there.
+ *
+ * ## Why it stopped coming and going
+ *
+ * The pill alone lived here, so the whole region appeared when a call was named and vanished when
+ * one was not — which made the one thing people had learned to look at the one thing that was
+ * sometimes missing. Calls had no permanent address on screen at all: the module rail's launcher is
+ * the least discoverable control in the app, the calls panel is a section somebody can close, and
+ * this flickered. A fixed region makes the conversation a *place*, so starting one, seeing the
+ * current one and picking an old one back up all resolve to the same corner.
+ *
+ * ## Two children rather than one that swaps
+ *
+ * The obvious shape is a region that shows the start button *or* the pill. It has a hole, and it is
+ * a bug we had already fixed once: reading a finished call is exactly when somebody wants to start a
+ * fresh one — that is how the reopen bug got noticed — and swapping would mean deselecting first to
+ * reach the button. So both are here, and only one state quietens the button: being *in* a call,
+ * where a second one is refused anyway and the pill's own control already says "go to the call".
+ *
+ * ## The pill leads
+ *
+ * When there is a call it is the subject, and the subject holds the left edge; the offer of another
+ * follows it. Which means the button moves as a title grows, and that is the cheaper thing to move —
+ * it is the less-used of the two whenever the pill is there at all.
+ *
+ * The switcher beside this does not move either way: it is centred on the *content*, computed from
+ * the sidebar and dock insets, so a neighbour that changes width is nothing to it.
+ */
+const callChrome: SchemaNode = {
+  type: 'Row',
+  props: {
+    position: 'fixed',
+    top: '300',
+    /*
+      Beside the content, not over the sidebar.
+
+      `--we-chrome-left` is the shell's published answer for exactly this: the sidebar's width plus
+      whatever any left-hand dock has taken. Chrome that worked it out from the ingredients got it
+      wrong in one arrangement or another every time, which is why the shell computes it once — the
+      switcher beside this reads the same number through `--we-chrome-center-x`, which is a
+      subtraction over it.
+    */
+    left: 'calc(var(--we-chrome-left, 0px) + var(--we-space-300))',
+    zIndex: 'sticky',
+    gap: '200',
+    ay: 'center',
+  },
+  children: [
+    callPill,
+    {
+      /*
+        Quiet only while this agent is in a call.
+
+        Every other state has something for it to say — start one, or join the one running here that
+        nobody has joined from this machine — and the three-way label says which. In a call it would
+        be a second "go to the call" beside the pill's own, about the same call.
+      */
+      type: '$if',
+      props: { condition: { $: '!modules.call.active' }, then: startCall },
+    },
+  ],
 };
 
 /**
@@ -1910,6 +1972,10 @@ export const workshopTemplate: TemplateSchema = {
       to drop below it, and the rail is a column at top right that a left-hand pill cannot reach.
       Generous on purpose: over-reporting costs a rail that moves earlier than it had to, and
       under-reporting puts two things on top of each other.
+
+      Unchanged when the left-hand corner gained a second child. It contributes no width term for the
+      reason above, and the height is still one control in a padded row: the button beside the pill
+      is a `sm` control, which is shorter than the pill's own.
     */
     chromeReserve: { top: 80, width: 520 },
     /*
@@ -2039,7 +2105,7 @@ export const workshopTemplate: TemplateSchema = {
     clipped (no `overflow` here), and scrolls in that container exactly as before.
   */
   props: { bg: 'page', width: '100%', height: '100%' },
-  children: [callPill, switcher, { type: '$routes' }],
+  children: [callChrome, switcher, { type: '$routes' }],
   routes: [
     /*
       Relative, because the parent path this now sits under carries a parameter: an absolute target

@@ -16,7 +16,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import type { TemplatePanel } from '@we/schema-shared';
+import type { SchemaNode, TemplatePanel } from '@we/schema-shared';
 import { describe, expect, it } from 'vitest';
 
 import * as showcase from './index.ts';
@@ -245,6 +245,46 @@ describe('the workshop template’s call selection', () => {
     const start = calls.slice(calls.indexOf('modules.call.startCall'));
 
     expect(start).toContain("?call=${''}");
+  });
+
+  it('keeps the call corner on screen whether or not there is a call', () => {
+    /*
+      The pill alone lived here, so the region appeared with a call and vanished without one — which
+      made the corner people had learned to look at the corner that was sometimes missing. Calls had
+      no permanent address on screen at all: the rail's launcher is the least discoverable control in
+      the app, the panel is a section somebody can close, and this flickered.
+
+      Asserted on the root's own children, because "somewhere in the tree" is also true of the pill
+      that used to be mounted there conditionally.
+    */
+    const region = ((workshop as SchemaNode).children as SchemaNode[])[0];
+    expect(region.type).toBe('Row');
+    expect((region.props as { position?: string }).position).toBe('fixed');
+    // The pill is inside it and still conditional; the region around it is not.
+    expect(JSON.stringify(region)).toContain('"condition":{"$":"routeStore.params.call ? routeStore.params.call');
+  });
+
+  it('offers a new call from the corner too, except while in one', () => {
+    /*
+      A region that swapped the button for the pill would have a hole, and it is a bug we had already
+      fixed once: reading a finished call is exactly when somebody wants to start a fresh one, and
+      swapping would mean deselecting first to reach the button.
+
+      The single state that quietens it is being in a call, where a second is refused anyway and the
+      pill's own control already says "go to the call".
+    */
+    const region = JSON.stringify(((workshop as SchemaNode).children as SchemaNode[])[0]);
+
+    expect(region).toContain('"condition":{"$":"!modules.call.active"}');
+    expect(region).toContain('modules.call.startCall');
+  });
+
+  it('gives the left edge to the call, not to the offer of another', () => {
+    // When there is a call it is the subject, so it holds the position that does not move. The
+    // button follows it and shifts as a title grows, which is the cheaper of the two to move.
+    const region = JSON.stringify(((workshop as SchemaNode).children as SchemaNode[])[0]);
+
+    expect(region.indexOf('local.callRecord')).toBeLessThan(region.indexOf('modules.call.startCall'));
   });
 
   it('starts a call rather than reopening the one selected in the list', () => {
