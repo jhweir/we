@@ -7015,7 +7015,7 @@
         },
         "moduleLaunchers": {
           "type": "array",
-          "properties": ["id", "icon", "label", "active"]
+          "properties": ["id", "icon", "label", "active", "busy"]
         },
         "spaceViews": {
           "type": "array"

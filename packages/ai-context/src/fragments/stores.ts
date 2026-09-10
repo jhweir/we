@@ -347,7 +347,7 @@ export const storeEntries: StoreEntry[] = [
       },
       moduleLaunchers: {
         type: 'array',
-        properties: ['id', 'icon', 'label', 'active'],
+        properties: ['id', 'icon', 'label', 'active', 'busy'],
       },
       taskStates: { type: 'array', properties: ['id', 'name', 'slug', 'semantic', 'color', 'retired', 'defined'] },
       offeredTaskStates: {
@@ -1014,7 +1014,7 @@ export function generateStoresText(entries: StoreEntry[]): string {
         moduleInstallSettings:
           "{ id, name, description, icon, installed, surface, switchable }[] — every registered module and whether this agent wants it anywhere. The global Settings → Modules list, and the only place an 'app' or 'capability' module is decided about: a contribution is gated at the layer where it renders, and only 'chrome' renders inside a space. `surface` is derived from what the module contributes. Its per-space counterpart is `modules` on each spaceList row, which carries enabled/installed/visible/active together and lists chrome modules only",
         moduleLaunchers:
-          '{ id, icon, label, active }[] — launchers for the modules enabled here and available in this space; what the host module rail renders. Pair with { $action: "spaceStore.launchModule", args: [{ $: "mod.id" }] }',
+          '{ id, icon, label, active, busy }[] — launchers for the modules enabled here and available in this space; what the host module rail renders. `active` lights the button while the module reports its surface open; `busy` says the module is working in the background — an extraction pass running — and is independent of `active`, so a rail can show work going on behind a closed panel. Pair with { $action: "spaceStore.launchModule", args: [{ $: "mod.id" }] }',
       },
       actions: {
         moveChild:

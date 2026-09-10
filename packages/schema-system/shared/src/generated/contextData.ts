@@ -2794,7 +2794,7 @@ export const contextData: ContextData = {
         missingModules: { type: 'array' },
         activeModules: { type: 'array' },
         moduleInstallSettings: { type: 'array', properties: ['id', 'name', 'description', 'icon', 'installed'] },
-        moduleLaunchers: { type: 'array', properties: ['id', 'icon', 'label', 'active'] },
+        moduleLaunchers: { type: 'array', properties: ['id', 'icon', 'label', 'active', 'busy'] },
         spaceViews: { type: 'array' },
         routableViews: { type: 'array' },
         enabledViewIds: { type: 'array' },
