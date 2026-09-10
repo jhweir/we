@@ -1912,30 +1912,19 @@ const extract: SchemaNode = {
         },
       },
     },
-    {
-      type: '$if',
-      props: {
-        condition: { $: "modules.transcribe.extractStatus == 'done'" },
-        then: {
-          type: 'Row',
-          props: { gap: '200', ay: 'center' },
-          children: [
-            { type: 'we-icon', props: { name: 'check', color: 'success-text' } },
-            {
-              type: 'we-text',
-              props: { variant: 'footnote', color: 'text-muted' },
-              children: [
-                // Zero is a real and common answer — a conversation with no commitments in it —
-                // and saying so is the difference between "it worked, there was nothing" and
-                // "it silently failed".
-                { $: "modules.transcribe.extractCount ? modules.transcribe.extractCount : 'No'" },
-                ' records written.',
-              ],
-            },
-          ],
-        },
-      },
-    },
+    /*
+      What the last pass produced is no longer said here.
+
+      It was a tick and "N records written.", which every pass left standing above the chips until
+      the next one — and the two readouts below say it with more: the results themselves appear under
+      "Extracted", and `ExtractionPass` records the outcome and the count of every pass, one-shot and
+      standing alike, so the history holds what this held and keeps holding it after the next press.
+
+      Worth knowing what went with it: a pass that finds *nothing* now changes nothing on screen
+      except the count in the collapsed history. The line's own note called that the difference
+      between "it worked, there was nothing" and "it silently failed", and that reading was fair.
+      What made it worth removing anyway is that it paid for the common case with permanent chrome.
+    */
     {
       type: '$if',
       props: {

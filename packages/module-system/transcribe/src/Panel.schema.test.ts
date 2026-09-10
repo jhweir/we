@@ -826,6 +826,21 @@ describe('the extraction panel', () => {
     expect(json).not.toContain('"Cancel"]');
   });
 
+  it('leaves what a pass produced to the two readouts that already say it', () => {
+    /*
+      A tick and "N records written." stood above the chips until the next press. The results
+      themselves appear under "Extracted", and `ExtractionPass` records the outcome and count of
+      every pass — one-shot and standing alike — so the history holds what this held and keeps
+      holding it afterwards.
+
+      The spinner and the failure alert stay: one is the only sign a press did anything, and the
+      other is the one outcome neither readout can be relied on to carry.
+    */
+    expect(json).not.toContain('records written.');
+    expect(json).toContain('Reading the transcript…');
+    expect(json).toContain("modules.transcribe.extractStatus == 'error'");
+  });
+
   it('draws a suggestion’s headline a size above its own metadata', () => {
     // Everything on the card was `footnote`, so bold was the only thing marking the headline — and
     // bold at the size of the metadata under it reads as emphasis in a paragraph, not a title.
