@@ -311,7 +311,11 @@ export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
                               r: 'full',
                               label: 'Keep this',
                               color: 'success-text',
-                              hoverProps: { bg: 'success-surface', borderColor: 'success-text' },
+                              // The fill on hover, not a tint of it — the canvas's own rule for this
+                              // pair, where `on-success` answers for the contrast the moment the
+                              // background stops being the card's. A tint reads as the button
+                              // acknowledging the pointer rather than as the answer it will give.
+                              hoverProps: { bg: 'success', color: 'on-success', borderColor: 'success' },
                               onClick: { $action: 'modules.transcribe.acceptProposal', args: [{ $: `${as}.id` }] },
                             },
                             children: [{ type: 'we-icon', props: { name: 'check', weight: 'bold' } }],
@@ -331,7 +335,11 @@ export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
                               r: 'full',
                               label: 'Discard this',
                               color: 'danger-text',
-                              hoverProps: { bg: 'danger-surface', borderColor: 'danger-text' },
+                              // The fill on hover, not a tint of it — the canvas's own rule for this
+                              // pair, where `on-danger` answers for the contrast the moment the
+                              // background stops being the card's. A tint reads as the button
+                              // acknowledging the pointer rather than as the answer it will give.
+                              hoverProps: { bg: 'danger', color: 'on-danger', borderColor: 'danger' },
                               onClick: { $action: 'modules.transcribe.rejectProposal', args: [{ $: `${as}.id` }] },
                             },
                             children: [{ type: 'we-icon', props: { name: 'x', weight: 'bold' } }],

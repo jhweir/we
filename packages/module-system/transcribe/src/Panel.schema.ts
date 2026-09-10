@@ -481,16 +481,6 @@ const FIELD_ICON =
   `: field.kind == 'number' ? 'hash' : ''`;
 
 /**
- * A state's colour, from its *position* in the model's own list rather than from its spelling.
- *
- * The last value of a closed vocabulary is the settled one — `done`, `published`, `resolved` — and
- * the first is the not-started one, because that is how anybody writes such a list. Reading the
- * position means a community shape with states nobody here has heard of still gets a sensible ramp,
- * where a lookup table of English words would give every one of them the same neutral grey.
- */
-const STATE_VARIANT = `${FIELD_VALUE} == last(field.options) ? 'success' : ${FIELD_VALUE} == first(field.options) ? 'neutral' : 'primary'`;
-
-/**
  * A moment, with the time shown only when there is one.
  *
  * An all-day event is stored as `T00:00`, so a midnight time is the signal that no time was said —
@@ -556,67 +546,68 @@ const proposalDetail: SchemaNode = {
         },
         {
           /*
-            How the value is drawn, by kind — a badge for a closed vocabulary, a formatted moment for
-            a date, the related record's own name for a relation, and the text for everything else.
+            How the value is drawn, by kind — a formatted moment for a date, the related record's own
+            name for a relation, and the text for everything else.
 
-            None of this names a model. A community shape with its own states gets the badge, its own
-            dates get the formatting, and its own relations resolve through the same lookup.
+            None of this names a model. A community shape's own dates get the formatting, and its own
+            relations resolve through the same lookup.
+
+            ## A closed vocabulary is not a badge here
+
+            It was: a status or a priority came out as a coloured chip, on the reasoning that a value
+            from a closed set is a state rather than a phrase. True, and it made two fields on the
+            card louder than the rest — a date sits as plain text on the same row, and a task's
+            status is not more worth reading than an event's start. These are the *details* of a
+            suggestion nobody has agreed to yet, and drawing two of them as chips gave a card two
+            focal points besides its own headline.
+
+            The board is where a status earns its colour, because there a column *is* the status and
+            the colour is the community's own. Here it is one line among several.
           */
           type: '$if',
           props: {
-            condition: { $: 'count(field.options)' },
+            condition: { $: "field.kind == 'date' || field.kind == 'datetime'" },
             then: {
-              type: 'we-badge',
-              props: { size: 'xs', variant: { $: STATE_VARIANT } },
-              children: [{ $: FIELD_VALUE }],
+              type: '$if',
+              props: {
+                condition: { $: `endsWith(${FIELD_VALUE}, 'T00:00')` },
+                then: timestamp(false),
+                else: timestamp(true),
+              },
             },
             else: {
               type: '$if',
               props: {
-                condition: { $: "field.kind == 'date' || field.kind == 'datetime'" },
-                then: {
-                  type: '$if',
-                  props: {
-                    condition: { $: `endsWith(${FIELD_VALUE}, 'T00:00')` },
-                    then: timestamp(false),
-                    else: timestamp(true),
-                  },
-                },
-                else: {
-                  type: '$if',
-                  props: {
-                    condition: { $: "field.kind == 'relation'" },
-                    /*
+                condition: { $: "field.kind == 'relation'" },
+                /*
                       A relation's value is the target's id, which is not worth showing anybody. The
                       record it names is fetched and drawn by whichever property that model calls its
                       title — the same `displays` lookup the card itself is built from, one level in.
                     */
-                    then: {
-                      type: '$single',
-                      props: {
-                        item: {
-                          $query: {
-                            entity: { $: 'field.target' },
-                            where: { id: { $: FIELD_VALUE } },
-                            limit: 1,
-                          },
-                        },
-                        as: 'related',
+                then: {
+                  type: '$single',
+                  props: {
+                    item: {
+                      $query: {
+                        entity: { $: 'field.target' },
+                        where: { id: { $: FIELD_VALUE } },
+                        limit: 1,
                       },
-                      children: [
-                        {
-                          type: 'we-text',
-                          props: { variant: 'footnote', truncate: true },
-                          children: [{ $: 'related[recordStore.displays[field.target].title]' }],
-                        },
-                      ],
                     },
-                    else: {
+                    as: 'related',
+                  },
+                  children: [
+                    {
                       type: 'we-text',
                       props: { variant: 'footnote', truncate: true },
-                      children: [{ $: FIELD_VALUE }],
+                      children: [{ $: 'related[recordStore.displays[field.target].title]' }],
                     },
-                  },
+                  ],
+                },
+                else: {
+                  type: 'we-text',
+                  props: { variant: 'footnote', truncate: true },
+                  children: [{ $: FIELD_VALUE }],
                 },
               },
             },
@@ -648,21 +639,32 @@ const proposalEditor: SchemaNode = {
       children: [
         {
           /*
-            A picker where the model closes the set, a box where it does not.
+            A control per kind: a calendar for a moment, a picker where the model closes the set, a
+            box where it does not.
 
-            Same question the badge above asks, answered on the way in: a text input over `status`
-            invites "pending" into a field whose model only knows three words, and the record then
-            renders an unrecognised tag everywhere it appears.
+            The date branch is the one a generic editor most needs and is least likely to get. A
+            moment is stored as an ISO string, so a text input renders it raw and asks somebody to
+            edit `2026-09-14T15:30` by hand — every keystroke of which is a chance to write a string
+            the parser will refuse. `we-date-picker` reads and writes the same string and is the
+            control the host's own record form uses for this kind.
+
+            `showTime` on `datetime` and not on `date`, which is the distinction the kind already
+            draws — an all-day event has no time to pick and offering one invites a false precision
+            the record cannot carry.
+
+            The closed-set branch answers the way in for what the details no longer draw as a chip: a
+            text box over `status` invites "pending" into a field whose model only knows three words,
+            and the record then renders an unrecognised state everywhere it appears.
           */
           type: '$if',
           props: {
-            condition: { $: 'count(field.options)' },
+            condition: { $: "field.kind == 'date' || field.kind == 'datetime'" },
             then: {
-              type: 'we-select',
+              type: 'we-date-picker',
               props: {
                 size: 'xs',
+                showTime: { $: "field.kind == 'datetime'" },
                 value: { $: 'modules.transcribe.proposalDraft[field.name]' },
-                options: { $: 'field.options.map(o, { label: o, value: o })' },
                 onChange: {
                   $action: 'modules.transcribe.setProposalField',
                   args: [{ $: 'field.name' }, { $: 'event.detail' }],
@@ -670,13 +672,31 @@ const proposalEditor: SchemaNode = {
               },
             },
             else: {
-              type: 'we-input',
+              type: '$if',
               props: {
-                size: 'xs',
-                value: { $: 'modules.transcribe.proposalDraft[field.name]' },
-                onInput: {
-                  $action: 'modules.transcribe.setProposalField',
-                  args: [{ $: 'field.name' }, { $: 'event.detail' }],
+                condition: { $: 'count(field.options)' },
+                then: {
+                  type: 'we-select',
+                  props: {
+                    size: 'xs',
+                    value: { $: 'modules.transcribe.proposalDraft[field.name]' },
+                    options: { $: 'field.options.map(o, { label: o, value: o })' },
+                    onChange: {
+                      $action: 'modules.transcribe.setProposalField',
+                      args: [{ $: 'field.name' }, { $: 'event.detail' }],
+                    },
+                  },
+                },
+                else: {
+                  type: 'we-input',
+                  props: {
+                    size: 'xs',
+                    value: { $: 'modules.transcribe.proposalDraft[field.name]' },
+                    onInput: {
+                      $action: 'modules.transcribe.setProposalField',
+                      args: [{ $: 'field.name' }, { $: 'event.detail' }],
+                    },
+                  },
                 },
               },
             },
@@ -1039,8 +1059,26 @@ const proposals: SchemaNode = {
                                                 square: true,
                                                 r: 'full',
                                                 label: 'Keep this',
+                                                /*
+                                                  The status *foreground* at rest, the fill on hover
+                                                  — the canvas's own rule for this pair, and the
+                                                  reason is in its stylesheet: at this size the icon
+                                                  *is* the button, so it has to stay legible against
+                                                  the surface behind it, and `success-text` is the
+                                                  role corrected for exactly that. The fill takes
+                                                  over on hover, where `on-success` answers for the
+                                                  contrast instead.
+
+                                                  A tint was tried here first, which reads as the
+                                                  button acknowledging the pointer rather than as the
+                                                  answer it is about to give.
+                                                */
                                                 color: 'success-text',
-                                                hoverProps: { bg: 'success-surface', borderColor: 'success-text' },
+                                                hoverProps: {
+                                                  bg: 'success',
+                                                  color: 'on-success',
+                                                  borderColor: 'success',
+                                                },
                                                 onClick: {
                                                   $action: 'modules.transcribe.acceptProposal',
                                                   args: [{ $: 'proposal.id' }],
@@ -1062,8 +1100,13 @@ const proposals: SchemaNode = {
                                                 square: true,
                                                 r: 'full',
                                                 label: 'Discard this',
+                                                // The other half of the pair — see above.
                                                 color: 'danger-text',
-                                                hoverProps: { bg: 'danger-surface', borderColor: 'danger-text' },
+                                                hoverProps: {
+                                                  bg: 'danger',
+                                                  color: 'on-danger',
+                                                  borderColor: 'danger',
+                                                },
                                                 onClick: {
                                                   $action: 'modules.transcribe.rejectProposal',
                                                   args: [{ $: 'proposal.id' }],

@@ -788,7 +788,16 @@ describe('the extraction panel', () => {
       ['danger', 'x'],
     ]) {
       expect(json).toContain(`"r":"full","label":"${tone === 'success' ? 'Keep' : 'Discard'} this"`);
-      expect(json).toContain(`"color":"${tone}-text","hoverProps":{"bg":"${tone}-surface"`);
+      /*
+        The status foreground at rest, the fill on hover — the canvas's rule, and its reason: at this
+        size the icon *is* the button, so it must stay legible against the surface behind it, and
+        `<tone>-text` is the role corrected for that. The fill takes over on hover, where `on-<tone>`
+        answers for the contrast. A tint was tried here first and reads as the button acknowledging
+        the pointer rather than as the answer it is about to give.
+      */
+      expect(json).toContain(
+        `"color":"${tone}-text","hoverProps":{"bg":"${tone}","color":"on-${tone}","borderColor":"${tone}"}`,
+      );
       expect(json).toContain(`{"type":"we-icon","props":{"name":"${glyph}","weight":"bold"}}`);
     }
     // The words are gone from the buttons themselves.
@@ -839,6 +848,34 @@ describe('the extraction panel', () => {
     expect(json).not.toContain('records written.');
     expect(json).toContain('Reading the transcript…');
     expect(json).toContain("modules.transcribe.extractStatus == 'error'");
+  });
+
+  it('draws a closed vocabulary as plain text, like every other detail on the card', () => {
+    /*
+      A status or a priority came out as a coloured chip, on the reasoning that a value from a closed
+      set is a state rather than a phrase. True, and it made two fields louder than the rest — a date
+      sits as plain text on the same row, and a task's status is not more worth reading than an
+      event's start. These are the details of a suggestion nobody has agreed to yet, and two chips
+      gave a card two focal points besides its own headline.
+
+      The board is where a status earns its colour: a column there *is* the status, in the
+      community's own colour. Here it is one line among several.
+    */
+    expect(json).not.toContain("last(field.options) ? 'success'");
+    // The one badge left is the count beside "Awaiting your call", which is a number and not a state.
+    expect(json).toContain('"we-badge","props":{"size":"xs","variant":"warning"}');
+  });
+
+  it('edits a moment with a calendar rather than a raw ISO string', () => {
+    /*
+      A date is stored as an ISO string, so the text box rendered it raw and asked somebody to edit
+      `2026-09-14T15:30` by hand — every keystroke a chance to write something the parser refuses.
+      The same control the host's own record form uses for this kind.
+    */
+    expect(json).toContain('"type":"we-date-picker"');
+    // `showTime` follows the kind: an all-day event has no time to pick, and offering one invites a
+    // precision the record cannot carry.
+    expect(json).toContain('"showTime":{"$":"field.kind == \'datetime\'"}');
   });
 
   it('draws a suggestion’s headline a size above its own metadata', () => {
