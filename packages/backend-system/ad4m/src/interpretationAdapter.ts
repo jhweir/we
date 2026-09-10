@@ -519,7 +519,10 @@ export function createAd4mInterpretationPort(selfId?: () => string | undefined):
     this client has never run at all, so *some* path has to repair unparented records after the
     fact, and once that path exists this map is only an optimisation on the common case.
   */
-  const watchParents = new Map<string, { id: string; predicate: string }>();
+  const watchParents = new Map<
+    string,
+    { id: string; predicate: string; provenance?: { id: string; predicate: string } }
+  >();
 
   /**
    * The collection a *one-shot* pass is reading, while it reads it.
@@ -752,6 +755,19 @@ export function createAd4mInterpretationPort(selfId?: () => string | undefined):
       for (const base of event.bases ?? []) {
         try {
           await perspective.add(new Link({ source: parent.id, predicate: parent.predicate, target: base }));
+          /*
+            And the second link, saying this record was *produced* here rather than merely put here.
+
+            Written in the same try as the containment one and after it, because containment is the
+            load-bearing half: a record that is parented but unmarked is listed everywhere and merely
+            loses its provenance, where one marked but unparented would be invisible to every surface
+            that reaches content by traversal.
+          */
+          if (parent.provenance) {
+            await perspective.add(
+              new Link({ source: parent.provenance.id, predicate: parent.provenance.predicate, target: base }),
+            );
+          }
         } catch (error) {
           // One failed link should not cost the rest of the batch its parent.
           console.warn('[interpretation] could not parent an auto-extracted record', base, error);
@@ -897,6 +913,12 @@ export function createAd4mInterpretationPort(selfId?: () => string | undefined):
             await perspective.add(
               new Link({ source: request.parent.id, predicate: request.parent.predicate, target: id }),
             );
+            // The provenance link, for the reason the watch path writes one — see there.
+            if (request.provenance) {
+              await perspective.add(
+                new Link({ source: request.provenance.id, predicate: request.provenance.predicate, target: id }),
+              );
+            }
           }
         }
 
@@ -988,7 +1010,7 @@ export function createAd4mInterpretationPort(selfId?: () => string | undefined):
       // finds nothing.
       await assertShapesInstalled(perspective, request.classes);
 
-      watchParents.set(request.watchId, request.parent);
+      watchParents.set(request.watchId, { ...request.parent, provenance: request.provenance });
       await attachListener(perspective);
 
       const sourceScopeQuery = transcriptScopeQuery(request.parent.id, request.parent.predicate);

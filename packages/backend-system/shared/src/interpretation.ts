@@ -85,6 +85,20 @@ export interface InterpretationRequest {
    */
   parent?: { id: string; predicate: string };
   /**
+   * A second link written beside `parent`, saying the same node *produced* what the pass wrote.
+   *
+   * Two links because they are two claims. `parent` is containment — the record is part of that
+   * collection, which is what makes a board gather it and a delete take it. This is provenance: a
+   * model proposed it from reading that node, rather than somebody typing it there. They diverge
+   * exactly when it matters, since a task composed into a call by hand is contained and not
+   * extracted.
+   *
+   * Named by the caller rather than known here, for the reason `parent` is: the predicate is the
+   * host's vocabulary, and an interpretation port that hard-coded one would be a backend deciding
+   * what a relation in somebody else's graph is called. Omit it and nothing extra is written.
+   */
+  provenance?: { id: string; predicate: string };
+  /**
    * URI namespace new instances are minted under. Backend-specific and usually best left to the
    * adapter, which derives one from `parent` so a call's extractions are confined to that call.
    */

@@ -231,6 +231,38 @@ export class CollectionBlock extends WeNode {
    */
   @HasMany(() => ExtractionPass, { through: 'we://extraction_pass_record' })
   extractionPasses: string[] = [];
+
+  /**
+   * What a model wrote from reading this collection — the provenance of an extracted record.
+   *
+   * ## Why this is not a subset of `children` doing double duty
+   *
+   * Everything a pass writes *is* also a child, and must stay one: `children` is ownership, and
+   * the call's board gathers through it, so a task that stopped being a child would vanish from
+   * the board it exists to appear on. This says something else about the same record — that
+   * nobody typed it, a model proposed it from the conversation — and that is a different fact,
+   * not a narrower spelling of the first. The same split `arranges` makes one level over.
+   *
+   * It is also the *true* question a review surface asks. "Which children are tasks" and "which
+   * children came from a pass" answer differently the moment somebody composes a task into a
+   * call by hand: the first counts it as extracted, the second does not.
+   *
+   * ## Why a link rather than a field on the record
+   *
+   * A property saying which call produced it would be unreadable in one query. An `include` on
+   * the call traverses *relations*, so provenance has to be a relation for "everything this call
+   * produced" to come back polymorphically in one round trip. Through `children` that question
+   * cannot be asked at all: an untyped include is all-or-nothing and carries no class
+   * constraint, so it would return every utterance in the transcript alongside the handful of
+   * records — which is why the panel had one subscription per model before this existed.
+   *
+   * Untyped, and deliberately: a pass writes whatever the space has said it may write, which
+   * includes shapes a community defined this morning. Unordered, because the sequence that
+   * matters is when each record was made and `createdAt` already says that — where `children`
+   * is ordered because somebody arranged it.
+   */
+  @HasMany({ through: 'we://extracted', polymorphic: true })
+  extracted: string[] = [];
 }
 
 export interface CollectionBlock extends HasManyMethods<'children' | 'arranges'> {
