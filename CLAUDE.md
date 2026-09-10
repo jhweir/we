@@ -2386,6 +2386,9 @@ ExtractionPass extends Ad4mModel:
   - recordCount: number [we://record_count]
   - targets: string [we://extraction_targets]
   - error: string [we://error]
+  - trigger: string = 'manual' [we://trigger]
+  - prompt: string [we://prompt]
+  - response: string [we://response]
 
 TypeStyle extends Ad4mModel:
   Fields:

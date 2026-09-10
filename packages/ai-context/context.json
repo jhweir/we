@@ -5640,6 +5640,25 @@
           "type": "string",
           "predicate": "we://error",
           "required": false
+        },
+        {
+          "name": "trigger",
+          "type": "string",
+          "predicate": "we://trigger",
+          "required": false,
+          "default": "'manual'"
+        },
+        {
+          "name": "prompt",
+          "type": "string",
+          "predicate": "we://prompt",
+          "required": false
+        },
+        {
+          "name": "response",
+          "type": "string",
+          "predicate": "we://response",
+          "required": false
         }
       ],
       "relations": []
