@@ -906,6 +906,69 @@ const proposalEditor: SchemaNode = {
  * somewhere else to fix a wrong title means keeping something known to be wrong, or discarding a
  * record that was mostly right.
  */
+/**
+ * A heading's trailing pair: how many, and whether the list under it is open.
+ *
+ * The two lists of cards can each run to a screenful, and the panel scrolls as one thing now — so
+ * without a way to fold one, reaching the readings under a long list of suggestions means scrolling
+ * past all of them every time. The count is what tells you whether folding it is worth it.
+ *
+ * The caret is a real button rather than a clickable heading, because `sectionLabel` draws a label
+ * and a label is not a control. Icon-only, so it says its own name.
+ */
+const sectionAside = (opts: {
+  count: string;
+  tone: 'warning' | 'success';
+  field: string;
+  noun: string;
+}): SchemaNode => ({
+  type: 'Row',
+  props: { ay: 'center', gap: '100' },
+  children: [
+    {
+      type: 'we-badge',
+      props: { size: 'xs', variant: opts.tone, appearance: 'solid' },
+      children: [{ $: opts.count }],
+    },
+    {
+      type: 'we-button',
+      props: {
+        variant: 'bare',
+        square: true,
+        color: 'text-faint',
+        hoverProps: { color: 'text-muted' },
+        label: { $: `local.${opts.field} ? 'Hide the ${opts.noun}' : 'Show the ${opts.noun}'` },
+        onClick: { $toggleLocal: opts.field },
+      },
+      children: [
+        {
+          type: 'we-icon',
+          props: { size: CARET_SIZE, name: { $: `local.${opts.field} ? 'caret-up' : 'caret-down'` } },
+        },
+      ],
+    },
+  ],
+});
+
+/**
+ * A list that folds away under its heading.
+ *
+ * `$if` rather than `$animate`, which would keep the content mounted behind a clipped wrapper. The
+ * point of folding a list here is that it has got large, so leaving a screenful of cards rendered
+ * would be folding away the only thing it cost. Nothing is lost by unmounting: the suggestions come
+ * from a store, the results from a query declared above this, and an open editor's draft lives in
+ * the store rather than in the card.
+ */
+const collapsible = (field: string, body: SchemaNode): SchemaNode => ({
+  type: '$if',
+  props: {
+    condition: { $: `local.${field}` },
+    enterTransition: { type: 'reveal', duration: 200 },
+    exitTransition: { type: 'reveal', duration: 160 },
+    then: body,
+  },
+});
+
 const proposals: SchemaNode = {
   /*
     Nothing at all outside a call, and the gate is a node rather than a clause.
@@ -929,10 +992,10 @@ const proposals: SchemaNode = {
         condition: { $: `count(${PROPOSALS})` },
         then: {
           type: 'Column',
-          // `flex: '0 1 auto'` with `minHeight: '0'`: take the room the cards want, give it back when
-          // the panel is short. Without the minimum this section cannot shrink and the results list
-          // below it pays for every suggestion.
-          props: { gap: '200', flex: '0 1 auto', minHeight: '0' },
+          // Its natural height. It used to fight the results list for the panel's fixed height, each
+          // with its own scroller; the panel scrolls as one thing now, so a section is as tall as
+          // what it holds and folds away when that is too much.
+          props: { gap: '200', width: '100%' },
           children: [
             sectionLabel({
               label: 'Awaiting your call',
@@ -949,26 +1012,23 @@ const proposals: SchemaNode = {
                 the thing you noticed. It is also now the only thing carrying the tone, which is the
                 other reason it has to be the strong version.
               */
-              aside: {
-                type: 'we-badge',
-                props: { size: 'xs', variant: 'warning', appearance: 'solid' },
-                children: [{ $: `count(${PROPOSALS})` }],
-              },
+              aside: sectionAside({
+                count: `count(${PROPOSALS})`,
+                tone: 'warning',
+                field: 'proposalsOpen',
+                noun: 'suggestions',
+              }),
             }),
-            {
-              type: 'we-scroll-area',
-              props: { flex: '1', minHeight: '0' },
+            collapsible('proposalsOpen', {
+              type: 'Grid',
+              props: { minChildWidth: '240px', gap: '200', width: '100%' },
               children: [
                 {
-                  type: 'Grid',
-                  props: { minChildWidth: '240px', gap: '200', width: '100%' },
+                  type: '$each',
+                  props: { items: { $: PROPOSALS }, as: 'proposal' },
                   children: [
                     {
-                      type: '$each',
-                      props: { items: { $: PROPOSALS }, as: 'proposal' },
-                      children: [
-                        {
-                          /*
+                      /*
                             The alert's edge, without the alert's icon.
 
                             `we-alert` always draws one — it has no way to be told not to, and that
@@ -988,29 +1048,29 @@ const proposals: SchemaNode = {
                             strength rather than in its tint. Same figures, so a card here and an
                             alert elsewhere still look like the same family.
                           */
+                      type: 'Column',
+                      props: {
+                        bg: 'surface',
+                        color: 'text',
+                        borderLeft: '3px solid warning',
+                        r: '300',
+                        px: '300',
+                        py: '300',
+                      },
+                      children: [
+                        {
                           type: 'Column',
-                          props: {
-                            bg: 'surface',
-                            color: 'text',
-                            borderLeft: '3px solid warning',
-                            r: '300',
-                            px: '300',
-                            py: '300',
-                          },
+                          props: { gap: '200', width: '100%' },
                           children: [
-                            {
-                              type: 'Column',
-                              props: { gap: '200', width: '100%' },
-                              children: [
-                                /*
+                            /*
                               What kind of thing is being offered, in the model's own words and icon.
 
                               Absent where the backend could not classify the base — an executor
                               predating `subjectClassesOf` answers that way for everything — and the
                               card falls back to the flat summary below rather than to a blank box.
                             */
-                                {
-                                  /*
+                            {
+                              /*
                                     What kind of thing this is, and the way into changing it.
 
                                     Edit used to be a third button in the row of answers at the
@@ -1022,15 +1082,15 @@ const proposals: SchemaNode = {
                                     The label keeps the space either way, so the control stays in the
                                     corner on a card whose entity the backend could not name.
                                   */
+                              type: 'Row',
+                              props: { ax: 'between', ay: 'center', gap: '200', width: '100%' },
+                              children: [
+                                {
                                   type: 'Row',
-                                  props: { ax: 'between', ay: 'center', gap: '200', width: '100%' },
-                                  children: [
-                                    {
-                                      type: 'Row',
-                                      props: { flex: '1', minWidth: '0', ay: 'center', gap: '100' },
-                                      children: [cardKind(PROPOSAL_SHAPE)],
-                                    },
-                                    /*
+                                  props: { flex: '1', minWidth: '0', ay: 'center', gap: '100' },
+                                  children: [cardKind(PROPOSAL_SHAPE)],
+                                },
+                                /*
                                       Offered only where an edit could actually be written back: the
                                       host has to lend a record-update surface and the backend has to
                                       have said which model this is. Without either, Keep would take
@@ -1040,67 +1100,67 @@ const proposals: SchemaNode = {
                                       the words behind a tooltip — a glyph alone in a corner is only
                                       obvious to somebody who already knows what it does.
                                     */
-                                    {
+                                {
+                                  type: '$if',
+                                  props: {
+                                    condition: {
+                                      $: 'modules.transcribe.canEditProposals && proposal.entity',
+                                    },
+                                    then: {
                                       type: '$if',
                                       props: {
-                                        condition: {
-                                          $: 'modules.transcribe.canEditProposals && proposal.entity',
-                                        },
+                                        condition: { $: 'modules.transcribe.editingProposal == proposal.id' },
                                         then: {
-                                          type: '$if',
-                                          props: {
-                                            condition: { $: 'modules.transcribe.editingProposal == proposal.id' },
-                                            then: {
-                                              type: 'we-tooltip',
-                                              props: { content: 'Stop editing' },
-                                              children: [
-                                                {
-                                                  type: 'we-button',
-                                                  props: {
-                                                    variant: 'ghost',
-                                                    size: 'xs',
-                                                    square: true,
-                                                    label: 'Stop editing',
-                                                    onClick: { $action: 'modules.transcribe.cancelProposalEdit' },
-                                                  },
-                                                  children: [{ type: 'we-icon', props: { name: 'x' } }],
-                                                },
-                                              ],
+                                          type: 'we-tooltip',
+                                          props: { content: 'Stop editing' },
+                                          children: [
+                                            {
+                                              type: 'we-button',
+                                              props: {
+                                                variant: 'ghost',
+                                                size: 'xs',
+                                                square: true,
+                                                label: 'Stop editing',
+                                                onClick: { $action: 'modules.transcribe.cancelProposalEdit' },
+                                              },
+                                              children: [{ type: 'we-icon', props: { name: 'x' } }],
                                             },
-                                            else: {
-                                              type: 'we-tooltip',
-                                              props: { content: 'Edit before keeping' },
-                                              children: [
-                                                {
-                                                  type: 'we-button',
-                                                  props: {
-                                                    variant: 'ghost',
-                                                    size: 'xs',
-                                                    square: true,
-                                                    label: 'Edit before keeping',
-                                                    onClick: {
-                                                      $action: 'modules.transcribe.editProposal',
-                                                      args: [{ $: 'proposal.id' }],
-                                                    },
-                                                  },
-                                                  children: [{ type: 'we-icon', props: { name: 'pencil-simple' } }],
+                                          ],
+                                        },
+                                        else: {
+                                          type: 'we-tooltip',
+                                          props: { content: 'Edit before keeping' },
+                                          children: [
+                                            {
+                                              type: 'we-button',
+                                              props: {
+                                                variant: 'ghost',
+                                                size: 'xs',
+                                                square: true,
+                                                label: 'Edit before keeping',
+                                                onClick: {
+                                                  $action: 'modules.transcribe.editProposal',
+                                                  args: [{ $: 'proposal.id' }],
                                                 },
-                                              ],
+                                              },
+                                              children: [{ type: 'we-icon', props: { name: 'pencil-simple' } }],
                                             },
-                                          },
+                                          ],
                                         },
                                       },
                                     },
-                                  ],
+                                  },
                                 },
-                                {
-                                  // Editing, or reading. The controls replace the card's body rather than
-                                  // sitting under it, so the thing being changed is the thing on screen.
-                                  type: '$if',
-                                  props: {
-                                    condition: { $: 'modules.transcribe.editingProposal == proposal.id' },
-                                    then: { type: 'Column', props: { gap: '200' }, children: [proposalEditor] },
-                                    /*
+                              ],
+                            },
+                            {
+                              // Editing, or reading. The controls replace the card's body rather than
+                              // sitting under it, so the thing being changed is the thing on screen.
+                              type: '$if',
+                              props: {
+                                condition: { $: 'modules.transcribe.editingProposal == proposal.id' },
+                                then: { type: 'Column', props: { gap: '200' }, children: [proposalEditor] },
+                                /*
                                       The model's title property, drawn as one — the whole reason this
                                       stopped being a run-on line of `field: value` pairs.
 
@@ -1108,11 +1168,11 @@ const proposals: SchemaNode = {
                                       which is the one case a card cannot do better than the old one,
                                       and the one case only a suggestion can be in.
                                     */
-                                    else: cardTitle(PROPOSAL_SHAPE, { $: 'proposal.summary' }),
-                                  },
-                                },
-                                {
-                                  /*
+                                else: cardTitle(PROPOSAL_SHAPE, { $: 'proposal.summary' }),
+                              },
+                            },
+                            {
+                              /*
                                     The card's last line: what it says about itself, and the answer.
 
                                     The detail rows used to sit above a full-width row of buttons, so
@@ -1124,29 +1184,29 @@ const proposals: SchemaNode = {
                                     as they need, and the answer belongs at the foot of the card
                                     however tall the left-hand side turns out to be.
                                   */
-                                  type: 'Row',
-                                  props: { gap: '200', ax: 'between', ay: 'end', width: '100%' },
+                              type: 'Row',
+                              props: { gap: '200', ax: 'between', ay: 'end', width: '100%' },
+                              children: [
+                                {
+                                  type: 'Column',
+                                  props: { flex: '1', minWidth: '0', gap: '100' },
                                   children: [
                                     {
-                                      type: 'Column',
-                                      props: { flex: '1', minWidth: '0', gap: '100' },
-                                      children: [
-                                        {
-                                          // Not while the editor is open: those fields are the same
-                                          // values, and showing both would be the card arguing with
-                                          // itself about what the suggestion says.
-                                          type: '$if',
-                                          props: {
-                                            condition: {
-                                              $: `${DISPLAY}.label && modules.transcribe.editingProposal != proposal.id`,
-                                            },
-                                            then: detailRows(PROPOSAL_SHAPE),
-                                          },
+                                      // Not while the editor is open: those fields are the same
+                                      // values, and showing both would be the card arguing with
+                                      // itself about what the suggestion says.
+                                      type: '$if',
+                                      props: {
+                                        condition: {
+                                          $: `${DISPLAY}.label && modules.transcribe.editingProposal != proposal.id`,
                                         },
-                                      ],
+                                        then: detailRows(PROPOSAL_SHAPE),
+                                      },
                                     },
-                                    {
-                                      /*
+                                  ],
+                                },
+                                {
+                                  /*
                                         A yes and a no, drawn the way the board draws the same pair on
                                         the card itself — a raised circle, the glyph in the success or
                                         danger role, filling with that role's surface under the
@@ -1158,22 +1218,22 @@ const proposals: SchemaNode = {
                                         green/red pair is the classic thing to fail on, so the mark is
                                         what carries the meaning for anyone who cannot separate them.
                                       */
-                                      type: 'Row',
-                                      props: { gap: '100', ay: 'center', flexShrink: '0' },
+                                  type: 'Row',
+                                  props: { gap: '100', ay: 'center', flexShrink: '0' },
+                                  children: [
+                                    {
+                                      type: 'we-tooltip',
+                                      props: { content: 'Keep this' },
                                       children: [
                                         {
-                                          type: 'we-tooltip',
-                                          props: { content: 'Keep this' },
-                                          children: [
-                                            {
-                                              type: 'we-button',
-                                              props: {
-                                                variant: 'outline',
-                                                size: 'xs',
-                                                square: true,
-                                                r: 'full',
-                                                label: 'Keep this',
-                                                /*
+                                          type: 'we-button',
+                                          props: {
+                                            variant: 'outline',
+                                            size: 'xs',
+                                            square: true,
+                                            r: 'full',
+                                            label: 'Keep this',
+                                            /*
                                                   The status *foreground* at rest, the fill on hover
                                                   — the canvas's own rule for this pair, and the
                                                   reason is in its stylesheet: at this size the icon
@@ -1187,48 +1247,46 @@ const proposals: SchemaNode = {
                                                   button acknowledging the pointer rather than as the
                                                   answer it is about to give.
                                                 */
-                                                color: 'success-text',
-                                                hoverProps: {
-                                                  bg: 'success',
-                                                  color: 'on-success',
-                                                  borderColor: 'success',
-                                                },
-                                                onClick: {
-                                                  $action: 'modules.transcribe.acceptProposal',
-                                                  args: [{ $: 'proposal.id' }],
-                                                },
-                                              },
-                                              children: [{ type: 'we-icon', props: { name: 'check', weight: 'bold' } }],
+                                            color: 'success-text',
+                                            hoverProps: {
+                                              bg: 'success',
+                                              color: 'on-success',
+                                              borderColor: 'success',
                                             },
-                                          ],
+                                            onClick: {
+                                              $action: 'modules.transcribe.acceptProposal',
+                                              args: [{ $: 'proposal.id' }],
+                                            },
+                                          },
+                                          children: [{ type: 'we-icon', props: { name: 'check', weight: 'bold' } }],
                                         },
+                                      ],
+                                    },
+                                    {
+                                      type: 'we-tooltip',
+                                      props: { content: 'Discard this' },
+                                      children: [
                                         {
-                                          type: 'we-tooltip',
-                                          props: { content: 'Discard this' },
-                                          children: [
-                                            {
-                                              type: 'we-button',
-                                              props: {
-                                                variant: 'outline',
-                                                size: 'xs',
-                                                square: true,
-                                                r: 'full',
-                                                label: 'Discard this',
-                                                // The other half of the pair — see above.
-                                                color: 'danger-text',
-                                                hoverProps: {
-                                                  bg: 'danger',
-                                                  color: 'on-danger',
-                                                  borderColor: 'danger',
-                                                },
-                                                onClick: {
-                                                  $action: 'modules.transcribe.rejectProposal',
-                                                  args: [{ $: 'proposal.id' }],
-                                                },
-                                              },
-                                              children: [{ type: 'we-icon', props: { name: 'x', weight: 'bold' } }],
+                                          type: 'we-button',
+                                          props: {
+                                            variant: 'outline',
+                                            size: 'xs',
+                                            square: true,
+                                            r: 'full',
+                                            label: 'Discard this',
+                                            // The other half of the pair — see above.
+                                            color: 'danger-text',
+                                            hoverProps: {
+                                              bg: 'danger',
+                                              color: 'on-danger',
+                                              borderColor: 'danger',
                                             },
-                                          ],
+                                            onClick: {
+                                              $action: 'modules.transcribe.rejectProposal',
+                                              args: [{ $: 'proposal.id' }],
+                                            },
+                                          },
+                                          children: [{ type: 'we-icon', props: { name: 'x', weight: 'bold' } }],
                                         },
                                       ],
                                     },
@@ -1243,7 +1301,7 @@ const proposals: SchemaNode = {
                   ],
                 },
               ],
-            },
+            }),
           ],
         },
       },
@@ -3379,8 +3437,25 @@ export const extractionPanel: SchemaNode = {
         props: {
           condition: { $: 'modules.transcribe.extractable' },
           then: {
-            type: 'Column',
             /*
+              The panel scrolls as one thing, rather than two lists scrolling inside a fixed frame.
+
+              It had a scroller on the suggestions and another on the results, each `flex: '1'` inside
+              a panel of fixed height — so the two competed for that height, the chips and the log
+              between them were pinned in place, and reading a long list meant a small window moving
+              inside a small window. Whichever list you were not reading was still taking room.
+
+              One scroller over everything is the shape a docked column wants: the header stays (it is
+              `panelShell`'s, outside this), and everything under it moves together. What that costs
+              is that a long list pushes the rest below the fold, which is what the two headings now
+              fold away — see `sectionAside`.
+            */
+            type: 'we-scroll-area',
+            props: { flex: '1', minHeight: '0' },
+            children: [
+              {
+                type: 'Column',
+                /*
               A wider gap than the blocks inside each section use.
 
               At `300` every band sat the same distance from its neighbour as a heading sat from the
@@ -3388,8 +3463,20 @@ export const extractionPanel: SchemaNode = {
               sections against `200` inside them is what makes a heading look attached to what it
               names rather than floating between two lists.
             */
-            props: { width: '100%', flex: '1', minHeight: '0', gap: '400' },
-            /*
+                props: { width: '100%', gap: '400' },
+                /*
+              Which lists are folded, kept on the device.
+
+              A preference rather than view state: it says how somebody likes this panel arranged,
+              not what they are looking at, so it must not travel in a shared link — the rule
+              `$localState` spells as `persist` against `syncParam`. Namespaced by the module, since
+              the key is deployment-global.
+            */
+                $localState: {
+                  proposalsOpen: { type: 'boolean', initial: true, persist: 'transcribe.proposalsOpen' },
+                  extractedOpen: { type: 'boolean', initial: true, persist: 'transcribe.extractedOpen' },
+                },
+                /*
               The readings, declared here rather than on the section that draws them.
 
               A `$queries` entry only answers while the node declaring it is mounted, so a section
@@ -3402,17 +3489,17 @@ export const extractionPanel: SchemaNode = {
               rather than sent, and pruning widens, so without it a call-less panel would ask for
               every ExtractionPass in the space.
             */
-            $queries: {
-              passes: {
-                entity: 'ExtractionPass',
-                scope: { anchor: 'CollectionBlock', via: 'extractionPasses', anchorId: EXTRACTION_SUBJECT },
-                order: { createdAt: 'desc' },
-                limit: 50,
-                when: EXTRACTION_SUBJECT,
-              },
-            },
-            children: [
-              /*
+                $queries: {
+                  passes: {
+                    entity: 'ExtractionPass',
+                    scope: { anchor: 'CollectionBlock', via: 'extractionPasses', anchorId: EXTRACTION_SUBJECT },
+                    order: { createdAt: 'desc' },
+                    limit: 50,
+                    when: EXTRACTION_SUBJECT,
+                  },
+                },
+                children: [
+                  /*
               The controls, the chips and whatever the last pass did — only where there is a call.
 
               Outside one this was a well of dead furniture: an auto switch that could not be
@@ -3428,9 +3515,9 @@ export const extractionPanel: SchemaNode = {
               chips could not be pressed. The space's own models are two clicks away in settings,
               which is where that link went.
             */
-              { type: '$if', props: { condition: EXTRACTION_SUBJECT, then: extract } },
-              proposals,
-              /*
+                  { type: '$if', props: { condition: EXTRACTION_SUBJECT, then: extract } },
+                  proposals,
+                  /*
               What the passes did, in full.
 
               This used to be the whole of the call bar's readout, and it moved the call's furniture
@@ -3447,16 +3534,16 @@ export const extractionPanel: SchemaNode = {
               running pass and a decision waiting on somebody were both invisible on a node that
               could not start one, which is precisely the node whose passes came from a peer.
             */
-              extractionActivity,
-              /*
+                  extractionActivity,
+                  /*
               Nothing to ask about until there is a call to ask about.
 
               A drill-down whose `anchorId` is empty is not an empty query, it is a malformed one —
               the backend refused it as invalid SPARQL and the panel opened on a toast. Outside a
               call there is no record to hang passes off, so there is nothing to read.
             */
-              extractionHistory,
-              /*
+                  extractionHistory,
+                  /*
               What the passes actually wrote, for the call on screen.
 
               The panel used to end at "N records written. Open the graph to see them." — a count
@@ -3469,11 +3556,11 @@ export const extractionPanel: SchemaNode = {
               stay put while this grows, which is what makes a long history readable inside a docked
               panel that clips.
             */
-              {
-                type: '$if',
-                props: {
-                  condition: EXTRACTION_SUBJECT,
-                  /*
+                  {
+                    type: '$if',
+                    props: {
+                      condition: EXTRACTION_SUBJECT,
+                      /*
                   One name over the results, and it stays while they scroll.
 
                   It went briefly, replaced by a heading per kind, because a single "Extracted" here
@@ -3491,10 +3578,10 @@ export const extractionPanel: SchemaNode = {
                   emptiness a node above the groups *can* see: a call with no models ticked can have
                   extracted nothing, and that is the state every call starts in.
                 */
-                  then: {
-                    type: 'Column',
-                    props: { gap: '200', flex: '1', minHeight: '0' },
-                    /*
+                      then: {
+                        type: 'Column',
+                        props: { gap: '200', width: '100%' },
+                        /*
                       One query for the whole section, and it is what makes the section knowable.
 
                       The call record, with its `extracted` relation hydrated. Everything the heading
@@ -3513,62 +3600,57 @@ export const extractionPanel: SchemaNode = {
                       transcript, and the per-model paging that replaced it existed to bound a query
                       that could not say what it wanted.
                     */
-                    $queries: {
-                      extractedFrom: {
-                        entity: 'CollectionBlock',
-                        where: { id: EXTRACTION_SUBJECT },
-                        limit: 1,
-                        include: { extracted: { order: { createdAt: 'desc' } } },
-                        when: EXTRACTION_SUBJECT,
-                      },
-                    },
-                    children: [
-                      {
-                        type: '$if',
-                        props: {
-                          /*
+                        $queries: {
+                          extractedFrom: {
+                            entity: 'CollectionBlock',
+                            where: { id: EXTRACTION_SUBJECT },
+                            limit: 1,
+                            include: { extracted: { order: { createdAt: 'desc' } } },
+                            when: EXTRACTION_SUBJECT,
+                          },
+                        },
+                        children: [
+                          {
+                            type: '$if',
+                            props: {
+                              /*
                             The section hides itself when it holds nothing, which it could not do
                             before: with a query per model, nothing above the groups could ask
                             whether any of them had found anything, so it fell back to gating on
                             whether the call had any models ticked. One list has one count.
                           */
-                          condition: { $: EXTRACTED_COUNT },
-                          then: {
-                            type: 'Column',
-                            props: { gap: '200', flex: '1', minHeight: '0' },
-                            children: [
-                              sectionLabel({
-                                label: 'Extracted',
-                                /*
+                              condition: { $: EXTRACTED_COUNT },
+                              then: {
+                                type: 'Column',
+                                props: { gap: '200', width: '100%' },
+                                children: [
+                                  sectionLabel({
+                                    label: 'Extracted',
+                                    /*
                                   The same count the suggestions above carry, in the role that says
                                   these are settled rather than waiting. `solid` for the reason that
                                   one is: a tint of the hue against a panel leaves the number
                                   competing with its own background.
                                 */
-                                aside: {
-                                  type: 'we-badge',
-                                  props: { size: 'xs', variant: 'success', appearance: 'solid' },
-                                  children: [{ $: EXTRACTED_COUNT }],
-                                },
-                              }),
-                              {
-                                type: 'we-scroll-area',
-                                props: { flex: '1', minHeight: '0' },
-                                children: [
-                                  {
+                                    aside: sectionAside({
+                                      count: EXTRACTED_COUNT,
+                                      tone: 'success',
+                                      field: 'extractedOpen',
+                                      noun: 'results',
+                                    }),
+                                  }),
+                                  collapsible('extractedOpen', {
                                     type: 'Grid',
                                     props: { minChildWidth: '240px', gap: '200', width: '100%' },
                                     children: [extractedRows],
-                                  },
+                                  }),
                                 ],
                               },
-                            ],
+                            },
                           },
-                        },
+                        ],
                       },
-                    ],
-                  },
-                  /*
+                      /*
                       The shared placeholder, so this panel and the transcript's read as one pair.
 
                       It was a hand-written column with `footnote` text, which is a step smaller
@@ -3580,12 +3662,14 @@ export const extractionPanel: SchemaNode = {
                       "Join a call" rather than "Start a call": joining is the act either way, and
                       it is the word the transcript's own placeholder uses one panel over.
                     */
-                  else: emptyState({
-                    icon: 'sparkle',
-                    label: 'extraction',
-                    message: 'Join a call to start extracting things.',
-                  }),
-                },
+                      else: emptyState({
+                        icon: 'sparkle',
+                        label: 'extraction',
+                        message: 'Join a call to start extracting things.',
+                      }),
+                    },
+                  },
+                ],
               },
             ],
           },

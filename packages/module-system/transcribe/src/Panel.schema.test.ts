@@ -1141,11 +1141,36 @@ describe('the extraction panel', () => {
     expect(json).toContain('"delay":400');
   });
 
-  it('scrolls the results and nothing above them', () => {
-    // `panelShell` clips, so without this an open history plus a 240px code pane is cut off by the
-    // dock box. The header, the chips and the activity stay put; the list moves.
-    expect(json).toContain('"we-scroll-area"');
-    expect(json.indexOf('"we-scroll-area"')).toBeGreaterThan(json.indexOf('transcribe.extractionTargets'));
+  it('scrolls as one thing, under a header that stays', () => {
+    /*
+      `panelShell` clips, so something has to scroll or an open history plus a 240px code pane is cut
+      off by the dock box. It used to be the two lists, each with its own scroller and each
+      `flex: '1'` — so they competed for the panel's height, the chips and the log between them were
+      pinned, and reading a long list meant a small window moving inside a small window.
+
+      One scroller over the whole body instead, above the chips rather than below them. The header
+      stays put because it is `panelShell`'s and sits outside this.
+    */
+    const scroller = json.indexOf('"we-scroll-area"');
+
+    expect(scroller).toBeGreaterThan(-1);
+    expect(json.indexOf('"we-scroll-area"', scroller + 1)).toBe(-1);
+    expect(scroller).toBeLessThan(json.indexOf('transcribe.extractionTargets'));
+  });
+
+  it('folds either list away, and remembers which', () => {
+    /*
+      The cost of one scroller: a long list of suggestions pushes the readings and the results below
+      the fold, and scrolling past all of them every time is worse than the two windows were. So each
+      heading carries the count and a caret, and the count is what says whether folding is worth it.
+
+      `persist` rather than `syncParam`: how somebody likes this panel arranged is a preference, and
+      a shared link must not impose it on whoever opens it.
+    */
+    expect(json).toContain('"persist":"transcribe.proposalsOpen"');
+    expect(json).toContain('"persist":"transcribe.extractedOpen"');
+    expect(json).toContain('"$toggleLocal":"proposalsOpen"');
+    expect(json).toContain('"$toggleLocal":"extractedOpen"');
   });
 
   it('leaves the panel’s own openness to the host', () => {
