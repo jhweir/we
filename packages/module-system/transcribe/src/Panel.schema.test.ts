@@ -1388,10 +1388,34 @@ describe('the history of what was read', () => {
     expect(json).toContain('"condition":{"$":"pass.prompt || pass.response"}');
   });
 
-  it('keeps the live feed to the live call, where its rows belong', () => {
-    // The store's rows carry no call id, so on a past call they described the wrong conversation.
+  it('keeps the live feed to the live call, and to passes still running', () => {
+    /*
+      Two narrowings, and the second is newer. The store's rows carry no call id, so on a past call
+      they described the wrong conversation — hence the live-call test.
+
+      And `runningCount` rather than `hasActivity`, which counts settled rows too. That was right
+      while this was the only place a finished pass was reported; once every pass became an
+      `ExtractionPass` listed under "Logs" in the same panel, the settled half of this feed was the
+      same rows again a few hundred pixels higher with no heading to tell them apart.
+    */
     expect(JSON.stringify(extractionActivity)).toContain(
-      'interpretationStore.hasActivity && (!routeStore.params.call || routeStore.params.call == modules.transcribe.callId)',
+      'interpretationStore.runningCount && (!routeStore.params.call || routeStore.params.call == modules.transcribe.callId)',
     );
+  });
+
+  it('leaves finished passes to the durable log, and lists them once', () => {
+    /*
+      The bug this replaced: the readings appeared twice on a call, once above the "Logs" heading
+      from the live feed's collapsed settled list and once below it from the stored records.
+
+      Caused by unifying the two kinds of pass. Before that the feed carried the watched ones and
+      the log carried the pressed ones, so between them they showed each pass once; making both
+      complete made them duplicates.
+    */
+    const activity = JSON.stringify(extractionActivity);
+    expect(activity).not.toContain('interpretationStore.settledPasses');
+    expect(activity).not.toContain('extractions processed');
+    // The log keeps its own count, which is the one that survives a reload.
+    expect(json).toContain("plural(count(local.passes), 'reading', 'readings')");
   });
 });

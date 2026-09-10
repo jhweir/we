@@ -431,120 +431,20 @@ const runningList: SchemaNode = {
   children: [passEntry],
 };
 
-/**
- * Everything already finished, folded behind a count.
- *
- * A long call runs a pass every few minutes, and each one that completed stayed on screen — so the
- * bar grew all conversation, pushing the call's own chrome down to make room for a history nobody
- * had asked to see. Collapsing them keeps the bar the size of what is happening now while leaving
- * the record one click away.
- *
- * Deliberately not auto-dismissed after a delay. A result that vanishes on a timer is a result
- * somebody can miss entirely, and "what did that extract?" is asked minutes later as often as
- * immediately.
- */
-const settledSection: SchemaNode = {
-  type: '$if',
-  props: {
-    condition: { $: 'interpretationStore.settledCount' },
-    then: {
-      type: 'Column',
-      props: { gap: '200', width: '100%' },
-      children: [
-        {
-          type: 'we-button',
-          props: { variant: 'bare', width: '100%', onClick: { $toggleLocal: 'historyOpen' } },
-          children: [
-            {
-              type: 'Row',
-              props: { ay: 'center', gap: '200', width: '100%' },
-              children: [
-                /*
-                  A sparkle, not a tick.
+/*
+  The settled half of this feed is gone, and the "N extractions processed" fold with it.
 
-                  A tick here said "these succeeded", which is both wrong — some of them found
-                  nothing, some failed — and a repeat of the per-row glyph one level down. The row
-                  is about extraction having happened, so the icon names the activity rather than
-                  grading it, and the ticks stay where they mean something.
-                */
-                { type: 'we-icon', props: { size: GLYPH_SIZE, name: 'sparkle', color: 'text-faint' } },
-                {
-                  type: 'we-text',
-                  props: { fontSize: '200', color: 'text-muted', flex: '1', textAlign: 'left' },
-                  children: [
-                    { $: 'interpretationStore.settledCount' },
-                    ' ',
-                    { $: "plural(interpretationStore.settledCount, 'extraction processed', 'extractions processed')" },
-                  ],
-                },
-                {
-                  type: 'we-icon',
-                  props: {
-                    size: CARET_SIZE,
-                    color: 'text-muted',
-                    name: { $: "local.historyOpen ? 'caret-up' : 'caret-down'" },
-                  },
-                },
-              ],
-            },
-          ],
-        },
-        /*
-          A way to forget what has finished.
+  It collapsed every finished pass behind a count so the bar stayed the size of what was happening
+  now — the right shape while this was the only place a finished pass was reported. It stopped being
+  that when every pass, one-shot and watched alike, started being written down as an `ExtractionPass`
+  and listed under "Logs" in this same panel: two lists of the same rows a few hundred pixels apart,
+  neither saying which was which.
 
-          The store has published `dismissSettled` since the readout existed and nothing called it,
-          so a history could only ever grow — and this is a list somebody watches for minutes at a
-          time, so "everything that has ever happened" is the state it spends most of its life in.
-          Only what has settled: a running pass is not this agent's to dismiss, which is why the
-          store's action leaves those alone rather than taking a filter.
-
-          Beside the count rather than on each row, because the decision is about the list. Offered
-          only while the list is open, so the collapsed line stays a summary and not a control strip.
-        */
-        {
-          type: '$if',
-          props: {
-            condition: { $: 'local.historyOpen' },
-            then: {
-              type: 'Row',
-              props: { width: '100%', ax: 'end' },
-              children: [
-                {
-                  type: 'we-button',
-                  props: {
-                    variant: 'ghost',
-                    size: 'xs',
-                    onClick: { $action: 'interpretationStore.dismissSettled' },
-                  },
-                  children: [{ type: 'we-text', props: { variant: 'footnote' }, children: ['Clear'] }],
-                },
-              ],
-            },
-          },
-        },
-        {
-          type: '$if',
-          props: {
-            condition: { $: 'local.historyOpen' },
-            enterTransition: { type: 'reveal', duration: 200 },
-            exitTransition: { type: 'reveal', duration: 160 },
-            then: {
-              type: 'Column',
-              props: { gap: '200', width: '100%' },
-              children: [
-                {
-                  type: '$each',
-                  props: { items: { $: 'interpretationStore.settledPasses' }, as: 'pass' },
-                  children: [passEntry],
-                },
-              ],
-            },
-          },
-        },
-      ],
-    },
-  },
-};
+  The durable one wins on every count. It survives a reload, it is scoped to the call by containment
+  rather than to whatever this session happened to observe, and it carries the outcome, the trigger
+  and the stored exchange. What this feed keeps is the half the log cannot give: a pass while it is
+  still running. See `extractionHistory` in Panel.schema.ts.
+*/
 
 /**
  * The disclosures a pass carries, and the state that opens them.
@@ -621,7 +521,21 @@ export const extractionActivity: SchemaNode = {
     which are written down and hang off the collection. See `extractionHistory`.
   */
   props: {
-    condition: { $: `interpretationStore.hasActivity && (${VIEWING_LIVE_EXPR})` },
+    /*
+      Running passes only, and `runningCount` rather than `hasActivity` is the whole of that.
+
+      `hasActivity` counts settled rows too — deliberately, so a readout gated on it did not vanish
+      the instant a pass finished and take its result with it. That was right while this was the only
+      place a finished pass was reported. It is not any more: every pass, one-shot and watched alike,
+      is now written down as an `ExtractionPass` and listed under "Logs" in the same panel, so the
+      settled half of this feed was the same passes again a few hundred pixels higher, with no
+      heading to say which list was which.
+
+      What is left here is the half the log genuinely cannot give: a pass *while it runs*, whoever
+      started it, with its phase and its elapsed clock. A row appears when somebody begins and leaves
+      when the durable entry takes over.
+    */
+    condition: { $: `interpretationStore.runningCount && (${VIEWING_LIVE_EXPR})` },
     then: {
       type: 'Column',
       $localState: activityLocalState,
@@ -629,37 +543,19 @@ export const extractionActivity: SchemaNode = {
         gap: '200',
         width: '100%',
       },
-      children: [
-        runningList,
-        settledSection,
-        /*
-          Why somebody else's row will not open, said once.
+      /*
+        The footnote about unshared prompts went with the settled rows.
 
-          This was a tooltip on every row — the wrong place twice over: hover text is not where
-          anyone looks for an explanation of why a control is inert, and one setting's worth of
-          explanation was repeated per pass. It also happened to be the box that stopped the caret
-          reaching the right edge.
+        It explained why somebody else's *finished* pass would not open, and `detailWithheld` is
+        computed over settled rows alone — so with none of those here it could only ever have
+        appeared with nothing on screen to explain.
 
-          Shown only while the space's setting is the reason a peer's row will not open, and it
-          names the way out: this is the one moment somebody wants that setting, and settings is not
-          where anyone looks for a control they have never seen. Gated on the setting rather than on
-          a row lacking detail — see `detailWithheld` in the store for what the other gate showed.
-
-          One short line at footnote size. Two sentences at body size took more of the bar than the
-          rows it was explaining, for a fact that is the same on every pass.
-        */
-        {
-          type: '$if',
-          props: {
-            condition: { $: 'interpretationStore.detailWithheld' },
-            then: {
-              type: 'we-text',
-              props: { variant: 'footnote', color: 'text-faint' },
-              children: ['Prompts stay on each person’s machine — share them in space settings.'],
-            },
-          },
-        },
-      ],
+        It had also stopped being true. A pass now writes its prompt and response into the graph,
+        where every member of the space replicates them, so `shareExtractionDetail` governs whether
+        this live readout offers the exchange rather than whether the exchange is shared at all.
+        That is worth revisiting on the setting itself, not restating here — see `ExtractionPass`.
+      */
+      children: [runningList],
     },
   },
 };
