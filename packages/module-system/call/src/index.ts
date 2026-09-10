@@ -1549,14 +1549,27 @@ const continueCallButton: SchemaNode = {
           type: 'we-button',
           props: {
             variant: 'ghost',
-            size: 'sm',
             square: true,
             // Icon-only, so the accessible name has to be said: there is no visible word to serve as
             // one. The same expression as the tooltip, for the reason `CONTINUE_LABEL` exists.
             label: { $: CONTINUE_LABEL },
             onClick: { $action: 'modules.call.continueCall', args: [{ $: CALL_IN_ADDRESS }] },
           },
-          children: [{ type: 'we-icon', props: { name: 'phone-call' } }],
+          /*
+            The default height, and a glyph sized past what that height would give it.
+
+            It was `size: 'sm'` — a 32px box with a 16px icon — which put it a step below whatever it
+            is placed beside: the Workshop pill's edit button is a default-height control with an
+            explicit 18px pencil, so this read as the smaller of two things that are the same kind of
+            thing. Matching the box also matters where a pill reserves a band measured from a control
+            at that height.
+
+            20px rather than the pencil's 18px, and rather than the 24px a default control gives a
+            nested icon. This is the offer rather than one of a set of adjustments — the same reason
+            the call card's phone button sizes past its own row — so it leads slightly; 24px is for a
+            glyph that *is* the button, and here it would shout next to a heading.
+          */
+          children: [{ type: 'we-icon', props: { name: 'phone-call', size: '20px' } }],
         },
       ],
     },
