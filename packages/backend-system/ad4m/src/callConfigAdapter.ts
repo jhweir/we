@@ -77,7 +77,7 @@ interface ConfigCapableProxy {
  */
 export function createCallConfigAccessors(getCurrentDataset: () => DatasetHandle | null): {
   getCallConfig: () => Promise<CallConfig>;
-  setCallConfig: (config: CallConfig) => Promise<boolean>;
+  setCallConfig: (config: unknown) => Promise<boolean>;
   getAvailableSfuNodes: () => Promise<CallSfuNode[]>;
   callConfigSupported: () => boolean;
 } {
@@ -109,9 +109,9 @@ export function createCallConfigAccessors(getCurrentDataset: () => DatasetHandle
       }
     },
 
-    async setCallConfig(config: CallConfig): Promise<boolean> {
+    async setCallConfig(config: unknown): Promise<boolean> {
       const { nhProxy, neighbourhoodUrl } = resolveProxy();
-      return await nhProxy.setSfuConfig(neighbourhoodUrl, config);
+      return await nhProxy.setSfuConfig(neighbourhoodUrl, config as CallConfig);
     },
 
     async getAvailableSfuNodes(): Promise<CallSfuNode[]> {
