@@ -294,6 +294,34 @@ describe('what belongs to the live microphone only', () => {
     expect(readout).toContain("modules.transcribe.partialCoverage ? 'warning-text' : 'success-text'");
   });
 
+  it('keeps the meter up while switched off, and says so rather than going', () => {
+    /*
+      It was gated on `enabled`, so pressing stop mid-call took the whole meter out and everything
+      below it jumped up the panel — worst where there is most to lose, since a long transcript's
+      rows move under the eye reading them. It holds the box and reports the state instead.
+
+      The glyph is in both states rather than appearing when off, which is what makes the row's
+      height identical by construction rather than dependent on a 16px mark fitting a footnote's
+      line box.
+    */
+    const meter = JSON.stringify(captureMeter);
+
+    expect(meter).toContain('modules.transcribe.enabled || modules.transcribe.available');
+    expect(meter).toContain("modules.transcribe.enabled ? 'microphone' : 'microphone-slash'");
+    expect(meter).toContain("!modules.transcribe.enabled ? 'off'");
+  });
+
+  it('empties the bar when it is not listening, rather than freezing the last reading', () => {
+    /*
+      `levelPercent` is live and the audio graph is torn down on stop, so the last value before it
+      went describes a moment that has passed. Left painted, the bar reports sound nobody is
+      listening to.
+    */
+    expect(JSON.stringify(captureMeter)).toContain(
+      "modules.transcribe.enabled ? modules.transcribe.levelPercent : '0%'",
+    );
+  });
+
   it('never animates the height of the microphone section, in either direction', () => {
     /*
       The invariant the whole arrangement rests on. A fade changes only opacity, so the box is held

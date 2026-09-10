@@ -216,7 +216,20 @@ const MIC_FADE = { type: 'fade', duration: 300 };
 export const captureMeter: SchemaNode = {
   type: '$if',
   props: {
-    condition: { $: 'modules.transcribe.enabled' },
+    /*
+      A microphone to speak into, whether or not it is being listened to.
+
+      This asked `enabled`, so pressing stop mid-call took the whole meter out and everything below
+      it jumped up the panel — worst where there is most to lose, a long transcript, since the rows
+      move under the eye that is reading them. Holding the box and reporting that it is off costs the
+      same space and moves nothing.
+
+      Which makes it the same question the section around it asks, and that is deliberate: the meter
+      is the section's whole reason to exist, so a state where one is up and the other is not would
+      be a gap where a readout should be. Kept as a condition rather than dropped, because this is a
+      part an interface can place on its own, and placed outside a call it should render nothing.
+    */
+    condition: { $: 'modules.transcribe.enabled || modules.transcribe.available' },
     enterTransition: MIC_FADE,
     exitTransition: MIC_FADE,
     then: {
@@ -228,16 +241,43 @@ export const captureMeter: SchemaNode = {
           props: { ax: 'between', ay: 'center' },
           children: [
             {
-              type: 'we-text',
-              props: { variant: 'footnote', color: 'text-muted' },
-              children: ['Microphone'],
+              type: 'Row',
+              props: { ay: 'center', gap: '200' },
+              children: [
+                {
+                  /*
+                    The glyph carries the off state, and it is present in both so the row cannot
+                    change height between them.
+
+                    That is the whole point of this arrangement: an icon that appears only when
+                    switched off would put the height back at the mercy of whether a 16px glyph fits
+                    inside a footnote's line box, which is the thing being avoided. Swapping the mark
+                    leaves the geometry identical by construction.
+                  */
+                  type: 'we-icon',
+                  props: {
+                    size: 'sm',
+                    name: { $: "modules.transcribe.enabled ? 'microphone' : 'microphone-slash'" },
+                    color: { $: "modules.transcribe.enabled ? 'text-muted' : 'text-faint'" },
+                  },
+                },
+                {
+                  type: 'we-text',
+                  props: {
+                    variant: 'footnote',
+                    color: { $: "modules.transcribe.enabled ? 'text-muted' : 'text-faint'" },
+                  },
+                  children: ['Microphone'],
+                },
+              ],
             },
             {
               /*
-                Says which side of the threshold we are on, for anyone who cannot read the bar.
+                Says which side of the threshold we are on, for anyone who cannot read the bar — and
+                says "off" where there is no threshold to be on a side of.
 
-                Two words, and no third for the moment the audio graph is opening. That moment had a
-                row of its own once — a spinner and "Starting…" under the meter, which moved
+                Three words, and no fourth for the moment the audio graph is opening. That moment had
+                a row of its own once — a spinner and "Starting…" under the meter, which moved
                 everything below it as it came and went — and then, briefly, this label, which was
                 cheaper but still a word nobody could read changing to another. "quiet" is already
                 true while a stream is coming up: the bar is at zero because nothing has been heard
@@ -249,7 +289,11 @@ export const captureMeter: SchemaNode = {
                 variant: 'footnote',
                 color: { $: "modules.transcribe.speaking ? 'success-text' : 'text-faint'" },
               },
-              children: [{ $: "modules.transcribe.speaking ? 'hearing you' : 'quiet'" }],
+              children: [
+                {
+                  $: "!modules.transcribe.enabled ? 'off' : " + "modules.transcribe.speaking ? 'hearing you' : 'quiet'",
+                },
+              ],
             },
           ],
         },
@@ -277,21 +321,35 @@ export const captureMeter: SchemaNode = {
                 // `styles` rather than `width`, because the value is computed per frame and a DS prop
                 // takes a token. This is the escape hatch working as intended.
                 styles: {
-                  width: { $: 'modules.transcribe.levelPercent' },
+                  /*
+                    Empty while switched off, rather than frozen at whatever was last heard.
+
+                    `levelPercent` is a live reading, and the audio graph is torn down on stop — so
+                    the last value before it went is a number about a moment that has passed, and
+                    leaving it painted is a bar reporting sound nobody is listening to. Zero is what
+                    an idle meter shows.
+                  */
+                  width: { $: "modules.transcribe.enabled ? modules.transcribe.levelPercent : '0%'" },
                   transition: 'width 80ms linear',
                   'max-width': '100%',
                 },
               },
             },
             {
-              // The onset threshold, read from the store so it cannot drift from the VAD's own value.
+              /*
+                The onset threshold, read from the store so it cannot drift from the VAD's own value.
+
+                Faint while switched off. It marks the point a sound has to cross to be heard, and
+                nothing is being heard — a mark at full strength on an empty trough reads as a
+                measurement rather than as the furniture of one.
+              */
               type: 'Row',
               props: {
                 position: 'absolute',
                 top: '0px',
                 height: '100%',
                 width: '2px',
-                bg: 'border-strong',
+                bg: { $: "modules.transcribe.enabled ? 'border-strong' : 'border'" },
                 styles: { left: { $: 'modules.transcribe.thresholdPercent' } },
               },
             },
