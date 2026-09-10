@@ -774,6 +774,24 @@ describe('the extraction panel', () => {
     expect(json).toContain('Reads the whole conversation so far');
   });
 
+  it('gives the actual reason Extract now cannot be pressed', () => {
+    /*
+      `canExtract` folds three reasons into one boolean — no models in the space, nothing ticked on
+      this call, nothing said yet — so a tooltip reading it alone can only guess, and it guessed the
+      last one. Somebody who had just unticked the final chip was told the call was silent, which is
+      wrong and unfixable by anything they would then try.
+    */
+    const targets = `modules.transcribe.extractionFor[${EXTRACTION_SUBJECT_EXPR}].targets`;
+    const order = ['No models are set up here', 'Nothing is selected to extract', 'Nothing has been said yet'];
+
+    expect(json).toContain(`!${targets}.exists(t, t.selected) ? 'Nothing is selected to extract'`);
+    // Tested in the order they rule each other out: a space with no models has nothing to tick, and
+    // a call with nothing ticked cannot be fixed by waiting for somebody to speak.
+    for (let i = 1; i < order.length; i += 1) {
+      expect(json.indexOf(order[i - 1])).toBeLessThan(json.indexOf(order[i]));
+    }
+  });
+
   it('offers a way to lengthen the list of things it can extract', () => {
     /*
       What a call can extract is whatever this space has models for, and the panel could only ever

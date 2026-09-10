@@ -1625,14 +1625,22 @@ const extractionControls: SchemaNode = {
       props: {
         placement: 'bottom',
         /*
-            Why it cannot be pressed, when it cannot — this used to say the same thing enabled or
-            not, and a fresh call sits disabled until the first utterance lands, which read as broken
-            beside a continued call that was enabled from the first second. The model gate is the
-            panel's own `$if`, so the two reasons left are no targets and no words.
-          */
+          Why it cannot be pressed, and it has to be the *actual* reason.
+
+          `canExtract` folds three of them into one boolean — a space with no models, a call with
+          nothing ticked, and a conversation nobody has spoken in — so a tooltip reading it alone can
+          only guess, and it guessed "Nothing has been said yet". Somebody who had just unticked the
+          last chip was told the call was silent, which is both wrong and unfixable by anything they
+          would then try.
+
+          Asked apart, in the order they rule each other out. The fourth reason `canExtract` carries,
+          a node with no model at all, cannot reach here: the panel's own `$if` has already replaced
+          everything with a sentence about it.
+        */
         content: {
           $:
-            `!count(${forSubject('targets').$}) ? 'Nothing is being looked for' : ` +
+            `!count(${forSubject('targets').$}) ? 'No models are set up here' : ` +
+            `!${forSubject('targets').$}.exists(t, t.selected) ? 'Nothing is selected to extract' : ` +
             `!${forSubject('canExtract').$} ? 'Nothing has been said yet' : ` +
             "'Reads the whole conversation so far'",
         },
