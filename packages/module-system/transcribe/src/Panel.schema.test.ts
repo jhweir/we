@@ -837,7 +837,24 @@ describe('the extraction panel', () => {
     */
     expect(json).not.toContain("last(field.options) ? 'success'");
     // The one badge left is the count beside "Awaiting your call", which is a number and not a state.
-    expect(json).toContain('"we-badge","props":{"size":"xs","variant":"warning"}');
+    expect(json).toContain('"we-badge","props":{"size":"xs","variant":"warning","appearance":"solid"}');
+  });
+
+  it('marks the section wanting attention once, not once per card', () => {
+    /*
+      Every card was a `we-alert`, which always draws a status glyph — deliberately, since its own
+      note points at WCAG 1.4.1 and a lone alert needs colour not to be the only thing carrying its
+      meaning. A grid of them is the case that rule was not written for: eight identical triangles
+      say one thing eight times and crowd the titles they sit beside.
+
+      So the redundancy moved up to the heading, where there is one of it, and the cards keep the
+      edge without the glyph. Nothing is left relying on colour alone — "Awaiting your call" is a
+      text label, and the icon and count sit beside it.
+    */
+    expect(json).toContain('{"type":"we-icon","props":{"name":"warning","size":"xs","color":"warning"}}');
+    expect(json).not.toContain('"we-alert","props":{"variant":"warning","appearance":"accent"');
+    // The edge the alert drew, written out: the status at full strength rather than its tint.
+    expect(json).toContain('"borderLeft":"3px solid warning"');
   });
 
   it('edits a moment with a calendar rather than a raw ISO string', () => {

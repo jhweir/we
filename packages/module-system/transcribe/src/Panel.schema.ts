@@ -777,10 +777,29 @@ const proposals: SchemaNode = {
           children: [
             sectionLabel({
               label: 'Awaiting your call',
+              /*
+                The status glyph, once, where the count is.
+
+                It was on every card — see the grid below for why it left. Here it does the job the
+                cards were each doing badly: one mark beside the number, so the section reads as
+                something wanting attention without eight triangles saying so in turn.
+
+                `solid` rather than the default `soft`. A soft badge is a tint, and a tint of the
+                warning hue against a panel is dark enough that the number inside it stopped being
+                the thing you noticed. Solid puts the count on the status at full strength, which is
+                what a count somebody is meant to act on should look like.
+              */
               aside: {
-                type: 'we-badge',
-                props: { size: 'xs', variant: 'warning' },
-                children: [{ $: `count(${PROPOSALS})` }],
+                type: 'Row',
+                props: { ay: 'center', gap: '100' },
+                children: [
+                  { type: 'we-icon', props: { name: 'warning', size: 'xs', color: 'warning' } },
+                  {
+                    type: 'we-badge',
+                    props: { size: 'xs', variant: 'warning', appearance: 'solid' },
+                    children: [{ $: `count(${PROPOSALS})` }],
+                  },
+                ],
               },
             }),
             {
@@ -796,14 +815,35 @@ const proposals: SchemaNode = {
                       props: { items: { $: PROPOSALS }, as: 'proposal' },
                       children: [
                         {
-                          type: 'we-alert',
+                          /*
+                            The alert's edge, without the alert's icon.
+
+                            `we-alert` always draws one — it has no way to be told not to, and that
+                            is deliberate: its own note points at WCAG 1.4.1, which asks that colour
+                            never be the only thing carrying a status. A glyph per card is how a
+                            single alert earns that.
+
+                            A *grid* of them is the case the rule was not written for. Eight cards
+                            with eight identical warning triangles says one thing eight times, and
+                            the triangles crowd the title they sit beside. The redundancy has moved
+                            up to the heading, where there is one of it: "Awaiting your call" is a
+                            text label, and the icon and count beside it carry the status without
+                            colour doing it alone. So no card is relying on its edge colour to be
+                            understood — the section above them has already said what they are.
+
+                            The edge itself is `we-alert`'s `accent` appearance written out: a
+                            surface, ordinary text, and a three-pixel rule in the status at full
+                            strength rather than in its tint. Same figures, so a card here and an
+                            alert elsewhere still look like the same family.
+                          */
+                          type: 'Column',
                           props: {
-                            variant: 'warning',
-                            appearance: 'accent',
+                            bg: 'surface',
+                            color: 'text',
+                            borderLeft: '3px solid warning',
                             r: '300',
                             px: '300',
                             py: '300',
-                            gap: '300',
                           },
                           children: [
                             {
