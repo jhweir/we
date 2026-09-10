@@ -895,6 +895,46 @@ export interface ModuleStoreDeps {
   audioInput?: () => MediaStream | null;
 
   /**
+   * Factory that creates a call backend for a specific call room.
+   *
+   * Returns `unknown` here because the shared contract has no opinion on the call module's own
+   * types — the call store narrows to `CallBackend`. Absent on a backend that does not support
+   * session-managed calls; the call module falls back to its own peer-to-peer mesh.
+   */
+  createBackend?: (callId: string) => Promise<unknown>;
+
+  /**
+   * Read the neighbourhood's call configuration (SFU topology defaults).
+   *
+   * Returns the config stored on Social DNA.  Absent when the backend has no SFU support;
+   * the call module treats absence as "pure mesh, no relay".
+   */
+  getCallConfig?: () => Promise<unknown>;
+
+  /**
+   * Write the neighbourhood's call configuration.
+   *
+   * Persists to Social DNA so the config travels with the neighbourhood.  The UI gates
+   * this on admin permission; the port itself does not enforce access control.
+   */
+  setCallConfig?: (config: unknown) => Promise<boolean>;
+
+  /**
+   * Discover SFU-capable executor nodes in this neighbourhood.
+   *
+   * Returns DIDs and bind addresses of nodes that can act as relay servers.
+   * Absent when the backend has no SFU support.
+   */
+  getAvailableSfuNodes?: () => Promise<unknown[]>;
+
+  /**
+   * Synchronous probe: does the current backend support call configuration?
+   *
+   * The settings UI hides call topology controls when this returns false.
+   */
+  callConfigSupported?: () => boolean;
+
+  /**
    * Write a record into the current dataset.
    *
    * The imperative twin of the `record.create` a schema already has. A module that creates data in

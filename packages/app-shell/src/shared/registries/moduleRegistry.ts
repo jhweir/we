@@ -322,15 +322,21 @@ export const moduleRegistry = {
     // added per module rather than living on the shared deps object, because the shared one cannot
     // say *which* module registered a disposer — and running the wrong module's teardown is worse
     // than running none.
+    //
+    // `Object.create` instead of spread: storeDeps carries late-bound getters (callConfigSupported,
+    // createBackend, etc.) that dereference at call time. Spreading evaluates every getter once and
+    // copies the value, which is `undefined` when the host stores have not mounted yet. Prototypal
+    // delegation keeps the getters live — a read at any later time still reaches the real service.
     const disposers: Array<() => void> = [];
     const store = storeDeps
-      ? definition.createStore?.({
-          ...storeDeps,
-          onDispose: (fn) => disposers.push(fn),
-          // Its own group, never the whole map: a module reads what it declared and has no business
-          // knowing what another one was configured with.
-          settings: () => readSettings(definition.id),
-        })
+      ? definition.createStore?.(
+          Object.assign(Object.create(storeDeps), {
+            onDispose: (fn: () => void) => disposers.push(fn),
+            // Its own group, never the whole map: a module reads what it declared and has no business
+            // knowing what another one was configured with.
+            settings: () => readSettings(definition.id),
+          }),
+        )
       : undefined;
     modules.set(definition.id, { definition, store, disposers });
     if (store) moduleStores[definition.id] = store;

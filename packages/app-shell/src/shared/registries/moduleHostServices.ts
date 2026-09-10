@@ -60,6 +60,42 @@ export interface ModuleHostServices {
     clearActivity: (type: string, id?: string) => void;
   };
   transcription?: TranscriptionPort;
+  /**
+   * Factory that creates a call backend (Session) for a specific call room.
+   *
+   * Bound by the store that owns the AD4M client, dataset, and agent identity — then forwarded
+   * through `createModuleStoreDeps` as `createBackend`. Absent on a backend without session
+   * support; the call module falls back to its own peer-to-peer mesh.
+   */
+  createCallBackend?: (callId: string) => Promise<unknown>;
+  /**
+   * Read the neighbourhood's call configuration (SFU topology defaults).
+   *
+   * Returns the `SfuConfig` stored on Social DNA — the space moderator's topology decisions.
+   * Absent when the backend has no SFU support; the call module uses mesh defaults.
+   */
+  getCallConfig?: () => Promise<unknown>;
+  /**
+   * Write the neighbourhood's call configuration.
+   *
+   * Persists to Social DNA so the config travels with the neighbourhood.
+   * Admin-gated in the UI; the adapter itself does not enforce permissions.
+   */
+  setCallConfig?: (config: unknown) => Promise<boolean>;
+  /**
+   * Discover SFU-capable executor nodes in this neighbourhood.
+   *
+   * Scans online agents' presence for the `ad4m://sfu/available` predicate.
+   * Returns DIDs and bind addresses of nodes that can act as relay servers.
+   */
+  getAvailableSfuNodes?: () => Promise<unknown[]>;
+  /**
+   * Synchronous probe: does the current backend support call configuration?
+   *
+   * Returns `false` when the executor lacks SFU types (pre-feat/embedded-sfu builds).
+   * The settings UI hides the Call section entirely when this returns false.
+   */
+  callConfigSupported?: () => boolean;
   interpretation?: InterpretationPort;
   /**
    * Gather a collection's children and interpret them, published by whichever store can read the
@@ -161,6 +197,20 @@ export interface ModuleHostServices {
 
 const services: ModuleHostServices = {};
 
+/*
+  Service revision — a reactive signal that deps closures read so Solid effects re-fire when
+  `provideModuleHostServices` binds a new slice.
+
+  Without it, a deps closure like `() => services.dataset?.() ?? null` reads nothing reactive when
+  `services.dataset` is still `undefined` (module stores mount before the host stores do). The
+  first run of any effect that reads such a closure establishes zero dependencies, so the effect
+  never re-fires once services arrive. Reading the revision inside every service-forwarding closure
+  guarantees the closure always touches a signal, and bumping the revision after `Object.assign`
+  re-runs every effect that depends on the new slice.
+*/
+let readServicesRevision: (() => void) | null = null;
+let bumpServicesRevision: (() => void) | null = null;
+
 /**
  * Publish a slice of host services to registered modules.
  *
@@ -169,6 +219,7 @@ const services: ModuleHostServices = {};
  */
 export function provideModuleHostServices(slice: ModuleHostServices): () => void {
   Object.assign(services, slice);
+  bumpServicesRevision?.();
 
   /*
     Returns the withdrawal, and withdraws only what is still ours.
@@ -193,6 +244,8 @@ export function provideModuleHostServices(slice: ModuleHostServices): () => void
 /** Test seam: drop everything between cases so one test's bindings cannot leak into the next. */
 export function resetModuleHostServices(): void {
   for (const key of Object.keys(services)) delete services[key as keyof ModuleHostServices];
+  readServicesRevision = null;
+  bumpServicesRevision = null;
 }
 
 /**
@@ -230,14 +283,38 @@ export function createModuleStoreDeps(framework: {
   signal: <T>(initial: T) => [() => T, (next: T) => void];
   effect: (fn: () => void) => void;
 }): ModuleStoreDeps {
+  // Initialise the revision signal on first call — uses the host framework's signal so it
+  // participates in the same reactive graph as the effects that will read the closures below.
+  if (!readServicesRevision) {
+    let counter = 0;
+    const [rev, setRev] = framework.signal(0);
+    readServicesRevision = rev;
+    bumpServicesRevision = () => setRev(++counter);
+  }
+
+  // Local alias read inside every closure — kept short and unconditional.
+  const touch = readServicesRevision;
+
   return {
     signal: framework.signal,
     effect: framework.effect,
 
-    dataset: () => services.dataset?.() ?? null,
-    datasetUri: () => services.datasetUri?.() ?? null,
-    datasetRefKey: () => services.datasetRefKey?.() ?? '',
-    selfId: () => services.selfId?.() ?? null,
+    dataset: () => {
+      touch();
+      return services.dataset?.() ?? null;
+    },
+    datasetUri: () => {
+      touch();
+      return services.datasetUri?.() ?? null;
+    },
+    datasetRefKey: () => {
+      touch();
+      return services.datasetRefKey?.() ?? '';
+    },
+    selfId: () => {
+      touch();
+      return services.selfId?.() ?? null;
+    },
 
     // A stable function that forwards, so a module capturing `deps.ephemeral` at construction still
     // reaches the real port once one exists.
@@ -409,6 +486,28 @@ export function createModuleStoreDeps(framework: {
     },
 
     audioInput: () => audioInput(),
+
+    // Late-bound call session factory, forwarded to the call module as `CallStoreDeps.createBackend`.
+    // A getter rather than a fixed function, so `deps.createBackend` reads as `undefined` before the
+    // backend binds the service — and the call module falls back to its own mesh.
+    get createBackend() {
+      return services.createCallBackend;
+    },
+
+    // Late-bound call config accessors — topology defaults stored on Social DNA.
+    // Same getter pattern: absent before the backend binds, and the module uses mesh defaults.
+    get getCallConfig() {
+      return services.getCallConfig;
+    },
+    get setCallConfig() {
+      return services.setCallConfig;
+    },
+    get getAvailableSfuNodes() {
+      return services.getAvailableSfuNodes;
+    },
+    get callConfigSupported() {
+      return services.callConfigSupported;
+    },
 
     createEntity: async (entity, fields, options) => (await services.createEntity?.(entity, fields, options)) ?? null,
 
