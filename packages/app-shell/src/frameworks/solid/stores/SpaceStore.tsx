@@ -513,7 +513,7 @@ export interface SpaceStore {
     }[]
   >;
   /** Launchers for the modules enabled here — what the module rail renders. */
-  moduleLaunchers: Accessor<{ id: string; icon: string; label: string; active: boolean }[]>;
+  moduleLaunchers: Accessor<{ id: string; icon: string; label: string; active: boolean; busy: boolean }[]>;
   /**
    * This space's sections, resolved: which view renders at which segment, in the space's own order.
    *
@@ -3617,6 +3617,9 @@ export function SpaceStoreProvider(props: ParentProps) {
             // stopped performing. Most launchers declare none and this is `label` in both states.
             label: (active && launcher.activeLabel) || launcher.label,
             active,
+            // Background work the module reports — a running pass. Read separately from `active`,
+            // since a panel can be shut while its module is busy.
+            busy: read(definition.id, launcher.busyWhen, false),
           };
         })
     );

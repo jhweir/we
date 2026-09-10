@@ -201,6 +201,14 @@ export interface RailButtonOptions {
   tooltip: SchemaProp;
   /** Highlights it, which is what makes a rail of these read as tabs rather than as buttons. */
   active?: SchemaProp;
+  /**
+   * Draws a spinner in place of the icon — something is happening behind this button.
+   *
+   * The one place a rail can say "a pass is running" to somebody who has not opened the panel. In
+   * place of the icon rather than beside it, because a rail button is a square with one glyph in
+   * it and a second object makes the column's width a lie, exactly as a label would.
+   */
+  busy?: SchemaProp;
   /** Action token, or an array of them. */
   onClick?: SchemaProp;
   /** Which side the tooltip opens on. Defaults to `left`, for a right-edge rail. */
@@ -240,7 +248,18 @@ export function railButton(opts: RailButtonOptions): SchemaNode {
           variant: expr`${opts.active ?? false} ? 'secondary' : 'ghost'`,
           ...(opts.onClick !== undefined && { onClick: opts.onClick }),
         },
-        children: [{ type: 'we-icon', props: { name: opts.icon } }],
+        children: [
+          opts.busy === undefined
+            ? { type: 'we-icon', props: { name: opts.icon } }
+            : {
+                type: '$if',
+                props: {
+                  condition: opts.busy,
+                  then: { type: 'we-spinner', props: { size: 'xs' } },
+                  else: { type: 'we-icon', props: { name: opts.icon } },
+                },
+              },
+        ],
       },
     ],
   };

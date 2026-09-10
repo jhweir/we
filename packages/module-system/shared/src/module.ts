@@ -1140,6 +1140,18 @@ export interface ModuleLauncher {
   activeWhen?: string;
 
   /**
+   * A store key the host reads to say the module is working in the background — a pass running,
+   * an upload in flight. The rail draws a spinner in place of the icon while it is true.
+   *
+   * Exists because the one signal that "somebody's extraction is running" used to be a square in
+   * the call bar, which only exists during a call and doubled as the control that stops it. The
+   * rail outlives the call and is where the panel is opened from, so it is where the four people in
+   * five who did not start a pass can see one is running without opening anything. Independent of
+   * `activeWhen`: a panel can be shut while its module is busy, and open while it is idle.
+   */
+  busyWhen?: string;
+
+  /**
    * A store key the host reads to decide whether to offer the launcher at all. Omit to always offer.
    *
    * For the case where a module is correctly enabled but cannot work *here*: calls need a
