@@ -301,7 +301,13 @@ describe('the workshop template’s call selection', () => {
     const calls = JSON.stringify(workshop.meta?.panels?.find((panel) => panel.id === 'calls'));
 
     expect(calls).toContain('"condition":{"$":"modules.call.active || count(modules.call.liveCalls)"}');
-    expect(calls).toContain('"else":{"$action":"modules.call.startCall"}');
+    /*
+      With `args`, and the empty string carries the whole point. A handler with none does not call
+      the method with none — it forwards the click, and `startCall` takes an optional anchor id, so
+      it was handed a PointerEvent and the backend refused the write. `''` is how `startCall`
+      already spells "no anchor".
+    */
+    expect(calls).toContain('"else":{"$action":"modules.call.startCall","args":[""]}');
     // And it says which of the three it is about to do. The middle one had no words of its own.
     expect(calls).toContain("'Join the call'");
   });

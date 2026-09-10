@@ -481,14 +481,22 @@ const switcher: SchemaNode = {
 /** A call is running somewhere in this space, whether or not this agent is in it. */
 const A_CALL_IS_RUNNING = 'modules.call.active || count(modules.call.liveCalls)';
 
-const startCall: SchemaNode = {
+/**
+ * Start a call, join the one running here, or go back to your own.
+ *
+ * Takes its size because it is placed twice at two scales: beside the call's name in the corner,
+ * where it stands alone and matches the pill's own controls, and in the calls panel header, where
+ * `panelShell` reserves the height of a small control and a default one would make that header
+ * taller than every other panel's.
+ */
+const startCallButton = (size: 'sm' | 'md'): SchemaNode => ({
   type: '$if',
   props: {
     condition: { $: 'modules.call.canCall' },
     then: {
       type: 'we-button',
       props: {
-        size: 'sm',
+        size,
         gap: '200',
         // Its words are fixed, so it is the wrong half of the pair to shorten — see `callPill`.
         flexShrink: '0',
@@ -515,7 +523,19 @@ const startCall: SchemaNode = {
             $if: {
               condition: { $: A_CALL_IS_RUNNING },
               then: { $action: 'modules.call.goToCall' },
-              else: { $action: 'modules.call.startCall' },
+              /*
+                `args` explicitly, and the empty string is the point.
+
+                A handler with no `args` does not call the method with none — it forwards the
+                handler's own arguments, so a click passes the PointerEvent as the first parameter.
+                `startCall` takes an optional anchor id, so it received the event and the backend
+                refused the write: "invalid type: map, expected a string". `args: []` does not help
+                either; an empty list reads as "no args given" and forwards the event too.
+
+                `''` is falsy, which is how `startCall` already spells "no anchor" — a call about the
+                space rather than about some node in it.
+              */
+              else: { $action: 'modules.call.startCall', args: [''] },
             },
           },
           openLiveCall,
@@ -538,7 +558,7 @@ const startCall: SchemaNode = {
       ],
     },
   },
-};
+});
 
 /**
  * The corner that is about the conversation, and it is always there.
@@ -587,6 +607,17 @@ const callChrome: SchemaNode = {
     zIndex: 'sticky',
     gap: '200',
     ay: 'center',
+    /*
+      The pill's own height, held whether or not the pill is there.
+
+      Without it the region is as tall as whatever it happens to contain, so with no call the start
+      button sat at the top of the band while the switcher beside it sat centred in the full height —
+      the two pinned to the same `top` and looking misaligned. Stated as the arithmetic the pill
+      arrives at rather than as a number: a control at the default height, plus the padding above and
+      below it, including whatever a theme adds to control heights.
+    */
+    minHeight:
+      'calc(var(--we-component-height-md) + var(--we-theme-control-height-offset, 0px) + 2 * var(--we-space-200))',
   },
   children: [
     callPill,
@@ -599,7 +630,7 @@ const callChrome: SchemaNode = {
         be a second "go to the call" beside the pill's own, about the same call.
       */
       type: '$if',
-      props: { condition: { $: '!modules.call.active' }, then: startCall },
+      props: { condition: { $: '!modules.call.active' }, then: startCallButton('md') },
     },
   ],
 };
@@ -841,7 +872,7 @@ const callsPanel: SchemaNode = {
     calls: { entity: 'CollectionBlock', where: { kind: 'call' }, order: { createdAt: 'desc' }, limit: 30 },
   },
   children: [
-    panelHeader({ title: 'Calls', aside: startCall }),
+    panelHeader({ title: 'Calls', aside: startCallButton('sm') }),
     {
       type: '$if',
       props: {
