@@ -953,36 +953,40 @@ describe('the extraction panel', () => {
     expect(json).toContain("modules.transcribe.autoExtract ? 'primary' : 'ghost'");
   });
 
-  it('names the chips, then puts the standing answer about them underneath', () => {
+  it('names the chips, then puts the press that acts on them underneath', () => {
     /*
       The two controls spent a while as the top row of the sunken box holding the chips, and a
       filled button on the same ground as a row of outlined ones reads as one set of toggles —
       the confusion that had Extract looking like a fourth chip when it lived in the row itself.
 
       Then they were a row above the box, together. That pairing was the next thing to go: they look
-      alike and answer different questions, so Extract now went to the header and this one went
-      under the chips, which is what it is a fact about — "these are being looked for as the call
-      goes", or not.
+      alike and answer different questions. Extract now is the one that acts on the list, so it sits
+      at the end of it; the standing decision went to the header.
     */
     const label = json.indexOf('"Things to extract"');
     const chips = json.indexOf('transcribe.extractionTargets');
-    const auto = json.indexOf('Auto extract: on');
+    // The action, not the words: "Extract now" also appears in the panel's help text, which is in
+    // the header and so earlier in the string whatever the layout does.
+    const press = json.indexOf('modules.transcribe.extractCollection');
 
     expect(label).toBeLessThan(chips);
-    expect(chips).toBeLessThan(auto);
+    expect(chips).toBeLessThan(press);
   });
 
-  it('puts the panel\u2019s own verb in its header, where the transcript keeps its own', () => {
+  it('puts the standing decision in its header, where the transcript keeps its own', () => {
     /*
-      Transcribe and Continue sit at the top right of the panel one over. Extract now is the same
-      kind of thing — the one press this panel offers — so two docked panels side by side have their
-      actions in one corner rather than one headed and one buried.
+      Transcribe and Continue sit at the top right of the panel one over, and both are modes — a
+      state a press changes and which then persists. "Auto extract" is that shape; "Extract now" is
+      an action, and it lives with the list it acts on.
 
       Asserted against the header row rather than by string order, since "before the body" is also
       true of anything that merely happens to be written first.
     */
-    const header = (extractionPanel.children as SchemaNode[])[0];
-    expect(JSON.stringify(header)).toContain('Extract now');
+    const header = JSON.stringify((extractionPanel.children as SchemaNode[])[0]);
+    expect(header).toContain('modules.transcribe.toggleAutoExtract');
+    // Again the action rather than the label, since the header also carries the help text and that
+    // names both buttons by name.
+    expect(header).not.toContain('modules.transcribe.extractCollection');
   });
 
   it('keeps the "More" button inside the state it pages', () => {
@@ -996,32 +1000,24 @@ describe('the extraction panel', () => {
       Structural rather than a string search, because the bug was *where* the node sat and every
       string in it was already correct.
     */
-    // Walks every nested object, not just `children`: the panel reaches this row through several
-    // `$if` branches, which live in `props.then` rather than in a children array.
-    const findDeclaringNode = (value: unknown): Record<string, unknown> | undefined => {
-      if (typeof value !== 'object' || value === null) return undefined;
-      const node = value as Record<string, unknown>;
-      const declared = node.$localState as Record<string, unknown> | undefined;
-      if (declared && 'shown' in declared) return node;
-      for (const nested of Object.values(node)) {
-        const found = findDeclaringNode(nested);
-        if (found) return found;
-      }
-      return undefined;
-    };
-
-    const owner = findDeclaringNode(extractionPanel);
+    const owner = findNode(extractionPanel, (n) => declares(n.$localState, 'shown'));
     expect(owner).toBeDefined();
     // The reads and the write both live under the node that declares them.
     expect(JSON.stringify(owner)).toContain('count(local.found) >= local.shown');
     expect(JSON.stringify(owner)).toContain('"$setLocal":"shown"');
   });
 
-  it('reads whether anybody has spoken from the panel root', () => {
-    // Extract now is disabled until there is an utterance, and it now sits in the header — so the
-    // query answering that has to be declared somewhere the header can see it. A `$queries` entry
-    // is only readable inside the node declaring it, and the header is not inside the well.
-    expect(Object.keys(extractionPanel.$queries ?? {})).toContain('spoken');
+  it('declares the spoken query where the button reading it sits', () => {
+    /*
+      Extract now is disabled until somebody has spoken, and a `$queries` entry is only readable
+      inside the node declaring it — so the two have to stay together. They came apart once, when
+      the button was in the header and the query had to be hoisted to the panel root to reach it;
+      both are back in the well now, which is also the node already gated on this node having a
+      model at all.
+    */
+    const owner = findNode(extractionPanel, (n) => declares(n.$queries, 'spoken'));
+    expect(owner).toBeDefined();
+    expect(JSON.stringify(owner)).toContain('!count(local.spoken)');
   });
 
   it('gives every named region in the panel the same heading treatment', () => {
@@ -1327,6 +1323,34 @@ describe('the panel’s reads reach the store', () => {
     });
   });
 });
+
+/** Whether a node's `$localState` or `$queries` bag declares a name. */
+function declares(bag: unknown, name: string): boolean {
+  return typeof bag === 'object' && bag !== null && name in bag;
+}
+
+/**
+ * The first node anywhere in a tree that answers a question about itself.
+ *
+ * Walks every nested object rather than only `children`, because a panel reaches most of its rows
+ * through `$if` branches, which live in `props.then`. Used by the tests about *where* a declaration
+ * sits — a whole class of bug in a schema is a name read one node above the state that declares it,
+ * which is silent at runtime and invisible to a string search, since every string involved is
+ * already correct.
+ */
+function findNode(
+  value: unknown,
+  matches: (node: Record<string, unknown>) => boolean,
+): Record<string, unknown> | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const node = value as Record<string, unknown>;
+  if (matches(node)) return node;
+  for (const nested of Object.values(node)) {
+    const found = findNode(nested, matches);
+    if (found) return found;
+  }
+  return undefined;
+}
 
 describe('the history of what was read', () => {
   const json = JSON.stringify(extractionPanel);

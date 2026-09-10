@@ -2051,23 +2051,23 @@ const extractNowControl: SchemaNode = {
  * than sent, and pruning widens, so without it a subject that has not arrived asks for every
  * TextBlock in the space.
  *
- * Declared on the **panel root** rather than on the well below, because Extract now moved into the
- * header and a `$queries` entry is only readable from inside the node that declares it. A subject
- * with no call still asks nothing, so the cost of hoisting it is a query that is skipped one level
- * higher up.
+ * On the well rather than on the panel root, because its one reader is the Extract now button under
+ * the chips. It spent a commit at the root, when that button was in the header and a `$queries`
+ * entry is only readable from inside the node declaring it. Back down here it is also skipped on a
+ * node with no model at all, which the root could not do — everything in this well is already
+ * behind that gate.
  */
-const SPOKEN_QUERY = {
-  spoken: {
-    entity: 'TextBlock',
-    scope: { anchor: 'CollectionBlock', via: 'children', anchorId: EXTRACTION_SUBJECT },
-    limit: 1,
-    when: EXTRACTION_SUBJECT,
-  },
-};
-
 const extract: SchemaNode = {
   type: 'Column',
   props: { gap: '300' },
+  $queries: {
+    spoken: {
+      entity: 'TextBlock',
+      scope: { anchor: 'CollectionBlock', via: 'children', anchorId: EXTRACTION_SUBJECT },
+      limit: 1,
+      when: EXTRACTION_SUBJECT,
+    },
+  },
   children: [
     /*
       What the last press did, then what a pass looks for, then whether passes happen on their own.
@@ -2183,13 +2183,14 @@ const extract: SchemaNode = {
           children: [{ type: '$part', props: { id: 'transcribe.extractionTargets' } }],
         },
         /*
-          Under the chips, because it is a fact about them.
+          Under the chips, because it acts on them.
 
-          "Auto extract: on" says these chips are being looked for as the call goes; off says they
-          are only looked for when somebody presses. Above the box it was one of two buttons in a
-          row and read as a sibling of Extract now, which runs a pass this instant — two controls
-          that look alike and answer different questions. Here it reads as what it is: the standing
-          answer for the list it sits beneath.
+          "Extract now" reads the whole conversation so far looking for exactly the things listed
+          above it, so the button sits at the end of the list it is about — press the list. Above
+          the box it was one of two buttons in a row beside the auto-extract toggle, and the two
+          look alike while answering different questions: one runs a pass this instant, the other
+          decides whether passes happen at all. Splitting them is what stops them reading as a
+          matched pair, and the standing decision is the one that belongs in the header.
 
           Left-aligned in its own row rather than stretched, so it stays a button rather than
           becoming a bar across the panel.
@@ -2197,7 +2198,7 @@ const extract: SchemaNode = {
         {
           type: 'Row',
           props: { ay: 'center', ax: 'start' },
-          children: [autoExtractControl],
+          children: [extractNowControl],
         },
       ],
     },
@@ -3234,35 +3235,33 @@ export const transcriptFeed: SchemaNode = {
  * which is what the one-line signal in the call bar used to be for.
  */
 export const extractionPanel: SchemaNode = {
-  /*
-    Hoisted to the root so the header can read it — see `SPOKEN_QUERY`.
-
-    Spread onto what `panelShell` returns rather than passed to it: a `$queries` option on the
-    fragment would be one consumer's need in seventeen panels' shared recipe, and the entry is about
-    this panel's own subject rather than about being a panel.
-  */
-  $queries: SPOKEN_QUERY,
   ...panelShell({
     title: 'Extraction',
     /*
-    The panel's verb, in the corner the transcript panel keeps its own in.
+    The standing decision, in the corner the transcript panel keeps its own in.
 
-    Transcribe and Continue sit at the top right of the panel one over; Extract now is the same kind
-    of thing — the one press this panel exists to offer — so it goes in the same place. Two docked
-    panels side by side with their actions in one corner read as a pair; with the action buried in
-    one body and headed in the other, they read as two unrelated surfaces.
+    Transcribe and Continue sit at the top right of the panel one over, and both are *modes* — a
+    state this agent or this call is in, which a press changes and which then persists. "Auto
+    extract: on" is exactly that shape, so it takes the same corner, and the two docked panels read
+    as a pair rather than as two unrelated surfaces.
+
+    Extract now went the other way, under the chips it acts on. That split is the point: a header
+    holding both put a mode and an action side by side looking alike, and this is the one of the two
+    that is about the call rather than about this moment.
 
     Gated twice, and both gates already govern everything below. A node with no model replaces the
-    whole panel with a sentence about it, so a button here would be the one control left over a
-    screen saying nothing can be extracted. And outside a call there is nothing to run a pass on —
-    the chips, the history and the results are all behind the same subject test, and an enabled verb
-    over an empty panel was the "dead furniture" the body was cleared of.
+    whole panel with a sentence about it, so a control here would be the one thing left over a
+    screen saying nothing can be extracted. And outside a call there is nothing to decide about —
+    the chips, the history and the results are all behind the same subject test, and a live control
+    over an empty panel was the "dead furniture" the body was cleared of. The button's own
+    `VIEWING_LIVE` test still applies inside these: a meeting being read back has no "as it happens"
+    to answer.
   */
     aside: {
       type: '$if',
       props: {
         condition: { $: `modules.transcribe.extractable && (${EXTRACTION_SUBJECT_EXPR})` },
-        then: extractNowControl,
+        then: autoExtractControl,
       },
     },
     /*
