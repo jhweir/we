@@ -2956,14 +2956,37 @@ export const transcriptLines: SchemaNode = {
           note can be left.
         */
         else: {
+          /*
+            Not while a preview is on screen, because then something *has* been said.
+
+            The unsaved buffer is the first thing that happens on a new call: somebody speaks, the
+            preview appears, and the record still holds nothing — so the placeholder went on saying
+            "Nothing has been said here yet." directly above the words being said. Two claims about
+            the same moment, one of them plainly false.
+
+            It also cost the handover its footing. The placeholder sits above the preview, so when
+            the line saved the placeholder went at the same moment the preview did and the row
+            arrived, and the whole column moved twice on the way.
+
+            A wrapper rather than a term on each branch below: there are two of them and one has no
+            condition of its own, so a term would have had to become a condition and the pair would
+            have drifted. Reversible for free — a preview that never saves takes the placeholder's
+            reason with it, and the sentence comes back.
+          */
           type: '$if',
           props: {
-            condition: { $: 'modules.transcribe.collectionId' },
+            condition: { $: `!(modules.transcribe.pending && (${VIEWING_LIVE_EXPR}))` },
             then: {
               type: '$if',
-              props: { condition: { $: 'local.utterancesLoaded' }, then: noUtterances },
+              props: {
+                condition: { $: 'modules.transcribe.collectionId' },
+                then: {
+                  type: '$if',
+                  props: { condition: { $: 'local.utterancesLoaded' }, then: noUtterances },
+                },
+                else: noUtterances,
+              },
             },
-            else: noUtterances,
           },
         },
       },

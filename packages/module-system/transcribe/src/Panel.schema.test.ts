@@ -81,6 +81,23 @@ describe('a transcript with nothing in it', () => {
     expect(linesJson).toContain('Nothing has been said here yet.');
   });
 
+  it('stops saying so the moment something is being said', () => {
+    /*
+      The unsaved preview is the first thing that happens on a new call: somebody speaks, the buffer
+      appears, and the record still holds nothing — so "Nothing has been said here yet." sat directly
+      above the words being said, which is two claims about one moment and one of them false.
+
+      It also cost the handover its footing. The placeholder sits above the preview, so a line
+      saving took the placeholder and the preview away together while the row arrived, and the
+      column moved twice on the way.
+
+      Gated on the same expression the preview gates itself on, so the two cannot disagree about
+      whether there is a preview — and reversible for nothing: a buffer that never saves takes the
+      placeholder's reason with it and the sentence comes back.
+    */
+    expect(linesJson).toContain(`!(modules.transcribe.pending && (${VIEWING_LIVE_EXPR}))`);
+  });
+
   it('waits for the query to answer before asserting emptiness', () => {
     /*
       A list backed by a query is empty on its first frame, so an unqualified else claims "nothing
