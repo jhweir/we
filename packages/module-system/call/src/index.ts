@@ -1556,20 +1556,19 @@ const continueCallButton: SchemaNode = {
             onClick: { $action: 'modules.call.continueCall', args: [{ $: CALL_IN_ADDRESS }] },
           },
           /*
-            The default height, and a glyph sized past what that height would give it.
+            The default height, and no explicit glyph size — which is the usual rule, and here it is
+            also the answer that was arrived at the long way round.
 
-            It was `size: 'sm'` — a 32px box with a 16px icon — which put it a step below whatever it
-            is placed beside: the Workshop pill's edit button is a default-height control with an
-            explicit 18px pencil, so this read as the smaller of two things that are the same kind of
-            thing. Matching the box also matters where a pill reserves a band measured from a control
-            at that height.
+            It was `size: 'sm'`, a 32px box with a 16px icon, which put it a step below whatever it
+            is placed beside. Then a default box with the glyph pinned at 20px, on the reasoning that
+            a full 24px is for a glyph that *is* the button and would shout beside a heading. Tested
+            in the pill, both are too timid: the box is what the eye aims at, and a glyph that does
+            not fill it reads as an afterthought rather than as a quiet control.
 
-            20px rather than the pencil's 18px, and rather than the 24px a default control gives a
-            nested icon. This is the offer rather than one of a set of adjustments — the same reason
-            the call card's phone button sizes past its own row — so it leads slightly; 24px is for a
-            glyph that *is* the button, and here it would shout next to a heading.
+            So the button sizes its own icon, as a sized primitive is meant to. Matching the box
+            matters too where a pill reserves a band measured from a control at that height.
           */
-          children: [{ type: 'we-icon', props: { name: 'phone-call', size: '20px' } }],
+          children: [{ type: 'we-icon', props: { name: 'phone-call' } }],
         },
       ],
     },

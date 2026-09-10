@@ -259,7 +259,16 @@ const callPill: SchemaNode = {
         gap: '200',
         ay: 'center',
         p: '200',
-        pl: '400',
+        /*
+          The extra inset is on the trailing edge now, not the leading one.
+
+          It was `pl`, from when a title led the pill and a heading wants room from the edge it
+          starts at. A button leads now, and a ghost control carries its own padding — so the inset
+          was added to padding that was already there and pushed the glyph away from the corner it
+          reads from. The roster that ends the pill has no such padding of its own, which is where
+          the room was wanted.
+        */
+        pr: '400',
         // The theme's control shape, for the switcher's reason — see there.
         r: 'control',
         bg: 'surface-raised',
@@ -334,19 +343,26 @@ const callPill: SchemaNode = {
                 ],
               },
               /*
-                An explicit size, against the usual rule of letting a sized primitive set its own.
+                No explicit size, which is the usual rule: a sized primitive sets its nested icon,
+                and a control at the default height gives it 24px.
 
-                A control at the default height gives a nested icon 24px, which is right for a glyph
-                that *is* the button — a send arrow, a record dot — and heavy for one standing beside
-                a heading it belongs to. The box stays 40px: shrinking the button instead would take
-                the pill down with it, and the band reserved above is measured from a control at that
-                height.
+                It was pinned at 18px on the reasoning that a full-size glyph is heavy beside a
+                heading it belongs to. Tested against the real pill that is simply wrong — at 18px it
+                reads as an afterthought in a 40px box, and the box is the thing the eye aims at. The
+                box stays 40px either way: shrinking the button would take the pill down with it, and
+                the band reserved above is measured from a control at that height.
               */
-              children: [{ type: 'we-icon', props: { name: 'pencil-simple', size: '18px' } }],
+              children: [{ type: 'we-icon', props: { name: 'pencil-simple' } }],
             },
           ],
         },
-        { type: 'we-divider', props: { orientation: 'vertical', height: '24px' } },
+        /*
+          No rule between the name and the faces.
+
+          It separated two things that were never going to be confused for each other — a heading and
+          a row of avatars — and in a box this small a vertical rule is a third kind of mark competing
+          with the gap that was already doing the job. The pill reads as one object again without it.
+        */
         // No `noun`: the pill is chrome and a count beside three faces is a word doing no work. The
         // roster is on hover, which is where a name belongs when the faces are this small.
         peopleRow({ items: { $: 'first(local.callRecord).participants' }, dids: true, max: 4, size: 'sm' }),
