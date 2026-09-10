@@ -10,6 +10,7 @@
  * Serialised and searched rather than walked, the same way the showcase templates are tested. A
  * schema is data; what matters is whether the token is in the tree, not the path it sits at.
  */
+import { SECTION_LABEL_PROPS } from '@we/schema-kit';
 import { evaluateExpression, markReactive, namespace, parseCached } from '@we/schema-shared';
 import { describe, expect, it } from 'vitest';
 
@@ -854,14 +855,48 @@ describe('the extraction panel', () => {
       treatment for a whole region: a scroll area of proposals is a section, a control row is not.
     */
     const controls = json.indexOf('Auto extract: on');
-    const label = json.indexOf('Things to extract:');
+    const label = json.indexOf('"Things to extract"');
     const chips = json.indexOf('transcribe.extractionTargets');
 
     expect(controls).toBeLessThan(label);
     expect(label).toBeLessThan(chips);
     // The ground belongs to the chips alone now — the controls are above it, not inside it.
     expect(json.indexOf('"bg":"surface-sunken"')).toBeGreaterThan(controls);
-    expect(json).not.toContain('THINGS TO EXTRACT');
+  });
+
+  it('gives every named region in the panel the same heading treatment', () => {
+    /*
+      The chips' label was a sentence-case footnote, on the reasoning that a control row is not a
+      section the way a scroll area of proposals is. That drew the line in the wrong place: what
+      `sectionLabel` marks is a region with a *name*, and two labelled regions in one panel wearing
+      two treatments is the drift that fragment exists to stop.
+
+      No colon on either. The caps and the tracking already say these are names rather than lead-ins.
+    */
+    const heading = (label: string) =>
+      JSON.stringify({ ...SECTION_LABEL_PROPS, flex: '1' }) + `,"children":["${label}"]`;
+
+    for (const label of ['Things to extract', 'Extracted', 'Awaiting your call']) {
+      expect(json).toContain(heading(label));
+    }
+    expect(json).not.toContain('Things to extract:');
+  });
+
+  it('keeps the results heading out of the region that scrolls', () => {
+    /*
+      The header, the controls and the chips hold still while the results grow — that is what the
+      scroll region is for — and a heading that scrolled away with its own list would be the one
+      part of the panel that could not be looked up.
+
+      Inside the call gate rather than above it, so the placeholder standing in for all of this
+      outside a call is not sitting under a heading for a list nobody has.
+    */
+    const heading = json.indexOf('"Extracted"');
+    const scroller = json.indexOf('"we-scroll-area"', heading);
+    const gate = json.lastIndexOf(`"condition":{"$":"${EXTRACTION_SUBJECT_EXPR}"}`, heading);
+
+    expect(gate).toBeGreaterThan(-1);
+    expect(heading).toBeLessThan(scroller);
   });
 
   it('shows nothing to press outside a call, rather than a well of disabled controls', () => {

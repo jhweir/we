@@ -1850,24 +1850,21 @@ const extract: SchemaNode = {
       type: 'Column',
       props: { gap: '200' },
       children: [
-        {
-          /*
-            Three words naming the row under them, and no more than that.
+        /*
+          Naming the row under it, in the treatment this panel gives every region.
 
-            A lead-in lived here once and was removed: it was a whole sentence with two forms, one
-            for a call and one for the space's default, and it read as prose in a box whose job is
-            two controls. What was wrong with it was the length and the branching, not the idea —
-            with the controls moved out, the chips are a row of unexplained words under a heading
-            that says "Extraction", and something has to say what pressing one changes.
+          A lead-in lived here once and was removed: a whole sentence with two forms, one for a call
+          and one for the space's default, reading as prose in a box whose job is two controls. What
+          was wrong with it was the length and the branching, not the idea — with the controls moved
+          out, the chips are a row of unexplained words under a heading that only says "Extraction".
 
-            Deliberately not `sectionLabel`, which is the uppercase treatment this panel gives a
-            whole region — a scroll area of proposals is a section, a control row is not, and two
-            capitalised labels of different weights would be the drift that fragment exists to stop.
-          */
-          type: 'we-text',
-          props: { variant: 'footnote', color: 'text-muted' },
-          children: ['Things to extract:'],
-        },
+          It came back as a sentence-case footnote first, on the reasoning that a control row is not
+          a section the way a scroll area of proposals is. That drew the line in the wrong place:
+          what `sectionLabel` marks is a *region with a name*, and having two labelled regions in one
+          panel wearing two treatments is exactly the drift the fragment exists to stop. No colon —
+          the caps and the tracking already say this is a name rather than a lead-in.
+        */
+        sectionLabel({ label: 'Things to extract' }),
         {
           type: 'Column',
           props: { bg: 'surface-sunken', r: '300', p: '200' },
@@ -2999,15 +2996,33 @@ export const extractionPanel: SchemaNode = panelShell({
               panel that clips.
             */
             {
-              type: 'we-scroll-area',
-              props: { flex: '1', minHeight: '0' },
-              children: [
-                {
-                  type: '$if',
-                  props: {
-                    condition: EXTRACTION_SUBJECT,
-                    then: extractedRows,
-                    /*
+              type: '$if',
+              props: {
+                condition: EXTRACTION_SUBJECT,
+                /*
+                  A name over the results, and it stays while they scroll.
+
+                  Outside the scroll region rather than in it, for the reason the region exists: the
+                  header, the controls and the chips hold still while this grows, and a heading that
+                  scrolled away with its own list would be the one part of the panel that could not
+                  be looked up.
+
+                  Inside the call gate rather than above it, so the placeholder that stands in for
+                  all of this outside a call is not sitting under a heading for a list nobody has.
+                */
+                then: {
+                  type: 'Column',
+                  props: { gap: '200', flex: '1', minHeight: '0' },
+                  children: [
+                    sectionLabel({ label: 'Extracted' }),
+                    {
+                      type: 'we-scroll-area',
+                      props: { flex: '1', minHeight: '0' },
+                      children: [extractedRows],
+                    },
+                  ],
+                },
+                /*
                       The shared placeholder, so this panel and the transcript's read as one pair.
 
                       It was a hand-written column with `footnote` text, which is a step smaller
@@ -3019,14 +3034,12 @@ export const extractionPanel: SchemaNode = panelShell({
                       "Join a call" rather than "Start a call": joining is the act either way, and
                       it is the word the transcript's own placeholder uses one panel over.
                     */
-                    else: emptyState({
-                      icon: 'sparkle',
-                      label: 'extraction',
-                      message: 'Join a call to start extracting things.',
-                    }),
-                  },
-                },
-              ],
+                else: emptyState({
+                  icon: 'sparkle',
+                  label: 'extraction',
+                  message: 'Join a call to start extracting things.',
+                }),
+              },
             },
           ],
         },
