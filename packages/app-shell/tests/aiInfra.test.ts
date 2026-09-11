@@ -1,18 +1,17 @@
 /**
- * AI infrastructure tests — stream parsers, tool format adapters, context sections,
- * and live integration against the local Ollama instance.
+ * AI infrastructure tests — OpenAI SSE parser, tool format adapter,
+ * context sections, and live integration against the AD4M executor.
  *
- * The live tests run against `http://localhost:11434`. When Ollama is not available,
- * they skip silently. The remaining tests use recorded/synthetic responses and run
- * everywhere.
+ * The live tests call AD4M's `/v1/chat/completions` at `http://localhost:12000`.
+ * When the executor has no reachable AI model, they skip silently.
+ * The remaining tests use synthetic responses and run everywhere.
  */
 import {
-  buildToolsForProvider,
+  type Ad4mConnection,
+  buildTools,
   formatExternalManifestForPrompt,
   loadContextSections,
-  parseAnthropicSSE,
-  parseOllamaStream,
-  type ProviderConfig,
+  parseOpenAISSE,
   sendPromptRequest,
 } from '@shared/ai/aiInfra';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
@@ -35,29 +34,35 @@ function readerFrom(chunks: string[]): ReadableStreamDefaultReader<Uint8Array> {
   } as unknown as ReadableStreamDefaultReader<Uint8Array>;
 }
 
-/** Check whether the local Ollama instance accepts requests. */
-async function ollamaAvailable(): Promise<boolean> {
+/** Check whether the local AD4M executor has AI models available. */
+async function ad4mAiAvailable(connection: Ad4mConnection): Promise<boolean> {
   try {
-    const res = await fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(2_000) });
-    return res.ok;
+    const res = await fetch(`${connection.baseUrl}/v1/models`, {
+      signal: AbortSignal.timeout(3_000),
+      headers: connection.token ? { Authorization: `Bearer ${connection.token}` } : {},
+    });
+    if (!res.ok) return false;
+    const body = (await res.json()) as { data?: unknown[] };
+    return Array.isArray(body.data) && body.data.length > 0;
   } catch {
     return false;
   }
 }
 
-// ── parseOllamaStream ────────────────────────────────────────────────────
+// ── parseOpenAISSE ──────────────────────────────────────────────────────
 
-describe('parseOllamaStream', () => {
+describe('parseOpenAISSE', () => {
   it('extracts text content from streaming chunks', async () => {
     const chunks = [
-      '{"message":{"role":"assistant","content":"Hello"},"done":false}\n',
-      '{"message":{"role":"assistant","content":" world"},"done":false}\n',
-      '{"message":{"role":"assistant","content":"!"},"done":false}\n',
-      '{"done":true,"done_reason":"stop"}\n',
+      'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":" world"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"!"}}]}\n\n',
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
+      'data: [DONE]\n\n',
     ];
 
     const deltas: string[] = [];
-    const result = await parseOllamaStream(readerFrom(chunks), (text) => deltas.push(text));
+    const result = await parseOpenAISSE(readerFrom(chunks), (text) => deltas.push(text));
 
     expect(result.textContent).toBe('Hello world!');
     expect(result.stopReason).toBe('end_turn');
@@ -66,122 +71,21 @@ describe('parseOllamaStream', () => {
     expect(deltas).toEqual(['Hello', 'Hello world', 'Hello world!']);
   });
 
-  it('detects tool calls in the final message', async () => {
+  it('extracts streamed tool calls with incremental arguments', async () => {
     const chunks = [
-      '{"message":{"role":"assistant","content":"Let me look that up."},"done":false}\n',
-      '{"message":{"role":"assistant","content":"","tool_calls":[{"function":{"name":"we_stores_reference","arguments":{}}}]},"done":false}\n',
-      '{"done":true,"done_reason":"stop"}\n',
+      'data: {"choices":[{"delta":{"content":"Checking..."}}]}\n\n',
+      'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"update_schema","arguments":"{\\"pa"}}]}}]}\n\n',
+      'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"tches\\":[]}"}}]}}]}\n\n',
+      'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}\n\n',
+      'data: [DONE]\n\n',
     ];
 
     const onToolUse = vi.fn();
-    const result = await parseOllamaStream(readerFrom(chunks), () => {}, onToolUse);
-
-    expect(result.toolCalls).toHaveLength(1);
-    expect(result.toolCalls[0].name).toBe('we_stores_reference');
-    expect(result.stopReason).toBe('tool_use');
-    expect(onToolUse).toHaveBeenCalledOnce();
-  });
-
-  it('parses tool arguments provided as a JSON string', async () => {
-    const chunks = [
-      '{"message":{"role":"assistant","content":"","tool_calls":[{"function":{"name":"update_schema","arguments":"{\\"patches\\":[{\\"targetId\\":\\"root\\"}]}"}}]},"done":false}\n',
-      '{"done":true,"done_reason":"stop"}\n',
-    ];
-
-    const result = await parseOllamaStream(readerFrom(chunks), () => {});
-
-    expect(result.toolCalls).toHaveLength(1);
-    expect(result.toolCalls[0].input).toEqual({ patches: [{ targetId: 'root' }] });
-  });
-
-  it('maps done_reason "length" to "max_tokens"', async () => {
-    const chunks = [
-      '{"message":{"role":"assistant","content":"truncated"},"done":false}\n',
-      '{"done":true,"done_reason":"length"}\n',
-    ];
-
-    const result = await parseOllamaStream(readerFrom(chunks), () => {});
-    expect(result.stopReason).toBe('max_tokens');
-  });
-
-  it('handles a JSON line split across two reads', async () => {
-    const chunks = [
-      '{"message":{"role":"assistant","content":"split"}',
-      ',"done":false}\n{"done":true,"done_reason":"stop"}\n',
-    ];
-
-    const result = await parseOllamaStream(readerFrom(chunks), () => {});
-
-    expect(result.textContent).toBe('split');
-    expect(result.stopReason).toBe('end_turn');
-  });
-
-  it('skips malformed JSON lines without crashing', async () => {
-    const chunks = [
-      '{"message":{"role":"assistant","content":"ok"},"done":false}\n',
-      'NOT VALID JSON\n',
-      '{"done":true,"done_reason":"stop"}\n',
-    ];
-
-    const result = await parseOllamaStream(readerFrom(chunks), () => {});
-
-    expect(result.textContent).toBe('ok');
-    expect(result.stopReason).toBe('end_turn');
-  });
-
-  it('notifies onToolUseStart only once for multiple tool calls', async () => {
-    const chunks = [
-      '{"message":{"role":"assistant","content":"","tool_calls":[{"function":{"name":"we_stores_reference","arguments":{}}},{"function":{"name":"we_components_reference","arguments":{}}}]},"done":false}\n',
-      '{"done":true,"done_reason":"stop"}\n',
-    ];
-
-    const onToolUse = vi.fn();
-    const result = await parseOllamaStream(readerFrom(chunks), () => {}, onToolUse);
-
-    expect(result.toolCalls).toHaveLength(2);
-    expect(onToolUse).toHaveBeenCalledOnce();
-  });
-});
-
-// ── parseAnthropicSSE ────────────────────────────────────────────────────
-
-describe('parseAnthropicSSE', () => {
-  it('extracts text content from SSE events', async () => {
-    const events = [
-      'data: {"type":"content_block_start","content_block":{"type":"text"}}\n\n',
-      'data: {"type":"content_block_delta","delta":{"text":"Hello"}}\n\n',
-      'data: {"type":"content_block_delta","delta":{"text":" there"}}\n\n',
-      'data: {"type":"content_block_stop"}\n\n',
-      'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n',
-    ];
-
-    const deltas: string[] = [];
-    const result = await parseAnthropicSSE(readerFrom(events), (text) => deltas.push(text));
-
-    expect(result.textContent).toBe('Hello there');
-    expect(result.stopReason).toBe('end_turn');
-    expect(result.toolCalls).toHaveLength(0);
-    expect(deltas).toEqual(['Hello', 'Hello there']);
-  });
-
-  it('extracts tool_use blocks with streaming JSON', async () => {
-    const events = [
-      'data: {"type":"content_block_start","content_block":{"type":"text"}}\n\n',
-      'data: {"type":"content_block_delta","delta":{"text":"Checking..."}}\n\n',
-      'data: {"type":"content_block_stop"}\n\n',
-      'data: {"type":"content_block_start","content_block":{"type":"tool_use","id":"tool_1","name":"update_schema"}}\n\n',
-      'data: {"type":"content_block_delta","delta":{"partial_json":"{\\"patches\\":["}}\n\n',
-      'data: {"type":"content_block_delta","delta":{"partial_json":"]}"}}\n\n',
-      'data: {"type":"content_block_stop"}\n\n',
-      'data: {"type":"message_delta","delta":{"stop_reason":"tool_use"}}\n\n',
-    ];
-
-    const onToolUse = vi.fn();
-    const result = await parseAnthropicSSE(readerFrom(events), () => {}, onToolUse);
+    const result = await parseOpenAISSE(readerFrom(chunks), () => {}, onToolUse);
 
     expect(result.toolCalls).toHaveLength(1);
     expect(result.toolCalls[0]).toEqual({
-      id: 'tool_1',
+      id: 'call_1',
       name: 'update_schema',
       input: { patches: [] },
     });
@@ -189,76 +93,82 @@ describe('parseAnthropicSSE', () => {
     expect(onToolUse).toHaveBeenCalledOnce();
   });
 
-  it('handles the [DONE] sentinel', async () => {
-    const events = [
-      'data: {"type":"content_block_start","content_block":{"type":"text"}}\n\n',
-      'data: {"type":"content_block_delta","delta":{"text":"Done"}}\n\n',
-      'data: {"type":"content_block_stop"}\n\n',
-      'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n',
+  it('handles multiple tool calls with distinct indices', async () => {
+    const chunks = [
+      'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_a","function":{"name":"we_stores_reference","arguments":"{}"}}]}}]}\n\n',
+      'data: {"choices":[{"delta":{"tool_calls":[{"index":1,"id":"call_b","function":{"name":"we_component_registry","arguments":"{}"}}]}}]}\n\n',
+      'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}\n\n',
       'data: [DONE]\n\n',
     ];
 
-    const result = await parseAnthropicSSE(readerFrom(events), () => {});
+    const onToolUse = vi.fn();
+    const result = await parseOpenAISSE(readerFrom(chunks), () => {}, onToolUse);
 
-    expect(result.textContent).toBe('Done');
+    expect(result.toolCalls).toHaveLength(2);
+    expect(result.toolCalls[0].name).toBe('we_stores_reference');
+    expect(result.toolCalls[1].name).toBe('we_component_registry');
+    // Only notified once, even with multiple tool calls
+    expect(onToolUse).toHaveBeenCalledOnce();
+  });
+
+  it('maps finish_reason "length" to "max_tokens"', async () => {
+    const chunks = [
+      'data: {"choices":[{"delta":{"content":"truncated"}}]}\n\n',
+      'data: {"choices":[{"delta":{},"finish_reason":"length"}]}\n\n',
+      'data: [DONE]\n\n',
+    ];
+
+    const result = await parseOpenAISSE(readerFrom(chunks), () => {});
+    expect(result.stopReason).toBe('max_tokens');
+  });
+
+  it('handles SSE data split across two reads', async () => {
+    const chunks = [
+      'data: {"choices":[{"delta":{"content":"sp',
+      'lit"}}]}\n\ndata: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
+    ];
+
+    const result = await parseOpenAISSE(readerFrom(chunks), () => {});
+
+    expect(result.textContent).toBe('split');
     expect(result.stopReason).toBe('end_turn');
   });
 
-  it('ignores non-data lines', async () => {
-    const events = [
-      'event: message_start\n',
-      'data: {"type":"content_block_start","content_block":{"type":"text"}}\n\n',
-      ': this is a comment\n',
-      'data: {"type":"content_block_delta","delta":{"text":"ok"}}\n\n',
-      'data: {"type":"content_block_stop"}\n\n',
-      'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n',
+  it('skips malformed SSE events without crashing', async () => {
+    const chunks = [
+      'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n',
+      'data: {BROKEN_JSON}\n\n',
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
+      'data: [DONE]\n\n',
     ];
 
-    const result = await parseAnthropicSSE(readerFrom(events), () => {});
+    const result = await parseOpenAISSE(readerFrom(chunks), () => {});
 
     expect(result.textContent).toBe('ok');
+    expect(result.stopReason).toBe('end_turn');
   });
 
-  it('recovers from malformed JSON in an SSE event', async () => {
-    const events = [
-      'data: {"type":"content_block_start","content_block":{"type":"text"}}\n\n',
-      'data: {"type":"content_block_delta","delta":{"text":"before"}}\n\n',
-      'data: {BROKEN_JSON}\n\n',
-      'data: {"type":"content_block_delta","delta":{"text":" after"}}\n\n',
-      'data: {"type":"content_block_stop"}\n\n',
-      'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n',
+  it('ignores non-data lines (comments, event types)', async () => {
+    const chunks = [
+      'event: message\n',
+      'data: {"choices":[{"delta":{"content":"yes"}}]}\n\n',
+      ': this is a comment\n',
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
+      'data: [DONE]\n\n',
     ];
 
-    const result = await parseAnthropicSSE(readerFrom(events), () => {});
+    const result = await parseOpenAISSE(readerFrom(chunks), () => {});
 
-    expect(result.textContent).toBe('before after');
+    expect(result.textContent).toBe('yes');
+    expect(result.stopReason).toBe('end_turn');
   });
 });
 
-// ── buildToolsForProvider ────────────────────────────────────────────────
+// ── buildTools ──────────────────────────────────────────────────────────
 
-describe('buildToolsForProvider', () => {
-  it('produces Anthropic-format tools with input_schema', async () => {
-    const tools = (await buildToolsForProvider('anthropic')) as Array<Record<string, unknown>>;
-
-    // Context tools + update_schema
-    expect(tools.length).toBeGreaterThan(1);
-
-    // Last tool: update_schema
-    const last = tools[tools.length - 1];
-    expect(last.name).toBe('update_schema');
-    expect(last.input_schema).toBeDefined();
-    // Anthropic format uses flat objects, no 'type'/'function' wrapper
-    expect(last.type).toBeUndefined();
-
-    // First tool: a context tool
-    const first = tools[0];
-    expect(first.input_schema).toBeDefined();
-    expect(first.name).toMatch(/^we_/);
-  });
-
-  it('produces Ollama-format tools with function wrapper', async () => {
-    const tools = (await buildToolsForProvider('ollama')) as Array<Record<string, unknown>>;
+describe('buildTools', () => {
+  it('produces OpenAI function-calling format', async () => {
+    const tools = (await buildTools()) as Array<Record<string, unknown>>;
 
     expect(tools.length).toBeGreaterThan(1);
 
@@ -268,18 +178,22 @@ describe('buildToolsForProvider', () => {
       const fn = tool.function as Record<string, unknown>;
       expect(fn).toBeDefined();
       expect(fn.name).toBeDefined();
+      expect(fn.description).toBeDefined();
       expect(fn.parameters).toBeDefined();
     }
-
-    // Last: update_schema
-    const lastFn = (tools[tools.length - 1] as Record<string, unknown>).function as Record<string, unknown>;
-    expect(lastFn.name).toBe('update_schema');
   });
 
-  it('generates the same number of tools for both providers', async () => {
-    const anthropicTools = await buildToolsForProvider('anthropic');
-    const ollamaTools = await buildToolsForProvider('ollama');
-    expect(anthropicTools.length).toBe(ollamaTools.length);
+  it('includes update_schema as the last tool', async () => {
+    const tools = (await buildTools()) as Array<Record<string, unknown>>;
+    const lastFn = (tools[tools.length - 1] as Record<string, unknown>).function as Record<string, unknown>;
+    expect(lastFn.name).toBe('update_schema');
+    expect(lastFn.parameters).toBeDefined();
+  });
+
+  it('includes context tools with we_ prefix', async () => {
+    const tools = (await buildTools()) as Array<Record<string, unknown>>;
+    const firstFn = (tools[0] as Record<string, unknown>).function as Record<string, unknown>;
+    expect(firstFn.name).toMatch(/^we_/);
   });
 });
 
@@ -361,32 +275,30 @@ describe('loadContextSections', () => {
   });
 });
 
-// ── Integration: live Ollama ─────────────────────────────────────────────
+// ── Integration: live AD4M ─────────────────────────────────────────────
 //
-// These tests call the real Ollama API at localhost:11434.
-// They skip silently when Ollama is not available (CI, machines without Ollama).
+// These tests call the AD4M executor's OpenAI-compatible endpoint.
+// They skip silently when the executor has no AI models configured.
 // Timeouts are generous — first-prompt cold loads the model into memory.
 
-describe('Ollama integration (live)', () => {
+describe('AD4M AI integration (live)', () => {
   let available = false;
 
-  beforeAll(async () => {
-    available = await ollamaAvailable();
-  });
-
-  const ollamaConfig: ProviderConfig = {
-    protocol: 'ollama',
-    baseUrl: 'http://localhost:11434',
-    apiKey: '',
-    model: 'qwen3.6-27b:latest',
+  const ad4mConnection: Ad4mConnection = {
+    baseUrl: 'http://localhost:12000',
+    token: '',
   };
+
+  beforeAll(async () => {
+    available = await ad4mAiAvailable(ad4mConnection);
+  });
 
   it('streams a text response', async () => {
     if (!available) return;
 
     const deltas: string[] = [];
     const result = await sendPromptRequest(
-      ollamaConfig,
+      ad4mConnection,
       [{ role: 'user', content: 'Reply with exactly the word "pong" and nothing else.' }],
       (text) => deltas.push(text),
     );
@@ -399,11 +311,9 @@ describe('Ollama integration (live)', () => {
   it('triggers context tool calls when asked about schema sections', async () => {
     if (!available) return;
 
-    // Single attempt — tool-calling is non-deterministic.
-    // The full loop test below is the definitive integration check;
-    // this test validates the stop_reason and toolCalls shape when it fires.
+    // Single attempt — tool-calling behaviour depends on model capability.
     const result = await sendPromptRequest(
-      ollamaConfig,
+      ad4mConnection,
       [
         {
           role: 'user',
@@ -437,10 +347,10 @@ describe('Ollama integration (live)', () => {
       },
     ];
 
-    // Step 1 — initial prompt. Retry if model doesn't call tools (non-deterministic).
+    // Step 1 — initial prompt. Retry if model does not call tools (non-deterministic).
     let result;
     for (let attempt = 0; attempt < 3; attempt++) {
-      result = await sendPromptRequest(ollamaConfig, [...messages], () => {});
+      result = await sendPromptRequest(ad4mConnection, [...messages], () => {});
       if (result.stopReason === 'tool_use') break;
     }
 
@@ -470,7 +380,7 @@ describe('Ollama integration (live)', () => {
     messages.push({ role: 'user', content: toolResults });
 
     // Step 3 — continuation, expect text response mentioning stores
-    result = await sendPromptRequest(ollamaConfig, messages, () => {});
+    result = await sendPromptRequest(ad4mConnection, messages, () => {});
 
     expect(result.textContent.length).toBeGreaterThan(0);
     expect(result.textContent.toLowerCase()).toMatch(/store/i);

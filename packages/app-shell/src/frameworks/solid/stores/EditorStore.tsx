@@ -10,17 +10,16 @@
  * and the `sendViaClaude` orchestration, not the session state.
  */
 import {
-  type AiProtocol,
+  type Ad4mConnection,
   formatExternalManifestForPrompt,
   loadContextSections,
-  type ProviderConfig,
   sendPromptRequest,
 } from '@shared/ai/aiInfra';
 import { applySchemaPatches, type SchemaPatch } from '@shared/ai/schemaPatches';
 import { registerHostDockStore, unregisterHostDockStore } from '@shared/registries/dockRegistry';
 import { EDITOR_STORE_ID } from '@shared/registries/editorDocks';
 import { deepClone } from '@shared/utils';
-import { type EditingTheme, useDatasetStore, useTemplateStore, useThemeStore } from '@solid/stores';
+import { type EditingTheme, useDatasetStore, useSessionStore, useTemplateStore, useThemeStore } from '@solid/stores';
 import { toastService } from '@we/components/solid';
 import { ChatMessage as ChatMessageRecord, ChatSession as ChatSessionRecord } from '@we/entities';
 import type { DockEdge, DockSize } from '@we/module-shared';
@@ -176,9 +175,7 @@ export interface EditorStore {
   setApiKey: (key: string) => Promise<boolean>;
 
   // --- Provider ---
-  /** The active AI protocol. Anthropic when an API key exists, Ollama otherwise. */
-  aiProtocol: Accessor<AiProtocol>;
-  /** Whether any AI provider has been configured (API key or Ollama available). */
+  /** Whether an AD4M connection can supply AI requests. */
   providerReady: Accessor<boolean>;
 }
 
@@ -238,6 +235,7 @@ const starterTemplate: SchemaNode = {
 
 export function EditorStoreProvider(props: ParentProps) {
   const datasetStore = useDatasetStore();
+  const sessionStore = useSessionStore();
   const templateStore = useTemplateStore();
   const themeStore = useThemeStore();
 
@@ -262,35 +260,18 @@ export function EditorStoreProvider(props: ParentProps) {
 
   const apiKeyConfigured = () => apiKey().length > 0;
 
-  // --- Provider configuration ---
-  // Ollama settings — base URL and model name.
-  // TODO: persist to agentSettings alongside claudeApiKey once the settings UI supports it.
-  const [ollamaUrl, _setOllamaUrl] = createSignal('http://localhost:11434');
-  const [ollamaModel, _setOllamaModel] = createSignal('qwen3.6-27b:latest');
+  // --- AD4M connection (derived from SessionStore) ---
 
-  /** Active AI protocol: Anthropic when a key exists, Ollama otherwise. */
-  const aiProtocol = (): AiProtocol => (apiKeyConfigured() ? 'anthropic' : 'ollama');
-
-  /** Whether any provider can accept requests. */
-  const providerReady = () => apiKeyConfigured() || ollamaUrl().length > 0;
-
-  /** Build the provider config for the active protocol. */
-  const resolveProvider = (): ProviderConfig => {
-    if (apiKeyConfigured()) {
-      return {
-        protocol: 'anthropic',
-        baseUrl: 'https://api.anthropic.com',
-        apiKey: apiKey(),
-        model: 'claude-sonnet-4-6',
-      };
-    }
-    return {
-      protocol: 'ollama',
-      baseUrl: ollamaUrl(),
-      apiKey: '',
-      model: ollamaModel(),
-    };
+  /** Build the AD4M connection from the session's server URL and auth token. */
+  const resolveConnection = (): Ad4mConnection | null => {
+    const url = sessionStore.serverUrl();
+    const token = sessionStore.token();
+    if (!url) return null;
+    return { baseUrl: url, token: token ?? '' };
   };
+
+  /** Whether the AD4M executor can supply AI requests. */
+  const providerReady = () => resolveConnection() !== null;
 
   // --- Context sections cache (lazy) ---
   let contextSectionsCache: Record<string, string> | null = null;
@@ -954,7 +935,8 @@ export function EditorStoreProvider(props: ParentProps) {
   // ----------------------------------------------------------------
 
   async function sendViaClaude(text: string) {
-    const config = resolveProvider();
+    const connection = resolveConnection();
+    if (!connection) throw new Error('AD4M executor not connected — cannot send AI request');
     const claudeMessages: Array<{ role: string; content: unknown }> = buildClaudeMessages(text);
 
     // Lazy-load context sections for tool resolution
@@ -1001,7 +983,7 @@ export function EditorStoreProvider(props: ParentProps) {
       let streamResult;
       try {
         streamResult = await sendPromptRequest(
-          config,
+          connection,
           claudeMessages,
           (accumulated) => {
             const sep = allTextContent && accumulated ? '\n\n' : '';
@@ -1497,7 +1479,6 @@ export function EditorStoreProvider(props: ParentProps) {
     setApiKey,
 
     // Provider
-    aiProtocol,
     providerReady,
   };
 
