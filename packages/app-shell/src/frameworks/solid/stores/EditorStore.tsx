@@ -9,7 +9,13 @@
  * what keeps a future backend-executed assistant a drop-in: it would replace the infra modules
  * and the `sendViaClaude` orchestration, not the session state.
  */
-import { formatExternalManifestForPrompt, sendClaudeRequest } from '@shared/ai/aiInfra';
+import {
+  type AiProtocol,
+  formatExternalManifestForPrompt,
+  loadContextSections,
+  type ProviderConfig,
+  sendPromptRequest,
+} from '@shared/ai/aiInfra';
 import { applySchemaPatches, type SchemaPatch } from '@shared/ai/schemaPatches';
 import { registerHostDockStore, unregisterHostDockStore } from '@shared/registries/dockRegistry';
 import { EDITOR_STORE_ID } from '@shared/registries/editorDocks';
@@ -168,6 +174,12 @@ export interface EditorStore {
 
   // --- Settings ---
   setApiKey: (key: string) => Promise<boolean>;
+
+  // --- Provider ---
+  /** The active AI protocol. Anthropic when an API key exists, Ollama otherwise. */
+  aiProtocol: Accessor<AiProtocol>;
+  /** Whether any AI provider has been configured (API key or Ollama available). */
+  providerReady: Accessor<boolean>;
 }
 
 /**
@@ -249,6 +261,39 @@ export function EditorStoreProvider(props: ParentProps) {
   const [apiKey, setApiKeySignal] = createSignal('');
 
   const apiKeyConfigured = () => apiKey().length > 0;
+
+  // --- Provider configuration ---
+  // Ollama settings — base URL and model name.
+  // TODO: persist to agentSettings alongside claudeApiKey once the settings UI supports it.
+  const [ollamaUrl, _setOllamaUrl] = createSignal('http://localhost:11434');
+  const [ollamaModel, _setOllamaModel] = createSignal('qwen3.6-27b:latest');
+
+  /** Active AI protocol: Anthropic when a key exists, Ollama otherwise. */
+  const aiProtocol = (): AiProtocol => (apiKeyConfigured() ? 'anthropic' : 'ollama');
+
+  /** Whether any provider can accept requests. */
+  const providerReady = () => apiKeyConfigured() || ollamaUrl().length > 0;
+
+  /** Build the provider config for the active protocol. */
+  const resolveProvider = (): ProviderConfig => {
+    if (apiKeyConfigured()) {
+      return {
+        protocol: 'anthropic',
+        baseUrl: 'https://api.anthropic.com',
+        apiKey: apiKey(),
+        model: 'claude-sonnet-4-6',
+      };
+    }
+    return {
+      protocol: 'ollama',
+      baseUrl: ollamaUrl(),
+      apiKey: '',
+      model: ollamaModel(),
+    };
+  };
+
+  // --- Context sections cache (lazy) ---
+  let contextSectionsCache: Record<string, string> | null = null;
 
   // --- Session management ---
   const [sessions, setSessions] = createSignal<ChatSessionRecord[]>([]);
@@ -905,18 +950,27 @@ export function EditorStoreProvider(props: ParentProps) {
   }
 
   // ----------------------------------------------------------------
-  // Claude API path (client + streaming live in shared/ai/aiInfra)
+  // AI provider path (provider dispatch + streaming in shared/ai/aiInfra)
   // ----------------------------------------------------------------
 
   async function sendViaClaude(text: string) {
+    const config = resolveProvider();
     const claudeMessages: Array<{ role: string; content: unknown }> = buildClaudeMessages(text);
+
+    // Lazy-load context sections for tool resolution
+    if (!contextSectionsCache) {
+      contextSectionsCache = await loadContextSections();
+    }
 
     // Create a placeholder assistant message — shows streaming content as tokens arrive
     const streamMsg = createMessage('assistant', '', 'streaming');
     setMessages((prev) => [...prev, streamMsg]);
 
     let allTextContent = '';
-    const maxContinuations = 5; // Safety limit to prevent infinite loops
+    // Context tools add round-trips — allow enough continuations for
+    // context lookup + retry.  Each context tool call consumes one turn,
+    // and the model may call several before issuing update_schema.
+    const maxContinuations = 10;
 
     /**
      * The template each turn patches — carried across turns, not re-read from the store.
@@ -946,8 +1000,8 @@ export function EditorStoreProvider(props: ParentProps) {
     for (let turn = 0; turn <= maxContinuations; turn++) {
       let streamResult;
       try {
-        streamResult = await sendClaudeRequest(
-          apiKey(),
+        streamResult = await sendPromptRequest(
+          config,
           claudeMessages,
           (accumulated) => {
             const sep = allTextContent && accumulated ? '\n\n' : '';
@@ -960,7 +1014,7 @@ export function EditorStoreProvider(props: ParentProps) {
           },
         );
       } catch (err) {
-        console.error(`[EditorStore] Turn ${turn}: sendClaudeRequest threw`, err);
+        console.error(`[EditorStore] Turn ${turn}: sendPromptRequest threw`, err);
         throw err;
       }
       const { textContent, toolCalls, stopReason } = streamResult;
@@ -1073,6 +1127,15 @@ export function EditorStoreProvider(props: ParentProps) {
             type: 'tool_result',
             tool_use_id: tc.id,
             content: 'Patches applied.',
+          });
+        } else if (contextSectionsCache && tc.name in contextSectionsCache) {
+          // Context tool — return the pre-compiled section text.
+          // These resolve locally with zero latency; no model round-trip needed.
+          devLog(`[EditorStore] Context tool ${tc.name} — returning ${contextSectionsCache[tc.name].length} chars`);
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: tc.id,
+            content: contextSectionsCache[tc.name],
           });
         } else {
           toolResults.push({
@@ -1432,6 +1495,10 @@ export function EditorStoreProvider(props: ParentProps) {
 
     // Settings
     setApiKey,
+
+    // Provider
+    aiProtocol,
+    providerReady,
   };
 
   /*

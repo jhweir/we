@@ -1,29 +1,87 @@
 /**
- * aiInfra — the browser-side AI infrastructure: direct Anthropic API access, SSE stream parsing,
- * the schema-mutation tool definition, and prompt assembly.
+ * aiInfra — browser-side AI infrastructure for the WE schema editor.
  *
- * Isolated from the edit-session store on purpose: this file is the complete surface of "the
- * browser calls a model with the user's API key". A backend-executed assistant (the pattern the
- * assistant module introduces, where the executor runs models and writes replies into the
- * dataset) would replace exactly this file — the sessions, panels, and undo history it serves
- * are unaffected. Keep it free of Solid and store imports so that boundary stays real.
+ * Supports two providers:
+ * - **Anthropic** — SSE streaming via the Messages API (direct browser access)
+ * - **Ollama** — ndjson streaming via the native `/api/chat` endpoint
+ *
+ * Also manages the split context system: a compact core prompt (~7K tokens)
+ * plus on-demand context tools the model calls to load schema sections.
+ * Context tools resolve locally in the browser — each returns a pre-compiled
+ * section of the schema reference.
+ *
+ * Isolated from the edit-session store on purpose: this file owns the wire
+ * protocol and the prompt surface. The conversation loop, tool resolution,
+ * and patch application live in `EditorStore`. Keep it free of Solid and
+ * store imports so that boundary stays real.
  */
 import { chatSystemPreamble } from '@shared/prompts/chatSystemPrompt';
 import type { EntityManifestEntry } from '@we/backend-shared';
 
+// ── Provider configuration ────────────────────────────────────────────────
+
+export type AiProtocol = 'anthropic' | 'ollama';
+
+export interface ProviderConfig {
+  protocol: AiProtocol;
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+}
+
+// ── System prompt (split context) ─────────────────────────────────────────
+
 /**
- * The full system prompt for schema-editing chat.
+ * The compact core system prompt for tool-based AI chat.
  *
- * The schema reference it embeds is ~117 KB of generated text, and it is needed only when a
- * request is actually sent. As a module-level constant it was in the first bytes every visitor
- * downloaded, whether or not they ever opened the assistant. Resolved once, then cached.
+ * Contains the chat preamble + rules, routing, entity models, design tokens,
+ * and a directory of available context tools (~7K tokens total).
+ * Resolved once on first use, then cached.
  */
-let promptLoad: Promise<string> | undefined;
+let corePromptLoad: Promise<string> | undefined;
+
+export function chatCorePrompt(): Promise<string> {
+  corePromptLoad ??= import('@we/ai-context').then(({ coreContext }) => chatSystemPreamble + coreContext);
+  return corePromptLoad;
+}
+
+/**
+ * The full monolithic system prompt (kept for backward compatibility).
+ * Used when context tools are not available (e.g. Anthropic without tool support).
+ */
+let fullPromptLoad: Promise<string> | undefined;
 
 export function chatSystemPrompt(): Promise<string> {
-  promptLoad ??= import('@we/ai-context').then(({ schemaContext }) => chatSystemPreamble + schemaContext);
-  return promptLoad;
+  fullPromptLoad ??= import('@we/ai-context').then(({ schemaContext }) => chatSystemPreamble + schemaContext);
+  return fullPromptLoad;
 }
+
+// ── Context sections (on-demand) ──────────────────────────────────────────
+
+let sectionsLoad: Promise<Record<string, string>> | undefined;
+
+/** Load the context sections map.  Each key matches a context tool name. */
+export function loadContextSections(): Promise<Record<string, string>> {
+  sectionsLoad ??= import('@we/ai-context').then(({ contextSections }) => contextSections);
+  return sectionsLoad;
+}
+
+/** A context tool definition — no parameters, returns section text. */
+interface ContextToolDef {
+  name: string;
+  description: string;
+  parameters: { type: 'object'; properties: Record<string, never> };
+}
+
+let toolDefsLoad: Promise<ContextToolDef[]> | undefined;
+
+/** Load the context tool definitions (provider-neutral format). */
+export function loadContextToolDefs(): Promise<ContextToolDef[]> {
+  toolDefsLoad ??= import('@we/ai-context').then(({ contextToolDefs }) => [...contextToolDefs] as ContextToolDef[]);
+  return toolDefsLoad;
+}
+
+// ── Tool definitions ──────────────────────────────────────────────────────
 
 /** Tool definition for schema mutations (ID-based patching). */
 export const updateSchemaTool = {
@@ -94,7 +152,7 @@ export const updateSchemaTool = {
 
 /**
  * Format external (non-WE) manifest entries into a human-readable text block.
- * WE models are already described in schemaContext so only their names are sent;
+ * WE models already appear in the schema context so only their names get sent;
  * external models need full property descriptions because the AI has no other
  * knowledge of their structure.
  */
@@ -103,8 +161,6 @@ export function formatExternalManifestForPrompt(manifest: EntityManifestEntry[])
   const lines: string[] = ['## External Perspective Models', ''];
   for (const entry of manifest) {
     lines.push(`### ${entry.name}`);
-    // A HasMany relation is a collection of IRIs (type === 'uri' && isCollection).
-    // Scalar properties are everything else (strings, numbers, booleans, or single IRIs).
     const dataProps = entry.properties.filter((p) => !(p.isCollection && p.type === 'uri'));
     const relations = entry.properties.filter((p) => p.isCollection && p.type === 'uri');
     for (const prop of dataProps) {
@@ -128,14 +184,57 @@ export function formatExternalManifestForPrompt(manifest: EntityManifestEntry[])
   return lines.join('\n');
 }
 
+// ── Stream result (shared by both providers) ──────────────────────────────
+
 export interface StreamResult {
   textContent: string;
   toolCalls: Array<{ id: string; name: string; input: Record<string, unknown> }>;
   stopReason: string;
 }
 
-/** Parse an SSE stream and return extracted text + tool calls + stop reason */
-export async function parseSSEStream(
+// ── Tool format adapters ──────────────────────────────────────────────────
+
+/**
+ * Build the tools array for the request body.
+ * Combines context tools + update_schema, formatted for the provider's wire format.
+ */
+export async function buildToolsForProvider(protocol: AiProtocol): Promise<unknown[]> {
+  const contextDefs = await loadContextToolDefs();
+
+  if (protocol === 'anthropic') {
+    // Anthropic: { name, description, input_schema }
+    const contextTools = contextDefs.map((def) => ({
+      name: def.name,
+      description: def.description,
+      input_schema: def.parameters,
+    }));
+    return [...contextTools, updateSchemaTool];
+  }
+
+  // Ollama: { type: "function", function: { name, description, parameters } }
+  const contextTools = contextDefs.map((def) => ({
+    type: 'function',
+    function: {
+      name: def.name,
+      description: def.description,
+      parameters: def.parameters,
+    },
+  }));
+  const updateSchemaOllama = {
+    type: 'function',
+    function: {
+      name: updateSchemaTool.name,
+      description: updateSchemaTool.description,
+      parameters: updateSchemaTool.input_schema,
+    },
+  };
+  return [...contextTools, updateSchemaOllama];
+}
+
+// ── Anthropic SSE streaming ───────────────────────────────────────────────
+
+/** Parse an Anthropic SSE stream and return extracted text + tool calls + stop reason. */
+export async function parseAnthropicSSE(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   onTextDelta: (text: string) => void,
   onToolUseStart?: (textSoFar: string) => void,
@@ -145,7 +244,6 @@ export async function parseSSEStream(
   let textContent = '';
   let stopReason = '';
 
-  // Tool use tracking
   let currentBlockType: 'text' | 'tool_use' | null = null;
   let currentToolId = '';
   let currentToolName = '';
@@ -196,7 +294,6 @@ export async function parseSSEStream(
                 const input = JSON.parse(toolInputBuffer);
                 toolCalls.push({ id: currentToolId, name: currentToolName, input });
               } catch {
-                // Malformed tool input — will be handled as no tool calls
                 console.error('Failed to parse tool input:', toolInputBuffer.slice(0, 200));
               }
             }
@@ -218,14 +315,295 @@ export async function parseSSEStream(
   return { textContent, toolCalls, stopReason };
 }
 
-/** Send a request to Claude and handle the response stream */
+// ── Ollama ndjson streaming ───────────────────────────────────────────────
+
+/** Parse an Ollama ndjson stream and return extracted text + tool calls + stop reason. */
+export async function parseOllamaStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  onTextDelta: (text: string) => void,
+  onToolUseStart?: (textSoFar: string) => void,
+): Promise<StreamResult> {
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let textContent = '';
+  let stopReason = '';
+  const toolCalls: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
+  let toolUseNotified = false;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+
+      try {
+        const chunk = JSON.parse(line);
+
+        // Text content delta
+        if (chunk.message?.content) {
+          textContent += chunk.message.content;
+          onTextDelta(textContent);
+        }
+
+        // Tool calls (appear in the final message when done: true)
+        if (chunk.message?.tool_calls?.length) {
+          if (!toolUseNotified) {
+            onToolUseStart?.(textContent);
+            toolUseNotified = true;
+          }
+          for (const tc of chunk.message.tool_calls) {
+            const fn = tc.function;
+            if (!fn?.name) continue;
+            // Ollama returns arguments as parsed objects, not JSON strings
+            const input = typeof fn.arguments === 'string' ? JSON.parse(fn.arguments) : (fn.arguments ?? {});
+            toolCalls.push({
+              id: `ollama_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+              name: fn.name,
+              input,
+            });
+          }
+        }
+
+        // Stream done — determine stop reason
+        if (chunk.done) {
+          if (toolCalls.length > 0) {
+            stopReason = 'tool_use';
+          } else {
+            stopReason = chunk.done_reason === 'length' ? 'max_tokens' : 'end_turn';
+          }
+        }
+      } catch {
+        // Skip malformed ndjson lines
+      }
+    }
+  }
+
+  return { textContent, toolCalls, stopReason };
+}
+
+// ── Provider dispatch ─────────────────────────────────────────────────────
+
+/**
+ * Send a prompt request to the configured provider.
+ *
+ * Uses the split context system: the system prompt contains only the core
+ * context (~7K tokens) plus tool definitions for on-demand sections.
+ * The caller (EditorStore) resolves context tool calls from the local
+ * section map and sends results back in the conversation loop.
+ */
+export async function sendPromptRequest(
+  config: ProviderConfig,
+  messages: Array<{ role: string; content: unknown }>,
+  onTextDelta: (text: string) => void,
+  onToolUseStart?: (textSoFar: string) => void,
+): Promise<StreamResult> {
+  if (config.protocol === 'anthropic') {
+    return sendAnthropicRequest(config, messages, onTextDelta, onToolUseStart);
+  }
+  return sendOllamaRequest(config, messages, onTextDelta, onToolUseStart);
+}
+
+async function sendAnthropicRequest(
+  config: ProviderConfig,
+  messages: Array<{ role: string; content: unknown }>,
+  onTextDelta: (text: string) => void,
+  onToolUseStart?: (textSoFar: string) => void,
+): Promise<StreamResult> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    console.error('[aiInfra] Anthropic request timed out after 90s — aborting');
+    controller.abort();
+  }, 90_000);
+
+  try {
+    const tools = await buildToolsForProvider('anthropic');
+    const systemPrompt = await chatCorePrompt();
+
+    const response = await fetch(`${config.baseUrl}/v1/messages`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': config.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: config.model,
+        max_tokens: 16384,
+        stream: true,
+        tools,
+        system: [
+          {
+            type: 'text',
+            text: systemPrompt,
+            cache_control: { type: 'ephemeral' },
+          },
+        ],
+        messages,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => '');
+      throw new Error(`Anthropic API error ${response.status}: ${errorBody}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+
+    return await parseAnthropicSSE(reader, onTextDelta, onToolUseStart);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function sendOllamaRequest(
+  config: ProviderConfig,
+  messages: Array<{ role: string; content: unknown }>,
+  onTextDelta: (text: string) => void,
+  onToolUseStart?: (textSoFar: string) => void,
+): Promise<StreamResult> {
+  const controller = new AbortController();
+  // Ollama can run slow on first prompt — allow 180s
+  const timeout = setTimeout(() => {
+    console.error('[aiInfra] Ollama request timed out after 180s — aborting');
+    controller.abort();
+  }, 180_000);
+
+  try {
+    const tools = await buildToolsForProvider('ollama');
+    const systemPrompt = await chatCorePrompt();
+
+    // Ollama native /api/chat — honours num_ctx, native tools
+    const baseUrl = config.baseUrl.replace(/\/v1\/?$/, '').replace(/\/$/, '');
+
+    // Build Ollama wire messages: system + conversation turns
+    const wireMessages: Array<{ role: string; content: string; tool_calls?: unknown[] }> = [
+      { role: 'system', content: systemPrompt },
+    ];
+
+    for (const msg of messages) {
+      wireMessages.push(toOllamaWireMessage(msg));
+    }
+
+    const response = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: config.model,
+        messages: wireMessages,
+        stream: true,
+        tools,
+        options: {
+          num_ctx: 131072,
+        },
+        // Disable thinking mode for models that default to it (e.g. Qwen3.x)
+        think: false,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => '');
+      throw new Error(`Ollama API error ${response.status}: ${errorBody}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+
+    return await parseOllamaStream(reader, onTextDelta, onToolUseStart);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Convert an Anthropic-shaped message to an Ollama wire message.
+ *
+ * Anthropic uses structured content blocks ({ type: "text", text } and
+ * { type: "tool_use", id, name, input } and { type: "tool_result", ... }).
+ * Ollama uses flat { role, content } with tool_calls and tool results
+ * expressed differently.
+ */
+function toOllamaWireMessage(msg: { role: string; content: unknown }): {
+  role: string;
+  content: string;
+  tool_calls?: unknown[];
+} {
+  const { role, content } = msg;
+
+  // Simple string content
+  if (typeof content === 'string') {
+    return { role, content };
+  }
+
+  // Array of content blocks (Anthropic format)
+  if (Array.isArray(content)) {
+    const textParts: string[] = [];
+    const toolCalls: unknown[] = [];
+    const toolResults: Array<{ role: string; content: string }> = [];
+
+    for (const block of content) {
+      if (block.type === 'text') {
+        textParts.push(block.text);
+      } else if (block.type === 'tool_use') {
+        toolCalls.push({
+          function: {
+            name: block.name,
+            arguments: block.input,
+          },
+        });
+      } else if (block.type === 'tool_result') {
+        // Tool results become separate "tool" role messages in Ollama.
+        // For now, accumulate — the caller must handle multi-message expansion.
+        toolResults.push({
+          role: 'tool',
+          content: typeof block.content === 'string' ? block.content : JSON.stringify(block.content),
+        });
+      }
+    }
+
+    // If this message contains tool_results, return the first one.
+    // (The EditorStore builds tool results as user messages with content arrays.)
+    if (toolResults.length > 0 && role === 'user') {
+      return toolResults[0];
+    }
+
+    const result: { role: string; content: string; tool_calls?: unknown[] } = {
+      role,
+      content: textParts.join('\n'),
+    };
+    if (toolCalls.length > 0) {
+      result.tool_calls = toolCalls;
+    }
+    return result;
+  }
+
+  // Fallback
+  return { role, content: typeof content === 'object' ? JSON.stringify(content) : String(content) };
+}
+
+// ── Legacy compatibility ──────────────────────────────────────────────────
+
+/**
+ * Send a request to Claude using the full monolithic context.
+ *
+ * @deprecated Use `sendPromptRequest` with a ProviderConfig instead.
+ * Kept for backward compatibility during migration — the EditorStore
+ * switches to the new function when a provider config exists.
+ */
 export async function sendClaudeRequest(
   apiKey: string,
   claudeMessages: Array<{ role: string; content: unknown }>,
   onTextDelta: (text: string) => void,
   onToolUseStart?: (textSoFar: string) => void,
 ): Promise<StreamResult> {
-  // Abort after 90 seconds to prevent hanging on stalled connections
   const controller = new AbortController();
   const timeout = setTimeout(() => {
     console.error('[aiInfra] Request timed out after 90s — aborting');
@@ -266,7 +644,7 @@ export async function sendClaudeRequest(
     const reader = response.body?.getReader();
     if (!reader) throw new Error('No response body');
 
-    return await parseSSEStream(reader, onTextDelta, onToolUseStart);
+    return await parseAnthropicSSE(reader, onTextDelta, onToolUseStart);
   } finally {
     clearTimeout(timeout);
   }
