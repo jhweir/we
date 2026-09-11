@@ -1,5 +1,7 @@
 import type { ExpressionToken, SchemaNode } from '@we/schema-shared';
 
+import { helpTip } from '../overlays/helpTip.ts';
+
 /**
  * How a panel says its own name.
  *
@@ -34,6 +36,33 @@ export interface PanelHeaderOptions {
   title: string | ExpressionToken;
   /** Shown at the right of the title row — a record button, a switch, a "start call". */
   aside?: SchemaNode;
+  /**
+   * How the panel works, behind an info glyph beside the name — see `helpTip`. Two to four
+   * sentences, for the newcomer; everyone else hovers nothing and loses no room to it.
+   */
+  help?: string | ExpressionToken;
+}
+
+/**
+ * The name, with its explanation beside it where there is one.
+ *
+ * The glyph sits against the *word*, not at the far edge: it is about the name, and pushed to the
+ * right it reads as a control belonging to whatever `aside` is there. So with `help` the name gives
+ * up its `flex: '1'` to a row holding both, and the row takes the room instead — which is also what
+ * keeps `aside` where it was.
+ */
+function named(
+  props: Record<string, unknown>,
+  text: string | ExpressionToken,
+  help?: string | ExpressionToken,
+): SchemaNode {
+  const label: SchemaNode = { type: 'we-text', props: { ...props, ...(help ? {} : { flex: '1' }) }, children: [text] };
+  if (!help) return label;
+  return {
+    type: 'Row',
+    props: { flex: '1', minWidth: '0', ay: 'center', gap: '200' },
+    children: [label, helpTip({ text: help })],
+  };
 }
 
 /**
@@ -54,18 +83,35 @@ export interface PanelHeaderOptions {
  * simply move into the host's titlebar, which cannot know about any of them.
  */
 export function panelHeader(opts: PanelHeaderOptions): SchemaNode {
-  const title: SchemaNode = {
-    type: 'we-text',
-    // `flex: '1'` so an `aside` sits at the right-hand edge rather than beside the word.
-    props: { ...PANEL_TITLE_PROPS, flex: '1' },
-    children: [opts.title],
-  };
+  // `flex: '1'` on the name so an `aside` sits at the right-hand edge rather than beside the word.
+  const title = named(PANEL_TITLE_PROPS, opts.title, opts.help);
 
   return {
     type: 'Row',
-    // Never shrinks: a panel is a scroll region under a fixed name, and a header that can be
-    // squeezed is a name that disappears exactly when there is most content to be lost in.
-    props: { width: '100%', ay: 'center', gap: '200', flex: '0 0 auto' },
+    props: {
+      width: '100%',
+      ay: 'center',
+      gap: '200',
+      // Never shrinks: a panel is a scroll region under a fixed name, and a header that can be
+      // squeezed is a name that disappears exactly when there is most content to be lost in.
+      flex: '0 0 auto',
+      /*
+        A header with an `aside` holds a control's worth of height whether or not the control is
+        there.
+
+        Almost every `aside` is conditional — a record button on the live call, a switch while a
+        call can decide, a "start a call" that goes once one is running — and without a floor the
+        header is as tall as its own text in between. Continuing a call empties this slot for the
+        second the microphone takes to come up, so the title rose by half a line and the whole panel
+        followed it, then dropped back when the button returned. Nothing in the panel had changed
+        except the height of a box nobody was looking at.
+
+        The height of a small control, which is what an `aside` holds: a button, a switch, a badge.
+        Only where one is declared, so a panel that never has an aside keeps a header as tall as its
+        name.
+      */
+      ...(opts.aside && { minHeight: 'var(--we-component-height-sm)' }),
+    },
     children: opts.aside ? [title, opts.aside] : [title],
   };
 }
@@ -75,6 +121,8 @@ export interface SectionLabelOptions {
   label: string | ExpressionToken;
   /** Shown at the right of the label row. */
   aside?: SchemaNode;
+  /** How the region works, behind an info glyph beside the label. As on `panelHeader`. */
+  help?: string | ExpressionToken;
 }
 
 /**
@@ -85,11 +133,7 @@ export interface SectionLabelOptions {
  * one caps treatment made that read as the name.
  */
 export function sectionLabel(opts: SectionLabelOptions): SchemaNode {
-  const label: SchemaNode = {
-    type: 'we-text',
-    props: { ...SECTION_LABEL_PROPS, flex: '1' },
-    children: [opts.label],
-  };
+  const label = named(SECTION_LABEL_PROPS, opts.label, opts.help);
 
   return {
     type: 'Row',
@@ -128,6 +172,6 @@ export function panelShell(opts: PanelShellOptions): SchemaNode {
       gap: opts.gap ?? '300',
       overflow: 'hidden',
     },
-    children: [panelHeader({ title: opts.title, aside: opts.aside }), ...opts.children],
+    children: [panelHeader({ title: opts.title, aside: opts.aside, help: opts.help }), ...opts.children],
   };
 }

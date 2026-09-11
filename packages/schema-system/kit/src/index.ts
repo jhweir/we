@@ -100,6 +100,8 @@ export { discardGuard } from './overlays/discardGuard.ts';
 export type { DiscardGuardOptions } from './overlays/discardGuard.ts';
 export { formModal } from './overlays/formModal.ts';
 export type { FormModalOptions } from './overlays/formModal.ts';
+export { helpTip } from './overlays/helpTip.ts';
+export type { HelpTipOptions } from './overlays/helpTip.ts';
 /*
   Filed here rather than in the WE tier it was written in, because it names no store: the people, the
   pictures and the names all arrive as options. It was the fragment a module wanted first, and the

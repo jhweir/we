@@ -508,6 +508,8 @@ describe('going to the call', () => {
       dispose: () => {},
     };
     let created = 0;
+    let onScreen: string | null = null;
+    const activities: Record<string, unknown>[] = [];
 
     const store = createCallStore({
       signal,
@@ -516,16 +518,27 @@ describe('going to the call', () => {
       datasetUri: () => uri,
       selfId: () => 'did:test:me',
       ephemeral: () => scope,
-      presence: { peers: () => [], setActivity: () => {}, clearActivity: () => {} },
+      presence: {
+        peers: () => [],
+        setActivity: (activity: Record<string, unknown>) => activities.push(activity),
+        clearActivity: () => {},
+      },
       datasets: { get: () => undefined, open: (target: string) => opened.push(target) },
       onDispose: () => {},
       createEntity: async () => `rec-${++created}`,
       createPeerConnection: () => ({}) as RTCPeerConnection,
+      callOnScreen: () => onScreen,
     } as never) as ReturnType<typeof createCallStore> & Record<string, (...args: unknown[]) => unknown>;
 
     return {
       store,
       opened,
+      /** The call activity as peers — and the transcriber — see it. */
+      activities,
+      /** What the address names, as the host would report it. */
+      showing(recordId: string | null) {
+        onScreen = recordId;
+      },
       goTo(next: { id: string } | null, nextUri: string | null) {
         dataset = next;
         uri = nextUri;
@@ -572,6 +585,30 @@ describe('going to the call', () => {
       expect(first.store.callId()).toBe(second.store.callId());
     });
 
+    it('says on its activity that the record was picked back up', async () => {
+      /*
+        What the transcriber reads to adopt the record before anybody speaks. A started call's record
+        is empty and is adopted on the first utterance; a continued one already holds a transcript,
+        and without this the two ways into the same call disagreed about whether it had one.
+      */
+      const { store, activities } = railable();
+
+      store.continueCall('rec-from-last-week');
+      await Promise.resolve();
+
+      expect(activities.at(-1)).toMatchObject({ type: 'call', record: 'rec-from-last-week', continued: true });
+    });
+
+    it('never says so about a record it just made', async () => {
+      const { store, activities } = railable();
+
+      store.goToCall();
+      await Promise.resolve();
+
+      expect(activities.at(-1)).toMatchObject({ type: 'call', record: 'rec-1' });
+      expect(activities.at(-1)).not.toHaveProperty('continued');
+    });
+
     it('does nothing without a record, rather than starting a call', async () => {
       // The empty-string case a template reaches on a row whose id has not arrived. Starting a fresh
       // call there would be the exact failure this replaced.
@@ -594,6 +631,37 @@ describe('going to the call', () => {
     expect(store.active()).toBe(true);
     // Getting to a call you have just started means seeing it, and `join` already opens the stage.
     expect(store.stageOpen()).toBe(true);
+  });
+
+  it('picks up the call on screen rather than starting one beside it', async () => {
+    /*
+      The rail's button on a template built around one conversation. Pressing it took the reader
+      *out* of the meeting they were plainly in and opened another — the one reading of "start a
+      call" nobody wants while a call is on screen.
+
+      A record is continued, not created: the assertion that matters is the count, since starting
+      fresh would also leave `active()` true and look right.
+    */
+    const { store, showing, recordsCreated } = railable();
+    showing('rec-from-the-workshop');
+
+    store.goToCall();
+    await Promise.resolve();
+
+    expect(store.callRecordId()).toBe('rec-from-the-workshop');
+    expect(recordsCreated()).toBe(0);
+  });
+
+  it('still starts a fresh call when the address names none', async () => {
+    // The ordinary case everywhere but a template built around one call, and the behaviour the
+    // launcher had before.
+    const { store, recordsCreated } = railable();
+
+    store.goToCall();
+    await Promise.resolve();
+
+    expect(store.active()).toBe(true);
+    expect(recordsCreated()).toBe(1);
   });
 
   it('shows the video once you are in the call, and never hides it', async () => {

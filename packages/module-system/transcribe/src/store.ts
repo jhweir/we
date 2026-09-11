@@ -30,6 +30,17 @@ const FLUSH_AFTER_MS = 3_000;
 export const CHILDREN_PREDICATE = 'we://children';
 
 /**
+ * How a line in a transcript came to be — the three values of `TextBlock.source`.
+ *
+ * Named here rather than written as literals because three surfaces have to agree on them: the
+ * transcriber writes one, the panel draws by them, and an edit moves between them. See the field's
+ * own note for why a transcript that cannot tell speech from typing is making a claim.
+ */
+export const SPOKEN = 'spoken';
+export const TYPED = 'typed';
+export const CORRECTED = 'corrected';
+
+/**
  * The activity this module publishes so peers can converge on one record per call.
  *
  * Its own type rather than a field on the call activity, which keeps the two modules mutually
@@ -78,24 +89,60 @@ function humanise(entity: string): string {
 /** How an extraction pass is going. `done` holds until the next run, so the result stays readable. */
 export type ExtractStatus = 'idle' | 'running' | 'done' | 'error';
 
+/** One proposed value, as a row a schema can render and an edit control can write back to. */
+export interface ProposalField {
+  /** The model's own property name — what an edit writes to, so it must not be prettified. */
+  name: string;
+  /** Ready to print: stringified and bounded. See {@link MAX_SUMMARY_VALUE}. */
+  value: string;
+}
+
 /**
- * One staged suggestion, flattened for display.
+ * One staged suggestion, in the pieces a card is built from.
  *
- * `summary` rather than the raw value map, because a schema `$each` cannot iterate an object's
- * entries and a person deciding whether to keep a suggestion needs to read it, not inspect it. Built
- * here so the panel stays declarative — the alternative was a template that knew which field of a
- * task to show first, which is knowledge about models rather than about layout.
+ * ## Why this is a list and not the value map
+ *
+ * A schema `$each` cannot iterate an object's entries, so a map of proposed values is unrenderable
+ * however well-shaped it is. The list is ordered here rather than in the panel because "lead with
+ * what identifies it" is knowledge about models, not about layout — see {@link SUMMARY_FIELDS}.
+ *
+ * ## Why `summary` survives alongside it
+ *
+ * It is the degraded rendering, not a duplicate. A card draws a title, a badge and a description by
+ * asking `recordStore.displays[entity]` which property plays each role — and {@link entity} is
+ * absent whenever the backend could not classify the base, which is every proposal on an executor
+ * predating `subjectClassesOf`. One flat line is a worse card and a much better outcome than a blank
+ * one, so the panel falls back to it rather than refusing to draw a decision somebody has to make.
  */
 export interface ProposalView {
   id: string;
   /** `create` proposed a whole record; `update` proposed changes to one that exists. */
   kind: string;
-  /** What it says, in the order a reader wants it: what it is, then the detail. */
+  /**
+   * Which model this is a suggestion of, or `''` when the backend could not say.
+   *
+   * Empty rather than absent so a schema can test it — an expression reads a missing property as
+   * undefined and a card would branch correctly either way, but every other string on this view is
+   * always present and one that sometimes is not invites a template to read it without checking.
+   */
+  entity: string;
+  /** The proposed values, identifying field first. */
+  fields: ProposalField[];
+  /** All of it on one line, for a card with no model to draw from. */
   summary: string;
 }
 
-/** Field names worth leading with, most identifying first. Anything else follows in map order. */
-const SUMMARY_FIELDS = ['title', 'text', 'name', 'startDate', 'dueDate', 'assignee', 'location'];
+/**
+ * Field names worth leading with, most identifying first. Anything else follows in map order.
+ *
+ * `label` is here because two models genuinely call their title that — `EmbedBlock` and
+ * `Relationship` — and a proposal of one used to lead with whatever came first in the map instead.
+ * It read as a bug in the ordering and was one in the *naming*: the backend resolved every
+ * `we://title` to `label` regardless of model, so a task's title never matched `title` either. That
+ * is fixed where it arose (see `NameTables` in `interpretationAdapter.ts`); this entry is what the
+ * list should always have said, for the two models where `label` is the honest word.
+ */
+const SUMMARY_FIELDS = ['title', 'label', 'text', 'name', 'startDate', 'dueDate', 'assignee', 'location'];
 
 /** Flatten a proposal's values into one readable line. */
 /**
@@ -112,14 +159,17 @@ const SUMMARY_FIELDS = ['title', 'text', 'name', 'startDate', 'dueDate', 'assign
 const MAX_SUMMARY_VALUE = 120;
 const MAX_SUMMARY_LENGTH = 400;
 
-function summarise(values: Record<string, unknown>): string {
+const cut = (text: string, limit: number) => (text.length > limit ? `${text.slice(0, limit - 1)}…` : text);
+
+/** The proposed values as rows, identifying field first — the ordering `summarise` then prints in. */
+function fieldsOf(values: Record<string, unknown>): ProposalField[] {
   const named = SUMMARY_FIELDS.filter((field) => values[field] !== undefined && values[field] !== '');
   const rest = Object.keys(values).filter((field) => !SUMMARY_FIELDS.includes(field));
-  const cut = (text: string, limit: number) => (text.length > limit ? `${text.slice(0, limit - 1)}…` : text);
-  const line = [...named, ...rest]
-    .map((field) => `${cut(field, 40)}: ${cut(String(values[field]), MAX_SUMMARY_VALUE)}`)
-    .join(' · ');
-  return cut(line, MAX_SUMMARY_LENGTH);
+  return [...named, ...rest].map((name) => ({ name, value: cut(String(values[name]), MAX_SUMMARY_VALUE) }));
+}
+
+function summarise(fields: ProposalField[]): string {
+  return cut(fields.map((f) => `${cut(f.name, 40)}: ${f.value}`).join(' · '), MAX_SUMMARY_LENGTH);
 }
 
 /**
@@ -240,9 +290,11 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     settings,
     createEntity,
     linkEntity,
+    updateEntity,
     dataset,
     presence,
     selfId,
+    notify,
     onDispose,
   } = deps;
 
@@ -328,7 +380,46 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
    * update without a second: accepting the third of five should leave four, immediately, without
    * re-reading the whole set and without the row a user is looking at jumping.
    */
-  const [proposals, setProposals] = signal<ProposalView[]>([]);
+  /**
+   * Staged suggestions, per conversation — `''` holding the whole dataset's, for outside a call.
+   *
+   * ## Why this is keyed, and why it fetches on being read
+   *
+   * It was one flat list loaded from two places: a pass settling in the activity feed, and the
+   * transcriber adopting a call's record. Both are *events during a session*, and neither happens on
+   * a fresh boot — the activity feed is a live subscription that starts empty, and a collection is
+   * adopted only when this agent is about to write into it. So reopening a call after a restart
+   * showed no suggestions at all: the records were on the board looking settled, and the review list
+   * was empty. They had not been accepted; nothing had asked for them.
+   *
+   * Keyed, because the surface reading it is about whichever call is *on screen* — the live one
+   * usually, and a past one whenever somebody opened it from a link — and there is no way for an
+   * expression to pass an argument to a store member. The same reason `extractionFor` is keyed, and
+   * the same `namespace` mechanism.
+   *
+   * Fetched on first read of a key rather than from an effect, because only the reader knows which
+   * call it is asking about: a past call named in the address is not a fact the store has any other
+   * way to learn. `$agent` demand-fetches a profile from a DID for exactly this reason.
+   */
+  const [proposalsByCall, setProposalsByCall] = signal<Record<string, ProposalView[]>>({});
+  /** Keys already asked about, so a read in a render loop is one fetch and not one per frame. */
+  const proposalsRequested = new Set<string>();
+  /**
+   * Which suggestion is being edited, and what has been typed into it.
+   *
+   * ## Why the draft lives here and not in the panel's `$localState`
+   *
+   * The fields come from the model, so there is no set of names a schema could declare. A community
+   * defines a shape in the morning and a pass proposes one that afternoon; `$localState` names its
+   * fields when the template is *written*, which is strictly too early. This is the same reason
+   * `recordStore` holds its draft in a store and writes it with `setRecordField(name, value)` — one
+   * action serving every control is the only shape that works when the controls come from data.
+   *
+   * One draft rather than one per row: only one card is open at a time, and a map keyed by id would
+   * make "discard what was typed" ambiguous between closing a card and resolving it.
+   */
+  const [editingProposal, setEditingProposal] = signal('');
+  const [proposalDraft, setProposalDraft] = signal<Record<string, string>>({});
   /**
    * Why the standing watch is not running, when it is not.
    *
@@ -380,15 +471,6 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
    * would spin against each other for the length of the call.
    */
   const [autoJoinFailed, setAutoJoinFailed] = signal(false);
-  /**
-   * A record this agent has been asked to continue, held until there is a call to continue it in.
-   *
-   * Deferred rather than applied on the spot because the two halves of "continue this call" cannot
-   * be sequenced from a schema: joining is fire-and-forget — `joinCall` returns nothing, so an
-   * `onSuccess` never fires — and it publishes the call activity several awaits deep. Pinning
-   * immediately would therefore land before there was any call to pin to, and be dropped.
-   */
-  const [pendingResume, setPendingResume] = signal<string>('');
 
   let context: AudioContext | null = null;
   let node: AudioWorkletNode | null = null;
@@ -424,6 +506,7 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     anchorNodeId: string | null;
     recordId: string | null;
     datasetUri: string | null;
+    continued: boolean;
   } | null {
     const me = selfId?.() ?? null;
     if (!me || !presence) return null;
@@ -446,6 +529,9 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
       // Published by the call module from the moment the call starts — see `recordCallId`. This is
       // what replaced electing a creator among the transcribers.
       recordId: (mine.activity as { record?: string }).record ?? null,
+      // Published by the call module when the call was picked back up on a record that already
+      // existed — see `continuedRecord` there. What lets the record be adopted before anybody speaks.
+      continued: (mine.activity as { continued?: boolean }).continued === true,
     };
   }
 
@@ -504,8 +590,8 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
    * `collection` used to be load-bearing: it was how peers found the record one of them had created,
    * and adopting an announced one was the alternative to creating a second. The call's own activity
    * now carries the record from the moment it starts, so this is no longer how anybody finds it — it
-   * remains because `resume` writes a *different* record than the call names, and a peer has to be
-   * able to see that somebody continued an old transcript.
+   * remains because a continued call's record is adopted before anybody has spoken into it, and a
+   * peer has to be able to see that somebody is writing into an old transcript.
    */
   function announce(callId: string, recording: boolean, collection?: string | null): void {
     const claim = collection ?? collectionId();
@@ -579,6 +665,38 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
    * `undefined` when there is no call or no anchor, which the host reads as "the space on screen" —
    * the behaviour everything here had before, and the right one when nothing says otherwise.
    */
+  function closeProposalEdit(): void {
+    setEditingProposal('');
+    setProposalDraft({});
+  }
+
+  /**
+   * What the reviewer actually changed, or null if nothing.
+   *
+   * Only the differences, so accepting an untouched card writes nothing — the draft is seeded from
+   * the proposal, so sending it wholesale would rewrite every field with the value it already had.
+   * That would be invisible on screen and wrong underneath: each write is a link the whole
+   * neighbourhood syncs, and a record would look edited by whoever merely opened it.
+   *
+   * Compared against the *displayed* value, which is truncated (see {@link MAX_SUMMARY_VALUE}). A
+   * value long enough to have been cut therefore reads as changed the moment the card is opened and
+   * accepted — the ellipsis would be committed as the real value. So a field is only counted when
+   * what was typed differs from what was shown **and** what was shown is not itself an elision.
+   */
+  function changedFields(id: string): Record<string, string> | null {
+    const proposal = allProposals().find((p) => p.id === id);
+    if (!proposal) return null;
+    const draft = proposalDraft();
+    const changed: Record<string, string> = {};
+    for (const field of proposal.fields) {
+      const typed = draft[field.name];
+      if (typed === undefined || typed === field.value) continue;
+      if (field.value.endsWith('…') && typed === field.value.slice(0, -1)) continue;
+      changed[field.name] = typed;
+    }
+    return Object.keys(changed).length ? changed : null;
+  }
+
   function callTarget(): { dataset: string } | undefined {
     const uri = myCall()?.datasetUri;
     return uri ? { dataset: uri } : undefined;
@@ -668,16 +786,98 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
    */
   async function loadProposals(collection?: string): Promise<void> {
     if (!interpretation) return;
+    /*
+      `targetCollection`, not `collectionId`, when the caller names nothing.
+
+      `collectionId` is what this agent is *writing into* and stays null until somebody speaks, so a
+      refresh during a call that had not been talked in yet fell through to the unscoped key — and
+      asked about the whole space. `targetCollection` falls back to the call's own record, which
+      exists from its first second and is the id every surface here already keys on.
+    */
+    const key = collection ?? targetCollection();
+    /*
+      No call, nothing to review.
+
+      An empty key used to ask the backend for everything staged in the dataset. The port offers
+      that, and it is the honest answer for a surface that is genuinely about a dataset — but there
+      is no such surface here, and what it produced was a panel outside a call listing suggestions
+      from every conversation the space has ever had, with no way to tell which was which. It is
+      also the exact hazard `loadProposals` was narrowed to avoid: an unscoped read hands a stale
+      proposal to a reader who has no way to act on it from where they are.
+    */
+    if (!key) return;
+    proposalsRequested.add(key);
     try {
       // The call's space, for the same reason the writes use it: a call outlives the space on
       // screen, so "proposals here" was answering about wherever the reader had wandered to. The
       // collection narrows it from that space to one conversation.
-      const staged = await interpretation.proposals(callTarget(), collection ?? collectionId() ?? undefined);
-      setProposals(staged.map((p) => ({ id: p.id, kind: p.kind, summary: summarise(p.values) })));
+      const staged = await interpretation.proposals(callTarget(), key);
+      const rows = staged.map((p) => {
+        const fields = fieldsOf(p.values);
+        return { id: p.id, kind: p.kind, entity: p.entity ?? '', fields, summary: summarise(fields) };
+      });
+      setProposalsByCall({ ...proposalsByCall(), [key]: rows });
     } catch {
-      setProposals([]);
+      /*
+        Left as it was rather than emptied.
+
+        This runs after a pass that already succeeded, and on a demand read that may be one of
+        several. Clearing on a failed fetch would take a list somebody is part-way through reviewing
+        off the screen because an unrelated read timed out — and the next settled pass, or the next
+        time the key is asked about, refills it.
+      */
+      if (!(key in proposalsByCall())) setProposalsByCall({ ...proposalsByCall(), [key]: [] });
     }
   }
+
+  /**
+   * The suggestions staged on one conversation, fetching them the first time anybody asks.
+   *
+   * The read is what triggers the load, so a panel that opens on a call nobody has extracted this
+   * session still fills — which is the whole point, and what a restart used to lose.
+   */
+  function proposalsFor(collection: string): ProposalView[] {
+    const key = collection ?? '';
+    // No call named, nothing to review — and nothing fetched. See `loadProposals`.
+    if (!key) return [];
+    if (!proposalsRequested.has(key)) void loadProposals(key);
+    return proposalsByCall()[key] ?? [];
+  }
+
+  /**
+   * Every id still awaiting a decision, across every call asked about so far.
+   *
+   * ## Why a card's marker is not keyed and the review list is
+   *
+   * They answer different questions. "Which decisions am I being asked to make" is about a
+   * conversation, and belongs to whichever call is on screen. "Has anybody agreed to this record
+   * yet" is about the **record**, and is true or false wherever it is drawn.
+   *
+   * Keying the marker made switching calls flash: the outgoing call's cards stay on the board for
+   * the moment its replacement is being queried, and against the incoming call's list — empty, since
+   * nothing has fetched it yet — every one of them rendered as settled. They were never settled;
+   * they were being asked the wrong question. Answered from the union they stay marked until they
+   * leave the board, which is what somebody watching them expects.
+   *
+   * Only ever loses an entry when it is genuinely resolved, so nothing here can un-mark a card that
+   * is still waiting.
+   */
+  const pendingIds = (): string[] => allProposals().map((p) => p.id);
+
+  /** Drop a resolved suggestion from wherever it was listed — see `acceptProposal`. */
+  function forgetProposal(id: string): void {
+    const next: Record<string, ProposalView[]> = {};
+    for (const [key, rows] of Object.entries(proposalsByCall())) next[key] = rows.filter((p) => p.id !== id);
+    setProposalsByCall(next);
+  }
+
+  /**
+   * Every suggestion currently known about, across the calls that have been asked about.
+   *
+   * What `acceptProposal` looks an id up in: the id arrives from a card, and which key that card was
+   * rendered under is not something the action is told.
+   */
+  const allProposals = (): ProposalView[] => Object.values(proposalsByCall()).flat();
 
   /*
     Re-read the staged suggestions whenever a pass settles — anybody's, not just a press of ours.
@@ -882,7 +1082,10 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
       const dataset = myCall()?.datasetUri ?? undefined;
       await createEntity?.(
         'TextBlock',
-        { text },
+        // `spoken`, because a recogniser heard it — the one writer that may say so. Everything else
+        // in this timeline is a person typing, and a transcript that cannot tell them apart claims
+        // somebody said what they wrote. See `TextBlock.source`.
+        { text, source: SPOKEN },
         { parent: { id: slot.id, predicate: CHILDREN_PREDICATE }, ...(dataset ? { dataset } : {}) },
       );
       await recordSelfParticipation(slot.id, dataset);
@@ -1198,6 +1401,21 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
   let watchedClasses = '';
 
   /**
+   * Whether automatic extraction was on when the watch was last decided — the third half of the key
+   * below, and the one that was missing. Without it a call that started with the watch registered
+   * short-circuited every later run, so switching automatic extraction off mid-call never reached
+   * the unwatch and the watch kept spending a model call per pass.
+   */
+  let watchedAuto = true;
+
+  /**
+   * The collection this agent has already been told has nothing selected to extract — see the toast
+   * in `syncWatch`. `syncWatch` re-runs on every change to the target list, and somebody unticking
+   * the last chip should hear about it once rather than on every press afterwards.
+   */
+  let warnedEmpty: string | null = null;
+
+  /**
    * Whether this community has automatic extraction on.
    *
    * Feature-tested like every other interpretation call — the host publishes a forwarding wrapper
@@ -1217,7 +1435,8 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
           .map((t) => t.entity)
           .join(',')
       : '';
-    if (watched === next && watchedClasses === key) return;
+    const auto = next ? autoEnabled(next) : true;
+    if (watched === next && watchedClasses === key && watchedAuto === auto) return;
     const previous = watched;
     /*
       A class-set change re-registers the *same* collection, so the teardown below has to run for it.
@@ -1233,6 +1452,7 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     const reregistering = previous !== null && previous === next;
     watched = next;
     watchedClasses = next ? key : '';
+    watchedAuto = auto;
 
     /*
       Two independent attempts, and that separation is the whole point.
@@ -1263,13 +1483,31 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
       }
     }
 
-    if (next && !autoEnabled(next)) {
-      // Not a failure and not a capability — a decision, stated as one. The host would refuse the
-      // registration anyway; saying it here is what makes the sentence on screen the true one, and
-      // what stops a pointless call to a backend that is going to throw. The unwatch above has
-      // already run, so switching the setting off mid-call stops the watch rather than leaving it
-      // spending an LLM call per pass for a community that just said stop.
-      setWatchProblem('Automatic extraction is off for this call.');
+    if (next && !auto) {
+      /*
+        Nothing said, because nothing is wrong.
+
+        This set "Automatic extraction is off for this call." and the panel printed it under the
+        controls — a sentence restating the switch immediately above it, permanently, for everyone
+        who had deliberately turned it off. `watchProblem` is for the cases somebody cannot see and
+        cannot fix from here; a setting they just changed is neither.
+
+        The early return stays, and does the work: the host would refuse the registration anyway, and
+        the unwatch above has already run, so switching off mid-call stops the watch rather than
+        leaving it spending a model call per pass for a community that just said stop.
+      */
+      setWatchProblem('');
+      /*
+        Nothing is registered, so nothing is remembered as watched.
+
+        This left `watched` set, and the short-circuit at the top of this function keys on it — so
+        the effect that re-runs on the setting changing got here and returned on its first line,
+        both directions. Switched back on, no watch was ever registered and this sentence stayed on
+        screen for the rest of the call; started on and switched off, the unwatch never ran and the
+        watch kept spending a model call per pass on a community that had just said stop.
+      */
+      watched = null;
+      watchedClasses = '';
       return;
     }
 
@@ -1297,10 +1535,23 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
         console.warn('[transcribe] could not watch this call for auto-extraction', error);
       }
     } else if (next && !key) {
-      // Not a failure, and worth saying in its own words: the node can watch perfectly well and
-      // this space has declared nothing for it to look for. The fix is in the space's own models,
-      // which is somewhere a person can go — unlike every other reason a watch does not run.
-      setWatchProblem('This space has no models marked for AI extraction.');
+      /*
+        Said once, out loud, rather than printed under the controls for the rest of the call.
+
+        The node can watch perfectly well and nothing has been marked for it to look for, so this is
+        worth mentioning — but it was a permanent sentence describing a state the chips above it
+        already show, which is the definition of clutter. A toast says it at the moment it starts to
+        matter and then gets out of the way.
+
+        Keyed on the collection so it is once per call and not once per re-registration: `syncWatch`
+        re-runs whenever the target list changes, and somebody unticking the last chip should be told
+        once, not on every press after it.
+      */
+      if (warnedEmpty !== next) {
+        warnedEmpty = next;
+        notify?.('warning', 'No models selected for extraction');
+      }
+      setWatchProblem('');
       console.info('[transcribe] no extraction targets in this space — nothing to watch for');
     } else if (next) {
       setWatchProblem('This host cannot run a standing extraction watch.');
@@ -1343,14 +1594,28 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     void syncWatch(live);
   });
 
+  /**
+   * Adopt a continued call's record straight away.
+   *
+   * A fresh call's record is empty until somebody speaks, so it is adopted on the first flush and
+   * `canExtract` says no until then — correct, since a pass over nothing spends a model call to find
+   * nothing. A *continued* call is the opposite case: its record already holds last time's words,
+   * and the same rule left Extract disabled and the panel empty until this agent said something. The
+   * transcript panel's own Continue button worked around it with a `resume` action chained after
+   * `continueCall`; the rail's path into the same call could not, so the two disagreed about
+   * whether the call had a transcript.
+   *
+   * The call module says which case this is, on the activity it already publishes the record in —
+   * `continued` — so nothing here names it and no query is needed, and `resume` is gone. Guarded
+   * on the record itself, so a republish of the same activity does not adopt twice.
+   */
   effect?.(() => {
-    const wanted = pendingResume();
     const call = myCall();
-    if (!wanted || !call) return;
-    setPendingResume('');
-    useCollection(wanted);
+    if (!call?.continued || !call.recordId) return;
+    if (collectionId() === call.recordId) return;
+    useCollection(call.recordId);
     collectionCallId = call.id;
-    announce(call.id, enabled(), wanted);
+    announce(call.id, enabled(), call.recordId);
   });
 
   effect?.(() => {
@@ -1372,6 +1637,24 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
    * Leaving a call clears it too, by way of the same transition through no-call. That is right even
    * for a space-wide call, whose id is derived from the space and so is the same id every time:
    * "not now" is about the conversation happening, not about the room it happens in.
+   *
+   * ## And leaving switches recording off
+   *
+   * The microphone being recorded was the call's, so there is nothing left to record. Nothing said
+   * so before: the only effect that cleared `enabled` wanted *no dataset and no call*, which is the
+   * boot frame and a logged-out agent, and inside a space the dataset is always there. So leaving a
+   * call left this agent flagged as recording for the rest of the session.
+   *
+   * Three things followed from that one stale flag, all of them reported as separate bugs. The
+   * level meter is drawn on `enabled`, so it stayed on screen with no call. The record button reads
+   * `enabled || available`, so it offered to *stop* transcribing a call that had ended. And the
+   * audio effect below reports `on && !audio` as `no-audio`, which parked the status at "Nothing to
+   * listen to" — invisible while a past call was on screen, since the status notes are hidden
+   * there, and revealed the instant somebody continued that call, as a flash before the microphone
+   * arrived.
+   *
+   * Setting it here rather than teaching those three to ask a second question: they are each
+   * reading `enabled` correctly, and what was wrong is that `enabled` was.
    */
   let decidedForCall: string | null = null;
   effect?.(() => {
@@ -1381,6 +1664,9 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     setOptedOut(false);
     setAutoJoined(false);
     setAutoJoinFailed(false);
+    // The audio effect does the teardown: it reads `enabled`, so this re-runs it, and it lands on
+    // `idle` rather than the `no-audio` it would otherwise have reported.
+    if (!current) setEnabled(false);
   });
 
   /**
@@ -1491,10 +1777,6 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
       setEnabled(false);
       setAutoJoined(false);
       if (context) void stop();
-      // A Continue that never reached a call goes with the space it was pressed in. Held, it would
-      // wait indefinitely and then attach that space's old transcript to whatever call happened to
-      // start next — the request is only meaningful for the join it was pressed to accompany.
-      setPendingResume('');
     }
   });
 
@@ -1517,7 +1799,6 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
     setEnabled(false);
     setAutoJoined(false);
     if (context) void stop();
-    setPendingResume('');
   });
 
   return {
@@ -1782,6 +2063,17 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
      */
     autoExtract: () => autoEnabled(collectionId() ?? myCall()?.recordId ?? undefined),
     /**
+     * Whether any pass is running right now, this node's or a peer's — what the rail's Extraction
+     * launcher spins on, via `busyWhen`.
+     *
+     * Read off the host's activity feed rather than `extractStatus`, which only knows about the
+     * one-shot pass this agent pressed for. The four people in five who did not start a pass are the
+     * ones this exists for, and their node is not the one running it. Feature-tested for the reason
+     * the settled-count effect above is: the forwarding wrapper is always present, the feed is not.
+     */
+    passRunning: () =>
+      typeof interpretation?.activity === 'function' ? interpretation.activity().some((pass) => pass.running) : false,
+    /**
      * Turn it on or off for **this call**, for everyone in it.
      *
      * A group decision beside the call, like `toggleExtractionTarget` — the standing watch is one
@@ -1824,8 +2116,62 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
      * missing field are the same falsy value and would make an unrelated absent id look live.
      */
     liveCollectionId: () => collectionId() ?? '',
-    /** Suggestions staged for review. Empty is the ordinary case — see `refreshProposals`. */
-    proposals,
+    /**
+     * Suggestions staged on one conversation — `modules.transcribe.proposalsFor[<id>]`.
+     *
+     * Keyed for `extractionFor`'s reason: the surface asking is about whichever call is on screen,
+     * and an expression cannot pass an argument to a store member. Reading a key it has not seen
+     * fetches it, which is what makes a review list fill after a restart — see `proposalsByCall`.
+     *
+     * An empty key asks about the whole space, which is the honest answer outside a call.
+     */
+    proposalsFor: () => namespace((key: string) => proposalsFor(key)),
+    /**
+     * Every record still awaiting a decision, by id — what marks a card as a suggestion.
+     *
+     * Not keyed, deliberately, and `pendingIds` in the store says why at length: whether anybody has
+     * agreed to a record is a fact about the record, where which decisions somebody is being *asked*
+     * for is a fact about a conversation. A board asks the first question and a review list the
+     * second, and keying the first made switching calls flash every outgoing card as settled.
+     */
+    pendingIds,
+    /**
+     * The same suggestions as rows rather than ids, for a surface that has to *read* one.
+     *
+     * A card marker asks "is this waiting?" and wants {@link pendingIds}; a card that shows what was
+     * proposed has to find the proposal and read it, which ids cannot answer. Both are the union
+     * across every call asked about, for the reason `pendingIds` gives at length.
+     */
+    pendingProposals: allProposals,
+    /**
+     * The same, for the call this agent is in.
+     *
+     * Nothing in this repo reads it any more — both surfaces that did now name the call they are
+     * about. It stays because this is the spelling a template already installed would be using, and
+     * it is the one that was *wrong* in the way this keying fixes: pointed at the live call it is
+     * now correct rather than merely unscoped, so an old template improves instead of breaking.
+     *
+     * Not a member to reach for in something new. A surface that can be about a past call should say
+     * which call it means, which is `proposalsFor`.
+     */
+    proposals: () => proposalsFor(targetCollection()),
+    /** The suggestion open for editing, or '' when none is. Compare it against a row's own id. */
+    editingProposal,
+    /**
+     * What has been typed into the open draft, keyed by the model's property name.
+     *
+     * Read a field with an index — `modules.transcribe.proposalDraft[field.name]` — because the keys
+     * come from the model and a template cannot name them. Empty when nothing is being edited.
+     */
+    proposalDraft,
+    /**
+     * Whether an edited suggestion can actually be written back on accept.
+     *
+     * False where the host lends no record-update surface, or where the backend could not say which
+     * model the suggestion is of — an edit needs the entity name to write to. Gate the edit control
+     * on it rather than offering one whose Keep would silently discard what was typed.
+     */
+    canEditProposals: () => !!updateEntity,
     /**
      * Why auto-extraction is not running here, or empty when it is.
      *
@@ -1853,8 +2199,8 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
 
       There was a strip under the call bar reporting a running pass, and this held room for it — so
       while a pass ran, everything on screen moved up to clear a band. The strip is gone: what it
-      reported lives in the extraction panel, and what is left in the bar is `extractionControl`, one
-      square button in the bar's own row, which the call module already accounts for.
+      reported lives in the extraction panel, and what is left in the bar is the record button, one
+      square in the bar's own row, which the call module already accounts for.
 
       The reservation outlived it, so the content still moved for a strip that was not there. Left
       out entirely rather than returned as zeroes, because a module with no fixed chrome should not
@@ -1911,16 +2257,6 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
       const call = myCall();
       if (call) announce(call.id, next);
     },
-    /**
-     * Continue an existing call's transcript rather than starting a new one.
-     *
-     * Takes the record's own id, not a call id: the call id a space-wide call publishes is derived
-     * from the space and never changes, so it identifies the *place* calls happen rather than any
-     * one of them, and could not tell this morning's meeting from this afternoon's.
-     *
-     * Applied when there is a call to apply it to — see the effect that consumes it.
-     */
-    resume: (collection: string) => setPendingResume(collection ?? ''),
     /*
       There is no `dismissInvite` any more, and nothing replaced it.
 
@@ -1968,7 +2304,13 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
      */
     extractCollection: (collection: string) => runExtraction(collection),
     /** Re-read what is staged. Called after a pass; exposed so a panel can refresh on open. */
-    refreshProposals: () => loadProposals(),
+    /**
+     * Re-read what is staged on a call, or on the live one when given nothing.
+     *
+     * Rarely needed now that reading a key fetches it: this is for asking *again* — after a pass
+     * somebody else ran, or a card that looks stale. It bypasses the once-per-key guard on purpose.
+     */
+    refreshProposals: (collection?: string) => loadProposals(collection),
     /**
      * Keep a suggestion, or drop it.
      *
@@ -1977,15 +2319,136 @@ export function createTranscribeStore(deps: ModuleStoreDeps) {
      * a resolved overlay is gone. `false` means somebody else resolved it first — the record is
      * still out of the list either way, so it drops locally without complaint.
      */
+    /**
+     * Keep a suggestion — as proposed, or as edited.
+     *
+     * ## Why the edit is applied *after* the accept, never before
+     *
+     * Accepting means "the LLM's staged value becomes the real, human-owned value, and the overlay
+     * is deleted". So a write made first is a write the accept then overwrites, silently, with the
+     * model's version — the edit would appear to work and be gone a tick later.
+     *
+     * Ordering it this way also lands on the right side of the executor's own rule: deleting the
+     * overlay *is* the lock. Once it is gone the divergence gate treats the record as human-owned,
+     * so a later pass over the same conversation will not quietly overwrite what was typed here.
+     *
+     * There is no window worth worrying about for a `create`, which is the common case: the engine
+     * writes real values whenever no human owns them, so the record has been on the board with the
+     * model's wording since the pass ran. The accept changes nothing visible and the edit lands
+     * immediately after it.
+     *
+     * A failed update leaves the suggestion accepted rather than rolling back, and says so. That is
+     * the honest state — the decision was recorded and only the wording did not land — and the
+     * record is now an ordinary one the reviewer can edit anywhere it appears.
+     */
     acceptProposal: async (id: string) => {
       if (!interpretation) return;
+      const edited = editingProposal() === id ? changedFields(id) : null;
       await interpretation.accept(id, undefined, callTarget());
-      setProposals(proposals().filter((p) => p.id !== id));
+      const entity = allProposals().find((p) => p.id === id)?.entity;
+      forgetProposal(id);
+      // Only if the draft belonged to *this* card. Keeping one suggestion must not throw away what
+      // was typed into another one that happens to be open beside it.
+      if (editingProposal() === id) closeProposalEdit();
+      if (!edited || !entity || !updateEntity) return;
+      try {
+        // The call's space, exactly as the accept just used — a call outlives the space on screen.
+        await updateEntity(entity, id, edited, callTarget());
+      } catch (error) {
+        console.warn('transcribe: kept the suggestion but could not apply the edit —', error);
+      }
     },
+    /** Open one suggestion for editing, seeded with what the model proposed. */
+    editProposal: (id: string) => {
+      const proposal = allProposals().find((p) => p.id === id);
+      if (!proposal) return;
+      setProposalDraft(Object.fromEntries(proposal.fields.map((f) => [f.name, f.value])));
+      setEditingProposal(id);
+    },
+    /** Set one field of the open draft. Takes the name, so one action serves every control. */
+    setProposalField: (name: string, value: string) => setProposalDraft({ ...proposalDraft(), [name]: value }),
+    /** Close the open draft, discarding what was typed. */
+    cancelProposalEdit: () => closeProposalEdit(),
     rejectProposal: async (id: string) => {
       if (!interpretation) return;
       await interpretation.reject(id, undefined, callTarget());
-      setProposals(proposals().filter((p) => p.id !== id));
+      forgetProposal(id);
+      // Whatever was typed into it went with it. Leaving the draft open would leave a card's worth
+      // of edits attached to an id that no longer resolves.
+      if (editingProposal() === id) closeProposalEdit();
+    },
+    /**
+     * Write something a person typed into the transcript, at the moment they typed it.
+     *
+     * ## Why it is the same kind of record as an utterance
+     *
+     * A transcript is one timeline ordered by `createdAt`, and a schema cannot merge two queries
+     * into one — so a message kept in its own entity could only ever be listed *beside* the
+     * conversation rather than *in* it, which is not what somebody typing during a meeting means.
+     * It is a `TextBlock` among the utterances, and `source` is what stops it passing as one.
+     *
+     * Attribution stays correct for free: the writer is the author, exactly as a speaker is the
+     * author of what their own microphone heard.
+     *
+     * Written into the **call's** space rather than the space on screen, for the reason every other
+     * write here is: a call outlives the reader's navigation, and a message landing in whichever
+     * space somebody had wandered to would be a remark about a meeting, filed somewhere else.
+     *
+     * `collection` is named by the caller because the composer is no longer only about the call
+     * being recorded: a transcript on screen is a transcript somebody can write into, and which one
+     * that is, is a question the panel has already answered for every other row it draws. Omitted,
+     * it falls back to the call in progress — the call's own record, which exists from its first
+     * second, since a message does not need somebody to have spoken first and `collectionId` is
+     * null until they have.
+     */
+    addMessage: async (collection: string, text: string) => {
+      const words = String(text ?? '').trim();
+      if (!words || !createEntity) return;
+      const target = collection || targetCollection();
+      if (!target) return;
+      /*
+        The call's dataset only when the target IS the call in progress.
+
+        A live call in one space outlives a reader who walks to another, so `myCall().datasetUri`
+        answers for the meeting being recorded rather than for the transcript on screen. Naming it
+        unconditionally would send a message about a past call in *this* space to whichever space
+        the live one is running in, where the record it names does not exist.
+      */
+      const dataset = target === targetCollection() ? (myCall()?.datasetUri ?? undefined) : undefined;
+      await createEntity(
+        'TextBlock',
+        { text: words, source: TYPED },
+        { parent: { id: target, predicate: CHILDREN_PREDICATE }, ...(dataset ? { dataset } : {}) },
+      );
+      await recordSelfParticipation(target, dataset);
+    },
+    /**
+     * Fix the words on a line of the transcript.
+     *
+     * ## Why anybody may, and what is recorded
+     *
+     * A recogniser mishears names, jargon and anybody with a cold, and the person best placed to
+     * fix it is whoever notices — often not the speaker. A shared record every member can write to
+     * makes that possible already; refusing it in the UI would only mean the transcript stays wrong.
+     *
+     * What is not acceptable is the correction being invisible. A mended line that still reads as a
+     * verbatim quote is a claim nobody checked, so `spoken` becomes `corrected` and the panel says
+     * so. Editing something `typed` leaves it `typed` — correcting your own writing is not a
+     * correction *of a transcript* — and something already `corrected` stays that way.
+     *
+     * `was` is passed in rather than read, because a module's data surface is write-only by design
+     * (see `transcriptTurns`) and the panel is holding the row already.
+     */
+    editUtterance: async (id: string, text: string, was?: string) => {
+      const words = String(text ?? '').trim();
+      if (!id || !words || !updateEntity) return;
+      await updateEntity(
+        'TextBlock',
+        id,
+        { text: words, ...(was === SPOKEN ? { source: CORRECTED } : {}) },
+        // The call's space, as every other write here. `callTarget` answers with it or undefined.
+        callTarget(),
+      );
     },
     /** Write what has been heard so far without waiting for the buffer to fill. */
     flushNow: () => flush(),

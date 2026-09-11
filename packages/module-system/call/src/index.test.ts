@@ -191,3 +191,91 @@ describe('the compact bar', () => {
     expect(tierGates(slot)).toEqual([]);
   });
 });
+
+/**
+ * The way back into a call somebody is reading.
+ *
+ * Published as a part rather than drawn by a panel, and the reason is a category error that showed
+ * up as an asymmetry: it lived in the transcript panel's header, while two panels sit side by side
+ * about the same call and only one of them offered the way into it. Picking a call back up is about
+ * the call, so it belongs against the call's name, and it survives both panels being closed.
+ *
+ * These are the three rules that came with it from the panel. They are asserted here now because
+ * this is where the node is, and the panel's own suite asserts the button has not grown back there.
+ */
+describe('picking a call back up', () => {
+  const part = () => callModule.schemas?.continueCallButton;
+  const json = () => JSON.stringify(part());
+
+  it('is published for an interface to place', () => {
+    // A template cannot be reached into: the pill that draws a call's name is the Workshop shell's
+    // own chrome and has no anchor. A named part is how a module offers chrome somebody else places.
+    expect(part()).toBeDefined();
+  });
+
+  it('refuses a pick-up that would tear down a call in progress, rather than hiding', () => {
+    /*
+      The call store's own rule, not a preference: continuing while another call runs re-points every
+      peer's transcript at the old record, since peers adopt an announced record over their own.
+      `goToCall` refuses for the same reason, so these cannot differ.
+
+      Disabled with a reason rather than absent. The gate used to include `!active`, which made this
+      the only thing on the pill that came and went — and it went at the moment the pill had most to
+      say, since a live call is usually shown with no `?call=` at all.
+    */
+    expect(json()).toContain('"disabled":{"$":"modules.call.active && !(');
+    expect(json()).toContain("'Leave your current call to pick this one up'");
+    expect(json()).not.toContain('modules.call.canCall && !modules.call.active');
+  });
+
+  it('stays put while a call runs, and follows the call on screen', () => {
+    /*
+      The address alone was the bug: `?call=` is how somebody opens a meeting that has *finished*, so
+      a surface showing a live call usually has none, and reading it alone blanked the control for
+      the whole of every call. The fallback is the one every other surface about a call uses.
+    */
+    expect(json()).toContain('routeStore.params.call ? routeStore.params.call : modules.call.callRecordId');
+  });
+
+  it('marks the call you are in red, the way the calls list marks its live row', () => {
+    /*
+      The fill role rather than the foreground one, for the reason the list gives: a live-call marker
+      is a signal rather than a sentence, and the derived foreground goes pale in a dark theme.
+
+      Against the record rather than `active`, which is true of any call — with one call running and
+      another being read, `active` says yes about the wrong one.
+    */
+    expect(json()).toContain('modules.call.callRecordId && modules.call.callRecordId ==');
+    expect(json()).toContain("? 'danger' : ''");
+    expect(json()).toContain("'Go to the call'");
+  });
+
+  it('says join rather than pick up where somebody is already in the call', () => {
+    // The press is identical either way — `continueCall` derives the call from its record, so
+    // arriving at one somebody is in *is* joining them. The word is the only thing that differs.
+    expect(json()).toContain('modules.call.liveCalls.exists(c, c.recordId ==');
+    expect(json()).toContain("'Join this call'");
+  });
+
+  it('names itself for a screen reader, having no visible word to do it', () => {
+    // Icon-only, so the accessible name has to be said rather than inherited from a label. The same
+    // expression as the tooltip, so the two cannot drift into describing different acts.
+    const button = walk(part()).find((node) => node.type === 'we-button');
+    const label = (button?.props as { label?: { $?: string } } | undefined)?.label?.$;
+    const tooltip = walk(part()).find((node) => node.type === 'we-tooltip');
+    expect(label).toBeDefined();
+    expect(label).toBe((tooltip?.props as { content?: { $?: string } } | undefined)?.content?.$);
+  });
+
+  it('branches when it is pressed rather than when it paints', () => {
+    /*
+      A handler array resolves lazily, so the press reads the store as it is then — which is the
+      whole point of a button that survives a call starting and ending underneath it. Choosing at
+      render time would bake in whichever state the pill first drew in.
+    */
+    const onClick = (walk(part()).find((n) => n.type === 'we-button')?.props as { onClick?: unknown })?.onClick;
+    expect(Array.isArray(onClick)).toBe(true);
+    expect(JSON.stringify(onClick)).toContain('modules.call.goToCall');
+    expect(JSON.stringify(onClick)).toContain('modules.call.continueCall');
+  });
+});

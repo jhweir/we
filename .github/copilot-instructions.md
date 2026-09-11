@@ -475,6 +475,7 @@ registers (listed last). Wrong-typed input answers with the empty value of its k
     monthLabel(options?) — The month a calendar is showing, as "August 2026" in the viewer’s language. Same options as calendarMonth.  e.g. monthLabel({ offset: local.monthOffset })
     yearLabel(options?) — The year a calendar is showing, on its own. Same options as calendarMonth.  e.g. yearLabel({ offset: local.monthOffset })
     arrangedBoard(options) — A board worked out from its three subscriptions — { ready, gathers, columns, contents, unplaced, unplacedStates, available, total }. columns are the caller’s own column records in the board’s order; contents[columnId] is { label, icon, color, lane, arranged, unarranged, count }; unplaced is work no column here shows. Options: board (the record with children hydrated), columns (its kind: "column" children), records (everything in scope), states (spaceStore.taskStates).  e.g. arrangedBoard({ board: first(local.board), columns: local.columns, records: local.pool, states: spaceStore.taskStates }).columns
+    formatJson(options) — A JSON string indented for reading, or the text unchanged when it will not parse — which is the case worth showing rather than swallowing. Options: text. For displaying a stored blob (an extraction pass’s prompt and response); a schema has no JSON.stringify of its own.  e.g. formatJson({ text: pass.prompt })
 
 The where-object — one grammar shared by filter(), find(), and $query's where. Keys are field names;
 values may be expressions (in an expression) or tokens (in a $query):
@@ -1073,7 +1074,7 @@ Most @we/primitives also accept Design System Props (see next section for detail
   Props: variant: 'neutral' | 'primary' | 'success' | 'warning' | 'danger' = 'neutral', appearance: 'soft' | 'solid' = 'soft', size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md'
 - we-blockquote (DesignSystemElement)
 - we-button (DesignSystemElement)
-  Props: variant: 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'bare' = 'primary', size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md', text?: string | undefined, label: string = '', href?: string | undefined, disabled: boolean = false, loading: boolean = false, gradient: boolean = false, square: boolean = false
+  Props: variant: 'primary' | 'secondary' | 'ghost' | 'success' | 'danger' | 'outline' | 'bare' = 'primary', size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md', text?: string | undefined, label: string = '', href?: string | undefined, disabled: boolean = false, loading: boolean = false, gradient: boolean = false, square: boolean = false
 - we-checkbox (DesignSystemElement)
   Props: checked: boolean = false, disabled: boolean = false, name: string = '', label: string = '', value: string = '', size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md'
 - we-code (DesignSystemElement)
@@ -1196,7 +1197,7 @@ development only.
 - we-menu (DesignSystemElement) — Vertical list container for menu items inside a popover.
 Not a standalone selector — wrap in we-popover for dropdown behavior.
 - we-menu-group (LayoutElement)
-  Props: collapsible: boolean = false, open: boolean = false, title: string = ''
+  Props: collapsible: boolean = false, open: boolean = false, heading: string = ''
 - we-menu-item (DesignSystemElement) — Single actionable item inside a we-menu.
 Supports selected, active, and danger states.
   Props: selected: boolean = false, active: boolean = false, variant: 'default' | 'danger' = 'default', label: unknown, value: unknown
@@ -1343,12 +1344,12 @@ item is considered.
 - we-text (DesignSystemElement)
   Props: text?: string | undefined, variant: '' | 'body' | 'label' | 'footnote' | 'subheading' | 'ingress' | 'heading-sm' | 'heading-md' | 'heading-lg' | 'heading-xl' = '', tag: 'p' | 'span' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'small' | 'b' | 'i' | 'label' | 'div' = 'span', inline: boolean = false, uppercase: boolean = false, italic: boolean = false, truncate: boolean = false, gradient: string = '', loading: boolean = false, loadingWidth: string = '100%'
 - we-textarea (DesignSystemElement)
-  Props: value: string = '', name: string = '', label: string = '', placeholder: string = '', rows: number = 3, maxlength: unknown = Infinity, minlength: number = 0, disabled: boolean = false, required: boolean = false, readonly: boolean = false, resize: 'none' | 'vertical' | 'horizontal' | 'both' = 'vertical', size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md'
+  Props: value: string = '', name: string = '', label: string = '', placeholder: string = '', rows: number = 3, maxlength: unknown = Infinity, minlength: number = 0, disabled: boolean = false, required: boolean = false, readonly: boolean = false, resize: 'none' | 'vertical' | 'horizontal' | 'both' = 'vertical', autoGrow: boolean = false, maxRows: number = 6, submitOnEnter: boolean = false, size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md'
 - we-timestamp (DesignSystemElement) — Displays a formatted or relative timestamp that self-updates each minute
 when `relative` is enabled.
-  Props: value: string = '', relative: boolean = false, locale: string = 'en', dateStyle: Intl.DateTimeFormatOptions['dateStyle'] | null = null, timeStyle: Intl.DateTimeFormatOptions['timeStyle'] | null = null, weekday: Intl.DateTimeFormatOptions['weekday'] | null = null, year: Intl.DateTimeFormatOptions['year'] | null = null, month: Intl.DateTimeFormatOptions['month'] | null = null, day: Intl.DateTimeFormatOptions['day'] | null = null, hour: Intl.DateTimeFormatOptions['hour'] | null = null, minute: Intl.DateTimeFormatOptions['minute'] | null = null, second: Intl.DateTimeFormatOptions['second'] | null = null, timeZone: string | null = null, hourCycle: Intl.DateTimeFormatOptions['hourCycle'] | null = null, formattedTime: string
+  Props: value: string = '', relative: boolean = false, relativeStyle: Intl.RelativeTimeFormatStyle = 'long', locale: string = 'en', dateStyle: Intl.DateTimeFormatOptions['dateStyle'] | null = null, timeStyle: Intl.DateTimeFormatOptions['timeStyle'] | null = null, weekday: Intl.DateTimeFormatOptions['weekday'] | null = null, year: Intl.DateTimeFormatOptions['year'] | null = null, month: Intl.DateTimeFormatOptions['month'] | null = null, day: Intl.DateTimeFormatOptions['day'] | null = null, hour: Intl.DateTimeFormatOptions['hour'] | null = null, minute: Intl.DateTimeFormatOptions['minute'] | null = null, second: Intl.DateTimeFormatOptions['second'] | null = null, timeZone: string | null = null, hourCycle: Intl.DateTimeFormatOptions['hourCycle'] | null = null, formattedTime: string
 - we-tooltip (LayoutElement)
-  Props: open: boolean = false, title: string = '', placement: 'top' | 'bottom' | 'left' | 'right' | 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end' | 'left-start' | 'left-end' | 'right-start' | 'right-end' = 'top', tooltipEl: HTMLElement, triggerEl: HTMLElement, arrowEl: HTMLElement
+  Props: open: boolean = false, content: string = '', placement: 'top' | 'bottom' | 'left' | 'right' | 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end' | 'left-start' | 'left-end' | 'right-start' | 'right-end' = 'top', tooltipEl: HTMLElement, arrowEl: HTMLElement
 - we-video (LayoutVisualElement)
   Props: src: string = '', poster?: string | undefined, controls: boolean = false, preload: 'none' | 'metadata' | 'auto' = 'metadata', fit: '' | 'cover' | 'contain' | 'fill' | 'none' | 'scale-down' = '', autoplay: boolean = false, loop: boolean = false, muted: boolean = false, playsinline: boolean = false, stream?: MediaStream | null | undefined
 
@@ -2116,6 +2117,7 @@ CollectionBlock extends WeNode:
   - gathers: HasOne [we://gathers]
   - board: HasOne → CollectionBlock [we://board]
   - extractionPasses: HasMany → ExtractionPass [we://extraction_pass_record]
+  - extracted: HasMany [we://extracted]
 
 DividerBlock extends WeNode:
   Fields:
@@ -2147,9 +2149,10 @@ EventBlock extends WeNode:
   - description: string [we://description]
   - startDate: string (required) [we://start_date]
   - endDate: string [we://end_date]
-  - location: string [we://location]
   - allDay: boolean = false [we://all_day]
   - version: number [we://version]
+  Relations:
+  - location: HasOne → LocationBlock [we://location]
 
 FileBlock extends WeNode:
   Fields:
@@ -2179,8 +2182,8 @@ LinkBlock extends WeNode:
 LocationBlock extends WeNode:
   Fields:
   - name: string [we://name]
-  - latitude: number (required) [we://latitude]
-  - longitude: number (required) [we://longitude]
+  - latitude: number [we://latitude]
+  - longitude: number [we://longitude]
   - address: string [we://address]
   - city: string [we://city]
   - countryCode: string [we://country_code]
@@ -2356,6 +2359,7 @@ TextBlock extends WeNode:
   - direction: string [we://direction]
   - text: string [we://text]
   - marks: json [we://marks]
+  - source: string [we://text_source]
   - version: number [we://version]
 
 Topic extends WeNode:
@@ -2384,6 +2388,9 @@ ExtractionPass extends Ad4mModel:
   - recordCount: number [we://record_count]
   - targets: string [we://extraction_targets]
   - error: string [we://error]
+  - trigger: string = 'manual' [we://trigger]
+  - prompt: string [we://prompt]
+  - response: string [we://response]
 
 TypeStyle extends Ad4mModel:
   Fields:
@@ -2586,7 +2593,7 @@ RecordStore:
   - creatableEntities: { label, value, icon, group }[] — models a person can create an instance of here, ready for a we-select: this space's own models first, then WE's built-in content types. A model appears here by declaring `authoring` in the manifest, or by being a shape this community defined
   - recordDraft: the open form's draft ({ entity, label, icon, fields[] }) or null while closed — its non-nullness is what mounts the modal. Each field is { name, label, control, required, options, placeholder, value }, derived from the model's own declaration, so a form exists for a model nobody wrote a form for
   - recordDraftDirty: boolean — the open form holds something worth keeping. What a discard guard reads: the fields come from the model, so a shape this community defined has properties no schema was written against and there is no set of local names an expression could test. Pass it to discardGuard's `dirty`
-  - displays: Record<entity, RecordDisplay> — how to show an instance of each creatable model, keyed by entity name and derived from its declaration: { entity, label, icon, title, summary, media, fields[] }, where title/summary/media name the properties playing those roles ('' when none does) and each field is { name, label, kind, role }. kind is one of text, longText, number, boolean, date, datetime, color, url, image, file, json; role is title, summary, media or detail. Index it by a row's type — { $: 'recordStore.displays[row.type]' } — and render the fields with $each; see "A record of any type" in the patterns
+  - displays: Record<entity, RecordDisplay> — how to show an instance of each creatable model, keyed by entity name and derived from its declaration: { entity, label, icon, title, summary, media, fields[] }, where title/summary/media name the properties playing those roles ('' when none does) and each field is { name, label, kind, role, options }. kind is one of text, longText, number, boolean, date, datetime, color, url, image, file, json; role is title, summary, media or detail. `options` is the values a field is allowed to hold where the model closes the set (a task's status), empty otherwise — count() it to tell a state worth drawing as a we-badge from free text, and map it into a we-select rather than offering a text box that accepts a word the model does not know. Index it by a row's type — { $: 'recordStore.displays[row.type]' } — and render the fields with $each; see "A record of any type" in the patterns
   - recordErrors: string[] — validation errors from the last save attempt, plus any backend failure
   - savingRecord: boolean — a create is in flight
   - lastCreatedId: string — the id of the last record created, empty before the first. Read it to act on what was just made; kept in the store because an $action's onSuccess can read a store and cannot hold a value
@@ -2858,7 +2865,7 @@ SpaceStore:
   - missingModules: string[] — of those, the ones this agent has not installed. Non-empty means the template is mounting a component nothing provides, so part of the page silently renders nothing. Empty in the ordinary case
   - activeModules: string[] — what actually renders here for this agent: registered ∩ installed ∩ enabled, less the modules muted in this space. Module chrome and the launcher rail gate on this; enabledModules alone is not sufficient
   - moduleInstallSettings: { id, name, description, icon, installed, surface, switchable }[] — every registered module and whether this agent wants it anywhere. The global Settings → Modules list, and the only place an 'app' or 'capability' module is decided about: a contribution is gated at the layer where it renders, and only 'chrome' renders inside a space. `surface` is derived from what the module contributes. Its per-space counterpart is `modules` on each spaceList row, which carries enabled/installed/visible/active together and lists chrome modules only
-  - moduleLaunchers: { id, icon, label, active }[] — launchers for the modules enabled here and available in this space; what the host module rail renders. Pair with { $action: "spaceStore.launchModule", args: [{ $: "mod.id" }] }
+  - moduleLaunchers: { id, icon, label, active, busy }[] — launchers for the modules enabled here and available in this space; what the host module rail renders. `active` lights the button while the module reports its surface open; `busy` says the module is working in the background — an extraction pass running — and is independent of `active`, so a rail can show work going on behind a closed panel. Pair with { $action: "spaceStore.launchModule", args: [{ $: "mod.id" }] }
   - spaceViews: ResolvedView[] — this space's sections resolved: which view renders at which segment, in the space's order, each carrying its schema. The host builds the route tree from it; a nav strip reads viewNav, which is this without the payload
   - routableViews: ResolvedView[] — every view that could render here, at its permanent segment — what routes are built from. Separate from spaceViews because it changes when a view is installed, not when a switch is flicked
   - enabledViewIds: string[] — ids of the sections the community has turned on here. What a route body is gated on; not the nav list, which also drops this agent's hidden ones — hiding a section for yourself must not make its URL refuse you
@@ -4364,7 +4371,7 @@ otherwise shove a floating panel down the screen mid-read.
 - For icon-only buttons, nest a `we-icon` child inside `we-button` rather than using a `text` prop with a Unicode character. **Omit the `size` prop on `we-icon` when nesting inside sized primitives** (`we-button`, `we-input`, `we-badge`, `we-textarea`) — these components auto-size nested icons via `--we-context-icon-size` (xs→12px, sm→16px, md→24px, lg→32px, xl→40px). Only set an explicit icon `size` if you need to override the automatic sizing. Example: `{ type: 'we-button', props: { variant: 'ghost', size: 'sm' }, children: [{ type: 'we-icon', props: { name: 'x' } }] }`.
 - NEVER pass a bare number like "16" as a size or dimension prop — it is not valid CSS. Always check the component's declared prop type: if it's a string union, use one of the listed values; if it accepts arbitrary strings, include a CSS unit (e.g. "16px", "2rem").
 - For interactive list items and selectable options, use `we-button` with variant switching (e.g., `secondary` when selected, `ghost` when not) instead of manually styling `Row` with cursor, bg, and onClick. Buttons provide hover, focus, and active states for free.
-- To make a block of content clickable **without any button appearance**, use `we-button` with `variant: 'bare'` — never a `Column`/`Row` with an `onClick`. `bare` is the appearance-free variant: no background, no hover, no padding, no radius, inherited colour — but still a real `<button>`, so it keeps keyboard activation, the `disabled` prop, and the accessibility role that a clickable `Column` silently loses. Do not use `ghost` for this: ghost's hover background is deliberate, and it paints a rectangle over content that supplies its own affordance. Example: `{ type: 'we-button', props: { variant: 'bare', disabled: { $: 'someStore.busy' }, onClick }, children: [{ type: 'Column', props: { gap: '150', ax: 'center' }, children: [...] }] }`.
+- To make a block of content clickable **without any button appearance**, use `we-button` with `variant: 'bare'` — never a `Column`/`Row` with an `onClick`. `bare` is the appearance-free variant: no background, no hover, no padding, no radius, inherited colour — but still a real `<button>`, so it keeps keyboard activation, the `disabled` prop, and the accessibility role that a clickable `Column` silently loses. Do not use `ghost` for this: ghost's hover background is deliberate, and it paints a rectangle over content that supplies its own affordance. Example: `{ type: 'we-button', props: { variant: 'bare', disabled: { $: 'someStore.busy' }, onClick }, children: [{ type: 'Column', props: { gap: '100', ax: 'center' }, children: [...] }] }`.
 - For card-like layouts, compose from `Column` with DS props (bg, r, border, p, gap). This gives full control over spacing and appearance.
 - When rendering lists of similar items (posts, cards, users, etc.), ALWAYS use `$each` with a single template child — never duplicate the same node structure multiple times. Use literal arrays in `items` for static data, or a store read/`$query` for dynamic data.
 

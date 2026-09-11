@@ -117,11 +117,17 @@ export interface TaskCardOptions {
  *
  * A module namespace resolves to nothing where the module is not installed, and a map over nothing
  * is an empty list, so a board on a deployment without extraction marks nothing and asks nothing.
+ *
+ * `pendingIds` rather than the flat `proposals` it used to read. That list is the *live* call's, so
+ * a board showing a past call marked whatever the current one had staged — and after a restart it
+ * marked nothing at all, since nothing fills it until a pass settles or the transcriber adopts a
+ * record. Whether anybody has agreed to a record is a fact about the record, true wherever it is
+ * drawn, which is what this answers.
  */
-export const PENDING = 'modules.transcribe.proposals.map(p, p.id)';
+export const PENDING = 'modules.transcribe.pendingIds';
 
 /** What the proposal on the card in scope says — its staged values, as one line. */
-const proposalSummary = (as: string) => `find(modules.transcribe.proposals, { id: ${as}.id }).summary`;
+const proposalSummary = (as: string) => `find(modules.transcribe.pendingProposals, { id: ${as}.id }).summary`;
 
 /**
  * One task, as a card.
@@ -161,17 +167,21 @@ export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
             props: {
               condition: { $: pending },
               then: {
-                type: 'we-badge',
-                props: {
-                  size: 'xs',
-                  variant: 'warning',
-                  // Solid, as the recording badges are: a soft warning reads as decoration, and this
-                  // is the one thing on the card that asks for a decision.
-                  appearance: 'solid',
-                  flexShrink: '0',
-                  title: 'Extraction proposed this; nobody has agreed to it yet',
-                },
-                children: ['suggested'],
+                type: 'we-tooltip',
+                props: { content: 'Extraction proposed this; nobody has agreed to it yet' },
+                children: [
+                  {
+                    type: 'we-badge',
+                    props: {
+                      size: 'xs',
+                      variant: 'warning',
+                      // Solid, as the recording badges are: a soft warning reads as decoration, and
+                      // this is the one thing on the card that asks for a decision.
+                      appearance: 'solid',
+                    },
+                    children: ['suggested'],
+                  },
+                ],
               },
             },
           },
@@ -248,15 +258,17 @@ export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
             props: {
               condition: { $: `(${opts.showState ?? 'false'}) && ${as}.status` },
               then: {
-                type: 'we-badge',
-                props: {
-                  size: 'xs',
-                  variant: 'neutral',
-                  title: 'The state this work is in — a lane does not change it',
-                },
+                type: 'we-tooltip',
+                props: { content: 'The state this work is in — a lane does not change it' },
                 children: [
                   {
-                    $: `find(spaceStore.taskStates, { slug: ${as}.status }).name ?? ${as}.status`,
+                    type: 'we-badge',
+                    props: { size: 'xs', variant: 'neutral' },
+                    children: [
+                      {
+                        $: `find(spaceStore.taskStates, { slug: ${as}.status }).name ?? ${as}.status`,
+                      },
+                    ],
                   },
                 ],
               },
@@ -287,32 +299,52 @@ export function taskCard(opts: TaskCardOptions = {}): SchemaNode {
                     // else in the app.
                     children: [
                       {
-                        type: 'we-button',
-                        props: {
-                          variant: 'outline',
-                          size: 'xs',
-                          square: true,
-                          r: 'full',
-                          color: 'success-text',
-                          hoverProps: { bg: 'success-surface', borderColor: 'success-text' },
-                          title: 'Keep this',
-                          onClick: { $action: 'modules.transcribe.acceptProposal', args: [{ $: `${as}.id` }] },
-                        },
-                        children: [{ type: 'we-icon', props: { name: 'check', weight: 'bold' } }],
+                        type: 'we-tooltip',
+                        props: { content: 'Keep this' },
+                        children: [
+                          {
+                            type: 'we-button',
+                            props: {
+                              variant: 'outline',
+                              size: 'xs',
+                              square: true,
+                              r: 'full',
+                              label: 'Keep this',
+                              color: 'success-text',
+                              // The fill on hover, not a tint of it — the canvas's own rule for this
+                              // pair, where `on-success` answers for the contrast the moment the
+                              // background stops being the card's. A tint reads as the button
+                              // acknowledging the pointer rather than as the answer it will give.
+                              hoverProps: { bg: 'success', color: 'on-success', borderColor: 'success' },
+                              onClick: { $action: 'modules.transcribe.acceptProposal', args: [{ $: `${as}.id` }] },
+                            },
+                            children: [{ type: 'we-icon', props: { name: 'check', weight: 'bold' } }],
+                          },
+                        ],
                       },
                       {
-                        type: 'we-button',
-                        props: {
-                          variant: 'outline',
-                          size: 'xs',
-                          square: true,
-                          r: 'full',
-                          color: 'danger-text',
-                          hoverProps: { bg: 'danger-surface', borderColor: 'danger-text' },
-                          title: 'Discard this',
-                          onClick: { $action: 'modules.transcribe.rejectProposal', args: [{ $: `${as}.id` }] },
-                        },
-                        children: [{ type: 'we-icon', props: { name: 'x', weight: 'bold' } }],
+                        type: 'we-tooltip',
+                        props: { content: 'Discard this' },
+                        children: [
+                          {
+                            type: 'we-button',
+                            props: {
+                              variant: 'outline',
+                              size: 'xs',
+                              square: true,
+                              r: 'full',
+                              label: 'Discard this',
+                              color: 'danger-text',
+                              // The fill on hover, not a tint of it — the canvas's own rule for this
+                              // pair, where `on-danger` answers for the contrast the moment the
+                              // background stops being the card's. A tint reads as the button
+                              // acknowledging the pointer rather than as the answer it will give.
+                              hoverProps: { bg: 'danger', color: 'on-danger', borderColor: 'danger' },
+                              onClick: { $action: 'modules.transcribe.rejectProposal', args: [{ $: `${as}.id` }] },
+                            },
+                            children: [{ type: 'we-icon', props: { name: 'x', weight: 'bold' } }],
+                          },
+                        ],
                       },
                     ],
                   },
@@ -620,13 +652,18 @@ function column(opts: TaskBoardOptions): SchemaNode {
                       props: {
                         condition: { $: `${CELL}.lane` },
                         then: {
-                          type: 'we-badge',
-                          props: {
-                            size: 'xs',
-                            variant: 'neutral',
-                            title: 'A lane on this board only — dropping a card here changes no state',
-                          },
-                          children: ['lane'],
+                          type: 'we-tooltip',
+                          props: { content: 'A lane on this board only — dropping a card here changes no state' },
+                          children: [
+                            {
+                              type: 'we-badge',
+                              props: {
+                                size: 'xs',
+                                variant: 'neutral',
+                              },
+                              children: ['lane'],
+                            },
+                          ],
                         },
                       },
                     },
@@ -636,15 +673,21 @@ function column(opts: TaskBoardOptions): SchemaNode {
                 props: { variant: 'footnote', color: 'text-muted', ml: 'auto', text: { $: `${CELL}.count` } },
               },
               {
-                type: 'we-button',
-                props: {
-                  variant: 'ghost',
-                  size: 'xs',
-                  square: true,
-                  title: { $: `\`Add a card to \${${CELL}.label}\`` },
-                  onClick: { $setLocal: 'addOpen', value: true },
-                },
-                children: [{ type: 'we-icon', props: { name: 'plus' } }],
+                type: 'we-tooltip',
+                props: { content: { $: `\`Add a card to \${${CELL}.label}\`` } },
+                children: [
+                  {
+                    type: 'we-button',
+                    props: {
+                      label: { $: `\`Add a card to \${${CELL}.label}\`` },
+                      variant: 'ghost',
+                      size: 'xs',
+                      square: true,
+                      onClick: { $setLocal: 'addOpen', value: true },
+                    },
+                    children: [{ type: 'we-icon', props: { name: 'plus' } }],
+                  },
+                ],
               },
               {
                 type: 'DropdownMenu',

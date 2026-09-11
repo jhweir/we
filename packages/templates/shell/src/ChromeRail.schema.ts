@@ -140,6 +140,10 @@ const spaceSection: SchemaNode = {
               // Highlighted while the module reports itself open, which is what makes the rail read
               // as a set of tabs rather than a row of buttons.
               active: { $: 'mod.active' },
+              // A spinner while the module has work running behind the panel — an extraction pass
+              // somebody else started. This replaced a square in the call bar, which only existed
+              // during a call; the rail is where the panel is opened from and outlives the call.
+              busy: { $: 'mod.busy' },
               // The id is passed rather than a path: `$action` resolves a literal string, so a rail
               // iterating over modules cannot build `modules.<id>.<method>` itself.
               onClick: { $action: 'spaceStore.launchModule', args: [{ $: 'mod.id' }] },

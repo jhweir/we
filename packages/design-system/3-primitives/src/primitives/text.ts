@@ -83,6 +83,32 @@ const styles = css`
     min-height: 1lh;
   }
 
+  /*
+    No margin unless something asks for one — the user agent's are not this element's to inherit.
+
+    The --we-text-margin variable was declared below and consumed nowhere, so every we-text rendering a
+    heading or a paragraph carried the browser's own margins instead: an h5 is 1.67em 0, which
+    put 44px of nothing inside a chrome pill that had asked for 8px of padding.
+
+    It went unnoticed because the tag is almost never set — six call sites in the app — and the ones
+    that do sit in scrolling pages where loose headings read as deliberate. The docs meanwhile tell
+    every author to pair a variant with a semantic tag, so this was a trap waiting on whoever did
+    it inside a fixed-height box.
+
+    Zero rather than a reset to something: spacing in this design system belongs to the layout that
+    owns it — the gap on the Column or Row around this — and a margin here would add to that gap
+    rather than replace it, which is the arithmetic DS props exist to avoid.
+  */
+  [part='base'] {
+    margin: var(--we-text-margin, 0);
+  }
+
+  /*
+    Prose keeps the space under it, for the reader that wants stacked paragraphs rather than a
+    gapped column. Inert today: nothing in the app sets tag=p, so this rule has never applied and
+    does not change anything now — it becomes live the first time somebody writes one, which is
+    worth knowing in a layout that also carries a gap.
+  */
   :host([tag='p']) {
     --we-text-margin: 0 0 1em 0;
   }

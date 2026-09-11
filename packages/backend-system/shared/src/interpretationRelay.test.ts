@@ -76,6 +76,25 @@ describe('mergeActivity', () => {
     expect(rows.get('pass-1')).toMatchObject({ phase: 'done', ids: ['task-1'] });
   });
 
+  it('keeps what a pass was reading and what started it, across every later update', () => {
+    /*
+      The two facts a durable history needs, and the only two that the adapter alone can supply: a
+      pass's collection comes from the map the client keeps, and its trigger from which of the two
+      maps answered. Only the events the adapter stamps carry them — the neighbourhood stream sends
+      none — so a merge that let a later row blank them would leave the settling event, which is the
+      one the history is written from, with nothing to hang the record off.
+    */
+    mergeActivity(rows, activity({ phase: 'queued', collection: 'we://collection/today', trigger: 'auto' }));
+    // Keys present and undefined, which is what a row that has been round-tripped through the relay
+    // looks like — the shape that cost the prompt half its content until `mergeExchange` existed.
+    mergeActivity(rows, activity({ phase: 'done', ids: ['task-1'], collection: undefined, trigger: undefined }));
+    expect(rows.get('pass-1')).toMatchObject({
+      phase: 'done',
+      collection: 'we://collection/today',
+      trigger: 'auto',
+    });
+  });
+
   it('accumulates the prompt and the response, which arrive one phase apart', () => {
     mergeActivity(rows, activity({ phase: 'thinking', llm: { prompt: 'P' } }));
     mergeActivity(rows, activity({ phase: 'writing', llm: { response: 'R' } }));

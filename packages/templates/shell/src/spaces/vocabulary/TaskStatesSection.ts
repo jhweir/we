@@ -218,22 +218,28 @@ const stateRow: SchemaNode = {
       ],
     },
     {
-      /*
+      type: 'we-tooltip',
+      props: { content: { $: "state.retired ? 'Bring this state back' : 'Stop offering this state'" } },
+      children: [
+        {
+          /*
         Withdraw, not delete. By slug, so a default can be withdrawn too: the store adopts it — writes
         the record — as part of the same act, which is the only moment a default becomes one.
       */
-      type: 'we-button',
-      props: {
-        size: 'xs',
-        variant: 'ghost',
-        title: { $: "state.retired ? 'Bring this state back' : 'Stop offering this state'" },
-        onClick: {
-          $action: 'spaceStore.setTaskStateRetired',
-          args: [{ $: 'state.slug' }, { $: '!state.retired' }],
+          type: 'we-button',
+          props: {
+            label: { $: "state.retired ? 'Bring this state back' : 'Stop offering this state'" },
+            size: 'xs',
+            variant: 'ghost',
+            onClick: {
+              $action: 'spaceStore.setTaskStateRetired',
+              args: [{ $: 'state.slug' }, { $: '!state.retired' }],
+            },
+          },
+          children: [
+            { type: 'we-icon', props: { name: { $: "state.retired ? 'arrow-counter-clockwise' : 'eye-slash'" } } },
+          ],
         },
-      },
-      children: [
-        { type: 'we-icon', props: { name: { $: "state.retired ? 'arrow-counter-clockwise' : 'eye-slash'" } } },
       ],
     },
   ],

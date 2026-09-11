@@ -201,6 +201,14 @@ export interface RailButtonOptions {
   tooltip: SchemaProp;
   /** Highlights it, which is what makes a rail of these read as tabs rather than as buttons. */
   active?: SchemaProp;
+  /**
+   * Draws a spinner in place of the icon — something is happening behind this button.
+   *
+   * The one place a rail can say "a pass is running" to somebody who has not opened the panel. In
+   * place of the icon rather than beside it, because a rail button is a square with one glyph in
+   * it and a second object makes the column's width a lie, exactly as a label would.
+   */
+  busy?: SchemaProp;
   /** Action token, or an array of them. */
   onClick?: SchemaProp;
   /** Which side the tooltip opens on. Defaults to `left`, for a right-edge rail. */
@@ -231,7 +239,7 @@ export interface RailButtonOptions {
 export function railButton(opts: RailButtonOptions): SchemaNode {
   return {
     type: 'we-tooltip',
-    props: { title: opts.tooltip, placement: opts.tooltipPlacement ?? 'left' },
+    props: { content: opts.tooltip, placement: opts.tooltipPlacement ?? 'left' },
     children: [
       {
         type: 'we-button',
@@ -240,7 +248,18 @@ export function railButton(opts: RailButtonOptions): SchemaNode {
           variant: expr`${opts.active ?? false} ? 'secondary' : 'ghost'`,
           ...(opts.onClick !== undefined && { onClick: opts.onClick }),
         },
-        children: [{ type: 'we-icon', props: { name: opts.icon } }],
+        children: [
+          opts.busy === undefined
+            ? { type: 'we-icon', props: { name: opts.icon } }
+            : {
+                type: '$if',
+                props: {
+                  condition: opts.busy,
+                  then: { type: 'we-spinner', props: { size: 'xs' } },
+                  else: { type: 'we-icon', props: { name: opts.icon } },
+                },
+              },
+        ],
       },
     ],
   };
@@ -421,16 +440,18 @@ export function railItem(opts: RailItemOptions): SchemaNode {
   // it takes its own trigger, so the alternative is two copies of the button in an $if, and a
   // duplicated subtree is exactly how two call sites drift apart.
   //
-  // `we-tooltip`'s host is inline-flex and shrink-wraps its trigger by default, so without an
-  // explicit width the button's own `width: '100%'` has nothing definite to be 100% of and falls
-  // back to the label's own content width — every item a different width. Giving the tooltip host
-  // itself `width: '100%'` is what the button's 100% then resolves against.
+  /*
+    No width on the tooltip: it generates no box, so the button is the child of whatever contains
+    the pair and its own `width: '100%'` resolves against that.
+
+    It used to need one. While the host was `inline-flex` it shrink-wrapped its trigger, so the
+    button's 100% had nothing definite to be 100% *of* and fell back to the label's content width —
+    every rail item a different width. Giving the wrapper the width was the fix for a wrapper that
+    should not have been in the way; now that it is not, the workaround would be a geometry prop on
+    a boxless element, which does nothing and says so in development.
+  */
   const withTooltip: SchemaNode = opts.tooltip
-    ? {
-        type: 'we-tooltip',
-        props: { title: opts.tooltip, placement: 'right', width: '100%' },
-        children: [button],
-      }
+    ? { type: 'we-tooltip', props: { content: opts.tooltip, placement: 'right' }, children: [button] }
     : button;
 
   /*
@@ -566,7 +587,7 @@ export function railGroup(opts: RailGroupOptions): SchemaNode {
                     condition: isExpanded,
                     then: {
                       type: 'we-tooltip',
-                      props: { title: opts.action.label, placement: 'right' },
+                      props: { content: opts.action.label, placement: 'right' },
                       children: [
                         {
                           type: 'we-button',

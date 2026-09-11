@@ -47,27 +47,34 @@ const rail: SchemaNode = railShell({
   // per device and never travels in a shared link.
   persistKey: 'shell.sidebarExpanded',
   header: {
-    type: 'Column',
-    props: {
-      width: COLLAPSED_WIDTH,
-      height: '80px',
-      flex: '0 0 auto',
-      ax: 'center',
-      ay: 'center',
-      cursor: 'pointer',
-      onClick: { $action: 'shellStore.openShellView', args: ['landing-page'] },
-      title: 'About WE',
-    },
+    // No box of its own — `we-tooltip` is `display: contents`, so the Column below is the flex
+    // child the rail sizes, exactly as it was before the tooltip was wrapped around it.
+    type: 'we-tooltip',
+    props: { content: 'About WE', placement: 'right' },
     children: [
       {
-        type: 'we-image',
+        type: 'Column',
         props: {
-          src: '/we-text.svg',
-          alt: 'WE Logo',
-          width: '38px',
-          height: '38px',
-          gradient: 'var(--we-gradient-primary)',
+          width: COLLAPSED_WIDTH,
+          height: '80px',
+          flex: '0 0 auto',
+          ax: 'center',
+          ay: 'center',
+          cursor: 'pointer',
+          onClick: { $action: 'shellStore.openShellView', args: ['landing-page'] },
         },
+        children: [
+          {
+            type: 'we-image',
+            props: {
+              src: '/we-text.svg',
+              alt: 'WE Logo',
+              width: '38px',
+              height: '38px',
+              gradient: 'var(--we-gradient-primary)',
+            },
+          },
+        ],
       },
     ],
   },

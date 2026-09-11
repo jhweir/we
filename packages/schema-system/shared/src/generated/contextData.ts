@@ -73,7 +73,7 @@ export const contextData: ContextData = {
       ownProps: [
         {
           name: 'variant',
-          type: "'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'bare'",
+          type: "'primary' | 'secondary' | 'ghost' | 'success' | 'danger' | 'outline' | 'bare'",
           optional: false,
           default: "'primary'",
         },
@@ -358,7 +358,7 @@ export const contextData: ContextData = {
       ownProps: [
         { name: 'collapsible', type: 'boolean', optional: false, default: 'false' },
         { name: 'open', type: 'boolean', optional: false, default: 'false' },
-        { name: 'title', type: 'string', optional: false, default: "''" },
+        { name: 'heading', type: 'string', optional: false, default: "''" },
       ],
     },
     {
@@ -663,6 +663,9 @@ export const contextData: ContextData = {
         { name: 'required', type: 'boolean', optional: false, default: 'false' },
         { name: 'readonly', type: 'boolean', optional: false, default: 'false' },
         { name: 'resize', type: "'none' | 'vertical' | 'horizontal' | 'both'", optional: false, default: "'vertical'" },
+        { name: 'autoGrow', type: 'boolean', optional: false, default: 'false' },
+        { name: 'maxRows', type: 'number', optional: false, default: '6' },
+        { name: 'submitOnEnter', type: 'boolean', optional: false, default: 'false' },
         { name: 'size', type: "'xs' | 'sm' | 'md' | 'lg' | 'xl'", optional: false, default: "'md'" },
       ],
     },
@@ -675,6 +678,7 @@ export const contextData: ContextData = {
       ownProps: [
         { name: 'value', type: 'string', optional: false, default: "''" },
         { name: 'relative', type: 'boolean', optional: false, default: 'false' },
+        { name: 'relativeStyle', type: 'Intl.RelativeTimeFormatStyle', optional: false, default: "'long'" },
         { name: 'locale', type: 'string', optional: false, default: "'en'" },
         { name: 'dateStyle', type: "Intl.DateTimeFormatOptions['dateStyle'] | null", optional: false, default: 'null' },
         { name: 'timeStyle', type: "Intl.DateTimeFormatOptions['timeStyle'] | null", optional: false, default: 'null' },
@@ -696,7 +700,7 @@ export const contextData: ContextData = {
       superclass: 'LayoutElement',
       ownProps: [
         { name: 'open', type: 'boolean', optional: false, default: 'false' },
-        { name: 'title', type: 'string', optional: false, default: "''" },
+        { name: 'content', type: 'string', optional: false, default: "''" },
         {
           name: 'placement',
           type: "'top' | 'bottom' | 'left' | 'right' | 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end' | 'left-start' | 'left-end' | 'right-start' | 'right-end'",
@@ -704,7 +708,6 @@ export const contextData: ContextData = {
           default: "'top'",
         },
         { name: 'tooltipEl', type: 'HTMLElement', optional: false },
-        { name: 'triggerEl', type: 'HTMLElement', optional: false },
         { name: 'arrowEl', type: 'HTMLElement', optional: false },
       ],
     },
@@ -1579,6 +1582,7 @@ export const contextData: ContextData = {
           predicate: 'we://extraction_pass_record',
           target: 'ExtractionPass',
         },
+        { name: 'extracted', kind: 'HasMany', predicate: 'we://extracted' },
       ],
     },
     {
@@ -1627,11 +1631,10 @@ export const contextData: ContextData = {
         { name: 'description', type: 'string', predicate: 'we://description', required: false },
         { name: 'startDate', type: 'string', predicate: 'we://start_date', required: true },
         { name: 'endDate', type: 'string', predicate: 'we://end_date', required: false },
-        { name: 'location', type: 'string', predicate: 'we://location', required: false },
         { name: 'allDay', type: 'boolean', predicate: 'we://all_day', required: false, default: 'false' },
         { name: 'version', type: 'number', predicate: 'we://version', required: false },
       ],
-      relations: [],
+      relations: [{ name: 'location', kind: 'HasOne', predicate: 'we://location', target: 'LocationBlock' }],
     },
     {
       name: 'FileBlock',
@@ -1679,8 +1682,8 @@ export const contextData: ContextData = {
       extends: 'WeNode',
       fields: [
         { name: 'name', type: 'string', predicate: 'we://name', required: false },
-        { name: 'latitude', type: 'number', predicate: 'we://latitude', required: true },
-        { name: 'longitude', type: 'number', predicate: 'we://longitude', required: true },
+        { name: 'latitude', type: 'number', predicate: 'we://latitude', required: false },
+        { name: 'longitude', type: 'number', predicate: 'we://longitude', required: false },
         { name: 'address', type: 'string', predicate: 'we://address', required: false },
         { name: 'city', type: 'string', predicate: 'we://city', required: false },
         { name: 'countryCode', type: 'string', predicate: 'we://country_code', required: false },
@@ -1950,6 +1953,7 @@ export const contextData: ContextData = {
         { name: 'direction', type: 'string', predicate: 'we://direction', required: false },
         { name: 'text', type: 'string', predicate: 'we://text', required: false },
         { name: 'marks', type: 'json', predicate: 'we://marks', required: false },
+        { name: 'source', type: 'string', predicate: 'we://text_source', required: false },
         { name: 'version', type: 'number', predicate: 'we://version', required: false },
       ],
       relations: [],
@@ -1991,6 +1995,9 @@ export const contextData: ContextData = {
         { name: 'recordCount', type: 'number', predicate: 'we://record_count', required: false },
         { name: 'targets', type: 'string', predicate: 'we://extraction_targets', required: false },
         { name: 'error', type: 'string', predicate: 'we://error', required: false },
+        { name: 'trigger', type: 'string', predicate: 'we://trigger', required: false, default: "'manual'" },
+        { name: 'prompt', type: 'string', predicate: 'we://prompt', required: false },
+        { name: 'response', type: 'string', predicate: 'we://response', required: false },
       ],
       relations: [],
     },
@@ -2791,7 +2798,7 @@ export const contextData: ContextData = {
         missingModules: { type: 'array' },
         activeModules: { type: 'array' },
         moduleInstallSettings: { type: 'array', properties: ['id', 'name', 'description', 'icon', 'installed'] },
-        moduleLaunchers: { type: 'array', properties: ['id', 'icon', 'label', 'active'] },
+        moduleLaunchers: { type: 'array', properties: ['id', 'icon', 'label', 'active', 'busy'] },
         spaceViews: { type: 'array' },
         routableViews: { type: 'array' },
         enabledViewIds: { type: 'array' },
@@ -3012,6 +3019,12 @@ export const contextData: ContextData = {
       doc: 'A board worked out from its three subscriptions — { ready, gathers, columns, contents, unplaced, unplacedStates, available, total }. columns are the caller’s own column records in the board’s order; contents[columnId] is { label, icon, color, lane, arranged, unarranged, count }; unplaced is work no column here shows. Options: board (the record with children hydrated), columns (its kind: "column" children), records (everything in scope), states (spaceStore.taskStates).',
       example:
         'arrangedBoard({ board: first(local.board), columns: local.columns, records: local.pool, states: spaceStore.taskStates }).columns',
+    },
+    {
+      name: 'formatJson',
+      params: ['options'],
+      doc: 'A JSON string indented for reading, or the text unchanged when it will not parse — which is the case worth showing rather than swallowing. Options: text. For displaying a stored blob (an extraction pass’s prompt and response); a schema has no JSON.stringify of its own.',
+      example: 'formatJson({ text: pass.prompt })',
     },
   ],
 };

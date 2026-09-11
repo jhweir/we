@@ -158,6 +158,12 @@ const COMPONENT_CASCADE: Record<string, ComponentCascade> = {
   textarea: {
     radiusGroup: '--we-theme-input-radius',
     radiusCapGroup: '--we-theme-surface-radius',
+    // As button and badge — `nativePadding` says who writes the rule, not which family this belongs
+    // to, and CSS_STYLES reads this variable directly. `inputPadding`'s own docblock names textarea
+    // as a member of the group; the table simply never said so, so the guard read the CSS as a
+    // copied chain rather than as membership. It is unused for emission and load-bearing as the
+    // statement of belonging.
+    paddingGroup: '--we-theme-input-padding',
     nativePadding: true,
   },
   select: {

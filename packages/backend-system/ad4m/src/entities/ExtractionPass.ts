@@ -20,17 +20,22 @@ import { Ad4mModel, Flag, Model, Property } from '@coasys/ad4m';
  * is indistinguishable from one that found nothing. Both of those are questions somebody asks about
  * a meeting they are reviewing, and the answer was gone.
  *
- * ## Why the prompt and the response are not here
+ * ## The prompt and the response are here, and they are the expensive part
  *
- * They are the most useful thing about a pass and the most expensive to keep. A prompt is the whole
- * transcript, so storing one per pass in a shared neighbourhood means every member replicating a
- * second copy of every conversation — for a payload almost nobody opens. And `shareExtractionDetail`
- * is off by default precisely because the exchange is sensitive: "prompts stay on each person's
- * machine" is a promise this would quietly retract.
+ * They were deliberately left out, and the reasons were good: a prompt is the whole transcript, so
+ * one per pass in a shared neighbourhood means every member replicating a second copy of every
+ * conversation, for a payload almost nobody opens. And `shareExtractionDetail` is off by default
+ * precisely because the exchange is sensitive.
  *
- * So the exchange stays where it is — in the live feed, on the machine that ran the pass, for as
- * long as the session lasts. This is the part that is safe to write down and worth having later: a
- * few short fields per pass, bounded, and true about the call rather than about the model.
+ * They are written anyway, for now, because a log that omits what was actually asked cannot answer
+ * the question people have while this is being built: not "did a pass run" but "why did it decide
+ * *that*". Two things follow from the choice and are worth stating plainly rather than discovering:
+ * every member of the space replicates every prompt, and `shareExtractionDetail` no longer governs
+ * whether the exchange is shared, only whether the *live* readout offers it — which makes that
+ * setting the first thing to revisit if this stays.
+ *
+ * The honest way back is not deletion: gate the write on the same setting, so a space that wants a
+ * complete log says so, and one that does not keeps the promise its setting makes.
  *
  * ## Why it hangs off the call
  *
@@ -84,4 +89,31 @@ export class ExtractionPass extends Ad4mModel {
   /** Why it failed, verbatim from the backend. Empty on any other outcome. */
   @Property({ through: 'we://error' })
   error: string = '';
+
+  /**
+   * What started it — `manual` for a press of Extract now, `auto` for the standing watch.
+   *
+   * The reason there is one history rather than two. Only manual passes were written down at
+   * all, and only automatic ones reached the live feed, so a call read automatically showed
+   * records with no reading behind them and a call read by hand showed the opposite. Recording
+   * both makes the two comparable, and this is the one fact that is lost by making them so.
+   *
+   * `manual` as the default because that is what the only writer wrote before this existed, so
+   * a row from before the flag reads as what it actually was.
+   */
+  @Property({ through: 'we://trigger' })
+  trigger: string = 'manual';
+
+  /**
+   * The prompt the model was given, verbatim. Empty where the executor did not report one.
+   *
+   * The large one. See the note above about what writing it costs and what it retracts — this
+   * is not a field to copy onto another entity without reading that first.
+   */
+  @Property({ through: 'we://prompt' })
+  prompt: string = '';
+
+  /** What the model answered, verbatim. Same rules as {@link prompt}. */
+  @Property({ through: 'we://response' })
+  response: string = '';
 }

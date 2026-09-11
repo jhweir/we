@@ -44,8 +44,8 @@ function names(node: unknown, text: string): boolean {
   if (!node || typeof node !== 'object') return false;
   const record = node as Record<string, unknown>;
   const props = record.props as Record<string, unknown> | undefined;
-  // A tooltip carries `title`; `we-move-handle` names itself with `label`.
-  if (props?.title === text || props?.label === text) return true;
+  // A tooltip carries `content`; `we-move-handle` names itself with `label`.
+  if (props?.content === text || props?.label === text) return true;
   return Object.values(record).some((value) => value && typeof value === 'object' && names(value, text));
 }
 
@@ -60,7 +60,7 @@ function hiddenInFullScreen(node: unknown, text: string, inside = false): boolea
   if (!node || typeof node !== 'object') return false;
   const record = node as Record<string, unknown>;
   const props = record.props as Record<string, unknown> | undefined;
-  if (inside && (props?.title === text || props?.label === text)) return true;
+  if (inside && (props?.content === text || props?.label === text)) return true;
   const within = inside || (record.type === '$if' && Boolean(negatedPath(props?.condition)?.endsWith('.maximised')));
   return Object.values(record).some(
     (value) => value && typeof value === 'object' && hiddenInFullScreen(value, text, within),

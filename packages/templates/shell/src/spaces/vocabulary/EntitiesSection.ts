@@ -47,22 +47,35 @@ const PROPERTY_TYPE_OPTIONS = [
  * focused handle picks the row up, which is the whole reason the handle is focusable at all.
  */
 const dragHandle: SchemaNode = {
-  type: 'div',
-  props: {
-    'data-we-handle': '',
-    tabindex: '0',
-    title: 'Drag to reorder',
-    // Given the height of one control rather than centred on the card: it grips the whole row, and
-    // a property card grows and shrinks as its conditional inputs appear, so a centred handle would
-    // drift up and down as you change a field's type. This keeps it level with the first line.
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      height: 'var(--we-component-height-sm)',
-      cursor: 'grab',
+  /*
+    The tooltip wraps the handle rather than the handle carrying a `title`.
+
+    `data-we-handle` stays on the div: `we-sortable` looks for that attribute among an item's
+    descendants, so putting a wrapper above it changes nothing about which press starts a drag. The
+    tooltip listens on hover and focus and never claims the pointer, so the grab is untouched.
+  */
+  type: 'we-tooltip',
+  props: { content: 'Drag to reorder', placement: 'right' },
+  children: [
+    {
+      type: 'div',
+      props: {
+        'data-we-handle': '',
+        tabindex: '0',
+        // Given the height of one control rather than centred on the card: it grips the whole row,
+        // and a property card grows and shrinks as its conditional inputs appear, so a centred
+        // handle would drift up and down as you change a field's type. This keeps it level with the
+        // first line.
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          height: 'var(--we-component-height-sm)',
+          cursor: 'grab',
+        },
+      },
+      children: [{ type: 'we-icon', props: { size: 'sm', name: 'dots-six-vertical', color: 'text-faint' } }],
     },
-  },
-  children: [{ type: 'we-icon', props: { size: 'sm', name: 'dots-six-vertical', color: 'text-faint' } }],
+  ],
 };
 
 /**
@@ -119,20 +132,26 @@ const memberNameInput: SchemaNode = {
 
 /** Opens and closes a property's detail panel. Caret direction is the only state it shows. */
 const expandToggle: SchemaNode = {
-  type: 'we-button',
-  props: {
-    variant: 'ghost',
-    size: 'sm',
-    square: true,
-    title: 'Show hint, default and options',
-    onClick: { $action: 'shapeStore.toggleMemberExpanded', args: [{ $: 'member.rowId' }] },
-  },
+  type: 'we-tooltip',
+  props: { content: 'Show hint, default and options' },
   children: [
     {
-      type: 'we-icon',
+      type: 'we-button',
       props: {
-        name: { $: "member.rowId in shapeStore.expandedMembers ? 'caret-up' : 'caret-down'" },
+        label: 'Show hint, default and options',
+        variant: 'ghost',
+        size: 'sm',
+        square: true,
+        onClick: { $action: 'shapeStore.toggleMemberExpanded', args: [{ $: 'member.rowId' }] },
       },
+      children: [
+        {
+          type: 'we-icon',
+          props: {
+            name: { $: "member.rowId in shapeStore.expandedMembers ? 'caret-up' : 'caret-down'" },
+          },
+        },
+      ],
     },
   ],
 };
@@ -555,22 +574,27 @@ const generateButton: SchemaNode = {
   props: {
     condition: { $: '!shapeStore.editingShapeId && shapeStore.aiAvailable' },
     then: {
-      type: 'we-button',
-      props: {
-        variant: 'secondary',
-        title: 'Fill in the fields from the name and description — and anything above still left blank',
-        loading: { $: 'shapeStore.generating' },
-        // 'none' is the only state with nothing to work from. A generation that would discard
-        // written rows stays clickable and asks instead — refusing the click outright is what made
-        // the first attempt the only attempt.
-        disabled: { $: "shapeStore.generating || shapeStore.generateIntent == 'none'" },
-        onClick: { $action: 'shapeStore.requestGenerateFields' },
-      },
+      type: 'we-tooltip',
+      props: { content: 'Fill in the fields from the name and description — and anything above still left blank' },
       children: [
-        { type: 'we-icon', props: { name: 'sparkle' } },
         {
-          type: 'we-text',
-          children: [{ $: "shapeStore.generateIntent in ['regenerate', 'replace'] ? 'Regenerate' : 'Generate'" }],
+          type: 'we-button',
+          props: {
+            variant: 'secondary',
+            loading: { $: 'shapeStore.generating' },
+            // 'none' is the only state with nothing to work from. A generation that would discard
+            // written rows stays clickable and asks instead — refusing the click outright is what made
+            // the first attempt the only attempt.
+            disabled: { $: "shapeStore.generating || shapeStore.generateIntent == 'none'" },
+            onClick: { $action: 'shapeStore.requestGenerateFields' },
+          },
+          children: [
+            { type: 'we-icon', props: { name: 'sparkle' } },
+            {
+              type: 'we-text',
+              children: [{ $: "shapeStore.generateIntent in ['regenerate', 'replace'] ? 'Regenerate' : 'Generate'" }],
+            },
+          ],
         },
       ],
     },

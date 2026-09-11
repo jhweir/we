@@ -166,6 +166,7 @@ export function createCallStore(deps: CallStoreDeps) {
     datasets,
     onDispose,
     createEntity,
+    callOnScreen,
   } = deps;
 
   /**
@@ -509,6 +510,21 @@ export function createCallStore(deps: CallStoreDeps) {
    */
   const [callRecord, setCallRecord] = signal<string | null>(null);
 
+  /**
+   * The record this agent picked back up, when the call was continued rather than started.
+   *
+   * Published beside `record` so the transcriber can tell the two apart. A started call's record is
+   * empty until somebody speaks, so it waits for the first utterance before writing into it; a
+   * continued call's record already holds last time's words, and waiting left every surface reading
+   * "nothing has been said" over a transcript that was plainly there. The transcript panel's own
+   * Continue button worked around this by telling the transcriber directly, which the rail's path
+   * could not do — so the two ways into the same call disagreed about whether it had a transcript.
+   *
+   * A plain `let` compared against the signal rather than a flag on `join`, because `join` tears the
+   * previous call down first and teardown clears the record; the comparison is what survives that.
+   */
+  let continuedRecord: string | null = null;
+
   /** Republish the call activity so peers see mute/camera/screen changes. */
   function publishActivity() {
     const id = callId();
@@ -522,6 +538,8 @@ export function createCallStore(deps: CallStoreDeps) {
       // joining peer adopts rather than deriving. Every participant republishes it, so the record
       // survives the starter leaving.
       ...(callRecord() ? { record: callRecord() } : {}),
+      // And whether that record pre-existed the call — see `continuedRecord`.
+      ...(callRecord() && callRecord() === continuedRecord ? { continued: true } : {}),
     });
   }
 
@@ -609,6 +627,8 @@ export function createCallStore(deps: CallStoreDeps) {
   }
 
   async function startCall(anchorNodeId?: string) {
+    // Whatever this makes is new, so nothing about a continued record carries over.
+    continuedRecord = null;
     const uri = datasetUri?.() ?? null;
     if (!uri) {
       setProblem('A call needs a space.');
@@ -686,6 +706,7 @@ export function createCallStore(deps: CallStoreDeps) {
    */
   async function continueCall(recordId: string) {
     if (!recordId) return;
+    continuedRecord = recordId;
     const uri = datasetUri?.() ?? null;
     if (!uri) {
       setProblem('A call needs a space.');
@@ -1450,6 +1471,26 @@ export function createCallStore(deps: CallStoreDeps) {
         const ongoing = liveCalls()[0];
         if (ongoing) {
           void join(ongoing.id, undefined, ongoing.recordId ?? undefined);
+          return;
+        }
+        /*
+          Pick up the call the reader is looking at, rather than opening a fresh one beside it.
+
+          On a template built around one conversation — the workshop's `?call=` — pressing the rail
+          took you *out* of the meeting you were plainly in and started another, which is the one
+          reading of "start a call" nobody wants while a call is on screen. The address is what
+          knows; the host publishes it, because a module has no route access and a value a template
+          sets on a click does not survive the refresh this is most needed after.
+
+          Only in this branch, and that is the safety gate rather than an accident of placement.
+          Continuing a past call *while another is running* tears the live one down and re-points
+          every peer's transcript at the old record, since peers adopt an announced record over
+          their own. Both branches above have already ruled that out: something is running, so
+          "go to the call" can only mean the one that is.
+        */
+        const onScreen = callOnScreen?.();
+        if (onScreen) {
+          void continueCall(onScreen);
           return;
         }
         void startCall();

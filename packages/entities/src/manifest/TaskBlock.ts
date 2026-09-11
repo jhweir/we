@@ -113,6 +113,10 @@ export const TaskBlock: CoreEntityDef = {
         type: 'string',
         predicate: 'we://status',
         options: ['todo', 'doing', 'done'],
+        // And the space's own states are the real list, where a host can resolve one — see
+        // `vocabulary` on the declaration, and `spaceStore.offeredTaskStates`, which is where the
+        // community's `TaskState` records are resolved against these defaults.
+        vocabulary: 'taskState',
         interpretationHint:
           'Exactly one of: "todo", "doing", "done". Use "todo" unless the speaker says work has begun.',
         default: 'todo',

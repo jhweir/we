@@ -1192,7 +1192,7 @@ export function ThemePanel() {
             need one, and a column of forty ⓘ glyphs is noise standing in for an explanation. The
             label is already the thing you point at when you are wondering what it means.
           */}
-            <we-tooltip title={hint} placement="left">
+            <we-tooltip content={hint} placement="left">
               <we-text fontSize="300" color={pinned() ? 'text' : 'text-muted'} cursor="help">
                 {label}
               </we-text>
@@ -1202,7 +1202,7 @@ export function ThemePanel() {
             </we-text>
           </Column>
           <Show when={pinned()}>
-            <we-tooltip title="Back to the parametric default">
+            <we-tooltip content="Back to the parametric default">
               <we-button variant="ghost" size="xs" onClick={() => setRole(role, undefined)}>
                 <we-icon name="arrow-counter-clockwise" />
               </we-button>

@@ -583,7 +583,7 @@ function titleBar(entry: DockEntry): SchemaNode {
 function fitButton(id: string): SchemaNode {
   return {
     type: 'we-tooltip',
-    props: { title: 'Fit to content', placement: 'bottom' },
+    props: { content: 'Fit to content', placement: 'bottom' },
     children: [
       {
         type: 'we-button',
@@ -716,7 +716,7 @@ function collapseButton(id: string): SchemaNode {
     props: {
       // The refusal names the condition rather than the state, as the displace toggle's does: there
       // has to be somewhere for the room to go, and beside it is the only direction it can go.
-      title: {
+      content: {
         $: `${place('canCollapse')} ? (${place('collapsed')} ? 'Unfold' : 'Fold to titlebar') : 'Open a panel beside this one to fold'`,
       },
       placement: 'bottom',
@@ -743,7 +743,7 @@ function displaceButton(id: string): SchemaNode {
   return {
     type: 'we-tooltip',
     props: {
-      title: { $: `${place('canDisplace')} ? 'Push content aside' : 'Snap to an edge to push content aside'` },
+      content: { $: `${place('canDisplace')} ? 'Push content aside' : 'Snap to an edge to push content aside'` },
       placement: 'bottom',
     },
     children: [
@@ -778,7 +778,7 @@ function maximiseButton(id: string): SchemaNode {
   return {
     type: 'we-tooltip',
     props: {
-      title: { $: `${maximised} ? 'Exit full screen' : 'Full screen'` },
+      content: { $: `${maximised} ? 'Exit full screen' : 'Full screen'` },
       placement: 'bottom',
     },
     children: [
@@ -827,7 +827,7 @@ function closeButton(entry: DockEntry): SchemaNode {
 
   return {
     type: 'we-tooltip',
-    props: { title: 'Close', placement: 'bottom' },
+    props: { content: 'Close', placement: 'bottom' },
     children: [
       {
         type: 'we-button',

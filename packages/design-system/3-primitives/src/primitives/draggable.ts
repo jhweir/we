@@ -2,6 +2,7 @@ import { type DragItem, type DragPreview, dragSession, watchPointerDrag } from '
 import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
+import { warnAboutBoxlessLayoutProps } from '../shared/boxless';
 import { LayoutElement } from '../shared/design-system-element';
 
 const CSS_STYLES = css`
@@ -136,6 +137,9 @@ export default class Draggable extends LayoutElement {
   }
 
   firstUpdated() {
+    // The same missing box makes every geometry prop here inert — and silently so, which is the
+    // half nothing was reporting. See `warnAboutBoxlessLayoutProps`.
+    warnAboutBoxlessLayoutProps(this, 'we-draggable');
     // The host has no box (`display: contents`) and so cannot hold focus. The child can, and a
     // keydown on it bubbles here — which is the whole keyboard path. Done for the consumer rather
     // than asked of them, since an unfocusable card is one nobody can gather without a mouse.

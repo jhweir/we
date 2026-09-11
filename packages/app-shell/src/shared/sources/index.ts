@@ -19,6 +19,7 @@
  */
 import { arrangedBoard } from './arrangedBoard';
 import { calendarMonth, calendarMonths, monthLabel, yearLabel } from './calendarMonth';
+import { formatJson } from './formatJson';
 
 export interface HostSource {
   /** The name a template calls. */
@@ -72,6 +73,13 @@ export const hostSources: readonly HostSource[] = [
     example:
       'arrangedBoard({ board: first(local.board), columns: local.columns, records: local.pool, states: spaceStore.taskStates }).columns',
     fn: arrangedBoard,
+  },
+  {
+    name: 'formatJson',
+    params: ['options'],
+    doc: 'A JSON string indented for reading, or the text unchanged when it will not parse — which is the case worth showing rather than swallowing. Options: text. For displaying a stored blob (an extraction pass\u2019s prompt and response); a schema has no JSON.stringify of its own.',
+    example: 'formatJson({ text: pass.prompt })',
+    fn: formatJson,
   },
 ];
 

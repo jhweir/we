@@ -851,6 +851,17 @@ export interface ModuleStoreDeps {
    */
   identities?: ModuleIdentityAccess;
   /** Naming and reaching spaces — for a module whose state can outlive the space on screen. */
+  /**
+   * The call record the address names, when the interface on screen is about one.
+   *
+   * A module cannot work this out for itself: it has no route access, and a template that knows the
+   * answer cannot hand it over durably — a value set on a click is gone after a refresh, which is
+   * exactly when it is wanted. So the host publishes it and this reads through.
+   *
+   * `null` where the address names no call, which is everywhere but a template built around one.
+   */
+  callOnScreen?: () => string | null;
+
   datasets?: ModuleDatasetAccess;
 
   /**
@@ -919,10 +930,44 @@ export interface ModuleStoreDeps {
    * conflict-free by construction, which is what makes a call's participant list safe to build from
    * several agents at once with no coordination.
    *
-   * There is deliberately no general `update` here yet. When one arrives it will need an answer for
-   * concurrent writers, and this covers the add-only cases without pretending to have one.
+   * For scalar fields see {@link updateEntity}, which arrived later and answers the question this
+   * docstring used to leave open — read it before reaching for either.
    */
   linkEntity?: (entity: string, id: string, relation: string, value: string, options?: DatasetTarget) => Promise<void>;
+
+  /**
+   * Change the named scalar fields of a record in the current dataset, leaving the rest.
+   *
+   * ## The concurrent-writer question `linkEntity` deferred
+   *
+   * It asked for an answer before a general update landed. The answer is that there is no new
+   * hazard to answer for: this is the same last-write-wins-per-field write that `record.update`
+   * already performs, and `record.update` is reachable from **any** template in the deployment. A
+   * module store calling it is not a widening of what can happen to a record — it is the same
+   * capability reached from the other side of the data/code line.
+   *
+   * What it does not do is make a *list* safe. Appending by writing the whole array back is the
+   * read-modify-write that loses a concurrent writer's entry, which is exactly why `linkEntity` is
+   * add-one and stays the right call for a to-many relation. Use this for scalars.
+   *
+   * ## Why a module needs it at all
+   *
+   * A schema's `record.update` takes a field bag written as an object literal, so its **keys are
+   * fixed when the template is authored**. That is fine for a form over a known model and useless
+   * for one over a model the community defined this morning: there is no set of literal keys to
+   * write. The host's own answer to that is `recordStore`, which holds the draft in a store and
+   * writes it by name — and a module editing records of an open-ended set of models needs the same
+   * shape, which it cannot have without this.
+   *
+   * Honours `options.dataset` for {@link createEntity}'s reason: a module's work outlives the space
+   * on screen, so "the current dataset" is the wrong default for anything a call started.
+   */
+  updateEntity?: (
+    entity: string,
+    id: string,
+    fields: Record<string, unknown>,
+    options?: DatasetTarget,
+  ) => Promise<void>;
 
   /**
    * This module's own settings, resolved for where the agent is right now.
@@ -936,6 +981,21 @@ export interface ModuleStoreDeps {
    * own default rather than assume the key is there.
    */
   settings?: () => Record<string, boolean | string | number>;
+
+  /**
+   * Say something to the person using the app, outside this module's own surfaces.
+   *
+   * A module had no way to speak at all: everything it wanted to report had to become a store member
+   * and then be rendered by a panel somebody might not have open. That is right for a *state* — a
+   * pass running, a coverage gap — and wrong for the moment a thing fails to start, which is over
+   * before the panel is looked at and clutters it forever afterwards.
+   *
+   * Deliberately narrow. Three tones and a sentence, with no title, no action and no dismissal
+   * handle, because a module that could put a button in front of somebody is a module that can
+   * interrupt them — and what a host's notifications look like, and whether it has any, is the
+   * host's to decide. Absent means nobody is listening, which is the same as every other port here.
+   */
+  notify?: (tone: 'success' | 'warning' | 'error', message: string) => void;
 }
 
 /**
@@ -1093,6 +1153,18 @@ export interface ModuleLauncher {
    * something the button is about.
    */
   activeWhen?: string;
+
+  /**
+   * A store key the host reads to say the module is working in the background — a pass running,
+   * an upload in flight. The rail draws a spinner in place of the icon while it is true.
+   *
+   * Exists because the one signal that "somebody's extraction is running" used to be a square in
+   * the call bar, which only exists during a call and doubled as the control that stops it. The
+   * rail outlives the call and is where the panel is opened from, so it is where the four people in
+   * five who did not start a pass can see one is running without opening anything. Independent of
+   * `activeWhen`: a panel can be shut while its module is busy, and open while it is idle.
+   */
+  busyWhen?: string;
 
   /**
    * A store key the host reads to decide whether to offer the launcher at all. Omit to always offer.

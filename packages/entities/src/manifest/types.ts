@@ -107,6 +107,7 @@ export interface CollectionBlockRecord extends WeNodeRecord {
   gathers?: string;
   board?: CollectionBlockRecord;
   extractionPasses: string[];
+  extracted: string[];
   addChildren(value: string | { id: string }, batch?: string): Promise<unknown>;
   removeChildren(value: string | { id: string }, batch?: string): Promise<unknown>;
   setChildren(values: (string | { id: string })[], batch?: string): Promise<unknown>;
@@ -144,9 +145,10 @@ export interface EventBlockRecord extends WeNodeRecord {
   description: string;
   startDate: string;
   endDate: string;
-  location: string;
   allDay: boolean;
   version: number;
+  location?: LocationBlockRecord;
+  setLocation(value: LocationBlockRecord): Promise<unknown>;
 }
 
 export interface FileBlockRecord extends WeNodeRecord {
@@ -176,8 +178,8 @@ export interface LinkBlockRecord extends WeNodeRecord {
 
 export interface LocationBlockRecord extends WeNodeRecord {
   name: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
   address: string;
   city?: string;
   countryCode?: string;
@@ -357,6 +359,7 @@ export interface TextBlockRecord extends WeNodeRecord {
   direction: string;
   text: string;
   marks: string;
+  source: string;
   version: number;
 }
 
@@ -387,6 +390,9 @@ export interface ExtractionPassRecord extends RecordInstance {
   recordCount: number;
   targets: string;
   error: string;
+  trigger: string;
+  prompt: string;
+  response: string;
 }
 
 export interface TypeStyleRecord extends RecordInstance {

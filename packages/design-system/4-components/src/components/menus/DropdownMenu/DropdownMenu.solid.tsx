@@ -317,7 +317,7 @@ export function DropdownMenu(props: SolidDropdownMenuProps) {
         outermost is the one that has to carry `slot`.
       */}
       <Show when={props.triggerTitle} fallback={trigger('trigger')}>
-        <we-tooltip slot="trigger" title={props.triggerTitle!} placement="bottom">
+        <we-tooltip slot="trigger" content={props.triggerTitle!} placement="bottom">
           {trigger('')}
         </we-tooltip>
       </Show>

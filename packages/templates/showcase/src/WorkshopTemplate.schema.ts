@@ -54,7 +54,19 @@
  *   *joins a call* when there is not one. Placed, never opened.
  */
 import type { RouteSchema, SchemaNode, SchemaProp, TemplateSchema } from '@we/schema-shared';
-import { anchorScope, emptyState, panelHeader, recordFormModal, taskBoard, taskBoardLoading } from '@we/template-kit';
+// `field` and `formModal` through the template kit rather than `@we/schema-kit`: this package
+// depends on the former, which re-exports them, and on the latter not at all.
+import {
+  anchorScope,
+  emptyState,
+  field,
+  formModal,
+  panelHeader,
+  peopleRow,
+  recordFormModal,
+  taskBoard,
+  taskBoardLoading,
+} from '@we/template-kit';
 
 /**
  * The call on screen — **named in the address**, or the one being recorded when it names none.
@@ -197,6 +209,194 @@ const navPath = { $: "`${spaceStore.spacePath}/${nav.segment}?call=${routeStore.
  * that displaces slides the content's centre, and a bar that ignored it would drift off-centre as
  * soon as anything opened.
  */
+/**
+ * What this conversation is called, and who was in it.
+ *
+ * ## Its own pill, beside the switcher rather than inside it
+ *
+ * The obvious home is the bar the route buttons live in, and it is the wrong one: that pill is
+ * content-sized and centred, so a title in it moves Canvas, Tasks and Events sideways every time
+ * somebody renames a call or opens one with a longer name. Nav you cannot build muscle memory for
+ * is worse than nav you have to look at. Two pills of the same family, each sized by its own
+ * contents, and neither disturbs the other.
+ *
+ * Left rather than centred, for the same reason: this one grows with its title, and a centred box
+ * that grows moves at both ends.
+ *
+ * ## Who counts as a participant
+ *
+ * `participants` on the call record — everyone who was *in* the call, whether or not they ever
+ * said anything. The transcribe module writes it for any agent present once the record exists, and
+ * its own note argues why: a transcript showing somebody was there and silent is worth more than
+ * one that quietly looks complete. Not live presence, which is empty for every call being read
+ * back, and not the set of people who spoke, which would drop exactly the attendee a reader is
+ * most likely to have forgotten.
+ *
+ * Read straight off the record as a list of DIDs — the relation is untyped, so it comes back
+ * unhydrated, which is the shape `peopleRow` takes.
+ */
+const callPill: SchemaNode = {
+  type: '$if',
+  props: {
+    // Nothing to name when no call is on screen, and the query below would have no id to ask about.
+    condition: CALL,
+    then: {
+      type: 'Row',
+      props: {
+        gap: '200',
+        ay: 'center',
+        /*
+          Yields to the button beside it rather than pushing it off the edge.
+
+          The pill has a title of unknown length and the button does not, so when the region runs out
+          of room the honest thing to give up is a few characters of a name that is already truncated
+          at 360px. `minWidth: '0'` is the half that is easy to forget: without it a flex item is
+          never asked to be narrower than its content, so the truncation never happens.
+        */
+        minWidth: '0',
+        p: '200',
+        /*
+          The extra inset is on the trailing edge now, not the leading one.
+
+          It was `pl`, from when a title led the pill and a heading wants room from the edge it
+          starts at. A button leads now, and a ghost control carries its own padding — so the inset
+          was added to padding that was already there and pushed the glyph away from the corner it
+          reads from. The roster that ends the pill has no such padding of its own, which is where
+          the room was wanted.
+        */
+        pr: '400',
+        // The theme's control shape, for the switcher's reason — see there.
+        r: 'control',
+        bg: 'surface-raised',
+        border: '1px solid border',
+        shadow: 'lg',
+        // A title can be any length; the pill is chrome and must not span the window.
+        maxWidth: '360px',
+      },
+      /*
+        `when`, because an unresolved operand is *pruned* rather than sent — and pruning widens. A
+        `where` that lost its id would ask for every CollectionBlock in the space and hand back the
+        first one, which is a different call's name shown with confidence.
+      */
+      $queries: {
+        callRecord: {
+          entity: 'CollectionBlock',
+          where: { id: CALL },
+          limit: 1,
+          when: CALL,
+        },
+      },
+      $localState: {
+        editOpen: { type: 'boolean', initial: false },
+        titleDraft: { type: 'string', initial: '' },
+        descriptionDraft: { type: 'string', initial: '' },
+      },
+      children: [
+        /*
+          The way back into the call, before its name.
+
+          It was the transcript panel's, and being there was a category error that read as an
+          asymmetry: two panels sit side by side about this call and only one offered the way into
+          it. Picking a call back up is about the *call*, so it belongs against the call's name — and
+          here it survives both panels being closed, which the panel copy could not.
+
+          At the start rather than at the end because it is the one thing on this pill that is an
+          offer. The pencil and the roster describe the meeting; this changes what you are doing, and
+          a control the eye reaches first is the one to lead with.
+
+          A part rather than a button written out here: the gate, the wording and the refusal while
+          another call runs are the call module's to own, and every other interface that draws a call
+          name gets them with one line. It renders nothing where the call module is off.
+        */
+        { type: '$part', props: { id: 'call.continueCallButton' } },
+        {
+          type: 'we-text',
+          // The name of the thing every other surface is about, so it reads as a heading rather
+          // than as a caption on the chrome around it.
+          props: { variant: 'subheading', tag: 'h5', truncate: true, minWidth: '0' },
+          children: [{ $: "first(local.callRecord).title ? first(local.callRecord).title : 'Call'" }],
+        },
+        {
+          type: 'we-tooltip',
+          props: { content: 'Name this conversation' },
+          children: [
+            {
+              type: 'we-button',
+              props: {
+                label: 'Name this conversation',
+                variant: 'ghost',
+                square: true,
+                color: 'text-faint',
+                /*
+                  Seeded on the press, not at mount: the drafts have to hold what the record says
+                  *now*, and a local declared with an `initial` reads it once — before the query has
+                  answered, on the first frame. The Cards view's own edit button does the same.
+                */
+                onClick: [
+                  { $setLocal: 'titleDraft', value: { $: 'first(local.callRecord).title' } },
+                  { $setLocal: 'descriptionDraft', value: { $: 'first(local.callRecord).description' } },
+                  { $setLocal: 'editOpen', value: true },
+                ],
+              },
+              /*
+                No explicit size, which is the usual rule: a sized primitive sets its nested icon,
+                and a control at the default height gives it 24px.
+
+                It was pinned at 18px on the reasoning that a full-size glyph is heavy beside a
+                heading it belongs to. Tested against the real pill that is simply wrong — at 18px it
+                reads as an afterthought in a 40px box, and the box is the thing the eye aims at. The
+                box stays 40px either way: shrinking the button would take the pill down with it, and
+                the band reserved above is measured from a control at that height.
+              */
+              children: [{ type: 'we-icon', props: { name: 'pencil-simple' } }],
+            },
+          ],
+        },
+        /*
+          No rule between the name and the faces.
+
+          It separated two things that were never going to be confused for each other — a heading and
+          a row of avatars — and in a box this small a vertical rule is a third kind of mark competing
+          with the gap that was already doing the job. The pill reads as one object again without it.
+        */
+        // No `noun`: the pill is chrome and a count beside three faces is a word doing no work. The
+        // roster is on hover, which is where a name belongs when the faces are this small.
+        peopleRow({ items: { $: 'first(local.callRecord).participants' }, dids: true, max: 4, size: 'sm' }),
+        formModal({
+          open: { $: 'local.editOpen' },
+          close: { $setLocal: 'editOpen', value: false },
+          title: 'Name this conversation',
+          size: 'sm',
+          children: [
+            field({ name: 'titleDraft', label: 'Title', placeholder: 'What was this call about?' }),
+            field({
+              name: 'descriptionDraft',
+              label: 'Description',
+              control: 'textarea',
+              placeholder: 'Anything worth remembering about it',
+            }),
+          ],
+          /*
+            Changed, not filled in: the fields arrive holding the record, so a form nobody has
+            touched is already full and a guard testing non-emptiness would fire on every close.
+          */
+          discardWhen: {
+            $: 'local.titleDraft != first(local.callRecord).title || local.descriptionDraft != first(local.callRecord).description',
+          },
+          submit: {
+            $action: 'record.update',
+            args: [
+              'CollectionBlock',
+              CALL,
+              { title: { $: 'local.titleDraft' }, description: { $: 'local.descriptionDraft' } },
+            ],
+          },
+        }),
+      ],
+    },
+  },
+};
+
 const switcher: SchemaNode = {
   type: 'Row',
   props: {
@@ -206,8 +406,20 @@ const switcher: SchemaNode = {
     styles: { transform: 'translateX(calc(-50% + var(--we-chrome-center-x, 0px)))' },
     zIndex: 'sticky',
     gap: '100',
-    p: '100',
-    r: 'pill',
+    p: '200',
+    /*
+      The theme's control shape, not a hardcoded pill.
+
+      `r: 'control'` resolves to `var(--we-theme-control-radius, var(--we-radius-400))` — the same
+      expression the call bar spells out, and its note is where the argument lives: a pinned `pill`
+      left three of the theme's four shape presets working and the fourth indistinguishable from
+      Pill, because a bar that is always round cannot follow a theme set to Sharp. Matching the
+      *controls* rather than deriving a concentric figure is the rule that survives all four, since
+      the padding it would be derived from is not a theme variable and the radius is.
+
+      Unchanged that resolves to 8px, which is a slight round rather than a capsule.
+    */
+    r: 'control',
     bg: 'surface-raised',
     border: '1px solid border',
     shadow: 'lg',
@@ -220,8 +432,9 @@ const switcher: SchemaNode = {
         {
           type: 'we-button',
           props: {
-            size: 'sm',
-            r: 'pill',
+            // `md`, the default control height: these are the template's primary navigation and
+            // were reading as a row of small ornaments over a full-bleed canvas.
+            r: 'control',
             gap: '200',
             variant: { $: "nav.segment in routeStore.segments ? 'secondary' : 'ghost'" },
             onClick: { $action: 'routeStore.navigate', args: [navPath] },
@@ -265,115 +478,167 @@ const switcher: SchemaNode = {
  * Gated on `canCall`, which is "this space can hold a call at all" — a personal space cannot, and an
  * offer to start one there fails at the point of pressing.
  */
-const startCall: SchemaNode = {
+/** A call is running somewhere in this space, whether or not this agent is in it. */
+const A_CALL_IS_RUNNING = 'modules.call.active || count(modules.call.liveCalls)';
+
+/**
+ * Start a call, join the one running here, or go back to your own.
+ *
+ * Takes its size because it is placed twice at two scales: beside the call's name in the corner,
+ * where it stands alone and matches the pill's own controls, and in the calls panel header, where
+ * `panelShell` reserves the height of a small control and a default one would make that header
+ * taller than every other panel's.
+ */
+const startCallButton = (size: 'sm' | 'md'): SchemaNode => ({
   type: '$if',
   props: {
     condition: { $: 'modules.call.canCall' },
     then: {
       type: 'we-button',
       props: {
-        size: 'sm',
+        size,
         gap: '200',
+        // Its words are fixed, so it is the wrong half of the pair to shorten — see `callPill`.
+        flexShrink: '0',
         variant: { $: "modules.call.active ? 'secondary' : 'primary'" },
-        onClick: [{ $action: 'modules.call.goToCall' }, openLiveCall],
+        /*
+          `goToCall` only where there is a call to go to.
+
+          It was the whole of this button, and `goToCall` has a branch that continues the call *in
+          the address* when nothing is running — which is exactly right for the module rail, where it
+          is how you pick up the meeting you are reading, and exactly wrong here. With a call
+          selected in the list below, pressing "New call" reopened the selected one.
+
+          The two other branches are still wanted, which is why this is a narrowing rather than a
+          swap to `startCall`. Somebody already in a call gets taken back to it; somebody who is not,
+          in a space where a call is running, joins that one rather than opening a second beside it.
+          Only the third case starts anything.
+
+          Branched in the handler rather than in the node, so one button is rendered either way and
+          the conditions read the store at the press instead of at the paint that happened to be
+          current when the panel opened.
+        */
+        onClick: [
+          {
+            $if: {
+              condition: { $: A_CALL_IS_RUNNING },
+              then: { $action: 'modules.call.goToCall' },
+              /*
+                `args` explicitly, and the empty string is the point.
+
+                A handler with no `args` does not call the method with none — it forwards the
+                handler's own arguments, so a click passes the PointerEvent as the first parameter.
+                `startCall` takes an optional anchor id, so it received the event and the backend
+                refused the write: "invalid type: map, expected a string". `args: []` does not help
+                either; an empty list reads as "no args given" and forwards the event too.
+
+                `''` is falsy, which is how `startCall` already spells "no anchor" — a call about the
+                space rather than about some node in it.
+              */
+              else: { $action: 'modules.call.startCall', args: [''] },
+            },
+          },
+          openLiveCall,
+        ],
       },
       children: [
         { type: 'we-icon', props: { name: 'phone-call' } },
         {
           type: 'we-text',
-          children: [{ $: "modules.call.active ? 'Go to the call' : 'New call'" }],
+          /*
+            Three words for three acts, because the middle one used to be missing: with a call
+            running that this agent had not joined, the button said "New call" and joined it.
+          */
+          children: [
+            {
+              $: "modules.call.active ? 'Go to the call' : count(modules.call.liveCalls) ? 'Join the call' : 'New call'",
+            },
+          ],
         },
       ],
     },
   },
-};
+});
 
 /**
- * Pick a call up again — and land on the canvas that is about it.
+ * The corner that is about the conversation, and it is always there.
  *
- * This template's three routes are all about `modules.transcribe.collectionId`: the transcript
- * panel, the extraction readout and the canvas all read it. Nothing set it but a call starting, so
- * after a refresh the template was about no call at all and the only way back was to start a new
- * one — a fresh meeting, beside the record of the one you actually wanted.
+ * ## Why it stopped coming and going
  *
- * `resume` is what sets it: it takes a *record* id (not a call id, which names the place calls
- * happen rather than any one of them) and holds it until there is a call to attach it to. Paired
- * with `goToCall`, that is "continue this conversation".
+ * The pill alone lived here, so the whole region appeared when a call was named and vanished when
+ * one was not — which made the one thing people had learned to look at the one thing that was
+ * sometimes missing. Calls had no permanent address on screen at all: the module rail's launcher is
+ * the least discoverable control in the app, the calls panel is a section somebody can close, and
+ * this flickered. A fixed region makes the conversation a *place*, so starting one, seeing the
+ * current one and picking an old one back up all resolve to the same corner.
  *
- * ## The gate, which is the same one `CallsList` arrived at
+ * ## Two children rather than one that swaps
  *
- * Offered only when no call is running — where it continues *this* one — or when this row **is** the
- * running call, where "go to the call" can only mean the one it is attached to. Mid-call on any
- * other row, `goToCall` silently tears down the call you are in and `resume` re-points everybody's
- * live transcript at last month's meeting, since peers adopt an announced record over their own. See
- * the long note in `templates/views/.../CallsList.ts`; this is the second surface with the problem
- * and the reasoning is not repeated here.
+ * The obvious shape is a region that shows the start button *or* the pill. It has a hole, and it is
+ * a bug we had already fixed once: reading a finished call is exactly when somebody wants to start a
+ * fresh one — that is how the reopen bug got noticed — and swapping would mean deselecting first to
+ * reach the button. So both are here, and only one state quietens the button: being *in* a call,
+ * where a second one is refused anyway and the pill's own control already says "go to the call".
  *
- * Absent rather than disabled, for the same reason it is there: a disabled button does not reliably
- * deliver hover to the tooltip that would explain it, so the explanation is the part that goes
- * missing.
+ * ## The pill leads
+ *
+ * When there is a call it is the subject, and the subject holds the left edge; the offer of another
+ * follows it. Which means the button moves as a title grows, and that is the cheaper thing to move —
+ * it is the less-used of the two whenever the pill is there at all.
+ *
+ * The switcher beside this does not move either way: it is centred on the *content*, computed from
+ * the sidebar and dock insets, so a neighbour that changes width is nothing to it.
  */
-const continueCall: SchemaNode = {
-  type: '$if',
+const callChrome: SchemaNode = {
+  type: 'Row',
   props: {
-    condition: {
-      $: 'modules.call.canCall && (!modules.call.active || call.id == modules.call.callRecordId)',
-    },
-    then: {
-      type: 'we-tooltip',
-      props: {
-        title: { $: "modules.call.active ? 'Go to the call' : 'Continue this call and put it on the canvas'" },
-        placement: 'top',
-      },
-      children: [
-        {
-          type: 'we-button',
-          props: {
-            variant: 'ghost',
-            size: 'sm',
-            square: true,
-            /*
-              Branched in the handler rather than around the node, so one button is rendered either
-              way. Handler arrays resolve lazily, so each condition reads the store as it is when the
-              button is pressed rather than as it was when the row painted.
-            */
-            onClick: [
-              {
-                $if: {
-                  condition: { $: 'modules.call.active' },
-                  then: { $action: 'modules.call.goToCall' },
-                },
-              },
-              {
-                $if: {
-                  condition: { $: '!modules.call.active' },
-                  /*
-                    `continueCall`, not `goToCall`. The latter is a *direction* — with nothing
-                    running it starts a fresh call, so pressing continue wrote a second record and
-                    joined that, leaving an empty call in the space and every surface reading
-                    `callRecordId` pointing at it while the transcript went to the record actually
-                    chosen. This names the record, and a call *is* its record, so there is nothing
-                    to create.
+    position: 'fixed',
+    top: '300',
+    /*
+      Beside the content, not over the sidebar.
 
-                    `resume` stays beside it: the transcriber adopts the call's own record through
-                    presence, which is a round trip, and this says the answer immediately.
-                  */
-                  then: [
-                    { $action: 'modules.call.continueCall', args: [{ $: 'call.id' }] },
-                    { $action: 'modules.transcribe.resume', args: [{ $: 'call.id' }] },
-                  ],
-                },
-              },
-              // The point of picking a call: its canvas. Cleared rather than named, for the reason
-              // above — resuming makes this the live call.
-              openLiveCall,
-            ],
-          },
-          children: [{ type: 'we-icon', props: { name: 'phone-call', size: '20px' } }],
-        },
-      ],
-    },
+      `--we-chrome-left` is the shell's published answer for exactly this: the sidebar's width plus
+      whatever any left-hand dock has taken. Chrome that worked it out from the ingredients got it
+      wrong in one arrangement or another every time, which is why the shell computes it once — the
+      switcher beside this reads the same number through `--we-chrome-center-x`, which is a
+      subtraction over it.
+    */
+    left: 'calc(var(--we-chrome-left, 0px) + var(--we-space-300))',
+    zIndex: 'sticky',
+    gap: '200',
+    ay: 'center',
+    /*
+      The pill's own height, held whether or not the pill is there.
+
+      Without it the region is as tall as whatever it happens to contain, so with no call the start
+      button sat at the top of the band while the switcher beside it sat centred in the full height —
+      the two pinned to the same `top` and looking misaligned. Stated as the arithmetic the pill
+      arrives at rather than as a number: a control at the default height, plus the padding above and
+      below it, including whatever a theme adds to control heights.
+    */
+    minHeight:
+      'calc(var(--we-component-height-md) + var(--we-theme-control-height-offset, 0px) + 2 * var(--we-space-200))',
   },
+  children: [
+    callPill,
+    {
+      /*
+        Only where the pill is not — so the corner holds one thing at a time.
+
+        This began as the opposite: both present, on the argument that reading a finished call is
+        exactly when somebody wants to start a fresh one, and a corner that swapped would make that
+        state need a detour. The argument was sound and its premise was not — the calls panel keeps
+        its own start button, and clicking the selected row there deselects it and brings this one
+        straight back. So the detour is a click somebody is already making, and what it buys is a
+        corner that says one thing rather than a button crowding the name of the call beside it.
+
+        `!CALL` rather than `!active`, and it subsumes it: being in a call sets the record `CALL`
+        falls back to, so the pill is there and this is not.
+      */
+      type: '$if',
+      props: { condition: { $: `!(${CALL_EXPR})` }, then: startCallButton('md') },
+    },
+  ],
 };
 
 /**
@@ -613,7 +878,7 @@ const callsPanel: SchemaNode = {
     calls: { entity: 'CollectionBlock', where: { kind: 'call' }, order: { createdAt: 'desc' }, limit: 30 },
   },
   children: [
-    panelHeader({ title: 'Calls', aside: startCall }),
+    panelHeader({ title: 'Calls', aside: startCallButton('sm') }),
     {
       type: '$if',
       props: {
@@ -643,9 +908,27 @@ const callsPanel: SchemaNode = {
                             flex: '1',
                             ax: 'start',
                             gap: '200',
-                            // The whole of choosing: the id goes in the address, and every surface
-                            // follows. Nothing is joined, claimed or written.
-                            onClick: openCall('call.id'),
+                            /*
+                              The whole of choosing: the id goes in the address, and every surface
+                              follows. Nothing is joined, claimed or written.
+
+                              Clicking the row you are already on lets go of it instead — the same
+                              navigation naming no call, which is what every other surface reads as
+                              "the one being recorded, if any". A selected row is the only control
+                              here with nothing to do on a second press, and a list you can only add
+                              to is one you have to leave to undo.
+
+                              `$if` in a handler position, which runs one side when the event fires
+                              rather than choosing at render time — the one place `$if` is a token
+                              rather than a node.
+                            */
+                            onClick: {
+                              $if: {
+                                condition: { $: `call.id == (${CALL_EXPR})` },
+                                then: openLiveCall,
+                                else: openCall('call.id'),
+                              },
+                            },
                           },
                           children: [
                             {
@@ -661,19 +944,43 @@ const callsPanel: SchemaNode = {
                               },
                             },
                             {
-                              type: 'we-timestamp',
-                              // No `truncate`: a timestamp is one short token and the primitive has no such
-                              // prop. It went unnoticed because a panel's node was never walked by the
-                              // validator until sections were.
-                              props: { value: { $: 'call.createdAt' }, relative: true, flex: '1' },
+                              /*
+                                What it was called, and when — in that order, because a list of
+                                meetings told apart only by date is a list you read by elimination.
+
+                                The fallback is the same word the card in the Cards view falls back
+                                to, and for the same reason its edit form has no `required` rule on
+                                the title: clearing a name has to be allowed, and what it returns to
+                                is the plain "Call" it started as.
+                              */
+                              type: 'Column',
+                              props: { flex: '1', minWidth: '0', gap: '0', ax: 'start' },
+                              children: [
+                                {
+                                  type: 'we-text',
+                                  props: { truncate: true, width: '100%', textAlign: 'left' },
+                                  children: [{ $: "call.title ? call.title : 'Call'" }],
+                                },
+                                {
+                                  type: 'we-timestamp',
+                                  // No `truncate`: a timestamp is one short token and the primitive has
+                                  // no such prop. It went unnoticed because a panel's node was never
+                                  // walked by the validator until sections were.
+                                  props: {
+                                    value: { $: 'call.createdAt' },
+                                    relative: true,
+                                    relativeStyle: 'narrow',
+                                    fontSize: '100',
+                                    color: 'text-faint',
+                                  },
+                                },
+                              ],
                             },
                           ],
                         },
-                        // The heavy half — join a call and point the recorder at this record.
-                        continueCall,
                         {
                           type: 'we-tooltip',
-                          props: { title: 'Delete this call', placement: 'top' },
+                          props: { content: 'Delete this call', placement: 'top' },
                           children: [
                             {
                               type: 'we-button',
@@ -758,7 +1065,21 @@ const canvas: SchemaNode = {
         // any points somebody bent it through. Per canvas, like a placement — the same claim shown
         // elsewhere keeps its own shape there.
         routes: 'EdgeRoute',
-        pending: { $: 'modules.transcribe.proposals.map(p, p.id)' },
+        /*
+          Whether anybody has agreed to a record yet — which is a fact about the record, not about
+          the call being looked at.
+
+          It read a flat list that was really the live call's, so after a restart it marked nothing
+          at all and every suggestion came back looking already accepted. Keying it per call fixed
+          that and introduced a smaller version of the same lie: the outgoing call's cards stay on
+          the board for the moment its replacement is being queried, and against the incoming call's
+          list — empty, nothing having fetched it yet — every one of them flashed as settled.
+
+          `pendingIds` is the union, and asks the question the marker actually means. The panel's
+          review list stays keyed, because "which decisions am I being asked for" *is* about a
+          conversation.
+        */
+        pending: { $: 'modules.transcribe.pendingIds' },
       },
     },
     // Nothing opens automatically: a card's own blocks are fragments of it, not more cards.
@@ -1094,21 +1415,27 @@ const canvasRoute: RouteSchema = { path: '/canvas', ...canvasBody };
  * otherwise race to create the same board.
  */
 /**
- * What this route shows when it has no board to show.
+ * What a route shows when it has nothing to be about.
  *
  * Two situations, and they are not the same one: nobody has chosen a call, or this call has not been
- * given a board. Each says its own sentence, and only the second offers an action — so the icon is
- * gradient where there is something to do and flat where there is not, since a dead end that looks
- * like an invitation is worse than one that looks like a dead end.
+ * given whatever the page draws. Each says its own sentence, and only the second offers an action —
+ * so the icon is gradient where there is something to do and flat where there is not, since a dead
+ * end that looks like an invitation is worse than one that looks like a dead end.
+ *
+ * Distinct from `emptyState`, which is the answer to "this list is empty": that sentence is about
+ * content, this one is about the *address*, and a page with no subject has not asked a question yet.
+ * Both routes that hang off a call need it — the tasks list, and now the calendar — so the icon is a
+ * parameter and the shape is shared. Kept local to this template rather than lifted into the kit: it
+ * has two callers in one file, and the extraction threshold is three.
  */
-function tasksGate(message: string, action?: SchemaNode): SchemaNode {
+function callGate(icon: string, message: string, action?: SchemaNode): SchemaNode {
   return {
     type: 'Column',
     props: { width: '100%', ax: 'center', ay: 'center', gap: '400', p: '600' },
     children: [
       {
         type: 'we-icon',
-        props: { name: 'kanban', size: 'xl', ...(action ? { gradient: 'primary' } : { color: 'text-faint' }) },
+        props: { name: icon, size: 'xl', ...(action ? { gradient: 'primary' } : { color: 'text-faint' }) },
       },
       {
         type: 'we-text',
@@ -1192,7 +1519,8 @@ const tasksRoute: RouteSchema = {
                       type: '$if',
                       props: {
                         condition: { $: 'local.callRowLoaded' },
-                        then: tasksGate(
+                        then: callGate(
+                          'kanban',
                           'This call has no board yet. Making one arranges the work it produced — it never moves anything.',
                           {
                             type: 'we-button',
@@ -1207,7 +1535,7 @@ const tasksRoute: RouteSchema = {
                 },
               ],
             },
-            else: tasksGate('Choose a call to see the work it produced.'),
+            else: callGate('kanban', 'Choose a call to see the work it produced.'),
           },
         },
       ],
@@ -1279,10 +1607,25 @@ const eventList: SchemaNode = {
                         {
                           type: '$if',
                           props: {
-                            condition: { $: 'event.location' },
+                            // The place's name, not the place. Hydrated by the `include` on the
+                            // query above; tested on the name rather than the record, since a
+                            // location that has arrived without one has nothing to print.
+                            condition: { $: 'event.location.name' },
                             then: {
-                              type: 'we-text',
-                              props: { variant: 'footnote', color: 'text-muted', text: { $: 'event.location' } },
+                              type: 'Row',
+                              props: { gap: '100', ay: 'center' },
+                              children: [
+                                { type: 'we-icon', props: { size: 'xs', name: 'map-pin', color: 'text-faint' } },
+                                {
+                                  type: 'we-text',
+                                  props: {
+                                    variant: 'footnote',
+                                    color: 'text-muted',
+                                    truncate: true,
+                                    text: { $: 'event.location.name' },
+                                  },
+                                },
+                              ],
                             },
                           },
                         },
@@ -1307,7 +1650,19 @@ const eventList: SchemaNode = {
         },
         else: emptyState({
           icon: 'calendar',
-          label: 'events',
+          /*
+            `message` rather than `label`, because the default sentence is about the wrong subject
+            twice over.
+
+            "This space doesn't have any events." says *space* about a list scoped to one call — the
+            calendar was space-wide once and the phrasing outlived the scoping. And this branch is
+            also what a day with nothing on it shows, where the sentence is wrong a second way: a
+            call with a full month in it says it has no events because a reader clicked a quiet
+            Tuesday. Two situations, so two sentences.
+          */
+          message: {
+            $: "local.day ? 'Nothing on this day.' : 'Nothing from this call yet. Events appear here as the conversation settles on dates.'",
+          },
         }),
       },
     },
@@ -1319,8 +1674,14 @@ const eventList: SchemaNode = {
  *
  * The counterpart to the tasks list, and the same argument: a conversation produces two kinds of
  * commitment, one with a date on it and one without, and neither stops mattering because the meeting
- * ended. So this is every `EventBlock` in the space rather than this call's — the calendar answers
- * "what is coming", which is a question about the community and not about a recording.
+ * ended. So this is one call's events, scoped and gated exactly as the board is — the whole point of
+ * this template being that every surface answers about the call the address names.
+ *
+ * This paragraph used to argue the opposite, that a calendar asks "what is coming" and so belongs to
+ * the community rather than to a recording. That reading is a good one and it has a home: the Events
+ * section, which is unscoped and a click away. What it cannot be is *this* page, sharing a nav strip
+ * and a `?call=` with three surfaces that mean something narrower — the argument survived the
+ * scoping and outlived it by long enough to make an ungated month look deliberate.
  *
  * It replaces the archive of past calls, which the calls panel does better and from every route.
  *
@@ -1348,228 +1709,273 @@ const eventsRoute: RouteSchema = {
     {
       type: 'Column',
       props: { width: '100%', maxWidth: 'var(--we-layout-lg)', gap: '400' },
-      $localState: {
-        // Paging is arithmetic on an offset, so every source reads the same offset and the template
-        // only ever adds to it.
-        monthOffset: { type: 'number', initial: 0 },
-        // The day a reader has picked, as `YYYY-MM-DD`, or empty for the whole month.
-        day: { type: 'string', initial: '' },
-      },
-      $queries: {
-        /*
-          Scoped to the call this workshop is about, exactly as the tasks list is — and for the
-          reason given there: every other surface of this template answers about the call the
-          address names, so a list that quietly widened to the whole space was the odd one out.
-          Unscoped when no call is selected, since a scope whose anchor does not resolve is dropped.
-        */
-        events: { entity: 'EventBlock', scope: anchorScope(CALL), order: { startDate: 'asc' }, limit: 200 },
-      },
       children: [
-        // ── The month, with the way through them either side ──────────────────
         {
-          type: 'Row',
+          type: '$if',
           props: {
-            width: '100%',
-            ay: 'center',
-            gap: '100',
-            bg: 'surface',
-            r: '500',
-            border: '1px solid border',
-            px: '400',
-            py: '300',
-          },
-          children: [
-            {
-              type: 'we-text',
-              props: { variant: 'heading-sm', flex: '1', text: { $: 'monthLabel({ offset: local.monthOffset })' } },
-            },
-            {
-              // Only when it would do something: "Today" on a calendar already showing today is a
-              // button that cannot be pressed to any effect.
-              type: '$if',
-              props: {
-                condition: { $: 'local.monthOffset' },
-                then: {
-                  type: 'we-button',
-                  props: { size: 'sm', variant: 'ghost', onClick: { $setLocal: 'monthOffset', value: 0 } },
-                  children: ['Today'],
+            /*
+              No call, no calendar — the same gate the tasks list keeps, and it was missing here.
+
+              A scope whose anchor does not resolve is DROPPED rather than refused, and pruning
+              WIDENS: with nothing selected this route quietly asked for every `EventBlock` in the
+              space and drew them all, on a page whose every other surface is about one call. Nothing
+              on screen said the reading had changed, which is the failure worth naming — a month full
+              of somebody else's meetings looks exactly like a month full of this call's.
+
+              The gate is outside the node that declares the query, so the question is never asked
+              rather than asked and discarded. The space-wide reading is not lost: it is the Events
+              section, a click away and unscoped, exactly as the space-wide board is.
+            */
+            condition: CALL,
+            then: {
+              type: 'Column',
+              props: { width: '100%', gap: '400' },
+              $localState: {
+                // Paging is arithmetic on an offset, so every source reads the same offset and the template
+                // only ever adds to it.
+                monthOffset: { type: 'number', initial: 0 },
+                // The day a reader has picked, as `YYYY-MM-DD`, or empty for the whole month.
+                day: { type: 'string', initial: '' },
+              },
+              $queries: {
+                /*
+                  Scoped to the call this workshop is about, exactly as the tasks list is — and for the
+                  reason given there: every other surface of this template answers about the call the
+                  address names, so a list that quietly widened to the whole space was the odd one out.
+                  The `$if` above is what makes the scope trustworthy: an anchor that does not resolve is
+                  dropped rather than refused, so without the gate this read the whole space.
+
+                  `include` on the place, because it is a record now rather than a word. `location` was a
+                  string and is a `HasOne → LocationBlock`, so the row below reads `event.location.name`.
+                  Without hydrating it the relation arrives as a URI and the row would print nothing at
+                  all — the silent half of that change, and the reason the query moved rather than only
+                  the row.
+                */
+                events: {
+                  entity: 'EventBlock',
+                  scope: anchorScope(CALL),
+                  order: { startDate: 'asc' },
+                  limit: 200,
+                  include: { location: true },
                 },
               },
-            },
-            {
-              type: 'we-button',
-              props: {
-                size: 'sm',
-                variant: 'ghost',
-                square: true,
-                onClick: { $setLocal: 'monthOffset', value: { $: 'local.monthOffset - 1' } },
-              },
-              children: [{ type: 'we-icon', props: { name: 'caret-left' } }],
-            },
-            {
-              type: 'we-button',
-              props: {
-                size: 'sm',
-                variant: 'ghost',
-                square: true,
-                onClick: { $setLocal: 'monthOffset', value: { $: 'local.monthOffset + 1' } },
-              },
-              children: [{ type: 'we-icon', props: { name: 'caret-right' } }],
-            },
-          ],
-        },
-
-        // ── The grid ──────────────────────────────────────────────────────────
-        {
-          type: 'Column',
-          props: {
-            width: '100%',
-            gap: '300',
-            bg: 'surface-sunken',
-            border: '1px solid border',
-            r: '500',
-            p: '400',
-          },
-          children: [
-            {
-              type: 'Row',
-              props: { width: '100%', gap: '100' },
               children: [
+                // ── The month, with the way through them either side ──────────────────
                 {
-                  type: '$each',
-                  props: { items: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'], as: 'weekday' },
+                  type: 'Row',
+                  props: {
+                    width: '100%',
+                    ay: 'center',
+                    gap: '100',
+                    bg: 'surface',
+                    r: '500',
+                    border: '1px solid border',
+                    px: '400',
+                    py: '300',
+                  },
+                  children: [
+                    {
+                      type: 'we-text',
+                      props: {
+                        variant: 'heading-sm',
+                        flex: '1',
+                        text: { $: 'monthLabel({ offset: local.monthOffset })' },
+                      },
+                    },
+                    {
+                      // Only when it would do something: "Today" on a calendar already showing today is a
+                      // button that cannot be pressed to any effect.
+                      type: '$if',
+                      props: {
+                        condition: { $: 'local.monthOffset' },
+                        then: {
+                          type: 'we-button',
+                          props: { size: 'sm', variant: 'ghost', onClick: { $setLocal: 'monthOffset', value: 0 } },
+                          children: ['Today'],
+                        },
+                      },
+                    },
+                    {
+                      type: 'we-button',
+                      props: {
+                        size: 'sm',
+                        variant: 'ghost',
+                        square: true,
+                        onClick: { $setLocal: 'monthOffset', value: { $: 'local.monthOffset - 1' } },
+                      },
+                      children: [{ type: 'we-icon', props: { name: 'caret-left' } }],
+                    },
+                    {
+                      type: 'we-button',
+                      props: {
+                        size: 'sm',
+                        variant: 'ghost',
+                        square: true,
+                        onClick: { $setLocal: 'monthOffset', value: { $: 'local.monthOffset + 1' } },
+                      },
+                      children: [{ type: 'we-icon', props: { name: 'caret-right' } }],
+                    },
+                  ],
+                },
+
+                // ── The grid ──────────────────────────────────────────────────────────
+                {
+                  type: 'Column',
+                  props: {
+                    width: '100%',
+                    gap: '300',
+                    bg: 'surface-sunken',
+                    border: '1px solid border',
+                    r: '500',
+                    p: '400',
+                  },
                   children: [
                     {
                       type: 'Row',
-                      props: { flex: '1', ax: 'center' },
+                      props: { width: '100%', gap: '100' },
                       children: [
-                        {
-                          type: 'we-text',
-                          props: { variant: 'footnote', color: 'text-muted', text: { $: 'weekday' } },
-                        },
-                      ],
-                    },
-                  ],
-                },
-              ],
-            },
-            {
-              type: 'Row',
-              props: { width: '100%', gap: '100', wrap: true },
-              children: [
-                {
-                  type: '$each',
-                  props: { items: { $: 'calendarMonth({ offset: local.monthOffset })' }, as: 'cell' },
-                  children: [
-                    {
-                      type: 'Column',
-                      props: {
-                        // Seven to a row, by width rather than by a grid the schema cannot express.
-                        width: 'calc(14.28% - 6px)',
-                        minHeight: '92px',
-                        gap: '050',
-                        p: '100',
-                        r: '300',
-                        cursor: 'pointer',
-                        overflow: 'hidden',
-                        // A tint and an outline rather than a fill: with titles in the cell, a solid
-                        // fill wins every contrast fight against its own contents.
-                        bg: { $: "cell.date == local.day ? 'accent-muted' : cell.inMonth ? '' : 'page'" },
-                        border: { $: "cell.date == local.day ? '1px solid accent' : '1px solid transparent'" },
-                        hoverProps: { bg: { $: "cell.date == local.day ? 'accent-muted' : 'surface-hover'" } },
-                        // Pressing the selected day again releases it — the first thing anyone tries.
-                        // Inside the handler so it reads the state at click time, not at paint.
-                        onClick: [
-                          {
-                            $if: {
-                              condition: { $: 'cell.date == local.day' },
-                              then: { $setLocal: 'day', value: '' },
-                              else: { $setLocal: 'day', value: { $: 'cell.date' } },
-                            },
-                          },
-                        ],
-                      },
-                      children: [
-                        {
-                          // Today in a filled disc — the one convention people read without being
-                          // taught.
-                          type: 'Row',
-                          props: {
-                            width: '20px',
-                            height: '20px',
-                            ax: 'center',
-                            ay: 'center',
-                            r: 'pill',
-                            bg: { $: "cell.isToday ? 'accent' : ''" },
-                          },
-                          children: [
-                            {
-                              type: 'we-text',
-                              props: {
-                                fontSize: '100',
-                                text: { $: 'cell.day' },
-                                color: { $: "cell.isToday ? 'on-accent' : cell.inMonth ? 'text' : 'text-faint'" },
-                                fontWeight: { $: "cell.isToday ? 'semibold' : ''" },
-                              },
-                            },
-                          ],
-                        },
                         {
                           type: '$each',
-                          props: {
-                            items: { $: 'filter(local.events, { startDate: { startsWith: cell.date } }, 2)' },
-                            as: 'mark',
-                          },
+                          props: { items: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'], as: 'weekday' },
                           children: [
                             {
-                              type: 'we-text',
-                              props: {
-                                width: '100%',
-                                fontSize: '100',
-                                truncate: true,
-                                px: '100',
-                                r: '200',
-                                text: { $: 'mark.title' },
-                                // Faded for the neighbouring months, so a busy 1st of next month
-                                // does not read as part of the month being looked at.
-                                bg: { $: "cell.inMonth ? 'accent-muted' : 'surface-sunken'" },
-                                color: { $: "cell.inMonth ? 'accent-text' : 'text-muted'" },
-                              },
+                              type: 'Row',
+                              props: { flex: '1', ax: 'center' },
+                              children: [
+                                {
+                                  type: 'we-text',
+                                  props: { variant: 'footnote', color: 'text-muted', text: { $: 'weekday' } },
+                                },
+                              ],
                             },
                           ],
                         },
+                      ],
+                    },
+                    {
+                      type: 'Row',
+                      props: { width: '100%', gap: '100', wrap: true },
+                      children: [
                         {
-                          // A third event and beyond, as a count. The two titles above answer "is
-                          // this worth clicking"; a number answers "how much more is there".
-                          type: '$if',
-                          props: {
-                            condition: {
-                              $: 'count(filter(local.events, { startDate: { startsWith: cell.date } })) > 2',
-                            },
-                            then: {
-                              type: 'we-text',
+                          type: '$each',
+                          props: { items: { $: 'calendarMonth({ offset: local.monthOffset })' }, as: 'cell' },
+                          children: [
+                            {
+                              type: 'Column',
                               props: {
-                                variant: 'footnote',
-                                color: 'text-faint',
-                                px: '100',
-                                text: {
-                                  $: '`+${count(filter(local.events, { startDate: { startsWith: cell.date } })) - 2} more`',
-                                },
+                                // Seven to a row, by width rather than by a grid the schema cannot express.
+                                width: 'calc(14.28% - 6px)',
+                                minHeight: '92px',
+                                gap: '050',
+                                p: '100',
+                                r: '300',
+                                cursor: 'pointer',
+                                overflow: 'hidden',
+                                // A tint and an outline rather than a fill: with titles in the cell, a solid
+                                // fill wins every contrast fight against its own contents.
+                                bg: { $: "cell.date == local.day ? 'accent-muted' : cell.inMonth ? '' : 'page'" },
+                                border: { $: "cell.date == local.day ? '1px solid accent' : '1px solid transparent'" },
+                                hoverProps: { bg: { $: "cell.date == local.day ? 'accent-muted' : 'surface-hover'" } },
+                                // Pressing the selected day again releases it — the first thing anyone tries.
+                                // Inside the handler so it reads the state at click time, not at paint.
+                                onClick: [
+                                  {
+                                    $if: {
+                                      condition: { $: 'cell.date == local.day' },
+                                      then: { $setLocal: 'day', value: '' },
+                                      else: { $setLocal: 'day', value: { $: 'cell.date' } },
+                                    },
+                                  },
+                                ],
                               },
+                              children: [
+                                {
+                                  // Today in a filled disc — the one convention people read without being
+                                  // taught.
+                                  type: 'Row',
+                                  props: {
+                                    width: '20px',
+                                    height: '20px',
+                                    ax: 'center',
+                                    ay: 'center',
+                                    r: 'pill',
+                                    bg: { $: "cell.isToday ? 'accent' : ''" },
+                                  },
+                                  children: [
+                                    {
+                                      type: 'we-text',
+                                      props: {
+                                        fontSize: '100',
+                                        text: { $: 'cell.day' },
+                                        color: {
+                                          $: "cell.isToday ? 'on-accent' : cell.inMonth ? 'text' : 'text-faint'",
+                                        },
+                                        fontWeight: { $: "cell.isToday ? 'semibold' : ''" },
+                                      },
+                                    },
+                                  ],
+                                },
+                                {
+                                  type: '$each',
+                                  props: {
+                                    items: { $: 'filter(local.events, { startDate: { startsWith: cell.date } }, 2)' },
+                                    as: 'mark',
+                                  },
+                                  children: [
+                                    {
+                                      type: 'we-text',
+                                      props: {
+                                        width: '100%',
+                                        fontSize: '100',
+                                        truncate: true,
+                                        px: '100',
+                                        r: '200',
+                                        text: { $: 'mark.title' },
+                                        // Faded for the neighbouring months, so a busy 1st of next month
+                                        // does not read as part of the month being looked at.
+                                        bg: { $: "cell.inMonth ? 'accent-muted' : 'surface-sunken'" },
+                                        color: { $: "cell.inMonth ? 'accent-text' : 'text-muted'" },
+                                      },
+                                    },
+                                  ],
+                                },
+                                {
+                                  // A third event and beyond, as a count. The two titles above answer "is
+                                  // this worth clicking"; a number answers "how much more is there".
+                                  type: '$if',
+                                  props: {
+                                    condition: {
+                                      $: 'count(filter(local.events, { startDate: { startsWith: cell.date } })) > 2',
+                                    },
+                                    then: {
+                                      type: 'we-text',
+                                      props: {
+                                        variant: 'footnote',
+                                        color: 'text-faint',
+                                        px: '100',
+                                        text: {
+                                          $: '`+${count(filter(local.events, { startDate: { startsWith: cell.date } })) - 2} more`',
+                                        },
+                                      },
+                                    },
+                                  },
+                                },
+                              ],
                             },
-                          },
+                          ],
                         },
                       ],
                     },
                   ],
                 },
+
+                // ── What is on the chosen day, or what is next ────────────────────────
+                eventList,
               ],
             },
-          ],
+            else: callGate('calendar', 'Choose a call to see the events it produced.'),
+          },
         },
-
-        // ── What is on the chosen day, or what is next ────────────────────────
-        eventList,
       ],
     },
   ],
@@ -1581,13 +1987,34 @@ export const workshopTemplate: TemplateSchema = {
     description: 'A call, its transcript, and what came out of it — as a canvas, a task list and a record.',
     icon: 'compass-tool',
     /*
-      The band the floating switcher occupies, so panels clear it.
+      The band the two floating pills occupy, so panels clear them.
 
-      Its collapsed height, as the contract asks: the bar is a row of `sm` buttons in a padded pill,
-      and it never grows. The width is generous on purpose — over-reporting costs a panel that moves
-      slightly earlier than it had to, and under-reporting puts two things on top of each other.
+      Written as the arithmetic rather than as a number, because it is a number that has already
+      gone stale once: the pills grew from `sm` controls to `md` and this stayed at the old 64,
+      which is four pixels less than they now occupy — so a panel snapped to the top opened
+      underneath the bar it was supposed to clear.
+
+        12   the pills' own offset from the top (`top: '300'`)
+      + 40   the tallest thing in either — a control at the default height
+      + 16   the pill's padding, 8 above and 8 below (`p: '200'`)
+      + 12   clearance, so a panel meets the bar rather than touching it
+      ────
+        80
+
+      Both pills come to the same height, which is not a coincidence: each is a padded row whose
+      tallest child is one control, and that is what makes one band cover both. `top` stacks across
+      every contributor and spans the full width, so the left-hand pill needs no term of its own.
+
+      The width describes the *centred* bar alone — it is what decides whether the module rail has
+      to drop below it, and the rail is a column at top right that a left-hand pill cannot reach.
+      Generous on purpose: over-reporting costs a rail that moves earlier than it had to, and
+      under-reporting puts two things on top of each other.
+
+      Unchanged when the left-hand corner gained a second child. It contributes no width term for the
+      reason above, and the height is still one control in a padded row: the button beside the pill
+      is a `sm` control, which is shorter than the pill's own.
     */
-    chromeReserve: { top: 64, width: 420 },
+    chromeReserve: { top: 80, width: 520 },
     /*
       The layout, and none of it is scoped to a route.
 
@@ -1715,7 +2142,7 @@ export const workshopTemplate: TemplateSchema = {
     clipped (no `overflow` here), and scrolls in that container exactly as before.
   */
   props: { bg: 'page', width: '100%', height: '100%' },
-  children: [switcher, { type: '$routes' }],
+  children: [callChrome, switcher, { type: '$routes' }],
   routes: [
     /*
       Relative, because the parent path this now sits under carries a parameter: an absolute target

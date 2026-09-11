@@ -16,13 +16,34 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import type { TemplatePanel } from '@we/schema-shared';
+import type { SchemaNode, TemplatePanel } from '@we/schema-shared';
 import { describe, expect, it } from 'vitest';
 
 import * as showcase from './index.ts';
 
 /** The workshop's own name for the call on screen — see `CALL_EXPR` in its schema. */
 const CALL_EXPR = 'routeStore.params.call ? routeStore.params.call : modules.call.callRecordId';
+
+type QueryNode = { $queries?: Record<string, unknown> };
+type GateNode = { type?: string; props?: { condition?: { $?: string }; else?: unknown } };
+
+/**
+ * The nodes on the path down to the first one matching, outermost last.
+ *
+ * For asserting that something is *underneath* a guard rather than merely beside it in the same
+ * JSON — the difference between a query that is never asked and one that is asked and discarded,
+ * which a string search cannot tell apart. Walks every object value, so it descends through
+ * `props`, `children`, `then`/`else` and `slots` alike without knowing which is which.
+ */
+function ancestorsOf(root: unknown, matches: (node: unknown) => boolean, trail: unknown[] = []): unknown[] {
+  if (typeof root !== 'object' || root === null) return [];
+  if (matches(root)) return trail;
+  for (const value of Object.values(root)) {
+    const found = ancestorsOf(value, matches, [root, ...trail]);
+    if (found.length) return found;
+  }
+  return [];
+}
 
 type Route = { path: string; redirect?: string; routes?: Route[] };
 type Schema = {
@@ -221,9 +242,82 @@ describe('the workshop template’s call selection', () => {
     // looking at: the transcript and the readout went on showing a finished meeting while a new one
     // was recorded beside them.
     const calls = JSON.stringify(workshop.meta?.panels?.find((panel) => panel.id === 'calls'));
-    const start = calls.slice(calls.indexOf('modules.call.goToCall'));
+    const start = calls.slice(calls.indexOf('modules.call.startCall'));
 
     expect(start).toContain("?call=${''}");
+  });
+
+  it('keeps the call corner on screen whether or not there is a call', () => {
+    /*
+      The pill alone lived here, so the region appeared with a call and vanished without one — which
+      made the corner people had learned to look at the corner that was sometimes missing. Calls had
+      no permanent address on screen at all: the rail's launcher is the least discoverable control in
+      the app, the panel is a section somebody can close, and this flickered.
+
+      Asserted on the root's own children, because "somewhere in the tree" is also true of the pill
+      that used to be mounted there conditionally.
+    */
+    const region = ((workshop as SchemaNode).children as SchemaNode[])[0];
+    expect(region.type).toBe('Row');
+    expect((region.props as { position?: string }).position).toBe('fixed');
+    // The pill is inside it and still conditional; the region around it is not.
+    expect(JSON.stringify(region)).toContain('"condition":{"$":"routeStore.params.call ? routeStore.params.call');
+  });
+
+  it('offers a new call from the corner only when the corner names no call', () => {
+    /*
+      One thing at a time. Both were present for a commit, on the argument that reading a finished
+      call is exactly when somebody wants a fresh one and a corner that swapped would make that state
+      need a detour. The premise was wrong: the calls panel keeps its own start button, and clicking
+      the selected row there deselects it and brings this one straight back — so the detour is a
+      click somebody is already making, and what it buys is a corner that does not crowd the name of
+      the call beside it.
+
+      `!CALL` subsumes "not in a call": being in one sets the record `CALL` falls back to.
+    */
+    const region = JSON.stringify(((workshop as SchemaNode).children as SchemaNode[])[0]);
+
+    expect(region).toContain(
+      '"condition":{"$":"!(routeStore.params.call ? routeStore.params.call : modules.call.callRecordId)"}',
+    );
+    expect(region).toContain('modules.call.startCall');
+    // And the panel's own start button is what makes that trade affordable, so it stays.
+    expect(JSON.stringify(workshop.meta?.panels?.find((panel) => panel.id === 'calls'))).toContain(
+      'modules.call.startCall',
+    );
+  });
+
+  it('gives the left edge to the call, not to the offer of another', () => {
+    // When there is a call it is the subject, so it holds the position that does not move. The
+    // button follows it and shifts as a title grows, which is the cheaper of the two to move.
+    const region = JSON.stringify(((workshop as SchemaNode).children as SchemaNode[])[0]);
+
+    expect(region.indexOf('local.callRecord')).toBeLessThan(region.indexOf('modules.call.startCall'));
+  });
+
+  it('starts a call rather than reopening the one selected in the list', () => {
+    /*
+      The button was the whole of `goToCall`, which has a branch that continues the call *in the
+      address* when nothing is running. That is how the module rail picks up the meeting you are
+      reading, and it is the wrong reading of a button labelled "New call": with a call selected
+      below it, pressing it reopened the selected one.
+
+      Narrowed rather than swapped, because the other two branches are still wanted — back to your
+      own call, or into one already running here instead of opening a second beside it. Only the
+      third case starts anything, and only that case reaches `startCall`.
+    */
+    const calls = JSON.stringify(workshop.meta?.panels?.find((panel) => panel.id === 'calls'));
+
+    expect(calls).toContain('"condition":{"$":"modules.call.active || count(modules.call.liveCalls)"}');
+    /*
+      With `args`, and the empty string carries the whole point. A handler with none does not call
+      the method with none — it forwards the click, and `startCall` takes an optional anchor id, so
+      it was handed a PointerEvent and the backend refused the write. `''` is how `startCall`
+      already spells "no anchor".
+    */
+    expect(calls).toContain('"else":{"$action":"modules.call.startCall","args":[""]}');
+    // And it says which of the three it is about to do. The middle one had no words of its own.
+    expect(calls).toContain("'Join the call'");
   });
 
   it('keeps a calendar where the archive of calls used to be', () => {
@@ -247,6 +341,42 @@ describe('the workshop template’s call selection', () => {
 
     expect(workshop.meta?.panels?.length).toBeGreaterThan(0);
     expect(scoped).toEqual([]);
+  });
+
+  it('asks for no events until a call is chosen, and says why it is empty-handed', () => {
+    /*
+      A scope whose anchor does not resolve is DROPPED rather than refused, and pruning WIDENS — so
+      with nothing selected the calendar asked for every `EventBlock` in the space and drew them
+      all, on a page whose every other surface is about one call, with nothing on screen saying the
+      reading had changed. The tasks list has kept this gate since it was written; the calendar was
+      the one route that never got it.
+
+      Asserted structurally rather than by looking for the sentence: the query must sit BENEATH the
+      `$if`, so it is never asked instead of asked and thrown away. The string spelling of this
+      passed while the query still hung off the route root.
+    */
+    const events = (workshop.routes ?? []).find((route) => route.path === '/events');
+    const gate = ancestorsOf(events, (node) => Boolean((node as QueryNode).$queries?.events)).find(
+      (node) => (node as GateNode).type === '$if',
+    ) as GateNode | undefined;
+
+    expect(gate).toBeDefined();
+    expect(gate?.props?.condition?.$).toBe(CALL_EXPR);
+    expect(JSON.stringify(gate?.props?.else)).toContain('Choose a call to see the events');
+  });
+
+  it('names the call, not the space, when there is nothing on the calendar', () => {
+    /*
+      `emptyState`'s own sentence is "This space doesn't have any events.", which is about the wrong
+      subject twice: the list is scoped to one call, and this branch is also what a day with nothing
+      on it shows — so a call with a full month in it announced that the space held no events
+      because somebody clicked a quiet Tuesday.
+    */
+    const events = JSON.stringify((workshop.routes ?? []).find((route) => route.path === '/events'));
+
+    expect(events).not.toContain("This space doesn't have any events");
+    expect(events).toContain('Nothing on this day.');
+    expect(events).toContain('Nothing from this call yet.');
   });
 
   it('carries the call from page to page in the switcher', () => {
@@ -302,7 +432,7 @@ describe('the workshop template’s call selection', () => {
     */
     const json = JSON.stringify(workshop);
 
-    expect(json).toContain('modules.transcribe.proposals.map(p, p.id)');
+    expect(json).toContain('modules.transcribe.pendingIds');
     /*
       `data.pending`, with the prefix — the thing that was wrong the first time.
 

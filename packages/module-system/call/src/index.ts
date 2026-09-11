@@ -770,7 +770,7 @@ const devPeerControls: SchemaNode = {
     { type: 'we-divider', props: { orientation: 'vertical', height: '26px' } },
     {
       type: 'we-tooltip',
-      props: { title: 'One fewer fake participant', placement: 'bottom' },
+      props: { content: 'One fewer fake participant', placement: 'bottom' },
       children: [
         {
           type: 'we-button',
@@ -789,7 +789,7 @@ const devPeerControls: SchemaNode = {
     },
     {
       type: 'we-tooltip',
-      props: { title: 'Fake participants — development only', placement: 'bottom' },
+      props: { content: 'Fake participants — development only', placement: 'bottom' },
       children: [
         {
           type: 'we-text',
@@ -800,7 +800,7 @@ const devPeerControls: SchemaNode = {
     },
     {
       type: 'we-tooltip',
-      props: { title: 'One more fake participant', placement: 'bottom' },
+      props: { content: 'One more fake participant', placement: 'bottom' },
       children: [
         {
           type: 'we-button',
@@ -848,7 +848,7 @@ function mediaToggle(opts: {
 
   return {
     type: 'we-tooltip',
-    props: { title: toggled(opts.tip.on, opts.tip.off), placement: 'bottom' },
+    props: { content: toggled(opts.tip.on, opts.tip.off), placement: 'bottom' },
     children: [
       {
         type: 'we-button',
@@ -1105,7 +1105,7 @@ const returnToCall: SchemaNode = {
     then: {
       type: 'we-tooltip',
       props: {
-        title: {
+        content: {
           $: "modules.call.callSpace.name ? `Back to the call in ${modules.call.callSpace.name}` : 'Back to the call'",
         },
         placement: 'bottom',
@@ -1208,17 +1208,23 @@ const bar: SchemaNode = {
               ],
             },
             {
-              // Starting a second call beside one already running is a real thing to want — a
-              // breakout, a different subject — and the only control that used to exist for it
-              // joined the call that was already there.
-              type: 'we-button',
-              props: {
-                variant: 'ghost',
-                size: 'sm',
-                title: 'Start another call',
-                onClick: { $action: 'modules.call.startCall' },
-              },
-              children: [{ type: 'we-icon', props: { name: 'plus' } }],
+              type: 'we-tooltip',
+              props: { content: 'Start another call' },
+              children: [
+                {
+                  // Starting a second call beside one already running is a real thing to want — a
+                  // breakout, a different subject — and the only control that used to exist for it
+                  // joined the call that was already there.
+                  type: 'we-button',
+                  props: {
+                    label: 'Start another call',
+                    variant: 'ghost',
+                    size: 'sm',
+                    onClick: { $action: 'modules.call.startCall' },
+                  },
+                  children: [{ type: 'we-icon', props: { name: 'plus' } }],
+                },
+              ],
             },
           ],
         }),
@@ -1366,7 +1372,7 @@ const bar: SchemaNode = {
             participants,
             {
               type: 'we-tooltip',
-              props: { title: 'Leave the call', placement: 'bottom' },
+              props: { content: 'Leave the call', placement: 'bottom' },
               children: [
                 {
                   // Square like the toggles at the other end, being an icon and nothing else.
@@ -1478,6 +1484,166 @@ const anchoredCallButton: SchemaNode = {
   children: [{ type: 'we-icon', props: { name: 'phone-call' } }],
 };
 
+/**
+ * Which call the surface is showing: the one named in the address, else the one running.
+ *
+ * The address alone was wrong, and the way it was wrong is the reason this button used to vanish.
+ * A surface showing a *live* call usually has no `?call=` at all — the parameter is how somebody
+ * opens a meeting that has finished — so reading it alone meant the control disappeared for the
+ * whole of every call, which is the state it now has the most to say in.
+ *
+ * The same fallback every other surface about a call uses, which is what keeps this button talking
+ * about the thing beside it rather than about the address.
+ */
+const CALL_ON_SCREEN = 'routeStore.params.call ? routeStore.params.call : modules.call.callRecordId';
+
+/**
+ * Whether this agent is in the call being shown.
+ *
+ * Compared against the record rather than asking `active`, which is true of *any* call: with a call
+ * running in one meeting and another being read, `active` says yes about the wrong one. This is the
+ * test the calls list already uses to mark its live row, so the two cannot disagree about which row
+ * is red.
+ */
+const IN_THIS_CALL = `modules.call.callRecordId && modules.call.callRecordId == (${CALL_ON_SCREEN})`;
+
+/**
+ * Whether somebody *else* is in the call being looked at.
+ *
+ * The difference between joining a conversation and restarting one, and the only thing separating
+ * two presses that are otherwise identical: `continueCall` derives the call's id from its record, so
+ * arriving at one somebody is already in *is* joining them. What changes is the word for it, and an
+ * offer to "pick up" a meeting three people are sitting in describes the wrong act.
+ */
+const CALL_ON_SCREEN_IS_LIVE = `modules.call.liveCalls.exists(c, c.recordId == (${CALL_ON_SCREEN}))`;
+
+/**
+ * What the press would do, in one sentence — tooltip and accessible name, so the two cannot drift.
+ *
+ * Four states, and the third is the one worth spelling out. A call running somewhere else cannot be
+ * swapped for this one: `continueCall` would tear the live one down and re-point every peer's
+ * transcript at this record. The button says so rather than going quiet, because a control that is
+ * present and refuses with a reason is easier to understand than one that is not there.
+ */
+const CONTINUE_LABEL =
+  `${IN_THIS_CALL} ? 'Go to the call' : ` +
+  `modules.call.active ? 'Leave your current call to pick this one up' : ` +
+  `${CALL_ON_SCREEN_IS_LIVE} ? 'Join this call' : 'Pick this call back up'`;
+
+/**
+ * The way back into a call somebody is reading.
+ *
+ * ## Why the call module owns it rather than a panel
+ *
+ * It lived in the transcript panel's header, and being there was a category error that showed up as
+ * an asymmetry: two panels sit side by side about the same call, and only one of them offered the
+ * way into it. A panel's header control is for the thing that panel *is* about — Transcribe belongs
+ * beside "Transcript" — and picking a call back up is about the call.
+ *
+ * So it is published here, as a part, and whatever draws a call's name places it. That also means it
+ * survives both panels being closed, which the panel copy could not: closing the transcript took the
+ * only visible way back with it and left the module rail, which nobody finds.
+ *
+ * ## It stays put, and changes colour
+ *
+ * It used to be absent whenever a call was running, which made it the only thing on a pill that
+ * came and went — and it went at the moment the pill had the most to say, since a live call is
+ * usually shown with no `?call=` in the address at all.
+ *
+ * So the control is always there while there is a call to be about, and the four things it can mean
+ * are carried by its colour, its label and whether it can be pressed. Red for the call you are in,
+ * which is the calls list's own marker for its live row, tested the same way so the two cannot
+ * disagree. Refused with a reason while a *different* call runs, rather than vanishing: continuing
+ * this one would tear that one down and re-point every peer's transcript at this record, which is
+ * the call store's rule and not a preference. `goToCall` refuses in the same words.
+ *
+ * ## No subject
+ *
+ * Deliberately, where `transcriptFeed` has one. Substitution is whole-token, and every expression
+ * here mentions the record inside a longer sentence — the liveness tests, the colour, the guard — so
+ * a `subject` would rewrite the action and leave all of them talking about the screen. Half a
+ * rewritten sentence is worse than none, and this button has one honest meaning anyway: the call in
+ * front of you.
+ */
+const continueCallButton: SchemaNode = {
+  type: '$if',
+  props: {
+    condition: { $: `modules.call.canCall && (${CALL_ON_SCREEN})` },
+    then: {
+      type: 'we-tooltip',
+      props: { content: { $: CONTINUE_LABEL } },
+      children: [
+        {
+          type: 'we-button',
+          props: {
+            variant: 'ghost',
+            square: true,
+            // Icon-only, so the accessible name has to be said: there is no visible word to serve as
+            // one. The same expression as the tooltip, for the reason `CONTINUE_LABEL` exists.
+            label: { $: CONTINUE_LABEL },
+            /*
+              Present and refused, rather than gone.
+
+              The one state with nothing to offer is a call running somewhere else. Disabling says
+              which control is unavailable and the tooltip says why; removing it says neither, and
+              leaves the pill's leading position to close up and reopen as somebody moves between
+              calls.
+            */
+            disabled: { $: `modules.call.active && !(${IN_THIS_CALL})` },
+            /*
+              Branched when it fires, not when it paints.
+
+              A handler array resolves lazily, so these read the store as it is at the press — which
+              matters here because the whole point is that the button survives a call starting and
+              ending underneath it. Choosing at render time would bake in whichever state the pill
+              first drew in. The calls list branches its own phone button the same way.
+            */
+            onClick: [
+              { $if: { condition: { $: IN_THIS_CALL }, then: { $action: 'modules.call.goToCall' } } },
+              {
+                $if: {
+                  condition: { $: '!modules.call.active' },
+                  then: { $action: 'modules.call.continueCall', args: [{ $: CALL_ON_SCREEN }] },
+                },
+              },
+            ],
+          },
+          /*
+            The default height, and no explicit glyph size — which is the usual rule, and here it is
+            also the answer that was arrived at the long way round.
+
+            It was `size: 'sm'`, a 32px box with a 16px icon, which put it a step below whatever it
+            is placed beside. Then a default box with the glyph pinned at 20px, on the reasoning that
+            a full 24px is for a glyph that *is* the button and would shout beside a heading. Tested
+            in the pill, both are too timid: the box is what the eye aims at, and a glyph that does
+            not fill it reads as an afterthought rather than as a quiet control.
+
+            So the button sizes its own icon, as a sized primitive is meant to. Matching the box
+            matters too where a pill reserves a band measured from a control at that height.
+          */
+          children: [
+            {
+              type: 'we-icon',
+              props: {
+                name: 'phone-call',
+                /*
+                  Red for the call you are in, and the fill role rather than the foreground one.
+
+                  The calls list marks its live row exactly this way, and its note gives the reason:
+                  a live-call marker is a signal rather than a sentence, and the derived foreground
+                  goes pale in a dark theme. Nothing for the other states — the button is an offer,
+                  and a colour on it would be saying something about a call that is not happening.
+                */
+                color: { $: `${IN_THIS_CALL} ? 'danger' : ''` },
+              },
+            },
+          ],
+        },
+      ],
+    },
+  },
+};
+
 /** A bare "start a call here" trigger, for templates that want one in their own chrome. */
 const startCallButton: SchemaNode = {
   type: 'we-button',
@@ -1498,7 +1664,7 @@ export const callModule = defineModule({
   // No `backends`: signalling goes through the ephemeral port, so this runs on anything that
   // implements one. No `frameworks`: every piece of UI here is a fragment.
 
-  schemas: { anchoredCallButton, startCallButton, tile },
+  schemas: { anchoredCallButton, continueCallButton, startCallButton, tile },
 
   // What the transcriber listens to. Declared rather than wired: this module knows it has a
   // microphone open, and only the host knows who else might want to hear it.
@@ -1547,7 +1713,6 @@ export const callModule = defineModule({
     that stayed true would make the bar permanent.
   */
   holdsWhen: 'modules.call.active',
-
   slots: [
     { anchor: 'dock-bottom', node: bar, order: 100 },
     { anchor: 'dock-bottom', node: problem, order: 80 },
@@ -1577,6 +1742,5 @@ export const callModule = defineModule({
   docks: [
     { edge: 'dockEdge', size: 'dockSize', float: 'dockFloat', aspect: 'dockAspect', close: 'closeStage', node: stage },
   ],
-
   createStore: (deps: ModuleStoreDeps) => createCallStore(deps),
 });

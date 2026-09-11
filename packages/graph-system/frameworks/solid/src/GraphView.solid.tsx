@@ -1530,7 +1530,20 @@ export function GraphView(props: GraphViewProps) {
       style={{
         width: props.width ?? '100%',
         height: props.height ?? '100%',
-        background: color(props.bg, 'neutral-0'),
+        /*
+          `page`, the role, not `neutral-0`, the step.
+
+          A graph fills its route, so its ground is the route's ground — and every consumer takes
+          this default, which meant every canvas in the app painted one step off whatever the
+          template around it painted. On the workshop template that put the canvas visibly darker
+          than the tasks and events routes beside it, because a scale position follows the theme's
+          polarity and `neutral-0` is the *darkest* end in a dark theme where `page` is not.
+
+          A step cannot follow what a theme decides a page is, and the contrast corrections at apply
+          time skip it entirely. `role-audit` exists to catch exactly this and structurally cannot
+          see it here: it walks composed schema trees, and this is a component's own style.
+        */
+        background: color(props.bg, 'page'),
       }}
     >
       {/*
@@ -2111,7 +2124,7 @@ export function GraphView(props: GraphViewProps) {
         {(hint) => (
           <we-tooltip
             open
-            title={hint().text}
+            content={hint().text}
             placement="top"
             style={{
               position: 'absolute',

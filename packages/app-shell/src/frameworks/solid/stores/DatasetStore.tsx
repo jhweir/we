@@ -31,6 +31,20 @@ import { useSessionStore } from './SessionStore';
 /** Where a pass hangs off the collection it read — `CollectionBlock.extractionPasses`. */
 const EXTRACTION_PASS_PREDICATE = 'we://extraction_pass_record';
 
+/**
+ * The relation saying a record came out of reading a collection — `CollectionBlock.extracted`.
+ *
+ * Written beside containment rather than instead of it. `children` is ownership, and the call's
+ * board gathers through it, so a record that stopped being a child would vanish from the board it
+ * exists to appear on. This is the other fact about the same record: a model proposed it from the
+ * conversation, rather than somebody typing it there.
+ *
+ * Named here because it is WE's vocabulary. The interpretation port takes the predicate as an
+ * argument for the same reason it takes `parent` as one — a backend that hard-coded it would be
+ * deciding what a relation in somebody else's graph is called.
+ */
+const EXTRACTED_PREDICATE = 'we://extracted';
+
 export type { EntityManifestEntry, EntityManifestProperty } from '@we/backend-shared';
 
 /**
@@ -128,6 +142,27 @@ export interface DatasetStore {
   loadDatasets: () => Promise<void>;
   subscribeToChanges: () => void;
   getDatasetOrder: () => string[];
+  /**
+   * Write down a pass the *standing watch* ran, once it has settled.
+   *
+   * The manual path writes its own, on the way back from a run that returned it everything. A
+   * watched pass has no such moment: it happens inside the executor and is only ever reported, so
+   * the record has to be written by whoever is watching the report — and that is
+   * InterpretationStore, which is the one place subscribed to it.
+   *
+   * Here rather than there because this is where an `ExtractionPass` is written and where a call's
+   * target list is resolved, and neither is worth a second copy. Called only for this agent's own
+   * passes: every peer sees the same event, and a row per peer would be a history of who was
+   * watching rather than of what ran.
+   */
+  recordWatchPass: (pass: {
+    collection: string;
+    outcome: string;
+    recordCount: number;
+    error?: string;
+    prompt?: string;
+    response?: string;
+  }) => Promise<void>;
   /** SpaceStore supplies "does this space want calls interpreted automatically". Unset reads off. */
   provideAutoInterpretGate: (gate: () => boolean) => () => void;
   /**
@@ -250,7 +285,16 @@ export function DatasetStoreProvider(props: ParentProps) {
   async function recordPass(
     handle: DatasetProxy,
     collectionId: string,
-    pass: { outcome: string; recordCount: number; targets: string[]; error?: string },
+    pass: {
+      outcome: string;
+      recordCount: number;
+      targets: string[];
+      error?: string;
+      /** What started it. Defaults to a press, which is what the only writer used to be. */
+      trigger?: 'manual' | 'auto';
+      prompt?: string;
+      response?: string;
+    },
   ): Promise<void> {
     try {
       await ExtractionPass.create(
@@ -260,6 +304,9 @@ export function DatasetStoreProvider(props: ParentProps) {
           recordCount: pass.recordCount,
           targets: JSON.stringify(pass.targets),
           error: pass.error ?? '',
+          trigger: pass.trigger ?? 'manual',
+          prompt: pass.prompt ?? '',
+          response: pass.response ?? '',
         } as never,
         { parent: { id: collectionId, predicate: EXTRACTION_PASS_PREDICATE } } as never,
       );
@@ -377,6 +424,7 @@ export function DatasetStoreProvider(props: ParentProps) {
           const result = await port.interpret(dataset.handle, turns, {
             classes,
             parent: { id: collectionId, predicate },
+            provenance: { id: collectionId, predicate: EXTRACTED_PREDICATE },
           });
           await recordPass(dataset.handle, collectionId, {
             // Nothing to look for is not a failure and not a quiet meeting — it is a call whose
@@ -385,6 +433,10 @@ export function DatasetStoreProvider(props: ParentProps) {
             outcome: classes.length === 0 ? 'skipped' : 'done',
             recordCount: result.ids.length,
             targets: classes,
+            // Handed back by the run rather than found on the progress feed afterwards, so one
+            // write holds the whole pass — see `prompt` on the result.
+            prompt: result.prompt,
+            response: result.response,
           });
           return result;
         } catch (error) {
@@ -482,6 +534,7 @@ export function DatasetStoreProvider(props: ParentProps) {
           watchId: watchIdFor(collectionId),
           classes,
           parent: { id: collectionId, predicate },
+          provenance: { id: collectionId, predicate: EXTRACTED_PREDICATE },
         });
       },
 
@@ -811,13 +864,28 @@ export function DatasetStoreProvider(props: ParentProps) {
     }
   }
 
+  /**
+   * The switch most recently asked for — not the one most recently finished.
+   *
+   * A switch is several round trips long (`hasCoreSchema`, `installModules`, `refreshSpace`), so two
+   * of them overlap routinely: clicking a space runs one, and the route change that follows runs
+   * another. They finish in whatever order the network decides, and the last to finish used to be
+   * the one on screen — so a switch nobody wanted any more could land on top of the one they did,
+   * leaving the sidebar and the URL naming one space and every query reading another.
+   *
+   * Requested rather than started, because that is the question with an answer: "is this still what
+   * the reader asked for". Whichever ask is latest wins, however long it takes to arrive.
+   */
+  let requestedDataset: string | null = null;
+
   async function switchDataset(uuid: string): Promise<void> {
     const lifecycle = session.lifecycle();
     if (!lifecycle) return;
+    requestedDataset = uuid;
 
     try {
       const ref = await lifecycle.get(uuid);
-      if (!ref) return;
+      if (!ref || requestedDataset !== uuid) return;
       const app = toApp(ref);
       const handle = app.handle;
 
@@ -861,6 +929,10 @@ export function DatasetStoreProvider(props: ParentProps) {
         });
         if (written.length) console.info(`DatasetStore: brought space schemas up to date — ${written.join(', ')}`);
       }
+
+      // Everything above is a round trip, and the reader may have asked for somewhere else while
+      // they ran. Publishing now would overwrite a newer switch with an older answer.
+      if (requestedDataset !== uuid) return;
 
       // SDNA is installed — switch immediately so WE templates render. WE model classes
       // are pre-registered at module load; foreign (non-WE) model resolution isn't needed
@@ -947,6 +1019,9 @@ export function DatasetStoreProvider(props: ParentProps) {
     removeDataset,
     updateAgentSettings,
     clearCurrentDataset: () => {
+      // Withdraws any switch still in flight as well — a join gate that had a space arrive behind
+      // it a second later is the same bug `requestedDataset` exists for, pointed the other way.
+      requestedDataset = null;
       setCurrentDataset(null);
       setIsWeSpace(false);
     },
@@ -958,6 +1033,21 @@ export function DatasetStoreProvider(props: ParentProps) {
     loadDatasets,
     subscribeToChanges,
     getDatasetOrder,
+    recordWatchPass: async (pass) => {
+      const dataset = currentDataset();
+      if (!dataset || !pass.collection) return;
+      await recordPass(dataset.handle, pass.collection, {
+        outcome: pass.outcome,
+        recordCount: pass.recordCount,
+        // Resolved here rather than carried on the event: what a call looks for is three layers of
+        // host state, and the executor is told class URIs rather than the model names this stores.
+        targets: targetsForCollection(pass.collection),
+        error: pass.error,
+        trigger: 'auto',
+        prompt: pass.prompt,
+        response: pass.response,
+      });
+    },
     provideAutoInterpretGate: autoInterpretGate.provide,
     provideExtractionCandidates: extractionCandidatesGate.provide,
     provideCallExtraction: callExtraction.provide,

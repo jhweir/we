@@ -52,6 +52,28 @@ export interface ModuleHostServices {
    * on screen, and the second must refuse rather than silently write somewhere else.
    */
   datasetByUri?: (uri: string) => DatasetHandle | undefined;
+  /**
+   * The call record the address names, when the interface on screen is about one.
+   *
+   * ## Why the host answers this and not the module
+   *
+   * A module store has no route access, deliberately — and the answer lives in the address, because
+   * the address is what survives a reload. The template that put it there cannot tell a module
+   * either: a store signal set on a click is empty after a refresh, which is precisely the case
+   * this exists for. So the one thing that reads routes publishes it, once.
+   *
+   * `?call=<recordId>` was already a convention two modules read from their schemas, agreed by
+   * coincidence rather than contract. Naming it here makes it one contract in one place instead of
+   * a string every surface has to spell the same way.
+   *
+   * Specifically a *call* rather than "the record on screen", which was the tempting generalisation
+   * and is a worse one: the reader would have to trust that whatever is named is a call, and a
+   * caller acting on a task id would anchor a meeting to it without complaint.
+   *
+   * Absent, or null, means the address names no call — which is the ordinary case everywhere but a
+   * template built around one.
+   */
+  callOnScreen?: () => string | null;
   selfId?: () => string | null;
   ephemeral?: EphemeralPort;
   presence?: {
@@ -66,6 +88,8 @@ export interface ModuleHostServices {
    * dataset's models. Separate from `interpretation` because the port takes turns and only the host
    * can produce them — see `shared/interpretation/transcriptTurns.ts`.
    */
+  /** Where a module's `notify` lands — a toast, in this host. */
+  notify?: (tone: 'success' | 'warning' | 'error', message: string) => void;
   interpretCollection?: (collectionId: string) => Promise<InterpretationResult>;
   /**
    * The suggestions staged on one collection's contents, published by the same store as
@@ -153,6 +177,13 @@ export interface ModuleHostServices {
   ) => Promise<string | null>;
   /** Add one value to a to-many relation on an existing record. See `ModuleStoreDeps.linkEntity`. */
   linkEntity?: (entity: string, id: string, relation: string, value: string, options?: DatasetTarget) => Promise<void>;
+  /** Change named scalar fields of an existing record. See `ModuleStoreDeps.updateEntity`. */
+  updateEntity?: (
+    entity: string,
+    id: string,
+    fields: Record<string, unknown>,
+    options?: DatasetTarget,
+  ) => Promise<void>;
   /** This agent's own records, in the root dataset. See `AgentDataAccess`. */
   agentData?: AgentDataAccess;
   /** How the current dataset is named in a record reference. See `ModuleStoreDeps.datasetRefKey`. */
@@ -236,8 +267,15 @@ export function createModuleStoreDeps(framework: {
 
     dataset: () => services.dataset?.() ?? null,
     datasetUri: () => services.datasetUri?.() ?? null,
+    // Read through rather than captured, like every accessor here: the address changes under a
+    // module store that outlives every route it is asked about.
+    callOnScreen: () => services.callOnScreen?.() ?? null,
     datasetRefKey: () => services.datasetRefKey?.() ?? '',
     selfId: () => services.selfId?.() ?? null,
+
+    // Forwarded rather than captured, like every accessor here: a module that takes `deps.notify` at
+    // construction still reaches the host's own once one is provided.
+    notify: (tone, message) => services.notify?.(tone, message),
 
     // A stable function that forwards, so a module capturing `deps.ephemeral` at construction still
     // reaches the real port once one exists.
@@ -429,6 +467,10 @@ export function createModuleStoreDeps(framework: {
 
     linkEntity: async (entity, id, relation, value, options) => {
       await services.linkEntity?.(entity, id, relation, value, options);
+    },
+
+    updateEntity: async (entity, id, fields, options) => {
+      await services.updateEntity?.(entity, id, fields, options);
     },
   };
 }

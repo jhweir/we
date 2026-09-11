@@ -2,7 +2,7 @@ import type { EntitySchema } from '@we/backend-shared';
 import { CORE_MANIFEST } from '@we/entities/manifest';
 import { describe, expect, it } from 'vitest';
 
-import { displayFor, kindFor } from '../src/shared/shapes/recordDisplay';
+import { displayFor, kindFor, modelLabel } from '../src/shared/shapes/recordDisplay';
 
 const sighting: EntitySchema = {
   properties: {
@@ -133,5 +133,121 @@ describe('a connection is displayable', () => {
     // the record. `label` is the connection's own name — the string already drawn on the line.
     expect(display.title).toBe('label');
     expect(display.fields.length).toBeGreaterThan(0);
+  });
+});
+
+describe('relations, which a card could not see at all', () => {
+  /*
+    `fields` was built from `properties` alone, so a declared edge to another record was absent from
+    the very thing whose job is to describe how a model is shown — and absent silently: the card
+    rendered nothing rather than rendering wrongly, with no diagnostic anywhere.
+  */
+  const meeting: EntitySchema = {
+    properties: {
+      title: { type: 'string', required: true },
+      startsAt: { type: 'datetime' },
+    },
+    relations: {
+      place: { target: 'LocationBlock', cardinality: 'one' },
+      guests: { target: 'AgentProfile', cardinality: 'many' },
+    },
+  };
+
+  it('lists a relation as a field, naming what it points at', () => {
+    const display = displayFor({ entity: 'Meeting', schema: meeting, authorable: true });
+
+    const place = display.fields.find((f) => f.name === 'place');
+    expect(place?.kind).toBe('relation');
+    expect(place?.target).toBe('LocationBlock');
+    expect(place?.many).toBe(false);
+    expect(place?.role).toBe('detail');
+    expect(place?.label).toBe('Place');
+  });
+
+  it('says which relations hold a list', () => {
+    const display = displayFor({ entity: 'Meeting', schema: meeting, authorable: true });
+
+    expect(display.fields.find((f) => f.name === 'guests')?.many).toBe(true);
+  });
+
+  it('leaves the scalars where the declaration put them and appends what it did not place', () => {
+    // A relation named in neither `display.fields` nor `authoring.fields` has no declared position,
+    // so the stable answer is "after what was ordered" rather than wherever the object happened to
+    // iterate. Scalars keep their order regardless.
+    const display = displayFor({ entity: 'Meeting', schema: meeting, authorable: true });
+
+    expect(display.fields.map((f) => f.name)).toEqual(['title', 'startsAt', 'place', 'guests']);
+  });
+
+  it('gives a scalar field no target to confuse a relation with', () => {
+    const display = displayFor({ entity: 'Meeting', schema: meeting, authorable: true });
+
+    expect(display.fields.find((f) => f.name === 'title')?.target).toBe('');
+  });
+});
+
+describe('an event, as the declaration now describes it', () => {
+  const event = CORE_MANIFEST.entities.EventBlock;
+
+  it('keeps the dedup key and the all-day flag off a card', () => {
+    /*
+      `occurrence`'s own note calls it "a dedup key, not a display value" — it is the title and the
+      date glued together, and it was reaching review cards as a third redundant field. `allDay` is
+      redundant differently: a card draws a midnight time as a bare date, so an all-day event already
+      looks like one. Both stay available to a *form*, which has to set what a card can infer.
+    */
+    const display = displayFor({ entity: 'EventBlock', schema: event, authorable: false });
+
+    expect(display.fields.map((f) => f.name)).not.toContain('occurrence');
+    expect(display.fields.map((f) => f.name)).not.toContain('allDay');
+    expect(event.authoring?.fields).toContain('allDay');
+  });
+
+  it('carries the place as a relation to the model that already holds places', () => {
+    // `we://location` meant a literal here and a `LocationBlock` on `Space` — one predicate, two
+    // shapes, which is the version of predicate sharing that cannot work.
+    expect(event.properties.location).toBeUndefined();
+    expect(event.relations.location).toEqual({
+      target: 'LocationBlock',
+      cardinality: 'one',
+      predicate: 'we://location',
+    });
+
+    const display = displayFor({ entity: 'EventBlock', schema: event, authorable: false });
+    expect(display.fields.find((f) => f.name === 'location')?.target).toBe('LocationBlock');
+  });
+
+  it('lets a place be named without being placed', () => {
+    /*
+      `latitude`/`longitude` were `required` with a `default: 0`, which guaranteed a number was
+      present and never that it meant anything — a location created without coordinates silently
+      claimed Null Island. Optional with no default makes "nobody has placed this yet" sayable, which
+      matters because a model hearing "Bristol" has a name and no coordinates.
+    */
+    const location = CORE_MANIFEST.entities.LocationBlock;
+
+    expect(location.properties.latitude.required).toBeUndefined();
+    expect(location.properties.latitude.default).toBeUndefined();
+    expect(location.properties.longitude.required).toBeUndefined();
+    expect(location.properties.name.identity).toBe(true);
+  });
+});
+
+describe('what a model is called on screen', () => {
+  it('drops the layer word a reader has no use for', () => {
+    // `Block` says which layer of WE a class belongs to. That matters in the codebase and to nobody
+    // reading a card, which announced `EVENTBLOCK` over a trip to Bristol.
+    expect(modelLabel('EventBlock')).toBe('Event');
+    expect(modelLabel('TaskBlock')).toBe('Task');
+  });
+
+  it('leaves a model that is not one alone', () => {
+    expect(modelLabel('Relationship')).toBe('Relationship');
+    expect(modelLabel('Shape')).toBe('Shape');
+  });
+
+  it('humanises a compound name rather than running it together', () => {
+    expect(modelLabel('CollectionBlock')).toBe('Collection');
+    expect(modelLabel('SignalType')).toBe('Signal type');
   });
 });

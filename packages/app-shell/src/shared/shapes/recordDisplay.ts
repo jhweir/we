@@ -30,7 +30,26 @@ import { humanise } from './recordDraft';
  * re-deriving it from type, control, format and options.
  */
 export type DisplayKind =
-  'text' | 'longText' | 'number' | 'boolean' | 'date' | 'datetime' | 'color' | 'url' | 'image' | 'file' | 'json';
+  | 'text'
+  | 'longText'
+  | 'number'
+  | 'boolean'
+  | 'date'
+  | 'datetime'
+  | 'color'
+  | 'url'
+  | 'image'
+  | 'file'
+  | 'json'
+  /**
+   * A link to another record, rather than a value of its own.
+   *
+   * Its own kind because nothing else about a field says "read this through the related instance" —
+   * a card shows the target's name, not a URI, and an editor needs a picker over instances rather
+   * than a text box. {@link DisplayField.target} names the model it points at, which is also where
+   * its icon comes from.
+   */
+  | 'relation';
 
 /** What a field is *for* in the card, beyond how it is drawn. */
 export type DisplayRole = 'title' | 'summary' | 'media' | 'detail';
@@ -41,6 +60,32 @@ export interface DisplayField {
   label: string;
   kind: DisplayKind;
   role: DisplayRole;
+  /**
+   * The values this field is allowed to hold, when the declaration closes the set — a task's
+   * `status`, a signal's `mode`. Empty for an open field.
+   *
+   * {@link kindFor} deliberately answers `'text'` for these, because a closed vocabulary *is* a
+   * string as far as drawing one goes. That is right for rendering and loses the one thing a caller
+   * needs to do anything better: a card cannot tell a state worth drawing as a badge from a free
+   * sentence, and an *edit* control cannot offer the choices — so it offers a text box, and
+   * somebody types "pending" into a field whose model only knows "todo".
+   *
+   * Carried rather than re-derived because the declaration is the only place the set exists, and a
+   * surface rendering a model it was not written for has no other way to ask.
+   */
+  options: string[];
+  /**
+   * For a `relation` field, the model it points at — `'LocationBlock'`. Empty for everything else,
+   * and for a relation declared against no particular type.
+   *
+   * What lets a card draw the *target's* icon beside the field, which is the general answer to
+   * iconography that a name heuristic only ever approximates: a location relation shows a pin
+   * because `LocationBlock` says its icon is a pin, and a community's own model shows whatever icon
+   * that community chose, with nothing written for either.
+   */
+  target: string;
+  /** True for a to-many relation, where the value is a list rather than one record. */
+  many: boolean;
 }
 
 export interface RecordDisplay {
@@ -57,6 +102,25 @@ export interface RecordDisplay {
   media: string;
   /** Every field worth showing, in order — title, summary and media included, with their role. */
   fields: DisplayField[];
+}
+
+/**
+ * What a built-in model is called on screen — `EventBlock` is an "Event".
+ *
+ * `Block` is an implementation word. It says which layer of WE a class belongs to, which matters in
+ * the codebase and to nobody reading a card, and it made a review card announce `EVENTBLOCK` over a
+ * trip to Bristol. A community's own model already carries a name it chose, so only the built-ins
+ * need this.
+ *
+ * The app was also disagreeing with itself: the extraction chips have humanised these all along
+ * (`humanise` in the transcribe store), so the same model read "Event" above the panel and
+ * "EventBlock" on the card below it.
+ *
+ * Exported because a label is not the display's alone — anything naming a model wants the same word.
+ */
+export function modelLabel(entity: string): string {
+  const bare = entity.endsWith('Block') && entity !== 'Block' ? entity.slice(0, -'Block'.length) : entity;
+  return humanise(bare);
 }
 
 /** Property names that read as a picture when the declaration only says "a file". */
@@ -106,12 +170,40 @@ export interface DisplaySource {
   schema: EntitySchema;
   /** True for a model this space defined: every property is worth showing. */
   authorable: boolean;
+  /**
+   * The real list for a property whose vocabulary the community owns — see `vocabulary` on a
+   * property declaration.
+   *
+   * A task's status is the case: its declared `options` are the three defaults an extraction model
+   * is shown, and a space that has named "Blocked" can hold a task in a state that list does not
+   * contain. Built from `options` alone, every picker in the app then refuses to offer the state the
+   * record is already in.
+   *
+   * Optional, and answering `undefined` falls back to the declaration — which is what this did
+   * before it existed, and what a caller with no view of a space still gets.
+   */
+  vocabularyFor?: (vocabulary: string) => string[] | undefined;
 }
 
 export function displayFor(source: DisplaySource): RecordDisplay {
   const { schema } = source;
   const names = fieldNames(schema, source.authorable);
   const properties = schema.properties;
+
+  /**
+   * What this property is allowed to hold: the community's list where it owns one, else the
+   * declaration's.
+   *
+   * Empty is treated as absent, not as "nothing is allowed" — a space that has defined no states of
+   * its own resolves to the defaults, and a resolver that has not loaded yet must not narrow a
+   * picker to nothing on the way past.
+   */
+  const optionsFor = (name: string): string[] => {
+    const property = properties[name];
+    const owned = property.vocabulary ? source.vocabularyFor?.(property.vocabulary) : undefined;
+    if (owned?.length) return owned.map(String);
+    return (property.options ?? []).map(String);
+  };
 
   const declared = schema.display ?? {};
   const pick = (hint: string | undefined, test: (name: string) => boolean): string => {
@@ -134,7 +226,47 @@ export function displayFor(source: DisplaySource): RecordDisplay {
     label: humanise(name),
     kind: kindFor(name, properties[name]),
     role: name === title ? 'title' : name === summary ? 'summary' : name === media ? 'media' : 'detail',
+    // Stringified: a declaration may close a numeric set, and every consumer of this is a control
+    // or a label, both of which deal in strings.
+    options: optionsFor(name),
+    target: '',
+    many: false,
   }));
+
+  /*
+    Relations, which this used to leave out entirely.
+
+    `fields` was built from `properties` alone, so an edge to another record — a `Space`'s location,
+    an `EventBlock`'s — was invisible to every surface deriving its display from the declaration. It
+    did not render wrongly; it rendered *nothing*, and no diagnostic said a declared part of the
+    model was missing from the thing whose whole job is to describe it.
+
+    Appended after the properties rather than interleaved: `display.fields` and `authoring.fields`
+    order the scalars, and a relation named in neither has no declared position, so the stable answer
+    is "after what was ordered". A relation the author *does* place is picked up in order by the
+    filter below, and only the unplaced ones fall to the end.
+  */
+  const relations = schema.relations ?? {};
+  const declaredOrder = schema.display?.fields ?? schema.authoring?.fields ?? [];
+  const relationNames = Object.keys(relations).sort((a, b) => {
+    const ai = declaredOrder.indexOf(a);
+    const bi = declaredOrder.indexOf(b);
+    if (ai === -1 && bi === -1) return 0;
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+  for (const name of relationNames) {
+    fields.push({
+      name,
+      label: humanise(name),
+      kind: 'relation',
+      role: 'detail',
+      options: [],
+      target: relations[name].target ?? '',
+      many: relations[name].cardinality === 'many',
+    });
+  }
 
   return {
     entity: source.entity,

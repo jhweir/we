@@ -590,17 +590,22 @@ const agentModuleSettingsSection: SchemaNode = {
                   props: {
                     condition: { $: 'setting.set' },
                     then: {
-                      type: 'we-button',
-                      props: {
-                        variant: 'ghost',
-                        size: 'xs',
-                        title: 'Stop deciding this',
-                        onClick: {
-                          $action: 'spaceStore.setAgentModuleSetting',
-                          args: [{ $: 'setting.group' }, { $: 'setting.key' }],
+                      type: 'we-tooltip',
+                      props: { content: 'Stop deciding this' },
+                      children: [
+                        {
+                          type: 'we-button',
+                          props: {
+                            variant: 'ghost',
+                            size: 'xs',
+                            onClick: {
+                              $action: 'spaceStore.setAgentModuleSetting',
+                              args: [{ $: 'setting.group' }, { $: 'setting.key' }],
+                            },
+                          },
+                          children: ['Use default'],
                         },
-                      },
-                      children: ['Use default'],
+                      ],
                     },
                   },
                 },
@@ -729,14 +734,12 @@ const modulesSection: SchemaNode = {
         },
       ],
     },
-
     moduleGroup(
       'Embedded apps',
       'Whole applications, running alongside your spaces rather than inside one. Turning one off takes it out of the app switcher.',
       'app',
       moduleSwitch,
     ),
-
     moduleGroup(
       'Space modules',
       'Panels and buttons that appear inside a space. A community still decides which of these it runs in theirs, in that space\u2019s settings.',
@@ -756,7 +759,6 @@ const modulesSection: SchemaNode = {
       'capability',
       { type: 'we-tag', props: { variant: 'neutral' }, children: ['Always on'] },
     ),
-
     agentModuleSettingsSection,
   ],
 };

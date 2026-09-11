@@ -50,6 +50,38 @@ describe('a panel header', () => {
     // disappears exactly when there is most content to be lost in.
     expect(panelHeader({ title: 'Inspector' }).props?.flex).toBe('0 0 auto');
   });
+
+  it('holds a control’s height where an aside is declared, and only there', () => {
+    /*
+      Almost every aside is conditional — a record button on the live call, a switch while a call
+      can decide — so without a floor the header is as tall as its own text in between. Continuing a
+      call empties the slot for the second a microphone takes to come up: the title rose by half a
+      line, the whole panel followed it, and it dropped back when the button returned.
+
+      Only where an aside exists, so a panel that never has one keeps a header as tall as its name.
+    */
+    expect(panelHeader({ title: 'Calls', aside: { type: 'we-button' } }).props?.minHeight).toBe(
+      'var(--we-component-height-sm)',
+    );
+    expect(panelHeader({ title: 'Inspector' }).props?.minHeight).toBeUndefined();
+  });
+
+  it('keeps an explanation against the name, not against the aside', () => {
+    /*
+      The glyph is about the word. Left as a third child after a `flex: '1'` title it lands at the
+      far edge, beside the switch or the record button, and reads as a control of theirs.
+    */
+    const aside = { type: 'we-switch' };
+    const header = panelHeader({ title: 'Extraction', help: 'A model reads the transcript.', aside });
+    const name = header.children?.[0] as { type: string; props: Record<string, unknown>; children: unknown[] };
+
+    expect(name.type).toBe('Row');
+    expect(name.props.flex).toBe('1');
+    expect((name.children[0] as { props: Record<string, unknown> }).props).toMatchObject(PANEL_TITLE_PROPS);
+    expect((name.children[0] as { props: Record<string, unknown> }).props.flex).toBeUndefined();
+    expect((name.children[1] as { type: string }).type).toBe('we-tooltip');
+    expect(header.children?.[1]).toBe(aside);
+  });
 });
 
 describe('a section label', () => {
@@ -71,6 +103,17 @@ describe('a panel shell', () => {
     const shell = panelShell({ title: 'Extraction', children: [{ type: '$if' }] });
 
     expect(shell.children?.[0]).toEqual(panelHeader({ title: 'Extraction' }));
+  });
+
+  it('hands the header everything it takes', () => {
+    // The options type extends the header's, so a new header option typechecks on the shell and
+    // is silently dropped unless it is forwarded — which is how `help` first shipped as nothing.
+    const aside = { type: 'we-switch' };
+    const shell = panelShell({ title: 'Extraction', help: 'A model reads the transcript.', aside, children: [] });
+
+    expect(shell.children?.[0]).toEqual(
+      panelHeader({ title: 'Extraction', help: 'A model reads the transcript.', aside }),
+    );
   });
 
   it('clips, and leaves the scrolling to its content', () => {

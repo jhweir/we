@@ -6,6 +6,7 @@ import {
   resolveCallExtractionTargets,
   resolveSpaceExtractionTargets,
 } from '@shared/callExtraction';
+import { datasetAddressedBy } from '@shared/datasetIdentity';
 import { buildGuestLink } from '@shared/guestLink';
 import { containmentPredicate, gatherTranscriptTurns, type TurnRecord } from '@shared/interpretation/transcriptTurns';
 import {
@@ -92,6 +93,7 @@ import {
 import { useAppStore } from './AppStore';
 import { type AppDataset, canonicalSpaceId, useDatasetStore } from './DatasetStore';
 import { useProfileStore } from './ProfileStore';
+import { useRecordStore } from './RecordStore';
 import { useRouteStore } from './RouteStore';
 import { useSessionStore } from './SessionStore';
 import { useShapeStore } from './ShapeStore';
@@ -512,7 +514,7 @@ export interface SpaceStore {
     }[]
   >;
   /** Launchers for the modules enabled here — what the module rail renders. */
-  moduleLaunchers: Accessor<{ id: string; icon: string; label: string; active: boolean }[]>;
+  moduleLaunchers: Accessor<{ id: string; icon: string; label: string; active: boolean; busy: boolean }[]>;
   /**
    * This space's sections, resolved: which view renders at which segment, in the space's own order.
    *
@@ -840,6 +842,7 @@ export function SpaceStoreProvider(props: ParentProps) {
   const session = useSessionStore();
   const datasetStore = useDatasetStore();
   const shapeStore = useShapeStore();
+  const recordStore = useRecordStore();
   const profileStore = useProfileStore();
   const routeStore = useRouteStore();
   const templateStore = useTemplateStore();
@@ -1237,6 +1240,16 @@ export function SpaceStoreProvider(props: ParentProps) {
       // Extraction's hook — see the declaration on `ModuleHostServices`, and `ensureBoardFor` for
       // why it only fires once the collection holds a task.
       ensureBoardFor: (collectionId: string, dataset?: string) => boards.ensureBoardFor(collectionId, dataset),
+      /*
+        The call the address names — published here because this is a store that reads routes and a
+        module is not.
+
+        The param rather than anything derived: it is what a reload restores and what a pasted link
+        carries, which is the whole reason a module cannot hold this itself. Empty reads as null, so
+        "no call named" and "named nothing" are the same answer rather than an empty string a caller
+        might act on.
+      */
+      callOnScreen: () => routeStore.params().call || null,
       datasets: {
         get: (uri: string) => {
           const id = sharedIdOf(uri);
@@ -1880,7 +1893,7 @@ export function SpaceStoreProvider(props: ParentProps) {
 
   async function navigateToSpace(spaceId: string, view?: string): Promise<void> {
     // spaceId may be a local id or a shared id — no shape-guessing needed with refs.
-    const ds = datasetStore.datasets().find((d) => d.id === spaceId || d.sharedId === spaceId);
+    const ds = datasetStore.datasets().find((d) => datasetAddressedBy(d, spaceId));
 
     /*
       Switching only when the space is actually changing — the same guard the route effect below
@@ -2221,7 +2234,21 @@ export function SpaceStoreProvider(props: ParentProps) {
         return profile ? displayName(profile, did) : did;
       };
 
-      const lines = turns.map((turn) => `${nameFor(turn.speaker)}, ${turn.timestamp}: ${turn.text}`);
+      /*
+        A text file has no badges, so what is not speech has to say so in words.
+
+        Every line here reads as a quotation — a name, a time, and what they said — and two kinds of
+        line in a transcript are not: one somebody typed into it, and one a human has since mended.
+        Unmarked they would both pass as verbatim, in the artefact most likely to be quoted back or
+        filed somewhere, and long after anybody remembers which was which.
+
+        Marked only where there is something to say. `spoken`, and a turn from before the field
+        existed, are the silent case — an annotation on every line would be noise on the ordinary
+        one, and the reader's assumption is already right there.
+      */
+      const mark = (turn: { source?: string }): string =>
+        turn.source === 'typed' ? ' (typed)' : turn.source === 'corrected' ? ' (corrected)' : '';
+      const lines = turns.map((turn) => `${nameFor(turn.speaker)}, ${turn.timestamp}${mark(turn)}: ${turn.text}`);
 
       if (!lines.length) {
         toastService.warning('This call has no transcript to export.');
@@ -2468,6 +2495,29 @@ export function SpaceStoreProvider(props: ParentProps) {
 
   /** The states a person should be offered — the same list, without the withdrawn ones. */
   const offeredTaskStates = createMemo<TaskStateView[]>(() => taskStates().filter((s) => !s.retired));
+
+  /*
+    Hand the record layer the vocabularies this community owns.
+
+    A property whose declaration names a `vocabulary` has an `options` list that is only a floor —
+    `TaskBlock.status` declares the three defaults because an extraction model has to be shown words
+    it can use, and nothing enforces them, so a space that has named "Blocked" holds tasks in a state
+    that list does not contain. Every picker built from the declaration then refused to offer the
+    state the record was already in, which is how an extracted task could arrive as "blocked" and be
+    uneditable without silently becoming "todo".
+
+    Slugs, because a slug is what `TaskBlock.status` stores and what the declaration's own options
+    are. Withdrawn states are left out for the reason `offeredTaskStates` exists: a picker should not
+    offer a state the community has stopped using, even though work already sitting in one keeps it.
+
+    Injected rather than read, for the reason `provideAutoInterpretGate` is: this lives on records in
+    the space, and RecordStore mounts above this one.
+  */
+  onCleanup(
+    recordStore.provideVocabularies((vocabulary) =>
+      vocabulary === 'taskState' ? offeredTaskStates().map((state) => state.slug) : undefined,
+    ),
+  );
 
   /**
    * Tell extraction which states this space actually uses.
@@ -3592,6 +3642,9 @@ export function SpaceStoreProvider(props: ParentProps) {
             // stopped performing. Most launchers declare none and this is `label` in both states.
             label: (active && launcher.activeLabel) || launcher.label,
             active,
+            // Background work the module reports — a running pass. Read separately from `active`,
+            // since a panel can be shut while its module is busy.
+            busy: read(definition.id, launcher.busyWhen, false),
           };
         })
     );
@@ -4057,7 +4110,7 @@ export function SpaceStoreProvider(props: ParentProps) {
     const segs = routeStore.segments();
     if (segs[0] !== 'space' || !segs[1]) return false;
     if (!datasetStore.datasetsLoaded()) return false;
-    return !datasetStore.datasets().some((d) => d.id === segs[1] || d.sharedId === segs[1]);
+    return !datasetStore.datasets().some((d) => datasetAddressedBy(d, segs[1]));
   });
 
   // Resolve the route segment to a local dataset whenever the route changes.
@@ -4069,7 +4122,7 @@ export function SpaceStoreProvider(props: ParentProps) {
     if (segs[0] !== 'space' || !segs[1]) return;
     const seg = segs[1];
 
-    const ds = datasetStore.datasets().find((d) => d.id === seg || d.sharedId === seg);
+    const ds = datasetStore.datasets().find((d) => datasetAddressedBy(d, seg));
     if (!ds) {
       // Routing policy, not backend dialect: a segment that isn't a local id is treated as a
       // shared link the agent hasn't joined — clear the current dataset so the join gate shows.
