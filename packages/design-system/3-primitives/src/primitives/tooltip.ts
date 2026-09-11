@@ -11,7 +11,7 @@ import type { Placement } from '@we/design-types';
 import { css, html, type PropertyValues } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
 
-import { warnAboutBoxlessLayoutProps } from '../shared/boxless';
+import { DEV_BUILD, warnAboutBoxlessLayoutProps } from '../shared/boxless';
 import { LayoutElement } from '../shared/design-system-element';
 import sharedStyles from '../shared/styles';
 
@@ -221,7 +221,7 @@ export default class Tooltip extends LayoutElement {
    * behaviour, it was that nothing said anything.
    */
   private _warnAboutTitle() {
-    if (!import.meta.env?.DEV) return;
+    if (!DEV_BUILD) return;
     if (!this.hasAttribute('title')) return;
     console.warn(
       `we-tooltip: a \`title\` attribute here gives the browser's own tooltip as well as this one. ` +

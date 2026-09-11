@@ -102,7 +102,9 @@ describe('submitOnEnter', () => {
   it('emits what was typed, and suppresses the newline that would follow', async () => {
     const el = await box({ submitOnEnter: true, value: 'a note' });
     let sent = '';
-    el.addEventListener('submit', (e) => (sent = (e as CustomEvent).detail));
+    // Through `unknown`, unlike the plain cast every other primitive's tests use: `submit` is a name
+    // the DOM already owns, so the listener is typed `SubmitEvent` and neither type is the other's.
+    el.addEventListener('submit', (e) => (sent = (e as unknown as CustomEvent).detail));
 
     const event = press(el, {});
 

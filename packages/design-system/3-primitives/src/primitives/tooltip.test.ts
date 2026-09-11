@@ -18,7 +18,10 @@ import Tooltip from './tooltip';
 const css = () => (Tooltip as unknown as { styles: { cssText: string }[] }).styles.map((s) => s.cssText).join('\n');
 
 const mount = async (props: Record<string, unknown> = {}, inner = '<we-badge>x</we-badge>') => {
-  const el = document.createElement('we-tooltip') as HTMLElement & { updateComplete: Promise<unknown> };
+  const el = document.createElement('we-tooltip') as HTMLElement & {
+    updateComplete: Promise<unknown>;
+    open: boolean;
+  };
   Object.assign(el, props);
   el.innerHTML = inner;
   document.body.appendChild(el);
@@ -123,7 +126,7 @@ describe('which props need a box', () => {
 
 describe('hover', () => {
   it('listens on the pair that bubbles, since the host is not on an enter/leave path it can rely on', async () => {
-    const el = (await mount({ content: 'hello' })) as HTMLElement & { open: boolean };
+    const el = await mount({ content: 'hello' });
     const badge = el.querySelector('we-badge')!;
 
     // Over the child, from outside — the host sees it because mouseover bubbles.
@@ -140,10 +143,7 @@ describe('hover', () => {
       the same trigger fires `mouseout` then `mouseover`, which would flicker the bubble closed and
       open again on every internal boundary.
     */
-    const el = (await mount(
-      { content: 'hello' },
-      '<we-badge><span id="a">a</span><span id="b">b</span></we-badge>',
-    )) as HTMLElement & { open: boolean };
+    const el = await mount({ content: 'hello' }, '<we-badge><span id="a">a</span><span id="b">b</span></we-badge>');
     const a = el.querySelector('#a')!;
     const b = el.querySelector('#b')!;
 

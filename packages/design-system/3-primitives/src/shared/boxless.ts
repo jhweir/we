@@ -81,9 +81,19 @@ export function boxlessLayoutProps(el: Record<string, unknown>): string[] {
   });
 }
 
+/**
+ * True in a development build — what every dev-only diagnostic in this package gates on.
+ *
+ * Cast rather than `vite/client` types, the same decision `@we/module-call` records in
+ * `devPeers.ts`: a design-system package must not take a build tool as a dependency, since it is
+ * loaded into hosts that use none. The cast is erased at compile time and the emitted
+ * `import.meta.env?.DEV` is what a bundler sees.
+ */
+export const DEV_BUILD = (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true;
+
 /** The same, as a development-only warning naming what to do instead. */
 export function warnAboutBoxlessLayoutProps(el: HTMLElement, tag: string): void {
-  if (!import.meta.env?.DEV) return;
+  if (!DEV_BUILD) return;
   const offenders = boxlessLayoutProps(el as unknown as Record<string, unknown>);
   if (!offenders.length) return;
   console.warn(
